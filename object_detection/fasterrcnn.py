@@ -3,11 +3,11 @@ import tensorflow as tf
 import numpy as np
 from abc import ABCMeta, abstractmethod
 from wtfop.wtfop_ops import boxes_encode1,boxes_encode,probability_adjust,wpad
-import od_toolkit as od
-import bboxes
+import object_detection.od_toolkit as od
+import object_detection.bboxes as bboxes
 import wml_tfutils as wmlt
-import wlayers as odl
-import losses
+import object_detection.wlayers as odl
+import object_detection.losses as losses
 import sys
 sys.path.append("..")
 import wnnlayer as wnnl
@@ -57,6 +57,8 @@ class FasterRCN(object):
         self.train_rcn = False
         self.anchor_remove_indices = None
         self.finally_indices = None
+        self.rpn_scope = "RPN"
+        self.rcn_scope = "RCN"
         '''
         anchor_size用于表示每个地方的anchor_boxes数量，为len(ratios)*len(scales)
         '''
@@ -75,8 +77,8 @@ class FasterRCN(object):
         return self.pureBuildRPNNet(self.base_net)
 
     def pureBuildRPNNet(self,base_net):
-        with tf.variable_scope("RPN"):
-            rpn_regs,rpn_logits = self._buildRPNNet(base_net)
+        rpn_regs,rpn_logits = self._buildRPNNet(base_net)
+        with tf.variable_scope(self.rpn_scope):
             regs_shape = rpn_regs.get_shape().as_list()
             logits_shape = rpn_logits.get_shape().as_list()
             anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
@@ -87,6 +89,7 @@ class FasterRCN(object):
 
     @abstractmethod
     def getTargetLayerShape(self):
+        #return the shape of rpn input feature map (only h,w)
         pass
 
     @abstractmethod
@@ -116,14 +119,13 @@ class FasterRCN(object):
         pass
 
     def buildRCNNet(self,roipooling=odl.DFROI(),proposal_boxes=None,base_net=None,reuse=False):
-        with tf.variable_scope("RCN"):
-            if reuse:
-                tf.get_variable_scope().reuse_variables()
-            if proposal_boxes is None:
-                proposal_boxes = self.proposal_boxes
-            if base_net is None:
-                base_net = self.base_net
-            self.rcn_regs,self.rcn_logits = self._buildRCNNet(base_net,proposal_boxes,roipooling=roipooling)
+        if reuse:
+            tf.get_variable_scope().reuse_variables()
+        if proposal_boxes is None:
+            proposal_boxes = self.proposal_boxes
+        if base_net is None:
+            base_net = self.base_net
+        self.rcn_regs,self.rcn_logits = self._buildRCNNet(base_net,proposal_boxes,roipooling=roipooling)
         return self.rcn_regs,self.rcn_logits
 
     #在训练RPN时生成RCN网络参数

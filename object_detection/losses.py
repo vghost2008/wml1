@@ -1,9 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
-import sys
-sys.path.append("..")
 import wml_tfutils as wml
-import utils
+import object_detection.utils as utils
 
 slim = tf.contrib.slim
 

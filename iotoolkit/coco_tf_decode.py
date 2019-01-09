@@ -178,7 +178,10 @@ def get_database(dataset_dir,num_samples=1,file_pattern='*_train.record',
             num_classes=num_classes,
             labels_to_names=None)
 
-def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,file_pattern="*_train.record"):
+def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,file_pattern="*_train.record",id_to_label={}):
+    '''
+    id_to_label:first id is the category_id in coco, second label is the label id for model
+    '''
     dataset = get_database(dataset_dir=data_dir,num_classes=num_classes,num_samples=num_samples,file_pattern=file_pattern)
     with tf.name_scope('data_provider'):
         provider = slim.dataset_data_provider.DatasetDataProvider(
@@ -200,16 +203,23 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
             wmlt.variable_summaries_v2(image,"image")
 
         dict = OrderedDict(ID_TO_TEXT)
-        id_to_id = {} #first id is the category_id in coco, second id is the index
         id_to_color = {} #id is the category_id, color is string
-        id = 1
+        label = 1
+        if len(id_to_label)==0:
+            for key in dict.keys():
+                id_to_label[key] = label
+                id_to_color[key] = STANDARD_COLORS[label-1]
+                label += 1
+
         for key in dict.keys():
-            id_to_id[key] = id
-            id_to_color[key] = STANDARD_COLORS[id-1]
-            id += 1
+            if key in id_to_label:
+                label = id_to_label[key]
+            else:
+                label = len(STANDARD_COLORS)
+            id_to_color[key] = STANDARD_COLORS[label-1]
         table = tf.contrib.lookup.HashTable(
-            tf.contrib.lookup.KeyValueTensorInitializer(np.array(list(id_to_id.keys()), dtype=np.int64),
-                                                        np.array(list(id_to_id.values()), dtype=np.int64)), -1)
+            tf.contrib.lookup.KeyValueTensorInitializer(np.array(list(id_to_label.keys()), dtype=np.int64),
+                                                        np.array(list(id_to_label.values()), dtype=np.int64)), -1)
         color_table = tf.contrib.lookup.HashTable(
             tf.contrib.lookup.KeyValueTensorInitializer(np.array(list(id_to_color.keys()), dtype=np.int64),
                                                         np.array(list(id_to_color.values()), dtype=np.str)), "Red")
