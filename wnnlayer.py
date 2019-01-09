@@ -1,0 +1,209 @@
+import tensorflow as tf
+import wtfop.wtfop_ops as wtfop
+from tensorflow.python.training import moving_averages
+from tensorflow.python.ops import variable_scope
+from tensorflow.contrib.framework.python.ops import add_arg_scope
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import nn
+from tensorflow.contrib.layers.python.layers import initializers
+import math
+
+slim = tf.contrib.slim
+
+class ConvGRUCell(tf.nn.rnn_cell.RNNCell):
+    '''
+    shape: [H,W] net spatial shape
+    filters: filter size, which is the output channel num, e.g 128
+    kernel: kernel size, e.g [3,3]
+    '''
+    def __init__(self, shape, filters, kernel, activation=tf.tanh,
+                 reuse=None):
+        super(ConvGRUCell, self).__init__(_reuse=reuse)
+        self._filters = filters
+        self._kernel = kernel
+        self._activation = activation
+        self._size = tf.TensorShape(shape + [self._filters])
+        self._feature_axis = self._size.ndims
+        self._data_format = None
+
+    @property
+    def state_size(self):
+        return self._size
+
+    @property
+    def output_size(self):
+        return self._size
+
+    def call(self, x, h):
+        #x's channel size
+        channels = x.shape[self._feature_axis].value
+
+        with tf.variable_scope('gates'):
+            inputs = tf.concat([x, h], axis=self._feature_axis)
+            n = channels + self._filters
+            #at lest output 2 channels
+            m = 2 * self._filters if self._filters > 1 else 2
+            #W's shape is spatial_filter_shape + [in_channels, out_channels]
+            W = tf.get_variable('kernel', self._kernel + [n, m])
+            y = tf.nn.convolution(inputs, W, 'SAME', data_format=self._data_format)
+            y += tf.get_variable('bias', [m], initializer=tf.ones_initializer())
+            r, u = tf.split(y, 2, axis=self._feature_axis)
+            r, u = tf.sigmoid(r), tf.sigmoid(u)
+
+
+        with tf.variable_scope('candidate'):
+            inputs = tf.concat([x, r * h], axis=self._feature_axis)
+            n = channels + self._filters
+            m = self._filters
+            W = tf.get_variable('kernel', self._kernel + [n, m])
+            y = tf.nn.convolution(inputs, W, 'SAME', data_format=self._data_format)
+            y += tf.get_variable('bias', [m], initializer=tf.zeros_initializer())
+            h = u * h + (1 - u) * self._activation(y)
+
+        return h, h
+
+def separable_conv1d(inputs,num_outputs,kernel_size,padding='SAME',depth_multiplier=1,*args,**kwargs):
+    '''
+
+    :param inputs: [batch_size,W,C]
+    :param num_outputs: num
+    :param kernel_size: num
+    :param padding: 'SAME'/'VALID'
+    :return: [batch_size,W1,num_output]
+    '''
+
+    if padding == "SAME":
+        inputs = tf.pad(inputs,paddings=[[0,0],[kernel_size//2,kernel_size//2],[0,0]])
+    inputs = tf.expand_dims(inputs,axis=2)
+    res = slim.separable_conv2d(inputs,num_outputs,kernel_size=[kernel_size,1],padding="VALID",
+                                depth_multiplier=depth_multiplier,*args,**kwargs)
+    return tf.squeeze(res,axis=2)
+
+def probability_adjust(probs,classes=[]):
+    if probs.get_shape().ndims == 2:
+        return wtfop.probability_adjust(probs=probs,classes=classes)
+    else:
+        old_shape = tf.shape(probs)
+        probs = tf.reshape(probs,[-1,old_shape[-1]])
+        out = wtfop.probability_adjust(probs=probs,classes=classes)
+        out = tf.reshape(out,old_shape)
+        return out
+
+def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
+    last_dim_size = input.get_shape().as_list()[-1]
+    with tf.variable_scope("BatchNorm"):
+        if scale:
+            gamma = tf.Variable(tf.ones([last_dim_size],tf.float32), name="gamma")
+        else:
+            gamma = None
+        offset = tf.Variable(tf.zeros([last_dim_size],tf.float32), name="beta")
+        moving_collections = ["bn_moving_vars",tf.GraphKeys.GLOBAL_VARIABLES, tf.GraphKeys.MOVING_AVERAGE_VARIABLES]
+
+        m_mean = tf.Variable(tf.zeros([last_dim_size],tf.float32),trainable=False,name="moving_mean",collections=moving_collections)
+        m_variance = tf.Variable(tf.ones([last_dim_size], tf.float32), trainable=False, name="moving_variance",collections=moving_collections)
+        if  is_training:
+            c_mean, c_variance = tf.nn.moments(input, list(range(len(input.get_shape()) - 1)))
+            update_mean =moving_averages.assign_moving_average(m_mean,c_mean,decay)
+            update_variance = moving_averages.assign_moving_average(m_variance,c_variance,decay)
+            tf.add_to_collection(tf.GraphKeys.UPDATE_OPS,update_mean)
+            tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_variance)
+        else:
+            c_mean = m_mean
+            c_variance = m_variance
+        output = tf.nn.batch_normalization(input, c_mean, c_variance, offset, gamma, 1E-6, "BN")
+    return output
+
+def group_norm(x, G=32, eps=1e-5):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
+    with tf.variable_scope("group_norm"):
+        N, H, W, C = x.shape
+        gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
+        x = tf.reshape(x, [N, H, W, G, C // G,])
+        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+        x = (x - mean) / tf.sqrt(var + eps)
+        x = tf.reshape(x, [N,H,W,C])
+        return x*gamma + beta
+
+def layer_norm(x,scope="layer_norm"):
+    return tf.contrib.layers.layer_norm(
+        inputs=x, begin_norm_axis=-1, begin_params_axis=-1, scope=scope)
+
+
+def instance_norm(x, eps=1e-5):
+    with tf.variable_scope("layer_norm"):
+        N, H, W, C = x.shape
+        gamma = tf.get_variable(name="gamma",shape=(1,1,1,C),initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=(1,1,1,C),initializer=tf.zeros_initializer())
+        mean, var = tf.nn.moments(x, [2, 3], keep_dims=True)
+        x = (x - mean) / tf.sqrt(var + eps)
+        return x*gamma + beta
+
+def gelu(x):
+    cdf = 0.5 * (1.0 + tf.erf(x/ tf.sqrt(2.0)))
+    return x* cdf
+    #return 0.5*x*(1+tf.tanh(math.sqrt(2/math.pi)*(x+0.044715*tf.pow(x, 3))))
+
+def spectral_norm(w, iteration=1):
+    with tf.variable_scope("spectral_norm"):
+       w_shape = w.shape.as_list()
+       w = tf.reshape(w, [-1, w_shape[-1]])
+
+       u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+       u_hat = u
+       v_hat = None
+       for i in range(iteration):
+           """
+           power iteration
+           Usually iteration = 1 will be enough
+           """
+           v_ = tf.matmul(u_hat, tf.transpose(w))
+           v_hat = tf.nn.l2_normalize(v_)
+
+           u_ = tf.matmul(v_hat, w)
+           u_hat = tf.nn.l2_normalize(u_)
+
+       u_hat = tf.stop_gradient(u_hat)
+       v_hat = tf.stop_gradient(v_hat)
+
+       sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+
+       with tf.control_dependencies([u.assign(u_hat)]):
+           w_norm = w / sigma
+           w_norm = tf.reshape(w_norm, w_shape)
+
+
+       return w_norm
+
+@add_arg_scope
+def conv2d_with_sn(inputs,
+                   num_outputs,
+                   kernel_size,
+                   stride=1,
+                   padding='SAME',
+                   activation_fn=nn.relu,
+                   weights_initializer=initializers.xavier_initializer(),
+                   weights_regularizer=None,
+                   biases_initializer=init_ops.zeros_initializer(),
+                   biases_regularizer=None,
+                   reuse=None,
+                   scope=None):
+    with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
+        if isinstance(kernel_size,list):
+            shape = kernel_size+[inputs.get_shape().as_list()[-1],num_outputs]
+        else:
+            shape = [kernel_size,kernel_size,inputs.get_shape().as_list()[-1],num_outputs]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+        if biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w), strides=[1, stride, stride, 1],padding=padding) + b
+        if activation_fn is not None:
+            outputs = activation_fn(outputs)
+
+        return outputs

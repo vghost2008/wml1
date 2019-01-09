@@ -1,0 +1,128 @@
+import tensorflow as tf
+import numpy as np
+'''
+boxes1,2的shape类似于[X,4]
+'''
+def bboxes_jaccard(bboxes1, bboxes2):
+    """Computing jaccard index between bboxes1 and bboxes2.
+    Note: bboxes1 and bboxes2 can be multi-dimensional, but should broacastable.
+    """
+    bboxes1 = np.transpose(bboxes1)
+    bboxes2 = np.transpose(bboxes2)
+    # Intersection bbox and volume.
+    int_ymin = np.maximum(bboxes1[0], bboxes2[0])
+    int_xmin = np.maximum(bboxes1[1], bboxes2[1])
+    int_ymax = np.minimum(bboxes1[2], bboxes2[2])
+    int_xmax = np.minimum(bboxes1[3], bboxes2[3])
+
+    int_h = np.maximum(int_ymax - int_ymin, 0.)
+    int_w = np.maximum(int_xmax - int_xmin, 0.)
+    int_vol = int_h * int_w
+    # Union volume.
+    vol1 = (bboxes1[2] - bboxes1[0]) * (bboxes1[3] - bboxes1[1])
+    vol2 = (bboxes2[2] - bboxes2[0]) * (bboxes2[3] - bboxes2[1])
+    jaccard = int_vol / (vol1 + vol2 - int_vol)
+    return jaccard
+
+'''
+boxes1,2的shape类似于[X,4]
+'''
+def bboxes_intersection(bboxes_ref, bboxes2):
+    """Computing jaccard index between bboxes1 and bboxes2.
+    Note: bboxes1 and bboxes2 can be multi-dimensional, but should broacastable.
+    """
+    bboxes_ref = np.transpose(bboxes_ref)
+    bboxes2 = np.transpose(bboxes2)
+    # Intersection bbox and volume.
+    int_ymin = np.maximum(bboxes_ref[0], bboxes2[0])
+    int_xmin = np.maximum(bboxes_ref[1], bboxes2[1])
+    int_ymax = np.minimum(bboxes_ref[2], bboxes2[2])
+    int_xmax = np.minimum(bboxes_ref[3], bboxes2[3])
+
+    int_h = np.maximum(int_ymax - int_ymin, 0.)
+    int_w = np.maximum(int_xmax - int_xmin, 0.)
+    int_vol = int_h * int_w
+    # Union volume.
+    vol = (bboxes_ref[2] - bboxes_ref[0]) * (bboxes_ref[3] - bboxes_ref[1])
+    score = int_vol / vol
+    return score
+
+'''
+类型相同且jaccard得分小于num_threshold的仅保留得分最高的
+'''
+def bboxes_nms(classes, scores, bboxes, nms_threshold=0.45):
+    """Apply non-maximum selection to bounding boxes.
+    """
+    keep_bboxes = np.ones(scores.shape, dtype=np.bool)
+    for i in range(scores.size-1):
+        if keep_bboxes[i]:
+            # Computer overlap with bboxes which are following.
+            overlap = bboxes_jaccard(bboxes[i], bboxes[(i+1):])
+            # Overlap threshold for keeping + checking part of the same class
+            keep_overlap = np.logical_or(overlap < nms_threshold, classes[(i+1):] != classes[i])
+            keep_bboxes[(i+1):] = np.logical_and(keep_bboxes[(i+1):], keep_overlap)
+
+    idxes = np.where(keep_bboxes)
+    return classes[idxes], scores[idxes], bboxes[idxes]
+def tf_summary_image(image, bboxes, name='image', unwhitened=False):
+    """Add image with bounding boxes to summary.
+    """
+    if unwhitened:
+        image = tf_image_unwhitened(image)
+    image = tf.expand_dims(image, 0)
+    bboxes = tf.expand_dims(bboxes, 0)
+    image_with_box = tf.image.draw_bounding_boxes(image, bboxes)
+    tf.summary.image(name, image_with_box)
+def bboxes_sort(scores, bboxes, top_k=400, scope=None):
+    """Sort bounding boxes by decreasing order and keep only the top_k.
+    If inputs are dictionnaries, assume every key is a different class.
+    Assume a batch-type input.
+
+    Args:
+      scores: Batch x N Tensor/Dictionary containing float scores.
+      bboxes: Batch x N x 4 Tensor/Dictionary containing boxes coordinates.
+      top_k: Top_k boxes to keep.
+    Return:
+      scores, bboxes: Sorted Tensors/Dictionaries of shape Batch x Top_k x 1|4.
+    """
+    # Dictionaries as inputs.
+    if isinstance(scores, dict) or isinstance(bboxes, dict):
+        with tf.name_scope(scope, 'bboxes_sort_dict'):
+            d_scores = {}
+            d_bboxes = {}
+            for c in scores.keys():
+                s, b = bboxes_sort(scores[c], bboxes[c], top_k=top_k)
+                d_scores[c] = s
+                d_bboxes[c] = b
+            return d_scores, d_bboxes
+
+    # Tensors inputs.
+    with tf.name_scope(scope, 'bboxes_sort', [scores, bboxes]):
+        # Sort scores...
+        scores, idxes = tf.nn.top_k(scores, k=top_k, sorted=True)
+
+        # Trick to be able to use tf.gather: map for each element in the first dim.
+        def fn_gather(bboxes, idxes):
+            '''
+            bboxes的shape类似于[X,4], idxes的shape类似于[Y]
+            bb的shape类似于[Y,4]
+            '''
+            bb = tf.gather(bboxes, idxes)
+            return [bb]
+        '''
+        boxes的shape类似于[batch_size,X,4], idxes的shape类似于[batch_size,Y]
+        '''
+        r = tf.map_fn(lambda x: fn_gather(x[0], x[1]),
+                      [bboxes, idxes],
+                      dtype=[bboxes.dtype],
+                      parallel_iterations=10,
+                      back_prop=False,
+                      swap_memory=False,
+                      infer_shape=True)
+        bboxes = r[0]
+        '''
+        bboxes的shape类似于[batch_size,Y,4]
+        scores的shape类似于[batch_size,Y]
+        '''
+        return scores, bboxes
+

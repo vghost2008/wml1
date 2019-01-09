@@ -1,0 +1,256 @@
+#coding=utf-8
+import tensorflow as tf
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import control_flow_ops
+
+def get_variables_to_train(scopes_str):
+	if scopes_str is None:
+		return tf.trainable_variables()
+	scopes = [scope.strip() for scope in scopes_str.split(',')]
+	variables_to_train=[]
+	for scope in scopes:
+		variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope)
+		variables_to_train.extend(variables)
+	return variables_to_train
+def parameterNum(argus):
+	num = 0
+	for argu in argus:
+		dim=1
+		shape = argu.get_shape().as_list()
+		for v in shape:
+			dim *= v
+		num += dim
+	return num
+def show_values(values,name=None):
+	if name is not None:
+		print(name)
+	for v in values:
+		print(v)
+def get_variables_exclude(exclude_str=None):
+	res_variables = tf.trainable_variables()
+	if exclude_str is None:
+		return res_variables
+	scopes = [scope.strip() for scope in exclude_str.split(',')]
+	variables_to_exclude=[]
+	for scope in scopes:
+		variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope)
+		variables_to_exclude.extend(variables)
+	for v in variables_to_exclude:
+		res_variables.remove(v)
+	return res_variables
+def apply_with_random_selector(x, func, num_cases):
+    """Computes func(x, sel), with sel sampled from [0...num_cases-1].
+
+    Args:
+        x: input Tensor.
+        func: Python function to apply.
+        num_cases: Python int32, number of cases to sample sel from.
+
+    Returns:
+        The result of func(x, sel), where func receives the value of the
+        selector as a python integer, but sel is sampled dynamically.
+    """
+    sel = tf.random_uniform([], maxval=num_cases, dtype=tf.int32)
+    # Pass the real x only to one of the func calls.
+    return control_flow_ops.merge([
+            func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
+            for case in range(num_cases)])[0]
+def distort_color(image, color_ordering=0, fast_mode=False, scope=None):
+    """Distort the color of a Tensor image.
+
+    Each color distortion is non-commutative and thus ordering of the color ops
+    matters. Ideally we would randomly permute the ordering of the color ops.
+    Rather then adding that level of complication, we select a distinct ordering
+    of color ops for each preprocessing thread.
+
+    Args:
+        image: 3-D Tensor containing single image in [0, 1].
+        color_ordering: Python int, a type of distortion (valid values: 0-3).
+        fast_mode: Avoids slower ops (random_hue and random_contrast)
+        scope: Optional scope for name_scope.
+    Returns:
+        3-D Tensor color-distorted image on range [0, 1]
+    Raises:
+        ValueError: if color_ordering not in [0, 3]
+    """
+    with tf.name_scope(scope, 'distort_color', [image]):
+        if fast_mode:
+            if color_ordering == 0:
+                image = tf.image.random_brightness(image, max_delta=32. / 255.)
+                image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+            else:
+                image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+                image = tf.image.random_brightness(image, max_delta=32. / 255.)
+        else:
+            b_max_delta = 32./255
+            c_lower = 0.5
+            c_upper = 1.5
+            s_lower = 0.5
+            s_upper = 1.5
+            h_max_delta = 0.2
+            if color_ordering == 0:
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+            elif color_ordering == 1:
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+                image = tf.image.random_brightness(image, b_max_delta)
+            elif color_ordering == 2:
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
+            elif color_ordering == 3:
+                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+            elif color_ordering == 4:
+                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+                image = tf.image.random_hue(image, max_delta=h_max_delta)
+            elif color_ordering == 5:
+                image = tf.image.random_hue(image, max_delta=h_max_delta)
+                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+            elif color_ordering == 6:
+                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
+                image = tf.image.random_hue(image, max_delta=h_max_delta)
+                image = tf.image.random_brightness(image, b_max_delta)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+            elif color_ordering == 7:
+				return image
+            else:
+                raise ValueError('color_ordering must be in [0, 3]')
+        # The random_* ops do not necessarily clamp.
+        return tf.clip_by_value(image, 0.0, 1.0)
+def _ImageDimensions(image):
+    """Returns the dimensions of an image tensor.
+    Args:
+      image: A 3-D Tensor of shape `[height, width, channels]`.
+    Returns:
+      A list of `[height, width, channels]` corresponding to the dimensions of the
+        input image.  Dimensions that are statically known are python integers,
+        otherwise they are integer scalar tensors.
+    """
+    if image.get_shape().is_fully_defined():
+        return image.get_shape().as_list()
+    else:
+        static_shape = image.get_shape().with_rank(3).as_list()
+        dynamic_shape = array_ops.unstack(array_ops.shape(image), 3)
+        return [s if s is not None else d
+                for s, d in zip(static_shape, dynamic_shape)]
+def resize_image(image, size,
+                 method=tf.image.ResizeMethod.BILINEAR,
+                 align_corners=False):
+    """Resize an image and bounding boxes.
+    """
+    # Resize image.
+    with tf.name_scope('resize_image'):
+        height, width, channels = _ImageDimensions(image)
+        image = tf.expand_dims(image, 0)
+        image = tf.image.resize_images(image, size,
+                                       method, align_corners)
+        image = tf.reshape(image, tf.stack([size[0], size[1], channels]))
+        return image
+# =========================================================================== #
+# General tools.
+# =========================================================================== #
+def reshape_list(l, shape=None):
+    """Reshape list of (list): 1D to 2D or the other way around.
+
+    Args:
+      l: List or List of list.
+      shape: 1D or 2D shape.
+    Return
+      Reshaped list.
+    """
+    r = []
+    if shape is None:
+        # Flatten everything.
+        for a in l:
+            if isinstance(a, (list, tuple)):
+                r = r + list(a)
+            else:
+                r.append(a)
+    else:
+        # Reshape to list of list.
+        i = 0
+        for s in shape:
+            if s == 1:
+                r.append(l[i])
+            else:
+                r.append(l[i:i+s])
+            i += s
+    return r
+@add_arg_scope
+def l2_normalization(
+        inputs,
+        scaling=False,
+        scale_initializer=init_ops.ones_initializer(),
+        reuse=None,
+        variables_collections=None,
+        outputs_collections=None,
+        data_format='NHWC',
+        trainable=True,
+        scope=None):
+    """Implement L2 normalization on every feature (i.e. spatial normalization).
+
+    Should be extended in some near future to other dimensions, providing a more
+    flexible normalization framework.
+
+    Args:
+      inputs: a 4-D tensor with dimensions [batch_size, height, width, channels].
+      scaling: whether or not to add a post scaling operation along the dimensions
+        which have been normalized.
+      scale_initializer: An initializer for the weights.
+      reuse: whether or not the layer and its variables should be reused. To be
+        able to reuse the layer scope must be given.
+      variables_collections: optional list of collections for all the variables or
+        a dictionary containing a different list of collection per variable.
+      outputs_collections: collection to add the outputs.
+      data_format:  NHWC or NCHW data format.
+      trainable: If `True` also add variables to the graph collection
+        `GraphKeys.TRAINABLE_VARIABLES` (see tf.Variable).
+      scope: Optional scope for `variable_scope`.
+    Returns:
+      A `Tensor` representing the output of the operation.
+    """
+
+    with variable_scope.variable_scope(
+            scope, 'L2Normalization', [inputs], reuse=reuse) as sc:
+        inputs_shape = inputs.get_shape()
+        inputs_rank = inputs_shape.ndims
+        dtype = inputs.dtype.base_dtype
+        if data_format == 'NHWC':
+            # norm_dim = tf.range(1, inputs_rank-1)
+            norm_dim = tf.range(inputs_rank-1, inputs_rank)
+            params_shape = inputs_shape[-1:]
+        elif data_format == 'NCHW':
+            # norm_dim = tf.range(2, inputs_rank)
+            norm_dim = tf.range(1, 2)
+            params_shape = (inputs_shape[1])
+
+        # Normalize along spatial dimensions.
+        #output = x / sqrt(max(sum(x**2), epsilon))
+        outputs = nn.l2_normalize(inputs, norm_dim, epsilon=1e-12)
+        # Additional scaling.
+        if scaling:
+            scale_collections = utils.get_variable_collections(
+                variables_collections, 'scale')
+            scale = variables.model_variable('gamma',
+                                             shape=params_shape,
+                                             dtype=dtype,
+                                             initializer=scale_initializer,
+                                             collections=scale_collections,
+                                             trainable=trainable)
+            if data_format == 'NHWC':
+                outputs = tf.multiply(outputs, scale)
+            elif data_format == 'NCHW':
+                scale = tf.expand_dims(scale, axis=-1)
+                scale = tf.expand_dims(scale, axis=-1)
+                outputs = tf.multiply(outputs, scale)
+                # outputs = tf.transpose(outputs, perm=(0, 2, 3, 1))
+
+        return utils.collect_named_outputs(outputs_collections,
+                                           sc.original_name_scope, outputs)
+
