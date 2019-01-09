@@ -35,6 +35,7 @@ import json
 import os
 import numpy as np
 import PIL.Image
+import wml_utils as wmlu
 
 from pycocotools import mask
 import tensorflow as tf
@@ -64,8 +65,12 @@ FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-def category_ids_filter(category_ids):
-    return True
+TRAIN_SIZE_LIMIT = None
+VAL_SIZE_LIMIT = None
+
+def category_id_filter(category_id):
+    good_ids = [1,2,3,4,6,8]
+    return category_id in good_ids
 
 def create_tf_example(image,
                       annotations_list,
@@ -131,12 +136,16 @@ def create_tf_example(image,
     if x + width > image_width or y + height > image_height:
       num_annotations_skipped += 1
       continue
+    category_id = int(object_annotations['category_id'])
+    if not category_id_filter(category_id):
+      num_annotations_skipped += 1
+      continue
+
     xmin.append(float(x) / image_width)
     xmax.append(float(x + width) / image_width)
     ymin.append(float(y) / image_height)
     ymax.append(float(y + height) / image_height)
     is_crowd.append(object_annotations['iscrowd'])
-    category_id = int(object_annotations['category_id'])
     category_ids.append(category_id)
     category_names.append(category_index[category_id]['name'].encode('utf8'))
     area.append(object_annotations['area'])
@@ -186,13 +195,13 @@ def create_tf_example(image,
         dataset_util.bytes_list_feature(encoded_mask_png))
   example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
   #category_id is the key of ID_TO_TEXT
-  if not category_ids_filter(category_ids):
+  if len(category_ids)==0:
       return None,None,None
   return key, example, num_annotations_skipped
 
 
 def _create_tf_record_from_coco_annotations(
-    annotations_file, image_dir, output_path, include_masks):
+    annotations_file, image_dir, output_path, include_masks,is_train_data=True):
   """Loads COCO annotation json files and converts to tf.Record format.
 
   Args:
@@ -232,6 +241,10 @@ def _create_tf_record_from_coco_annotations(
     for idx, image in enumerate(images):
       if idx % 100 == 0:
         tf.logging.info('On image %d of %d', idx, len(images))
+        if is_train_data and (TRAIN_SIZE_LIMIT is not None) and (idx>TRAIN_SIZE_LIMIT):
+            break
+        elif (not is_train_data) and (VAL_SIZE_LIMIT is not None) and (idx>VAL_SIZE_LIMIT):
+            break
       annotations_list = annotations_index[image['id']]
       _, tf_example, num_annotations_skipped = create_tf_example(
           image, annotations_list, image_dir, category_index, include_masks)
@@ -258,16 +271,18 @@ def main(_):
       FLAGS.train_annotations_file,
       FLAGS.train_image_dir,
       train_output_path,
-      FLAGS.include_masks)
+      FLAGS.include_masks,
+      is_train_data=True)
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
-      FLAGS.include_masks)
+      FLAGS.include_masks,
+      is_train_data=False)
 
 
 if __name__ == '__main__':
-    SCRATCH_DIR="/data/wangjie/coco"
+    SCRATCH_DIR=wmlu.home_dir("ai/mldata/coco")
     FLAGS.train_image_dir = os.path.join(SCRATCH_DIR,"train2014")
     FLAGS.val_image_dir =  os.path.join(SCRATCH_DIR,"val2014")
     FLAGS.train_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_train2014.json")
