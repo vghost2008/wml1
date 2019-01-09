@@ -105,12 +105,15 @@ probs:[X]
 def boxes_nms_nr(bboxes,labels,probs,threshold=0.5,k=1000,classes_wise=True):
 
     data_nr = tf.shape(labels)[0]
+    #bboxes = tf.Print(bboxes,[tf.shape(bboxes),tf.shape(probs)])
+    #bboxes = tf.Print(bboxes,[bboxes,probs,threshold,k])
     indices = tf.image.non_max_suppression(boxes=bboxes,scores=probs,iou_threshold=threshold,max_output_size=k)
     indices,_ = tf.nn.top_k(-indices,k=tf.shape(indices)[0])
     indices = -indices
+    #indices = tf.Print(indices,[tf.shape(indices),indices])
 
     lmask = tf.sparse_to_dense(sparse_indices=indices,output_shape=[data_nr],sparse_values=1,default_value=0)
-    a_op = tf.Assert(k<=data_nr,[k,data_nr])
+    a_op = tf.Assert(k<=data_nr,[k,data_nr],name="boxes_nms_nr_assert")
     ones = tf.ones_like(lmask)
 
     def less_fn():
