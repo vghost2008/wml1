@@ -10,7 +10,7 @@ from wlayers import *
 import wtfop.wtfop_ops as wtfop
 
 '''
-sizes:相对于整个原始图像的大小
+sizes:相对于整个原始图像的面积大小
 ratios:高与宽的比例，实际计算时还需要考虑图像的形状，才能保持真正的比例
 shape:[h,w]
 返回的shape为[-1,4],表示每个位置，每个大小,每个比率的bboxes
@@ -36,6 +36,7 @@ def get_anchor_bboxes(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
 
 '''
 与原版本相比，不考虑featuremap 的比例
+size:为面积大小
 '''
 def get_anchor_bboxesv2(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
     anchor_bboxes = []

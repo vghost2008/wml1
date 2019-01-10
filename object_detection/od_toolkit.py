@@ -7,9 +7,11 @@ import wml_tfutils as wml
 from wtfop.wtfop_ops import decode_boxes1
 from wtfop.wtfop_ops import boxes_nms,boxes_nms_nr2,boxes_nms_nr
 import wtfop.wtfop_ops as wop
+import object_detection.bboxes as wml_bboxes
 import img_utils
 import wml_tfutils as wmlt
-import wlayers
+import object_detection.wlayers as wlayers
+import time
 slim = tf.contrib.slim
 
 '''
@@ -778,4 +780,58 @@ def select_boxes_by_probs(bboxes,labels,probs,threshold=0.5):
     probs = tf.boolean_mask(probs,mask)
     return bboxes,labels,probs
 
+def distorted_bounding_box_crop(image,
+                                labels,
+                                bboxes,
+                                min_object_covered=0.3,
+                                aspect_ratio_range=(0.9, 1.1),
+                                area_range=(0.1, 1.0),
+                                max_attempts=200,
+                                scope=None):
+    '''
+    data argument for object detection
+    :param image: [height,width,channels], input image
+    :param labels: [num_boxes]
+    :param bboxes: [num_boxes,4] (ymin,xmin,ymax,xmax), relative coordinates
+    :param min_object_covered: the croped object bbox and the orignal object bbox's IOU must greater than
+    min_object_covered to be keep in the result, else thre object will be removed.
+    :param aspect_ratio_range: random crop aspect ratio range
+    :param area_range:
+    :param max_attempts:
+    :param scope:
+    :return:
+    '''
+    with tf.name_scope(scope, 'distorted_bounding_box_crop', [image, bboxes]):
+        '''
+        在满足一定要求的前提下对图片进行随机的裁剪
+        '''
+        bbox_begin, bbox_size, distort_bbox = tf.image.sample_distorted_bounding_box(
+                tf.shape(image),
+                bounding_boxes=tf.expand_dims(bboxes, 0),
+                min_object_covered=min_object_covered,
+                aspect_ratio_range=aspect_ratio_range,
+                area_range=area_range,
+                max_attempts=max_attempts,
+                use_image_if_no_bounding_boxes=True,
+                seed=int(time.time()),
+                seed2=int(10*time.time()))
+        '''
+        distort_bbox的shape一定为[1, 1, 4],表示需要裁剪的裁剪框，与bbox_begin,bbox_size表达的内容重复
+        '''
+        distort_bbox = distort_bbox[0, 0]
 
+        cropped_image = tf.slice(image, bbox_begin, bbox_size)
+        cropped_image.set_shape([None, None, 3])
+
+        '''
+        将在原图中的bboxes转换为在distort_bbox定义的子图中的bboxes
+        保留了distort_bbox界外的部分
+        '''
+        bboxes = wml_bboxes.bboxes_resize(distort_bbox, bboxes)
+        '''
+        仅保留交叉面积大于threshold的bbox
+        '''
+        labels, bboxes = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
+                                                   threshold=min_object_covered,
+                                                   assign_negative=False)
+        return cropped_image, labels, bboxes, distort_bbox
