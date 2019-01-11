@@ -8,14 +8,15 @@ import random
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
-import npod_toolkit as npod
+import object_detection.npod_toolkit as npod
 import math
 
 sys.path.append("..")
 import wml_utils
 
 '''
-boxes1,2的shape类似于[X,4]
+image:[h,w,c], value range(0,255) if scale is True else (0,1)
+boxes:[X,4],relative coordinate, (ymin,xmin,ymax,xmax)
 '''
 def tf_summary_image_with_box(image, bboxes, name='summary_image_with_box',scale=True):
     with tf.name_scope(name):

@@ -8,6 +8,8 @@ import wml_utils as wmlu
 import os
 import numpy as np
 import math
+import img_utils as wmli
+import time
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
@@ -121,6 +123,17 @@ def apply_with_random_selector(x, func, num_cases):
     return control_flow_ops.merge([
             func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
             for case in range(num_cases)])[0]
+
+def random_saturation(image,gray_image=None,minval=0.0,maxval=1.0,scope=None):
+    with tf.name_scope(scope, 'random_saturation', [image]):
+        if gray_image is None:
+            gray_image = wmli.rgb_to_grayscale(image,keep_channels=True)
+        ratio = tf.random_uniform(shape=(),
+                                  minval=minval,
+                                  maxval=maxval,
+                                  dtype=tf.float32,
+                                  seed=int(time.time()))
+        return gray_image*ratio + image*(1.0-ratio)
 
 
 def distort_color(image, color_ordering=0, fast_mode=False, scope=None):

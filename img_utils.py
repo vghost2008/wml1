@@ -86,6 +86,17 @@ def nprgb_to_gray(img):
     img_gray = R * 299. / 1000 + G * 587. / 1000 + B * 114. / 1000
     return img_gray
 
+'''
+images:[batch_size,h,w,3] or [h,w,3]
+'''
+def rgb_to_grayscale(images,keep_channels=True):
+    images = tf.image.rgb_to_grayscale(images)
+    if keep_channels:
+        last_dim = images.get_shape().ndims-1
+        images = tf.concat([images,images,images],axis=last_dim)
+
+    return images
+
 def merge_image(src,dst,alpha):
     src = adjust_image_value_range(src)
     dst = adjust_image_value_range(dst)
