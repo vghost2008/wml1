@@ -4,9 +4,9 @@ import tensorflow as tf
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
-import wmath
+import object_detection.wmath
 import math
-from wlayers import *
+from object_detection.wlayers import *
 import wtfop.wtfop_ops as wtfop
 
 '''
@@ -18,14 +18,16 @@ shape:[h,w]
 '''
 def get_anchor_bboxes(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
     anchor_bboxes = []
+    HEIGHT = shape[0]
+    WIDTH = shape[1]
     for s in sizes:
         for a in ratios:
-            if shape[1] > shape[0]:
-                s_h = float(shape[1])*s/shape[0]
-                s_w = s
-            else:
-                s_h = s
-                s_w = float(shape[0]) * s / shape[1]
+            '''
+            s_h:为相对于HEIGHT的大小，s_w为相对于WIDTH的大小，如果要让实际比例保持不变，需要
+            s_h*HEIGHT与s_w*WIDTH与实际比例一致
+            '''
+            s_h = math.sqrt(WIDTH/HEIGHT)*math.sqrt(s)
+            s_w = math.sqrt(HEIGHT/WIDTH)*math.sqrt(s)
 
             bboxes = get_single_anchor_bboxes(shape,[s_h,s_w],a)
             bboxes = np.reshape(bboxes,[-1,4])

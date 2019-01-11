@@ -297,6 +297,7 @@ class FasterRCN(object):
     def getAnchorBoxes(self):
         shape = self.getTargetLayerShape()
         anchors = bboxes.get_anchor_bboxes(shape,sizes=self.scales,ratios=self.ratios)
+        self.np_anchors = anchors
         anchors = tf.convert_to_tensor(anchors)
         anchors = tf.expand_dims(anchors,axis=0)
         self.anchors = anchors*tf.ones([self.batch_size]+anchors.get_shape().as_list()[1:],dtype=tf.float32)

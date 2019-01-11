@@ -6,6 +6,7 @@ from functools import reduce
 from threadtoolkit import *
 import time
 from wml_utils import *
+import object_detection.bboxes as bboxes
 
 class SquareTest(tf.test.TestCase):
     '''def testLabelSmooth(self):
@@ -40,7 +41,7 @@ class SquareTest(tf.test.TestCase):
 
             self.assertAllClose(a=[0.1,0.2,0.7],b=b,atol=0.01,rtol=0)'''
 
-    def testParForEach(self):
+    '''def testParForEach(self):
         data = list(range(9))
         target_data = []
         def fn(x,do_sleep=True):
@@ -54,7 +55,12 @@ class SquareTest(tf.test.TestCase):
         with TimeThis():
             resdata = par_for_each(data,fn,thread_nr=len(data))
             resdata.sort()
-            self.assertAllEqual(resdata,target_data)
+            self.assertAllEqual(resdata,target_data)'''
+    def testGetAnchorBoxes1(self):
+        data0 = bboxes.get_anchor_bboxes(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
+        data1 = bboxes.get_anchor_bboxesv2(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
+        self.assertAllClose(a=data0,b=data1,atol=0.001,rtol=0)
+
 
 
 
