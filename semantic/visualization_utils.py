@@ -640,8 +640,8 @@ def visualize_boxes_and_labels_on_image_array(
         if agnostic_mode:
           box_to_color_map[box] = 'DarkOrange'
         else:
-          box_to_color_map[box] = STANDARD_COLORS[
-              classes[i] % len(STANDARD_COLORS)]
+          box_to_color_map[box] = MIN_RANDOM_STANDARD_COLORS[
+              classes[i] % len(MIN_RANDOM_STANDARD_COLORS)]
 
   # Draw all boxes onto image.
   for box, color in box_to_color_map.items():
