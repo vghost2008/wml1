@@ -4,7 +4,7 @@ import tensorflow as tf
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
-import object_detection.wmath
+import object_detection.wmath as wmath
 import math
 from object_detection.wlayers import *
 import wtfop.wtfop_ops as wtfop

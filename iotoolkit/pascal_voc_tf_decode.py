@@ -1,7 +1,6 @@
 #coding=utf-8
 import os
 import tensorflow as tf
-import trainprocess as trainpre
 import os
 import numpy as np
 import wml_tfutils as wmlt
@@ -46,7 +45,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='train_*.tfrecord',
         'image/object/bbox/truncated': tf.VarLenFeature(dtype=tf.int64),
     }
     items_to_handlers = {
-        'image': slim.tfexample_decoder.Image('image/encoded', 'image/format',channels=1),
+        'image': slim.tfexample_decoder.Image('image/encoded', 'image/format',channels=3),
         'shape': slim.tfexample_decoder.Tensor('image/shape'),
         'object/bbox': slim.tfexample_decoder.BoundingBox(
                 ['ymin', 'xmin', 'ymax', 'xmax'], 'image/object/bbox/'),
@@ -66,20 +65,20 @@ def get_database(dataset_dir,num_samples=1,file_pattern='train_*.tfrecord',
             num_classes=num_classes,
             labels_to_names=None)
 
-def get_data(data_dir,num_samples=1,num_classes=3,id_to_label=[]):
+def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label=[]):
     dataset = get_database(dataset_dir=data_dir,num_classes=num_classes,num_samples=num_samples)
     with tf.name_scope('data_provider'):
         provider = slim.dataset_data_provider.DatasetDataProvider(
             dataset,
             num_readers=2,
-            common_queue_capacity=20 * FLAGS.batch_size,
-            common_queue_min=10 * FLAGS.batch_size,
+            common_queue_capacity=20 * batch_size,
+            common_queue_min=10 * batch_size,
             shuffle=True)
         [image, glabels, bboxes] = provider.get(["image", "object/label", "object/bbox"])
     label = 1
     if len(id_to_label) == 0:
-        for key in dict.keys():
-            id_to_label[key] = label
+        for i in range(1,20):
+            id_to_label[i] = label
             label += 1
     table = tf.contrib.lookup.HashTable(
         tf.contrib.lookup.KeyValueTensorInitializer(np.array(list(id_to_label.keys()), dtype=np.int64),
