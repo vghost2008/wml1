@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(__file__))
 import object_detection.wmath
 import math
 from object_detection.wlayers import *
+import object_detection.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 
 '''
