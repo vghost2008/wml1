@@ -7,12 +7,11 @@ import numpy as np
 import tensorflow as tf
 import object_detection.utils as odu
 import object_detection.npod_toolkit as npod
-
 import shutil
 import xml.etree.ElementTree as ET
 import sys
-sys.path.append("/Users/vghost/MachineLearning/model/wml")
-from wml_tfutils import int64_feature,bytes_feature
+from iotoolkit.pascal_voc_data import *
+from wml_tfutils import int64_feature,bytes_feature,floats_feature
 
 tf.flags.DEFINE_string('data_dir', '',
                        'Training image directory.')
@@ -32,12 +31,17 @@ DIRECTORY_ANNOTATIONS = 'Annotations/'
 DIRECTORY_IMAGES = 'JPEGImages/'
 SAMPLES_PER_FILES = 200
 
-def category_id_filter(category_id):
+'''def category_id_filter(category_id):
     good_ids = [15,6,7,14,2]
     return category_id in good_ids
 
 def labels_text_to_labels(labels_text):
-    return [1]*len(labels_text)
+    return [TEXT_TO_ID[x] for x in labels_text]'''
+def category_id_filter(category_id):
+    return True
+
+def labels_text_to_labels(labels_text):
+    return [int(x) for x in labels_text]
 
 def is_good_data(labels):
     for label in labels:
@@ -54,12 +58,28 @@ name:图像文件名，但不包含路径及文件名
 '''
 def _process_image(directory, name):
     filename = os.path.join(directory,DIRECTORY_IMAGES + name + '.jpg')
-    image_data = tf.gfile.FastGFile(filename, 'r').read()
+    if not os.path.exists(filename):
+        return None,None,None,None,None,None,None
+    image_data = tf.gfile.FastGFile(filename, 'rb').read()
 
     filename = os.path.join(directory, DIRECTORY_ANNOTATIONS, name + '.xml')
-    shape, bboxes, labels_text, difficult, truncated = odu.read_voc_xml(filename, adjust=None)
-    labels = labels_text_to_labels(labels_text)
-    if not is_good_data(labels):
+    shape, _bboxes, _labels_text, _difficult, _truncated = odu.read_voc_xml(filename, adjust=None)
+    _labels = labels_text_to_labels(_labels_text)
+    bboxes = []
+    labels_text = []
+    difficult = []
+    truncated = []
+    labels = []
+    for data in zip(_bboxes,_labels,_labels_text,_difficult,_truncated):
+        if category_id_filter(data[1]):
+            bboxes.append(data[0])
+            labels.append(data[1])
+            labels_text.append(data[2])
+            difficult.append(data[3])
+            truncated.append(data[4])
+
+    if len(labels) == 0:
+        #print(f"Ignore {name}.")
         return None,None,None,None,None,None,None
     return image_data, shape, bboxes, labels, labels_text, difficult, truncated
 
@@ -86,10 +106,10 @@ def _convert_to_example(image_data, labels, labels_text, bboxes, shape,
             'image/width': int64_feature(shape[1]),
             'image/channels': int64_feature(shape[2]),
             'image/shape': int64_feature(shape),
-            'image/object/bbox/xmin': float_feature(xmin),
-            'image/object/bbox/xmax': float_feature(xmax),
-            'image/object/bbox/ymin': float_feature(ymin),
-            'image/object/bbox/ymax': float_feature(ymax),
+            'image/object/bbox/xmin': floats_feature(xmin),
+            'image/object/bbox/xmax': floats_feature(xmax),
+            'image/object/bbox/ymin': floats_feature(ymin),
+            'image/object/bbox/ymax': floats_feature(ymax),
             'image/object/bbox/label': int64_feature(labels),
             'image/object/bbox/label_text': bytes_feature(labels_text),
             'image/object/bbox/difficult': int64_feature(difficult),
@@ -158,8 +178,10 @@ def to_tfrecords(dataset_dir, output_dir, name='train', shuffling=False):
 
 if __name__ == "__main__":
 
-    dataset_dir = "/Users/vghost/MachineLearning/mldata/dentalfilm/fullviewod_jpgdatav8"
-    output_dir = "/Users/vghost/MachineLearning/mldata/dentalfilm/fullviewod_tfdata"
+    #dataset_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012"
+    #output_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012/tfdata"
+    dataset_dir = "/home/vghost/ai/mldata/videovoc"
+    output_dir = "/home/vghost/ai/mldata/videovoc/tfdata"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

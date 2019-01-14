@@ -198,6 +198,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                 box_ok = False
 
         if not box_ok:
+            print("Ignore one box")
             continue
         bboxes.append(box)
         labels_text.append(label)
@@ -238,17 +239,20 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
     doc.appendChild(objectlist)
 
     folder = doc.createElement("folder")
-    folder_value = doc.createTextNode(os.path.basename(os.path.dirname(file_path)).decode("utf-8"))
+    #folder_value = doc.createTextNode(os.path.basename(os.path.dirname(file_path)).decode("utf-8"))
+    folder_value = doc.createTextNode(os.path.basename(os.path.dirname(file_path)))
     folder.appendChild(folder_value)
     objectlist.appendChild(folder)
 
     filename = doc.createElement("filename")
-    filename_value = doc.createTextNode(os.path.basename(file_path).decode("utf-8"))
+    #filename_value = doc.createTextNode(os.path.basename(file_path).decode("utf-8"))
+    filename_value = doc.createTextNode(os.path.basename(file_path))
     filename.appendChild(filename_value)
     objectlist.appendChild(filename)
 
     path = doc.createElement("path")
-    path_value = doc.createTextNode(file_path.decode("utf-8"))
+    #path_value = doc.createTextNode(file_path.decode("utf-8"))
+    path_value = doc.createTextNode(file_path)
     path.appendChild(path_value)
     objectlist.appendChild(path)
 
@@ -282,7 +286,8 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
         objectlist.appendChild(object)
 
     with open(save_path,'w') as f:
-        f.write(doc.toprettyxml(indent='\t', encoding='utf-8'))
+        #f.write(doc.toprettyxml(indent='\t', encoding='utf-8'))
+        f.write(doc.toprettyxml(indent='\t'))
 
 '''
 file_path:图像文件路径
