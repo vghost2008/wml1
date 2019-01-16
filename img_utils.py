@@ -201,7 +201,9 @@ def crop_and_resize_imgs(img,boxes,crop_size):
     return np.stack(res_imgs,axis=0)
 
 def imread(filepath):
-    return cv2.imread(filepath)
+    img = cv2.imread(filepath)
+    cv2.cvtColor(img,cv2.COLOR_BGR2RGB,img)
+    return img
 
 def imsave(filename,img):
     imwrite(filename,img)
