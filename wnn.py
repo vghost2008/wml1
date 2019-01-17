@@ -612,3 +612,20 @@ def get_variables_of_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES,scopes=None
         pattern = re.compile(re_pattern)
         variables_to_return = list(filter(lambda x: pattern.match(x.name) is not None,variables_to_return))
     return variables_to_return
+
+def sparse_softmax_cross_entropy_with_logits_FL(
+    _sentinel=None,  # pylint: disable=invalid-name
+    labels=None,
+    logits=None,
+    gamma=2.,
+    name=None):
+    with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
+        probability = tf.nn.softmax(logits)
+        labels = tf.expand_dims(labels,axis=-1)
+        r_probability = tf.batch_gather(probability,labels)
+        r_probability = tf.squeeze(r_probability,axis=-1)
+        r_probability = tf.maximum(1e-10,r_probability)
+        beta = tf.math.pow((1.-r_probability),gamma)
+        loss = -beta*tf.math.log(r_probability)
+        return loss
+

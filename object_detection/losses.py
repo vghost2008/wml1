@@ -2,6 +2,7 @@
 import tensorflow as tf
 import wml_tfutils as wml
 import object_detection.utils as utils
+import wnn
 
 slim = tf.contrib.slim
 
@@ -81,7 +82,8 @@ def od_loss(gregs,glabels,classes_logits,bboxes_regs,num_classes,reg_loss_weight
             p_bboxes_regs = tf.boolean_mask(bboxes_regs,pmask)
             if classes_wise:
                 p_bboxes_regs = wml.select_2thdata_by_index_v2(p_bboxes_regs,p_glabels-1)
-            loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=p_logits,labels=p_glabels)
+            #loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=p_logits,labels=p_glabels)
+            loss0 = wnn.sparse_softmax_cross_entropy_with_logits_FL(logits=p_logits,labels=p_glabels)
             loss0 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
             loss1 = smooth_l1(p_gregs-p_bboxes_regs)*reg_loss_weight
             loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)

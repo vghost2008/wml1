@@ -5,6 +5,7 @@ import numpy as np
 from functools import reduce
 from threadtoolkit import *
 import time
+import wnn
 from wml_utils import *
 import object_detection.bboxes as bboxes
 
@@ -55,11 +56,25 @@ class SquareTest(tf.test.TestCase):
         with TimeThis():
             resdata = par_for_each(data,fn,thread_nr=len(data))
             resdata.sort()
-            self.assertAllEqual(resdata,target_data)'''
+            self.assertAllEqual(resdata,target_data)
     def testGetAnchorBoxes1(self):
         data0 = bboxes.get_anchor_bboxes(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
         data1 = bboxes.get_anchor_bboxesv2(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
-        self.assertAllClose(a=data0,b=data1,atol=0.001,rtol=0)
+        self.assertAllClose(a=data0,b=data1,atol=0.001,rtol=0)'''
+
+    def testSparseSoftmaxCrossEntropyWithLogitsFL(self):
+        with self.test_session() as sess:
+            shape = [2,3,4,5]
+            logits = tf.random_uniform(shape=shape,minval=-1.,maxval=1.,dtype=tf.float32)
+            labels = tf.random_uniform(shape=shape[:-1],minval=0,maxval=shape[-1],dtype=tf.int32)
+            loss1 = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits)
+            loss2,prob = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.)
+            t_loss1,t_loss2,t_prob,t_labels = sess.run([loss1,loss2,prob,labels])
+            print(t_prob)
+            print(t_labels)
+
+
+            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
 
 
