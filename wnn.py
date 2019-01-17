@@ -68,6 +68,7 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         else:
             grads = opt.compute_gradients(total_loss, variables_to_train,colocate_gradients_with_ops=colocate_gradients_with_ops)
             apply_gradient_op = opt.apply_gradients(grads,global_step=global_step)
+        wmlt.variable_summaries(tf.math.abs(grads),"grads")
         slim_batch_norm_ops = get_batch_norm_ops(scopes=scopes,re_pattern=scopes_pattern)
         train_op = tf.group(apply_gradient_op,slim_batch_norm_ops)
         if clip_norm:
