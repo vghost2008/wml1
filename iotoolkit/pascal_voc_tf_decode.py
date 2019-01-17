@@ -75,6 +75,7 @@ def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label=[]):
             common_queue_min=10 * batch_size,
             shuffle=True)
         [image, glabels, bboxes] = provider.get(["image", "object/label", "object/bbox"])
+        odu.tf_summary_image_with_box(image,bboxes,"input_data")
     label = 1
     if len(id_to_label) == 0:
         for i in range(1,20):
