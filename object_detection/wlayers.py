@@ -2,7 +2,7 @@
 import tensorflow as tf
 from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
 from wtfop.wtfop_ops import boxes_relative_to_absolute
-import bboxes as odb
+import object_detection.bboxes as odb
 
 slim=tf.contrib.slim
 

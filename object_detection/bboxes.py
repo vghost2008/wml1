@@ -241,7 +241,7 @@ def to_cxysa(data):
     data = np.reshape(data,[-1,4])
     new_shape = data.shape
     res_data = np.zeros_like(data)
-    for i in xrange(new_shape[0]):
+    for i in range(new_shape[0]):
         cy = (data[i][0]+data[i][2])*0.5
         cx= (data[i][1] + data[i][3]) * 0.5
         width = (data[i][3]-data[i][1])
@@ -321,7 +321,7 @@ def correct_yxminmax_boxes(data,keep_size=False):
         data = np.maximum(data,0.)
     else:
         nr = data.shape[0]
-        for i in xrange(nr):
+        for i in range(nr):
             if data[i][0]<0.:
                 data[i][2] -= data[i][0]
                 data[i][0] = 0.

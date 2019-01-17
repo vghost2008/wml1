@@ -1,11 +1,9 @@
 #coding=utf-8
 import tensorflow as tf
 import numpy as np
-import sys
-sys.path.append("..")
 import wml_tfutils as wml
 from wtfop.wtfop_ops import decode_boxes1
-from wtfop.wtfop_ops import boxes_nms,boxes_nms_nr2,boxes_nms_nr
+from wtfop.wtfop_ops import boxes_nms,boxes_nms_nr2,boxes_nms_nr,boxes_soft_nms
 import wtfop.wtfop_ops as wop
 import object_detection.bboxes as wml_bboxes
 import img_utils
@@ -189,7 +187,10 @@ def __get_predictionv2(class_prediction,
         boxes_regs = tf.transpose(boxes_regs)
 
     boxes = decode_boxes1(proposal_bboxes,boxes_regs)
-    boxes,labels,indices = boxes_nms(boxes,labels,threshold=nms_threshold,classes_wise=classes_wise_nms)
+    #boxes,labels,indices = boxes_nms(boxes,labels,threshold=nms_threshold,classes_wise=classes_wise_nms)
+    boxes,labels,indices = boxes_soft_nms(boxes,labels,confidence=probability,
+                                          threshold=nms_threshold,
+                                          classes_wise=classes_wise_nms)
     probability = tf.gather(probability,indices)
     res_indices = tf.gather(res_indices,indices)
 

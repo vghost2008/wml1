@@ -1,11 +1,8 @@
 #coding=utf-8
 import utils
 import os
-import sys
 import utils as odu
-import bboxes as odb
-import npod_toolkit as npod
-sys.path.append("..")
+import object_detection.npod_toolkit as npod
 import wml_utils
 import matplotlib.pyplot as plt
 import numpy as np
