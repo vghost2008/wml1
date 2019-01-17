@@ -624,7 +624,7 @@ def sparse_softmax_cross_entropy_with_logits_FL(
         labels = tf.expand_dims(labels,axis=-1)
         r_probability = tf.batch_gather(probability,labels)
         r_probability = tf.squeeze(r_probability,axis=-1)
-        r_probability = tf.maximum(1e-10,r_probability)
+        r_probability = tf.maximum(1e-10*(1+r_probability),r_probability)
         beta = tf.math.pow((1.-r_probability),gamma)
         loss = -beta*tf.math.log(r_probability)
         return loss
