@@ -505,6 +505,9 @@ def check_value_in_ckp(sess,scope):
     variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                               scope)
     print("Check {}".format(scope))
+    if len(variables) == 0:
+        print(f"No variables in {scope}.")
+        return None
     print(sess.run([tf.reduce_sum(variables[0]),
         tf.reduce_sum(tf.abs(variables[0])),
         tf.reduce_min(variables[0]),
