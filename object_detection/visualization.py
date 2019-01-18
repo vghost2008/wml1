@@ -49,7 +49,9 @@ def draw_bbox(img, bbox, shape, label, color=[255, 0, 0], thickness=2):
     cv2.putText(img, str(label), p1[::-1], cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
 
 
-def bboxes_draw_on_img(img, classes, scores, bboxes, colors={0:(0.,0.,0.),1:(0.,0.,255.),2:(255.,0.,0.),3:(255.,255.,0.)}, thickness=4,show_text=False):
+def bboxes_draw_on_img(img, classes, scores, bboxes,
+                       colors={0:(0.,0.,0.),1:(0.,0.,255.),2:(255.,0.,0.),3:(255.,255.,0.)},
+                       thickness=4,show_text=False,fontScale=1.2):
     shape = img.shape
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
@@ -64,7 +66,7 @@ def bboxes_draw_on_img(img, classes, scores, bboxes, colors={0:(0.,0.,0.),1:(0.,
         if show_text:
             s = '%d %.1f' % (classes[i], scores[i])
             p = (p1[0]-5, p1[1])
-            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=1.2, color=(255.,255.,255.), thickness=1)
+            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
 
 
 '''

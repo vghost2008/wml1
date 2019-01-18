@@ -130,6 +130,9 @@ candiate_nr:选择proposal_bboxes中预测最好的candiate_nr个bboxes进行筛
 limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h,w的回归参数，limits的值对应于prio_scaling=[1,1,1,1]是的设置
 prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
 
+use_soft_nms:是否使用softnms,使用soft nms与不使用soft nms时, nms_threshold的意义有很大的区别， 不使用soft nms时，nms_threshold表示
+IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_threshold表示得分高于nms_threshold的才是真目标
+
 返回:
 boxes:[candiate_nr,4]
 labels:[candiate_nr]
@@ -145,7 +148,8 @@ def __get_predictionv2(class_prediction,
                    nms_threshold=0.1,
                    candiate_nr = 1500,
                    classes_wise=False,
-                   classes_wise_nms=True):
+                   classes_wise_nms=True,
+                   use_soft_nms=False):
     #删除背景
     class_prediction = class_prediction[:,1:]
     probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
@@ -188,9 +192,12 @@ def __get_predictionv2(class_prediction,
 
     boxes = decode_boxes1(proposal_bboxes,boxes_regs)
     #boxes,labels,indices = boxes_nms(boxes,labels,threshold=nms_threshold,classes_wise=classes_wise_nms)
-    boxes,labels,indices = boxes_soft_nms(boxes,labels,confidence=probability,
+    if use_soft_nms:
+        boxes,labels,indices = boxes_soft_nms(boxes,labels,confidence=probability,
                                           threshold=nms_threshold,
                                           classes_wise=classes_wise_nms)
+    else:
+        boxes,labels,indices = boxes_nms(boxes,labels,threshold=nms_threshold,classes_wise=classes_wise_nms)
     probability = tf.gather(probability,indices)
     res_indices = tf.gather(res_indices,indices)
 
@@ -217,7 +224,7 @@ bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到�
 shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
 
 proposal_bboxes:候选box
-shape为[batch_size,X,4]
+shape为[batch_size,X,4] (ymin,xmin,ymax,xmax) relative coordinate
 
 threshold:选择class_prediction的阀值
 
@@ -243,10 +250,28 @@ def get_predictionv2(class_prediction,
                    nms_threshold=0.1,
                    candiate_nr = 1500,
                    classes_wise=False,
-                   classes_wise_nms=True):
-    boxes,labels,probability,res_indices,lens = tf.map_fn(lambda x:__get_predictionv2(x[0],x[1],x[2],limits,prio_scaling,threshold,nms_threshold,candiate_nr,classes_wise,classes_wise_nms=classes_wise_nms),
-                                                          elems=(class_prediction,bboxes_regs,proposal_bboxes),dtype=(tf.float32,tf.int32,tf.float32,tf.int32,tf.int32)
-                                                          )
+                   classes_wise_nms=True,
+                   use_soft_nms=False):
+    if proposal_bboxes.get_shape().as_list()[0] == 1:
+        '''
+        In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
+        '''
+        proposal_bboxes = tf.squeeze(proposal_bboxes,axis=0)
+        boxes,labels,probability,res_indices,lens = tf.map_fn(lambda x:__get_predictionv2(x[0],x[1],proposal_bboxes,limits,prio_scaling,
+                                                                                          threshold,nms_threshold,
+                                                                                          candiate_nr,classes_wise,
+                                                                                          classes_wise_nms=classes_wise_nms,
+                                                                                          use_soft_nms=use_soft_nms),
+                                                              elems=(class_prediction,bboxes_regs),dtype=(tf.float32,tf.int32,tf.float32,tf.int32,tf.int32)
+                                                              )
+    else:
+        boxes,labels,probability,res_indices,lens = tf.map_fn(lambda x:__get_predictionv2(x[0],x[1],x[2],limits,prio_scaling,
+                                                                                          threshold,nms_threshold,
+                                                                                          candiate_nr,classes_wise,
+                                                                                          classes_wise_nms=classes_wise_nms,
+                                                                                          use_soft_nms=use_soft_nms),
+                                                              elems=(class_prediction,bboxes_regs,proposal_bboxes),dtype=(tf.float32,tf.int32,tf.float32,tf.int32,tf.int32)
+                                                              )
     return boxes,labels,probability,res_indices,lens
 
 '''

@@ -38,7 +38,10 @@ def od_loss(gregs,glabels,classes_logits,bboxes_regs,num_classes,reg_loss_weight
             bboxes_remove_indices=None,scope="Loss",
             classes_wise=False,
             neg_multiplier=2.0,
-            scale=10.0):
+            scale=10.0,
+            use_focal_loss=False):
+    if use_focal_loss:
+        print("Use focal loss.")
     batch_size = gregs.get_shape().as_list()[0]
     gregs = tf.reshape(gregs,[-1,4])
     glabels = tf.reshape(glabels,shape=[-1])
@@ -82,8 +85,10 @@ def od_loss(gregs,glabels,classes_logits,bboxes_regs,num_classes,reg_loss_weight
             p_bboxes_regs = tf.boolean_mask(bboxes_regs,pmask)
             if classes_wise:
                 p_bboxes_regs = wml.select_2thdata_by_index_v2(p_bboxes_regs,p_glabels-1)
-            #loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=p_logits,labels=p_glabels)
-            loss0 = wnn.sparse_softmax_cross_entropy_with_logits_FL(logits=p_logits,labels=p_glabels)
+            if use_focal_loss:
+                loss0 = wnn.sparse_softmax_cross_entropy_with_logits_FL(logits=p_logits,labels=p_glabels)
+            else:
+                loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=p_logits,labels=p_glabels)
             loss0 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
             loss1 = smooth_l1(p_gregs-p_bboxes_regs)*reg_loss_weight
             loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)
