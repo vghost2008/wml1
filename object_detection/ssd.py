@@ -30,7 +30,6 @@ class SSD(object):
         self.logits = None
         self.regs = None
 
-
     def getAnchorBoxes(self):
         np_anchors=[]
         for i,shape in enumerate(self.feature_maps_shape):
@@ -43,6 +42,15 @@ class SSD(object):
         return self.anchors
 
     def encodeBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
+        '''
+        :param gbboxes:
+        :param glabels:
+        :param lens:
+        :param pos_threshold:
+        :param neg_threshold:
+        :return:
+        '''
+        #anchors can be [1,X,4] or [batch_size,X,4], usual use [1,X,4]
         with tf.name_scope("EncodeBoxes"):
             gtregs, gtlabels, gtscores,remove_indices = boxes_encode(bboxes=self.anchors,
                                                                    gboxes=gbboxes,

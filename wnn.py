@@ -14,6 +14,7 @@ import img_utils
 import re
 import eval_toolkit as evt
 import os
+import copy
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -51,6 +52,9 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         variables_to_train = get_variables_to_train(scopes,scopes_pattern)
         show_values(variables_to_train,"variables_to_train")
         print("Total train variables num %d."%(parameterNum(variables_to_train)))
+        variables_not_to_train = get_variables_not_to_train(variables_to_train)
+        show_values(variables_not_to_train,"variables_not_to_train")
+        print("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
         opt = str2optimizer(optimizer,lr)
 
         if loss is not None:
@@ -293,6 +297,16 @@ def average_npgrads(grads_list):
 
 def get_variables_to_train(trainable_scopes,re_pattern=None):
     return get_variables_of_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scopes=trainable_scopes,re_pattern=re_pattern)
+
+def get_variables_not_to_train(train_variables):
+    variables = tf.trainable_variables()
+    _variables = list(variables)
+    for v in _variables:
+        if v in train_variables:
+            variables.remove(v)
+
+    return variables
+
 
 def get_variables_exclude(exclude_str=None,only_scope=None,key=None):
     if key is None:
