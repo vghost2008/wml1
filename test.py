@@ -76,6 +76,37 @@ class SquareTest(tf.test.TestCase):
 
             self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
+    def testHierarchicalSparseSoftmaxCrossEntropy(self):
+        with self.test_session() as sess:
+            batch_size = 16
+            N = 11
+            Y = 99
+            np_logits = np.random.uniform(low=-4,high=4,size=[batch_size,N,Y])
+            num_classes = np.random.uniform(low=2,high=Y,size=[N]).astype(np.int32)
+            np_labels = []
+            for _ in range(batch_size):
+                f_classes = np.random.uniform(low=0,high=N,size=()).astype(np.int32)
+                s_classes = np.random.uniform(low=0,high=num_classes[f_classes],size=()).astype(np.int32)
+                np_labels.append([f_classes,s_classes])
+
+            np_labels = np.array(np_labels)
+            logits = tf.convert_to_tensor(np_logits,dtype=tf.float32)
+            labels = tf.convert_to_tensor(np_labels)
+            loss = wnn.hierarchical_sparse_softmax_cross_entropy(logits=logits,labels=labels,num_classes=num_classes)
+            loss = loss.eval()
+            np_loss = []
+            for i in range(batch_size):
+                classes = np_labels[i]
+                f_classes = classes[0]
+                s_classes = classes[1]
+                nr = num_classes[f_classes]
+                l_logits = np_logits[i][f_classes][:nr]
+                l_labels = s_classes
+                l_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=l_logits,labels=l_labels)
+                np_loss.append(l_loss.eval())
+
+            self.assertAllClose(a=loss,b=np_loss,atol=1e-3,rtol=0.)
+
 
 
 

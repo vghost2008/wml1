@@ -529,16 +529,19 @@ def get_layer_shape(input_shape,stage):
 
 '''
 用于计算分级的soft_max损失
-N:分支数
-Y:子类的最大类别数
-logits:[batch_size,N,Y]
-labels:[batch_size,2]
+N:第一层的类别数
+Y:第二层的最大类别数
+logits:[batch_size,N,Y], 用于表示每一个batch的每个第一层类别下第二层对应类别的logits
+labels:[batch_size,2], 用于表示每一个batch的第一层类别及第二层类别
 num_classes:[Y],用于表示每一个子类的类别数
+return:
+[batch_size]
 '''
 def hierarchical_sparse_softmax_cross_entropy(logits,labels,num_classes,scope="hierarchical_sparse_softmax_cross_entropy"):
     with tf.name_scope(scope):
         batch_size = tf.shape(logits)[0]
-        return tf.cond(batch_size>0,lambda:_hierarchical_sparse_softmax_cross_entropy(logits,labels,num_classes),lambda:0.)
+        loss = tf.cond(batch_size>0,lambda:_hierarchical_sparse_softmax_cross_entropy(logits,labels,num_classes),lambda:0.)
+        return tf.reshape(loss,shape=[batch_size])
 
 def _hierarchical_sparse_softmax_cross_entropy(logits,labels,num_classes):
     labels0 = labels[:,0]
@@ -551,7 +554,8 @@ def _hierarchical_sparse_softmax_cross_entropy(logits,labels,num_classes):
         slogits = tf.slice(slogits,[0],len)
         label1 = tf.reshape(label1,[1])
         slogits = tf.reshape(slogits,[1,-1])
-        return tf.nn.sparse_softmax_cross_entropy_with_logits(logits=slogits,labels=label1)
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=slogits,labels=label1)
+        return tf.reshape(loss,shape=())
 
     losses = tf.map_fn(lambda x:singal_loss(*x),(logits,labels0,labels1),dtype=tf.float32)
     return losses
