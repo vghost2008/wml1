@@ -119,7 +119,7 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
     for k,v in org_labels_counter:
         total_nr += v
     for k,v in org_labels_counter:
-        print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
+        print(f"{k:>8}:{v:<8}, {v*100./total_nr:>4.2f}%")
     if labels_to_remove is not None:
         all_boxes,encoded_labels = odu.removeLabels(all_boxes,encoded_labels,labels_to_remove)
 
