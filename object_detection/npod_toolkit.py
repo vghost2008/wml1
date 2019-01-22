@@ -83,8 +83,10 @@ def bboxes_nms(classes, scores, bboxes, nms_threshold=0.5):
     return classes[idxes], scores[idxes], bboxes[idxes]
 
 '''
-crop a sub area sub_box in image,
+crop a sub area sub_box in image, return the boxes IOU with sub_box greater than remove_threshold
 bboxes:[X,4] ymin,xmin,ymax,xmax, relative coordinate
+return:
+bboxes:[Y,4],mask [X]
 '''
 def crop_box(bboxes,sub_box,remove_threshold=0.7):
     h = sub_box[2]-sub_box[0]

@@ -9,7 +9,7 @@ import wnn
 from wml_utils import *
 import object_detection.bboxes as bboxes
 
-class SquareTest(tf.test.TestCase):
+class WMLTest(tf.test.TestCase):
     '''def testLabelSmooth(self):
         with self.test_session():
             labels = tf.constant([1, 2, 3, 4, 0, 2], dtype=tf.int32)

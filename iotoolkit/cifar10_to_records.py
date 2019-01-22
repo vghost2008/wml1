@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import save_and_read_cifar10 as src
+import iotoolkit.save_and_read_cifar10 as src
 import argparse
 import os
 import sys

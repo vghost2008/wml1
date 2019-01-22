@@ -50,7 +50,7 @@ class SSD(object):
         :param neg_threshold:
         :return:
         '''
-        #anchors can be [1,X,4] or [batch_size,X,4], usual use [1,X,4]
+        #anchors can be [1,X,4] or [batch_size,X,4], usually use [1,X,4]
         with tf.name_scope("EncodeBoxes"):
             gtregs, gtlabels, gtscores,remove_indices = boxes_encode(bboxes=self.anchors,
                                                                    gboxes=gbboxes,
