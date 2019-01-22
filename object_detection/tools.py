@@ -11,6 +11,11 @@ import math
 def statistics_boxes(boxes,nr=100):
     sizes = [(x[2]-x[0])*(x[3]-x[1]) for x in boxes]
     ratios = [(x[2]-x[0])/(x[3]-x[1]) for x in boxes]
+    plt.figure(0,figsize=(10,10))
+    n, bins, patches = plt.hist(sizes, nr*10, normed=None, facecolor='blue', alpha=0.5)
+    plt.figure(1,figsize=(10,10))
+    n, bins, patches = plt.hist(ratios, nr*10, normed=None, facecolor='red', alpha=0.5)
+    plt.show()
     print(max(ratios))
     return _statistics_value(sizes,nr),_statistics_value(ratios,nr)
 
@@ -34,16 +39,25 @@ def default_encode_label(l):
     return l
 
 def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_to_remove=None,nr=100,aspect_range=None):
-    if not os.path.exists(dir_path):
-        print("path {} not exists.".format(dir_path))
-    files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")
+    def get_datas():
+        if not os.path.exists(dir_path):
+            print("path {} not exists.".format(dir_path))
+        files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")
+        print("\ntotal file size {}.".format(len(files)))
+        for file in files:
+            shape, bboxes, labels_text, difficult, truncated = utils.read_voc_xml(file,aspect_range=aspect_range)
+            yield bboxes,labels_text,os.path.basename(file)
+
+    return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)
+
+def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_to_remove=None,nr=100):
     all_boxes = []
     all_labels = []
     max_examples = 0
     label_file_count={}
     labels_to_file={}
-    for file in files:
-        shape, bboxes, labels_text, difficult, truncated = utils.read_voc_xml(file,aspect_range=aspect_range)
+    for data in datas:
+        bboxes,labels_text,file = data
         if len(labels_text)==0:
             continue
         aspect = npod.box_aspect(bboxes)
@@ -56,13 +70,13 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
         tmp_dict = {}
         for l in labels_text:
             tmp_dict[l] = 1
-            if labels_to_file.has_key(l):
+            if l in labels_to_file:
                 labels_to_file[l].append(file)
             else:
                 labels_to_file[l] = [file]
 
         for k in tmp_dict.keys():
-            if label_file_count.has_key(k):
+            if k in label_file_count:
                 label_file_count[k] += 1
             else:
                 label_file_count[k] = 1
@@ -73,25 +87,39 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
     for _l in all_labels:
         l = label_encoder(_l)
         encoded_labels.append(l)
-        if labels_counter.has_key(l):
+        if l in labels_counter:
             labels_counter[l] = labels_counter[l]+1
         else:
             labels_counter[l] = 1
-        if org_labels_counter.has_key(_l):
+        if _l in org_labels_counter:
             org_labels_counter[_l] = org_labels_counter[_l]+1
         else:
             org_labels_counter[_l] = 1
-    print("total file size {}.".format(len(files)))
     print("Max element size {}.".format(max_examples))
-    print("BBoxes count.")
-    for k,v in labels_counter.items():
-        print("{}:{}".format(k,v))
-    print("File count.")
-    for k,v in label_file_count.items():
-        print("{}:{}".format(k,v))
-    print("org statistics")
-    for k,v in org_labels_counter.items():
-        print("{}:{}".format(k,v))
+    print("\n--->BBoxes count:")
+    labels_counter = list(labels_counter.items())
+    labels_counter.sort(key=lambda x:x[1],reverse=True)
+    total_nr = 0
+    for k,v in labels_counter:
+        total_nr += v
+    for k,v in labels_counter:
+        print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
+    print("\n--->File count:")
+    label_file_count= list(label_file_count.items())
+    label_file_count.sort(key=lambda x:x[1],reverse=True)
+    total_nr = 0
+    for k,v in label_file_count:
+        total_nr += v
+    for k,v in label_file_count:
+        print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
+    print("\n--->org statistics:")
+    org_labels_counter= list(org_labels_counter.items())
+    org_labels_counter.sort(key=lambda x:x[1],reverse=True)
+    total_nr = 0
+    for k,v in org_labels_counter:
+        total_nr += v
+    for k,v in org_labels_counter:
+        print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
     if labels_to_remove is not None:
         all_boxes,encoded_labels = odu.removeLabels(all_boxes,encoded_labels,labels_to_remove)
 
@@ -130,7 +158,7 @@ def ticks(minv,maxv,order,nr):
 
 
 if __name__ == "__main__":
-    statics = statistics_boxes_in_dir("/Users/vghost/MachineLearning/mldata/dentalfilm/fullviewod_jpgdatav7",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)

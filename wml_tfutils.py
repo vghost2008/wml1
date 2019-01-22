@@ -522,9 +522,11 @@ def unstack(value,axis=0,name="unstack",keep_dim=False):
             res = tf.unstack(value=value,axis=axis)
             res = [tf.expand_dims(x,axis=axis) for x in res]
             return res
+
 def image_zero_mean_unit_range(inputs):
   """Map image values from [0, 255] to [-1, 1]."""
   return (2.0 / 255.0) * tf.to_float(inputs) - 1.0
+
 def mean_pixel(model_variant=None):
   """Gets mean pixel value.
 

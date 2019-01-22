@@ -79,7 +79,6 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             tf.summary.scalar("global_norm", global_norm)
         return train_op,total_loss,variables_to_train
 
-
 def get_batch_norm_ops(scopes=None,re_pattern=None):
     bn_ops = get_variables_of_collection(key=tf.GraphKeys.UPDATE_OPS,scopes=scopes,re_pattern=re_pattern)
     return bn_ops

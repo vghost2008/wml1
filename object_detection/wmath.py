@@ -1,8 +1,6 @@
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 
-
-
 def safe_divide(numerator, denominator, name):
     return tf.where(
         math_ops.greater(denominator, 0),
