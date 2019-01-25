@@ -226,6 +226,19 @@ def minmax_to_cyxhw(bboxes):
     bboxes = np.transpose(bboxes,axes=[1,0])
     return bboxes
 
+def minmax_to_cyxsr(bboxes,h=1.0,w=1.0):
+    bboxes = np.transpose(bboxes,[1,0])
+    ymin,xmin,ymax,xmax = bboxes[0],bboxes[1],bboxes[2],bboxes[3]
+    cx = (xmax+xmin)/2.
+    cy = (ymax+ymin)/2.
+    w = (xmax-xmin)*w
+    h = (ymax-ymin)*h
+    s = w*h
+    r = h/w
+    bboxes = np.stack([cy,cx,s,r],axis=0)
+    bboxes = np.transpose(bboxes,axes=[1,0])
+    return bboxes
+
 def cyxhw_to_minmax(bboxes):
     bboxes = np.transpose(bboxes,[1,0])
     cy, cx, h, w = bboxes[0],bboxes[1],bboxes[2],bboxes[3]

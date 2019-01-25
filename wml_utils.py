@@ -261,6 +261,28 @@ def show_dict(values):
         print(k,"->",v)
     print("]")
 
+def nparray2str(value,split=",",format="{}"):
+    if not isinstance(value,np.ndarray):
+        value = np.array(value)
+    ndims = len(value.shape)
+    if ndims == 1:
+        r_str = "["
+        for x in value[:-1]:
+            r_str+=format.format(x)+split
+        r_str+=format.format(value[-1])+"]"
+        return r_str
+    else:
+        r_str = "["
+        for x in value[:-1]:
+            r_str+=nparray2str(x,split=split,format=format)+split
+        r_str+=nparray2str(value[-1],split=split,format=format)+"]\n"
+        return r_str
+
+def show_nparray(value,name=None,split=",",format="{}"):
+    if name is not None:
+        print(name)
+    print(nparray2str(value,split=split,format=format))
+
 class ExperienceBuffer():
     def __init__(self, buffer_size = 100000):
         self.buffer = []

@@ -9,7 +9,7 @@ import object_detection.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 
 '''
-sizes:相对于整个原始图像的面积大小
+sizes:相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1
 ratios:高与宽的比例，实际计算时还需要考虑图像的形状，才能保持真正的比例
 shape:[h,w]
 返回的shape为[-1,4],表示每个位置，每个大小,每个比率的bboxes
@@ -127,7 +127,7 @@ def bboxes_resize(bbox_ref, bboxes, name=None):
         '''
         v = tf.stack([bbox_ref[0], bbox_ref[1], bbox_ref[0], bbox_ref[1]])
         bboxes = bboxes - v
-        # Scale.
+        #Scale.
         s = tf.stack([bbox_ref[2] - bbox_ref[0],
                       bbox_ref[3] - bbox_ref[1],
                       bbox_ref[2] - bbox_ref[0],
