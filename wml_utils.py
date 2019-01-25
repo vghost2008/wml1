@@ -361,7 +361,7 @@ class TimeThis():
         self.begin_time = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print(f"{self.name}: total time{time.time()-self.begin_time}.")
+        print(f"{self.name}: total time {time.time()-self.begin_time}.")
 
 
 def time_this(func):
