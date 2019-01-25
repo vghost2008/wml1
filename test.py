@@ -69,11 +69,33 @@ class WMLTest(tf.test.TestCase):
             logits = tf.random_uniform(shape=shape,minval=-9.,maxval=9.,dtype=tf.float32)
             labels = tf.random_uniform(shape=shape[:-1],minval=0,maxval=shape[-1],dtype=tf.int32)
             loss1 = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits)
-            loss2= wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.)
+            loss2= wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.,alpha=None)
             t_loss1,t_loss2,t_labels = sess.run([loss1,loss2,labels])
             print(t_labels)
+            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
+    def testSparseSoftmaxCrossEntropyWithLogitsAlphaBalanced(self):
+        with self.test_session() as sess:
+            shape = [2,3,4,5]
+            tf.set_random_seed(int(time.time()))
+            logits = tf.random_uniform(shape=shape,minval=-9.,maxval=9.,dtype=tf.float32)
+            labels = tf.random_uniform(shape=shape[:-1],minval=0,maxval=shape[-1],dtype=tf.int32)
+            loss1 = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits)
+            loss2= wnn.sparse_softmax_cross_entropy_with_logits_alpha_balanced(labels=labels,logits=logits,alpha=None)
+            t_loss1,t_loss2,t_labels = sess.run([loss1,loss2,labels])
+            print(t_labels)
+            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
+    def testSparseSoftmaxCrossEntropyWithLogitsAlphaBalancedFL(self):
+        with self.test_session() as sess:
+            shape = [2,3,4,5]
+            tf.set_random_seed(int(time.time()))
+            logits = tf.random_uniform(shape=shape,minval=-9.,maxval=9.,dtype=tf.float32)
+            labels = tf.random_uniform(shape=shape[:-1],minval=0,maxval=shape[-1],dtype=tf.int32)
+            loss1 = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.,alpha="auto")
+            loss2= wnn.sparse_softmax_cross_entropy_with_logits_alpha_balanced(labels=labels,logits=logits,alpha="auto")
+            t_loss1,t_loss2,t_labels = sess.run([loss1,loss2,labels])
+            print(t_labels)
             self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
     def testHierarchicalSparseSoftmaxCrossEntropy(self):
@@ -107,8 +129,20 @@ class WMLTest(tf.test.TestCase):
 
             self.assertAllClose(a=loss,b=np_loss,atol=1e-3,rtol=0.)
 
-
-
+    def testIndicesToDenseVector(self):
+        with self.test_session() as sess:
+            size = 100
+            indices_nr = 20
+            np_indices = np.random.randint(0,100,size=[indices_nr])
+            np_data = np.zeros([size],dtype=np.int32)
+            v = 1
+            for indice in np_indices:
+                np_data[indice] = v
+            indices = tf.constant(np_indices,dtype=tf.int32)
+            data = wmlt.indices_to_dense_vector(indices=indices,size=size,indices_value=v,dtype=tf.int32)
+            data = data.eval()
+            self.assertAllEqual(a=np_data,b=data)
 
 if __name__ == "__main__":
+    np.random.seed(int(time.time()))
     tf.test.main()

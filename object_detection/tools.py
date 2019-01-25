@@ -1,5 +1,5 @@
 #coding=utf-8
-import utils
+import object_detection.utils as utils
 import os
 import utils as odu
 import object_detection.npod_toolkit as npod
@@ -13,8 +13,10 @@ def statistics_boxes(boxes,nr=100):
     ratios = [(x[2]-x[0])/(x[3]-x[1]) for x in boxes]
     plt.figure(0,figsize=(10,10))
     n, bins, patches = plt.hist(sizes, nr*10, normed=None, facecolor='blue', alpha=0.5)
+    plt.title("Size")
     plt.figure(1,figsize=(10,10))
     n, bins, patches = plt.hist(ratios, nr*10, normed=None, facecolor='red', alpha=0.5)
+    plt.title("Ratio")
     plt.show()
     print(max(ratios))
     return _statistics_value(sizes,nr),_statistics_value(ratios,nr)
@@ -50,7 +52,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
 
     return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)
 
-def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_to_remove=None,nr=100):
+def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_to_remove=None,nr=100,max_aspect=None):
     all_boxes = []
     all_labels = []
     max_examples = 0
@@ -61,8 +63,8 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
         if len(labels_text)==0:
             continue
         aspect = npod.box_aspect(bboxes)
-        if np.max(aspect)>6.:
-            print("error")
+        if max_aspect is not None and np.max(aspect)>max_aspect:
+            print(f"asepct is too large, expect max aspect is {max_aspect}, actual get {np.max(aspect)}")
         max_examples = max(len(labels_text),max_examples)
         all_boxes.extend(bboxes)
         all_labels.extend(labels_text)
@@ -107,11 +109,8 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
     print("\n--->File count:")
     label_file_count= list(label_file_count.items())
     label_file_count.sort(key=lambda x:x[1],reverse=True)
-    total_nr = 0
     for k,v in label_file_count:
-        total_nr += v
-    for k,v in label_file_count:
-        print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
+        print("{:>8}:{:<8}".format(k,v))
     print("\n--->org statistics:")
     org_labels_counter= list(org_labels_counter.items())
     org_labels_counter.sort(key=lambda x:x[1],reverse=True)
@@ -158,7 +157,8 @@ def ticks(minv,maxv,order,nr):
 
 
 if __name__ == "__main__":
-    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
+    #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/BEHAVE/videovoc1",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)

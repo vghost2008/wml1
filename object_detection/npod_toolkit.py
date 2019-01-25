@@ -2,7 +2,6 @@
 import numpy as np
 import math
 
-
 def bboxes_jaccard(bboxes1, bboxes2):
 
     bboxes1 = np.transpose(bboxes1)

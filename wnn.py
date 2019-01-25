@@ -635,6 +635,8 @@ def sparse_softmax_cross_entropy_with_logits_FL(
     labels=None,
     logits=None,
     gamma=2.,
+    alpha="auto",
+    max_alpha_scale=10.0,
     name=None):
     with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
         probability = tf.nn.softmax(logits)
@@ -643,6 +645,49 @@ def sparse_softmax_cross_entropy_with_logits_FL(
         r_probability = tf.squeeze(r_probability,axis=-1)
         r_probability = tf.maximum(1e-10*(1+r_probability),r_probability)
         beta = tf.math.pow((1.-r_probability),gamma)
+        if alpha == "auto":
+            num_classes = logits.get_shape().as_list()[-1]
+            labels = tf.squeeze(labels,axis=-1)
+            one_hot_labels = tf.one_hot(indices=labels,depth=num_classes)
+            count = tf.reduce_sum(one_hot_labels,axis=list(range(one_hot_labels.get_shape().ndims-1)),keepdims=True)
+            count = tf.cast(tf.maximum(count,1),tf.float32)
+            ratio = tf.cast(tf.reduce_prod(tf.shape(labels)),tf.float32)/(count*float(num_classes))
+            alpha_t = tf.minimum(max_alpha_scale,1.0/ratio)
+            alpha_t = alpha_t*tf.ones_like(one_hot_labels,dtype=tf.float32)
+            labels = tf.expand_dims(labels,axis=-1)
+            alpha_t = tf.batch_gather(params=alpha_t,indices=labels)
+            alpha_t = tf.squeeze(alpha_t,axis=-1)
+            beta = alpha_t*beta
         loss = -beta*tf.math.log(r_probability)
         return loss
 
+def sparse_softmax_cross_entropy_with_logits_alpha_balanced(
+        _sentinel=None,  # pylint: disable=invalid-name
+        labels=None,
+        logits=None,
+        alpha="auto",
+        max_alpha_scale=10.0,
+        name=None):
+    if alpha is None:
+        return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits,name=name)
+    elif alpha != "auto":
+        raise ValueError(f"alphpa shold be None or auto, not {alpha}.")
+    with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
+        probability = tf.nn.softmax(logits)
+        labels = tf.expand_dims(labels,axis=-1)
+        r_probability = tf.batch_gather(probability,labels)
+        r_probability = tf.squeeze(r_probability,axis=-1)
+        r_probability = tf.maximum(1e-10*(1+r_probability),r_probability)
+        num_classes = logits.get_shape().as_list()[-1]
+        labels = tf.squeeze(labels,axis=-1)
+        one_hot_labels = tf.one_hot(indices=labels,depth=num_classes)
+        count = tf.reduce_sum(one_hot_labels,axis=list(range(one_hot_labels.get_shape().ndims-1)),keepdims=True)
+        count = tf.cast(tf.maximum(count,1),tf.float32)
+        ratio = tf.cast(tf.reduce_prod(tf.shape(labels)),tf.float32)/(count*float(num_classes))
+        alpha_t = tf.minimum(max_alpha_scale,1.0/ratio)
+        alpha_t = alpha_t*tf.ones_like(one_hot_labels,dtype=tf.float32)
+        labels = tf.expand_dims(labels,axis=-1)
+        alpha_t = tf.batch_gather(params=alpha_t,indices=labels)
+        alpha_t = tf.squeeze(alpha_t,axis=-1)
+        loss = -alpha_t*tf.math.log(r_probability)
+        return loss

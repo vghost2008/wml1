@@ -6,13 +6,9 @@ import xml.etree.ElementTree as ET
 from xml.dom.minidom import Document
 import random
 import os
-import sys
-sys.path.append(os.path.dirname(__file__))
 import object_detection.npod_toolkit as npod
 import math
 from semantic.visualization_utils import draw_bounding_boxes_on_image_tensors
-
-sys.path.append("..")
 import wml_utils
 
 '''
@@ -171,7 +167,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                  )
                 for v in box:
                     if v<0. or v>1.:
-                        print("error boxes")
+                        print(f"error boxes {box}.")
                         box_ok = False
 
         else:
@@ -336,7 +332,6 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
     xml_dir = os.path.join(dir_path,xml_sub_dir)
     inputfilenames = wml_utils.recurse_get_filepath_in_dir(jpeg_dir,suffix=img_suffix)
 
-    i = 1
     img_file_paths = []
     xml_file_paths = []
     for file in inputfilenames:
