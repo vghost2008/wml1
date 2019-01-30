@@ -2,9 +2,92 @@
 import tensorflow as tf
 import wml_tfutils as wmlt
 import collections
+import functools
 
 slim = tf.contrib.slim
 
+def fixed_padding(inputs, kernel_size, rate=1):
+  """Pads the input along the spatial dimensions independently of input size.
+
+  Args:
+    inputs: A tensor of size [batch, height_in, width_in, channels].
+    kernel_size: The kernel to be used in the conv2d or max_pool2d operation.
+                 Should be a positive integer.
+    rate: An integer, rate for atrous convolution.
+
+  Returns:
+    output: A tensor of size [batch, height_out, width_out, channels] with the
+      input, either intact (if kernel_size == 1) or padded (if kernel_size > 1).
+  """
+  kernel_size_effective = kernel_size + (kernel_size - 1) * (rate - 1)
+  pad_total = kernel_size_effective - 1
+  pad_beg = pad_total // 2
+  pad_end = pad_total - pad_beg
+  padded_inputs = tf.pad(inputs, [[0, 0], [pad_beg, pad_end],
+                                  [pad_beg, pad_end], [0, 0]])
+  return padded_inputs
+
+def combined_static_and_dynamic_shape(tensor):
+  """Returns a list containing static and dynamic values for the dimensions.
+
+  Returns a list of static and dynamic values for shape dimensions. This is
+  useful to preserve static shapes when available in reshape operation.
+
+  Args:
+    tensor: A tensor of any type.
+
+  Returns:
+    A list of size tensor.shape.ndims containing integers or a scalar tensor.
+  """
+  static_tensor_shape = tensor.shape.as_list()
+  dynamic_tensor_shape = tf.shape(tensor)
+  combined_shape = []
+  for index, dim in enumerate(static_tensor_shape):
+    if dim is not None:
+      combined_shape.append(dim)
+    else:
+      combined_shape.append(dynamic_tensor_shape[index])
+  return combined_shape
+
+def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
+                                width_scale=None):
+  """Nearest neighbor upsampling implementation.
+
+  Nearest neighbor upsampling function that maps input tensor with shape
+  [batch_size, height, width, channels] to [batch_size, height * scale
+  , width * scale, channels]. This implementation only uses reshape and
+  broadcasting to make it TPU compatible.
+
+  Args:
+    input_tensor: A float32 tensor of size [batch, height_in, width_in,
+      channels].
+    scale: An integer multiple to scale resolution of input data in both height
+      and width dimensions.
+    height_scale: An integer multiple to scale the height of input image. This
+      option when provided overrides `scale` option.
+    width_scale: An integer multiple to scale the width of input image. This
+      option when provided overrides `scale` option.
+  Returns:
+    data_up: A float32 tensor of size
+      [batch, height_in*scale, width_in*scale, channels].
+
+  Raises:
+    ValueError: If both scale and height_scale or if both scale and width_scale
+      are None.
+  """
+  if not scale and (height_scale is None or width_scale is None):
+    raise ValueError('Provide either `scale` or `height_scale` and'
+                     ' `width_scale`.')
+  with tf.name_scope('nearest_neighbor_upsampling'):
+    h_scale = scale if height_scale is None else height_scale
+    w_scale = scale if width_scale is None else width_scale
+    (batch_size, height, width,
+     channels) = combined_static_and_dynamic_shape(input_tensor)
+    output_tensor = tf.reshape(
+        input_tensor, [batch_size, height, 1, width, 1, channels]) * tf.ones(
+            [1, 1, h_scale, 1, w_scale, 1], dtype=input_tensor.dtype)
+    return tf.reshape(output_tensor,
+                      [batch_size, height * h_scale, width * w_scale, channels])
 
 def get_depth_fn(depth_multiplier, min_depth):
     """Builds a callable to compute depth (output channels) of conv filters.
@@ -170,3 +253,144 @@ def multi_resolution_feature_maps(feature_map_layout, depth_multiplier,
         feature_maps.append(feature_map)
     return collections.OrderedDict(
         [(x, y) for (x, y) in zip(feature_map_keys, feature_maps)])
+
+def fpn_top_down_feature_maps(image_features,
+                              depth,
+                              use_depthwise=False,
+                              use_explicit_padding=False,
+                              scope=None):
+  """Generates `top-down` feature maps for Feature Pyramid Networks.
+
+  See https://arxiv.org/abs/1612.03144 for details.
+
+  Args:
+    image_features: list of tuples of (tensor_name, image_feature_tensor).
+      Spatial resolutions of succesive tensors must reduce exactly by a factor
+      of 2.
+    depth: depth of output feature maps.
+    use_depthwise: whether to use depthwise separable conv instead of regular
+      conv.
+    use_explicit_padding: whether to use explicit padding.
+    scope: A scope name to wrap this op under.
+
+  Returns:
+    feature_maps: an OrderedDict mapping keys (feature map names) to
+      tensors where each tensor has shape [batch, height_i, width_i, depth_i].
+  """
+  with tf.name_scope(scope, 'top_down'):
+    num_levels = len(image_features)
+    output_feature_maps_list = []
+    output_feature_map_keys = []
+    padding = 'VALID' if use_explicit_padding else 'SAME'
+    kernel_size = 3
+    with slim.arg_scope(
+        [slim.conv2d, slim.separable_conv2d], padding=padding, stride=1):
+      top_down = slim.conv2d(
+          image_features[-1][1],
+          depth, [1, 1], activation_fn=None, normalizer_fn=None,
+          scope='projection_%d' % num_levels)
+      output_feature_maps_list.append(top_down)
+      output_feature_map_keys.append(
+          'top_down_%s' % image_features[-1][0])
+
+      for level in reversed(range(num_levels - 1)):
+        top_down = nearest_neighbor_upsampling(top_down, 2)
+        residual = slim.conv2d(
+            image_features[level][1], depth, [1, 1],
+            activation_fn=None, normalizer_fn=None,
+            scope='projection_%d' % (level + 1))
+        if use_explicit_padding:
+          # slice top_down to the same shape as residual
+          residual_shape = tf.shape(residual)
+          top_down = top_down[:, :residual_shape[1], :residual_shape[2], :]
+        top_down += residual
+        if use_depthwise:
+          conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1)
+        else:
+          conv_op = slim.conv2d
+        if use_explicit_padding:
+          top_down = fixed_padding(top_down, kernel_size)
+        output_feature_maps_list.append(conv_op(
+            top_down,
+            depth, [kernel_size, kernel_size],
+            scope='smoothing_%d' % (level + 1)))
+        output_feature_map_keys.append('top_down_%s' % image_features[level][0])
+      return collections.OrderedDict(reversed(
+          list(zip(output_feature_map_keys, output_feature_maps_list))))
+
+
+def pooling_pyramid_feature_maps(base_feature_map_depth, num_layers,
+                                 image_features, replace_pool_with_conv=False):
+  """Generates pooling pyramid feature maps.
+
+  The pooling pyramid feature maps is motivated by
+  multi_resolution_feature_maps. The main difference are that it is simpler and
+  reduces the number of free parameters.
+
+  More specifically:
+   - Instead of using convolutions to shrink the feature map, it uses max
+     pooling, therefore totally gets rid of the parameters in convolution.
+   - By pooling feature from larger map up to a single cell, it generates
+     features in the same feature space.
+   - Instead of independently making box predictions from individual maps, it
+     shares the same classifier across different feature maps, therefore reduces
+     the "mis-calibration" across different scales.
+
+  See go/ppn-detection for more details.
+
+  Args:
+    base_feature_map_depth: Depth of the base feature before the max pooling.
+    num_layers: Number of layers used to make predictions. They are pooled
+      from the base feature.
+    image_features: A dictionary of handles to activation tensors from the
+      feature extractor.
+    replace_pool_with_conv: Whether or not to replace pooling operations with
+      convolutions in the PPN. Default is False.
+
+  Returns:
+    feature_maps: an OrderedDict mapping keys (feature map names) to
+      tensors where each tensor has shape [batch, height_i, width_i, depth_i].
+  Raises:
+    ValueError: image_features does not contain exactly one entry
+  """
+  if len(image_features) != 1:
+    raise ValueError('image_features should be a dictionary of length 1.')
+  image_features = image_features[image_features.keys()[0]]
+
+  feature_map_keys = []
+  feature_maps = []
+  feature_map_key = 'Base_Conv2d_1x1_%d' % base_feature_map_depth
+  if base_feature_map_depth > 0:
+    image_features = slim.conv2d(
+        image_features,
+        base_feature_map_depth,
+        [1, 1],  # kernel size
+        padding='SAME', stride=1, scope=feature_map_key)
+    # Add a 1x1 max-pooling node (a no op node) immediately after the conv2d for
+    # TPU v1 compatibility.  Without the following dummy op, TPU runtime
+    # compiler will combine the convolution with one max-pooling below into a
+    # single cycle, so getting the conv2d feature becomes impossible.
+    image_features = slim.max_pool2d(
+        image_features, [1, 1], padding='SAME', stride=1, scope=feature_map_key)
+  feature_map_keys.append(feature_map_key)
+  feature_maps.append(image_features)
+  feature_map = image_features
+  if replace_pool_with_conv:
+    with slim.arg_scope([slim.conv2d], padding='SAME', stride=2):
+      for i in range(num_layers - 1):
+        feature_map_key = 'Conv2d_{}_3x3_s2_{}'.format(i,
+                                                       base_feature_map_depth)
+        feature_map = slim.conv2d(
+            feature_map, base_feature_map_depth, [3, 3], scope=feature_map_key)
+        feature_map_keys.append(feature_map_key)
+        feature_maps.append(feature_map)
+  else:
+    with slim.arg_scope([slim.max_pool2d], padding='SAME', stride=2):
+      for i in range(num_layers - 1):
+        feature_map_key = 'MaxPool2d_%d_2x2' % i
+        feature_map = slim.max_pool2d(
+            feature_map, [2, 2], padding='SAME', scope=feature_map_key)
+        feature_map_keys.append(feature_map_key)
+        feature_maps.append(feature_map)
+  return collections.OrderedDict(
+      [(x, y) for (x, y) in zip(feature_map_keys, feature_maps)])
