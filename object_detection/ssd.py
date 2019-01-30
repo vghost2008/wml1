@@ -142,13 +142,17 @@ class SSD(object):
         return atools.multi_resolution_feature_maps(feature_map_layout, depth_multiplier,
                                   min_depth, insert_1x1_conv, image_features,
                                   pool_residual)
+    @staticmethod
+    def fpn_top_down_feature_maps(*args,**kwargs):
+        return atools.fpn_top_down_feature_maps(*args,**kwargs)
 
-    def get_scales(self,min_scale=0.2,max_scale=0.9,fm_nr=5):
+    def get_scales(self,min_scale=0.2,max_scale=0.9,fm_nr=5,last_keep_one=True):
         def scales(stage):
             return max_scale-(fm_nr-1-stage)*(max_scale-min_scale)/(fm_nr-1)
         for i in range(fm_nr):
             self.scales.append([scales(i),math.sqrt(scales(i)*scales(i+1))])
-        self.scales[-1] = [self.scales[-1][0]]
+        if last_keep_one:
+            self.scales[-1] = [self.scales[-1][0]]
 
         return self.scales
 
