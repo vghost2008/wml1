@@ -9,7 +9,7 @@ import wml_tfutils as wmlt
 import object_detection.wlayers as odl
 import object_detection.losses as losses
 import sys
-sys.path.append("..")
+import logging
 import wnnlayer as wnnl
 
 
@@ -538,13 +538,13 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                 batch_index *= tf.ones(tf.shape(proposal_boxes)[:2], dtype=tf.int32)
                 box_nr = shape[1]
                 batch_size = -1
-                print(
+                logging.warning(
                     "The network's feature map's batch_size is not fully defined, in this situation, the box_nr must be fully defined.")
             else:
                 batch_index = tf.zeros([1, tf.shape(proposal_boxes)[1]], dtype=tf.int32)
                 box_nr = -1
                 batch_size = 1
-                print(
+                logging.warning(
                     "The network's feature map's shape is not fully defined, in this situation, the batch size must be one.")
                 assert batch_size == self.batch_size, "network batch size {} is not equal seted batch size {}.".format(
                     batch_size, self.batch_size)

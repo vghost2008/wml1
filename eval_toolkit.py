@@ -6,6 +6,7 @@ import random
 import time
 import wml_utils as wmlu
 from multiprocessing import Process,Queue
+import logging
 
 
 def get_file_name_in_ckp(name):
@@ -83,7 +84,7 @@ class WEvalModel:
         while True:
             check_point_files,_ = read_check_file(check_point_file)
             if self.best_result>0 and time.time()-self.best_result_t>60*60*2:
-                print("Best result haven't update for more than two hours, force clean best result.")
+                logging.warning("Best result haven't update for more than two hours, force clean best result.")
                 self.best_result = -1.
 
             process_nr = 0
@@ -95,7 +96,7 @@ class WEvalModel:
                 index = file_index_of_check_file(file)
                 if index in self.history:
                     continue
-                print("process file {}.".format(file))
+                logging.info("process file {}.".format(file))
                 process_nr += 1
                 self.history.append(index)
                 filepath = os.path.join(dir_path,file)
@@ -104,12 +105,12 @@ class WEvalModel:
                 else:
                     result,info = self.eval(filepath)
                 if result<0.01:
-                    print("Unnormal result {}, ignored.".format(result))
+                    logging.error("Unnormal result {}, ignored.".format(result))
                     continue
                 if result<self.best_result:
-                    print("{} not the best result, best result is {}, achieved at {}, skip backup.".format(index,self.best_result, self.best_result_time))
+                    logging.info("{} not the best result, best result is {}, achieved at {}, skip backup.".format(index,self.best_result, self.best_result_time))
                     continue
-                print("New best result {}, {}.".format(file,info))
+                logging.warning("New best result {}, {}.".format(file,info))
                 self.best_result = result
                 self.best_result_time = time.strftime("%m-%d %H:%M:%S", time.localtime())
                 self.best_result_t = time.time()
@@ -117,7 +118,7 @@ class WEvalModel:
                 self.save_info(dir_path,targetpath,file)
 
             if process_nr==0:
-                print("sleep for 30 seconds.")
+                logging.info("sleep for 30 seconds.")
                 sys.stdout.flush()
                 time.sleep(30)
 
@@ -158,14 +159,14 @@ class WEvalModel:
         info_file = os.path.join(ckp_dir,"best_checkpoint")
 
         if not os.path.exists(info_file):
-            print("best_checkpoint file not exists.")
+            logging.error("best_checkpoint file not exists.")
             return None,None
 
         with open(info_file,"r") as f:
             lines = list(f.readlines())
             if len(lines)!=2:
-                print("error best_checkpoint file.")
-                print(lines)
+                logging.error("error best_checkpoint file.")
+                logging.info(lines)
         if len(lines)>=2:
             return lines[0].strip(),lines[1].strip()
         else:
@@ -173,7 +174,7 @@ class WEvalModel:
 
     @staticmethod
     def restore_ckp(ckp_dir):
-        print("Try restore ckp file by evaler recoder.")
+        logging.info("Try restore ckp file by evaler recoder.")
         ckp_dir = os.path.abspath(ckp_dir)
         check_point_file = os.path.join(ckp_dir,"checkpoint")
 
@@ -181,12 +182,12 @@ class WEvalModel:
         sys.stdout.flush()
 
         if targetpath is None or ckp_file is None:
-            print("Can't restore ckp file in {}.".format(ckp_dir))
+            logging.warning("Can't restore ckp file in {}.".format(ckp_dir))
             return
 
-        print("restore file {}.".format(targetpath))
+        logging.info("restore file {}.".format(targetpath))
         command = "tar xvf {} -C {}".format(targetpath,ckp_dir)
-        print(command)
+        logging.info(command)
         os.system(command)
         with open(check_point_file,"w") as f:
             f.write("model_checkpoint_path: \"{}\"\n".format(ckp_file))
@@ -205,7 +206,7 @@ class WEvalModel:
         command = "tar cvzf {} -C {} ".format(target_path,dir_path)
         for f in files:
             command += " {} ".format(f)
-        print("Backup check point file: {}".format(command))
+        logging.info("Backup check point file: {}".format(command))
         sys.stdout.flush()
         os.system(command)
         return target_path

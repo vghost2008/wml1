@@ -203,7 +203,7 @@ def bboxes_flip_up_down(bboxes):
 get a envolope box of boxes.
 bboxes:[X,4]
 '''
-def box_of_boxes(bboxes):
+def envolope_of_boxes(bboxes):
     if bboxes.shape[0]==0:
         return np.array([0.,0.,1.,1.],dtype=np.float32)
     bboxes = np.transpose(bboxes,[1,0])

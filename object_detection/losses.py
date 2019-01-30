@@ -3,6 +3,7 @@ import tensorflow as tf
 import wml_tfutils as wml
 import object_detection.utils as utils
 import wnn
+import logging
 
 slim = tf.contrib.slim
 
@@ -41,10 +42,11 @@ def od_loss(gregs,glabels,classes_logits,bboxes_regs,num_classes,reg_loss_weight
             scale=10.0,
             use_focal_loss=False):
     if use_focal_loss:
-        print("Use focal loss.")
+        logging.info("Use focal loss.")
     batch_size = gregs.get_shape().as_list()[0]
     gregs = tf.reshape(gregs,[-1,4])
     glabels = tf.reshape(glabels,shape=[-1])
+    def_ftype = gregs.dtype
 
     with tf.variable_scope(scope):
         classes_logits = tf.reshape(classes_logits, [-1, num_classes])
@@ -64,9 +66,9 @@ def od_loss(gregs,glabels,classes_logits,bboxes_regs,num_classes,reg_loss_weight
             glabels = tf.boolean_mask(glabels,keep_indices)
 
         pmask = tf.greater(glabels,0)
-        psize = tf.reduce_sum(tf.cast(pmask,tf.float32))
+        psize = tf.reduce_sum(tf.cast(pmask,def_ftype))
         nmask = tf.logical_not(pmask)
-        fnmask = tf.cast(nmask,tf.float32)
+        fnmask = tf.cast(nmask,def_ftype)
         class_prediction = slim.softmax(classes_logits)
         #负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
         nclass_prediction = tf.where(nmask,class_prediction[:,0],1.0-fnmask)

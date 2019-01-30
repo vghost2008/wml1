@@ -46,11 +46,13 @@ def isSingleValueTensor(var):
     return dim==1
 
 
-def show_values(values,name=None):
+def show_values(values,name=None,fn=print):
+    string = ""
     if name is not None:
-        print(name)
+        string += name+"\n"
     for v in values:
-        print(v)
+        string += str(v)+"\n"
+    fn(string)
 
 def gather_in_axis_with_one_dim_indices(data,indices,axis=0):
     '''

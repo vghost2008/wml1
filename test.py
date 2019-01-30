@@ -1,6 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
+import logging
 import wml_utils as wmlu
 import math
 import numpy as np
@@ -224,4 +225,7 @@ class WMLTest(tf.test.TestCase):
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',
+                        datefmt="%H:%M:%S")
+    tf.logging.set_verbosity(tf.logging.WARN)
     tf.test.main()

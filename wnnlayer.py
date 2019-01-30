@@ -6,6 +6,7 @@ from tensorflow.contrib.framework.python.ops import add_arg_scope
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import nn
 from tensorflow.contrib.layers.python.layers import initializers
+import numpy as np
 import math
 
 slim = tf.contrib.slim
@@ -207,3 +208,37 @@ def conv2d_with_sn(inputs,
             outputs = activation_fn(outputs)
 
         return outputs
+
+def orthogonal_initializer(shape, dtype=tf.float32, *args, **kwargs):
+  """Generates orthonormal matrices with random values.
+
+  Orthonormal initialization is important for RNNs:
+    http://arxiv.org/abs/1312.6120
+    http://smerity.com/articles/2016/orthogonal_init.html
+
+  For non-square shapes the returned matrix will be semi-orthonormal: if the
+  number of columns exceeds the number of rows, then the rows are orthonormal
+  vectors; but if the number of rows exceeds the number of columns, then the
+  columns are orthonormal vectors.
+
+  We use SVD decomposition to generate an orthonormal matrix with random
+  values. The same way as it is done in the Lasagne library for Theano. Note
+  that both u and v returned by the svd are orthogonal and random. We just need
+  to pick one with the right shape.
+
+  Args:
+    shape: a shape of the tensor matrix to initialize.
+    dtype: a dtype of the initialized tensor.
+    *args: not used.
+    **kwargs: not used.
+
+  Returns:
+    An initialized tensor.
+  """
+  del args
+  del kwargs
+  flat_shape = (shape[0], np.prod(shape[1:]))
+  w = np.random.randn(*flat_shape)
+  u, _, v = np.linalg.svd(w, full_matrices=False)
+  w = u if u.shape == flat_shape else v
+  return tf.constant(w.reshape(shape), dtype=dtype)

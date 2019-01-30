@@ -1,6 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import numpy as np
+import logging
 import wml_tfutils as wmlt
 from wml_tfutils import *
 import wml_utils as wmlu
@@ -50,11 +51,11 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         tf.summary.scalar("lr",lr)
         #opt = tf.train.GradientDescentOptimizer(lr)
         variables_to_train = get_variables_to_train(scopes,scopes_pattern)
-        show_values(variables_to_train,"variables_to_train")
-        print("Total train variables num %d."%(parameterNum(variables_to_train)))
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
         variables_not_to_train = get_variables_not_to_train(variables_to_train)
-        show_values(variables_not_to_train,"variables_not_to_train")
-        print("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
+        show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
+        logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
         opt = str2optimizer(optimizer,lr)
 
         if loss is not None:
@@ -114,8 +115,8 @@ def get_train_opv2(global_step,batch_size=32,learning_rate=1E-3,scopes=None,clip
         lr = tf.maximum(min_learn_rate,lr)
         tf.summary.scalar("lr",lr)
         variables_to_train = get_variables_to_train(scopes)
-        show_values(variables_to_train,"variables_to_train")
-        print("Total train variables num %d."%(parameterNum(variables_to_train)))
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
         opt = tf.train.AdamOptimizer(lr)
 
         if loss is not None:
@@ -172,8 +173,8 @@ def get_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
     '''
     with tf.name_scope("train_op"):
         variables_to_train = get_variables_to_train(scopes,re_pattern=re_pattern)
-        show_values(variables_to_train,"variables_to_train")
-        print("Total train variables num %d."%(parameterNum(variables_to_train)))
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
 
         if loss is not None:
             total_loss = loss
@@ -340,13 +341,13 @@ def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,ke
     if len(variables_to_restore) == 0:
         return []
     if not silent:
-        show_values(variables_to_restore, name+"_variables_to_restore")
+        show_values(variables_to_restore, name+"_variables_to_restore",fn=logging.info)
     restorer = tf.train.Saver(variables_to_restore)
     if not silent:
-        print(name+"_variables_to_restore:", parameterNum(variables_to_restore))
+        logging.info(name+"_variables_to_restore:"+str(parameterNum(variables_to_restore)))
 
     if file_path is not None:
-        print("Restore values from"+file_path)
+        logging.info("Restore values from"+file_path)
         restorer.restore(sess, file_path)
         return file_path,variables_to_restore
     return []

@@ -10,6 +10,7 @@ import object_detection.npod_toolkit as npod
 import math
 from semantic.visualization_utils import draw_bounding_boxes_on_image_tensors
 import wml_utils
+import logging
 
 '''
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
@@ -157,7 +158,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                             float(bbox.find('ymax').text),
                             float(bbox.find('xmax').text)]
             if math.fabs(ymax-ymin)<1e-8 or math.fabs(xmax-xmin)<1e-8:
-                print("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
+                logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
                 continue
             else:
                 box = (ymin / shape[0],
@@ -176,7 +177,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
             ymax = float(bbox.find('ymax').text)-float(adjust[1])
             xmax = float(bbox.find('xmax').text)-float(adjust[0])
             if math.fabs(ymax-ymin)<1e-8 or math.fabs(xmax-xmin)<1e-8:
-                print("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
+                logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
                 continue
             else:
                 box = (ymin / shape[0],
@@ -190,11 +191,11 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                         box_ok = False
         if aspect_range is not None:
             if float(box[2] - box[0]) / (box[3] - box[1]) > aspect_range[1] or float(box[2] - box[0]) / (box[3] - box[1]) < aspect_range[0]:
-                print("large aspect.")
+                logging.warning("large aspect.")
                 box_ok = False
 
         if not box_ok:
-            print("Ignore one box")
+            logging.warning("Ignore one box")
             continue
         bboxes.append(box)
         labels_text.append(label)
@@ -430,7 +431,7 @@ def getmAP(gtboxes,gtlabels,boxes,labels,probability=None,threshold=0.5):
 
     min_r = res[0][1]
     max_r = res[-1][1]
-    print("mAP: max r {}, min r {}".format(max_r,min_r))
+    logging.debug("mAP: max r {}, min r {}".format(max_r,min_r))
     if max_r-min_r<1.0:
         p,r = getPrecision(gtboxes,gtlabels,boxes,labels,threshold)
         res = [[p,r],[p,r]]
@@ -625,6 +626,8 @@ def get_total_probibality_by_object_probibality(probibality,labels,num_classes):
     return v0+v1
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',
+                        datefmt="%H:%M:%S")
     boxes = []
     labels = []
     gtboxes = []
