@@ -33,7 +33,7 @@ class SSD(object):
     def getAnchorBoxes(self):
         np_anchors=[]
         for i,shape in enumerate(self.feature_maps_shape):
-            anchors = bboxes.get_anchor_bboxesv2(shape,sizes=self.scales[i],ratios=self.ratios[i])
+            anchors = bboxes.get_anchor_bboxes(shape,sizes=self.scales[i],ratios=self.ratios[i],is_area=False)
             np_anchors.append(anchors)
 
         np_anchors = np.concatenate(np_anchors,axis=0)
@@ -146,6 +146,13 @@ class SSD(object):
     def fpn_top_down_feature_maps(*args,**kwargs):
         return atools.fpn_top_down_feature_maps(*args,**kwargs)
 
+    '''
+    min_scale: min scale (edge size)
+    max_scale: max scale (edge size)
+    last_keep_one: where the last stage only keep one scale
+    return: 
+    scale's list, from min to max
+    '''
     def get_scales(self,min_scale=0.2,max_scale=0.9,fm_nr=5,last_keep_one=True):
         def scales(stage):
             return max_scale-(fm_nr-1-stage)*(max_scale-min_scale)/(fm_nr-1)

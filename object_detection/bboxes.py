@@ -9,16 +9,18 @@ import object_detection.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 
 '''
-sizes:相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1
+sizes:如果is_area=True, sizes相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1, 否则sizes为相对边的大小
 ratios:高与宽的比例，实际计算时还需要考虑图像的形状，才能保持真正的比例
 shape:[h,w]
 返回的shape为[-1,4],表示每个位置，每个大小,每个比率的bboxes
 也就是[位置0大小0比率0_anthorbox,位置0大小0比率1_anchorbox,...]
 '''
-def get_anchor_bboxes(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
+def get_anchor_bboxes(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.],is_area=False):
     anchor_bboxes = []
     HEIGHT = shape[0]
     WIDTH = shape[1]
+    if not is_area:
+        sizes = [s*s for s in sizes]
     for s in sizes:
         for a in ratios:
             '''
@@ -37,10 +39,12 @@ def get_anchor_bboxes(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
 
 '''
 与原版本相比，不考虑featuremap 的比例
-size:为面积大小
+size:如果is_area为True size为面积大小,否则为边的大小
 '''
-def get_anchor_bboxesv2(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.]):
+def get_anchor_bboxesv2(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.],is_area=False):
     anchor_bboxes = []
+    if not is_area:
+        sizes = [s*s for s in sizes]
     for s in sizes:
         for a in ratios:
             bboxes = get_single_anchor_bboxesv2(shape,s,a)
