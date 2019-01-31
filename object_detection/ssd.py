@@ -64,17 +64,17 @@ class SSD(object):
             self.anchor_remove_indices = remove_indices
         return gtregs, gtlabels, gtscores,remove_indices
 
-    def getLoss(self,use_focal_loss=True):
-        return losses.od_loss(gregs=self.gtregs,
+    def getLoss(self,loss=None):
+        if loss is None:
+            loss = losses.ODLossWithFocalLoss(gamma=2.,alpha="auto",max_alpha_scale=10.0,
+                                        num_classes=self.num_classes,
+                                        reg_loss_weight=self.reg_loss_weight,
+                                       classes_wise=self.pred_bboxes_classwise)
+        return loss(gregs=self.gtregs,
                    glabels=self.gtlabels,
                    classes_logits=self.logits,
                    bboxes_regs=self.regs,
-                   num_classes=self.num_classes,
-                   reg_loss_weight=self.reg_loss_weight,
-                   bboxes_remove_indices=self.anchor_remove_indices,
-                   scope="Loss",
-                   classes_wise=self.pred_bboxes_classwise,
-                   use_focal_loss=use_focal_loss)
+                   bboxes_remove_indices=self.anchor_remove_indices)
 
     def merge_classes_predictor(self,logits):
         '''

@@ -321,44 +321,40 @@ class FasterRCN(object):
     '''
     用于计算RPN网络的损失
     '''
-    def getRPNLoss(self):
-        return losses.od_loss(gregs=self.rpn_gtregs,
+    def getRPNLoss(self,loss=None):
+        if loss is None:
+            loss = losses.ODLoss(num_classes=2,reg_loss_weight=self.reg_loss_weight,
+                                 scope="RPNLoss",
+                                 classes_wise=False)
+        return loss(gregs=self.rpn_gtregs,
                    glabels=self.rpn_gtlabels,
                    classes_logits=self.rpn_logits,
                    bboxes_regs=self.rpn_regs,
-                   num_classes=2,
-                   reg_loss_weight=self.reg_loss_weight,
-                   bboxes_remove_indices=self.anchor_remove_indices,
-                   scope="RPNLoss",
-                   classes_wise=False)
+                   bboxes_remove_indices=self.anchor_remove_indices)
     '''
     用于计算RCN网络的损失
     '''
-    def getRCNLoss(self,labels=None,neg_multiplier=1.0,use_scores=True):
+    def getRCNLoss(self,labels=None,loss=None,use_scores=True):
         if labels is None:
             labels = self.rcn_gtlabels
         if use_scores:
-            return losses.od_lossv2(gregs=self.rcn_gtregs,
+            if loss is None:
+                loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
+                                     scope="RCNLoss",classes_wise=True)
+            
+            return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        scores=self.rcn_gtscores,
                        classes_logits=self.rcn_logits,
-                       bboxes_regs=self.rcn_regs,
-                       num_classes=self.num_classes,
-                       reg_loss_weight=self.reg_loss_weight,
-                       scope="RCNLoss",
-                       neg_multiplier=neg_multiplier,
-                       classes_wise=True)
+                       bboxes_regs=self.rcn_regs)
         else:
-            return losses.od_loss(gregs=self.rcn_gtregs,
+            if loss is None:
+                loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
+                                     scope="RCNLoss",classes_wise=True)
+            return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        classes_logits=self.rcn_logits,
-                       bboxes_regs=self.rcn_regs,
-                       num_classes=self.num_classes,
-                       reg_loss_weight=self.reg_loss_weight,
-                       scope="RCNLoss",
-                       neg_multiplier=neg_multiplier,
-                       classes_wise=True)
-
+                       bboxes_regs=self.rcn_regs)
 
     def getProposalBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1):
         with tf.variable_scope("RPNProposalBoxes"):
