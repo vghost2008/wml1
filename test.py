@@ -61,11 +61,7 @@ class WMLTest(tf.test.TestCase):
         with TimeThis():
             resdata = par_for_each(data,fn,thread_nr=len(data))
             resdata.sort()
-            self.assertAllEqual(resdata,target_data)
-    def testGetAnchorBoxes1(self):
-        data0 = bboxes.get_anchor_bboxes(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
-        data1 = bboxes.get_anchor_bboxesv2(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
-        self.assertAllClose(a=data0,b=data1,atol=0.001,rtol=0)'''
+            self.assertAllEqual(resdata,target_data)'''
 
     def testSparseSoftmaxCrossEntropyWithLogitsFL(self):
         with self.test_session() as sess:
@@ -148,79 +144,6 @@ class WMLTest(tf.test.TestCase):
             data = data.eval()
             self.assertAllEqual(a=np_data,b=data)
 
-    def testGetAnchorBboxes(self):
-        with self.test_session() as sess:
-            shape = [3,2]
-            scales = [0.01,0.02]
-            ratios = [1.,2.]
-            anchors = bboxes.get_anchor_bboxes(shape=shape,sizes=scales,ratios=ratios,is_area=True)
-            anchors = np.reshape(anchors,[3,2,4,4])
-            expected_anchors = [[[[0.126,0.189,0.207,0.311],[0.109,0.207,0.224,0.293],[0.109,0.163,0.224,0.337],[0.085,0.189,0.248,0.311]]
-                                    ,[[0.126,0.689,0.207,0.811],[0.109,0.707,0.224,0.793],[0.109,0.663,0.224,0.837],[0.085,0.689,0.248,0.811]] ]
-                ,[[[0.459,0.189,0.541,0.311],[0.442,0.207,0.558,0.293],[0.442,0.163,0.558,0.337],[0.418,0.189,0.582,0.311]]
-                                    ,[[0.459,0.689,0.541,0.811],[0.442,0.707,0.558,0.793],[0.442,0.663,0.558,0.837],[0.418,0.689,0.582,0.811]] ]
-                ,[[[0.793,0.189,0.874,0.311],[0.776,0.207,0.891,0.293],[0.776,0.163,0.891,0.337],[0.752,0.189,0.915,0.311]]
-                                    ,[[0.793,0.689,0.874,0.811],[0.776,0.707,0.891,0.793],[0.776,0.663,0.891,0.837],[0.752,0.689,0.915,0.811]]]]
-            #format = "{:.3f}"
-            #wmlu.show_nparray(anchors,name="anchors",format=format)
-            data = npodt.minmax_to_cyxsr(np.reshape(anchors,[-1,4]),h=math.sqrt(shape[0]/shape[1]),w=math.sqrt(shape[1]/shape[0]))
-            data = np.reshape(data,[3,2,4,4])
-            #wmlu.show_nparray(data,name="data",format=format)
-            #e_data = npodt.minmax_to_cyxsr(np.reshape(expected_anchors,[-1,4]))
-            #e_data = np.reshape(e_data,[2,2,4,4])
-            #wmlu.show_nparray(e_data,name="e_data",format=format)
-
-            self.assertAllClose(expected_anchors,anchors,atol=1e-3,rtol=0)
-
-    def testGetAnchorBboxes2(self):
-        shape = [2,2]
-        scales = [0.01,0.02]
-        ratios = [1.,2.]
-        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios,is_area=True)
-        anchors = np.reshape(anchors,[2,2,4,4])
-        expected_anchors = [[[[0.20000000298023224,0.20000000298023224,0.30000001192092896,0.30000001192092896],[0.1792893260717392,0.214644655585289,0.320710688829422,0.2853553295135498],[0.1792893260717392,0.1792893260717392,0.320710688829422,0.320710688829422],[0.15000000596046448,0.20000000298023224,0.3499999940395355,0.30000001192092896]]
-                                ,[[0.20000000298023224,0.699999988079071,0.30000001192092896,0.800000011920929],[0.1792893260717392,0.7146446704864502,0.320710688829422,0.7853553295135498],[0.1792893260717392,0.6792893409729004,0.320710688829422,0.8207106590270996],[0.15000000596046448,0.699999988079071,0.3499999940395355,0.800000011920929]] ]
-            ,[[[0.699999988079071,0.20000000298023224,0.800000011920929,0.30000001192092896],[0.6792893409729004,0.214644655585289,0.8207106590270996,0.2853553295135498],[0.6792893409729004,0.1792893260717392,0.8207106590270996,0.320710688829422],[0.6499999761581421,0.20000000298023224,0.8500000238418579,0.30000001192092896]]
-                                ,[[0.699999988079071,0.699999988079071,0.800000011920929,0.800000011920929],[0.6792893409729004,0.7146446704864502,0.8207106590270996,0.7853553295135498],[0.6792893409729004,0.6792893409729004,0.8207106590270996,0.8207106590270996],[0.6499999761581421,0.699999988079071,0.8500000238418579,0.800000011920929]]]]
-        #format = "{:.3f}"
-        #wmlu.show_nparray(anchors,name="anchors",format=format)
-        #data = npodt.minmax_to_cyxsr(np.reshape(anchors,[-1,4]))
-        #data = np.reshape(data,[2,2,4,4])
-        #wmlu.show_nparray(data,name="data",format=format)
-        #e_data = npodt.minmax_to_cyxsr(np.reshape(expected_anchors,[-1,4]))
-        #e_data = np.reshape(e_data,[2,2,4,4])
-        #wmlu.show_nparray(e_data,name="e_data",format=format)
-
-        self.assertAllClose(expected_anchors,anchors,atol=1e-6,rtol=0)
-
-    def testGetAnchorBboxes3(self):
-        shape = [256,256]
-        scales = [0.01,0.02,0.9,1.0]
-        ratios = [0.5,1.,2.]
-        anchors0 = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios)
-        anchors1 = bboxes.get_anchor_bboxes(shape=shape,sizes=scales,ratios=ratios)
-        self.assertAllClose(anchors0,anchors1,atol=1e-6,rtol=0)
-
-    def testGetAnchorBboxes4(self):
-        shape = [2,2]
-        scales = [0.01,0.02]
-        ratios = [1.,2.]
-        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios,is_area=True)
-        anchors = np.reshape(anchors,[2,2,4,4])
-        expected_anchors = [[[[0.20000000298023224,0.20000000298023224,0.30000001192092896,0.30000001192092896],[0.1792893260717392,0.214644655585289,0.320710688829422,0.2853553295135498],[0.1792893260717392,0.1792893260717392,0.320710688829422,0.320710688829422],[0.15000000596046448,0.20000000298023224,0.3499999940395355,0.30000001192092896]]
-                                ,[[0.20000000298023224,0.699999988079071,0.30000001192092896,0.800000011920929],[0.1792893260717392,0.7146446704864502,0.320710688829422,0.7853553295135498],[0.1792893260717392,0.6792893409729004,0.320710688829422,0.8207106590270996],[0.15000000596046448,0.699999988079071,0.3499999940395355,0.800000011920929]] ]
-            ,[[[0.699999988079071,0.20000000298023224,0.800000011920929,0.30000001192092896],[0.6792893409729004,0.214644655585289,0.8207106590270996,0.2853553295135498],[0.6792893409729004,0.1792893260717392,0.8207106590270996,0.320710688829422],[0.6499999761581421,0.20000000298023224,0.8500000238418579,0.30000001192092896]]
-                                ,[[0.699999988079071,0.699999988079071,0.800000011920929,0.800000011920929],[0.6792893409729004,0.7146446704864502,0.8207106590270996,0.7853553295135498],[0.6792893409729004,0.6792893409729004,0.8207106590270996,0.8207106590270996],[0.6499999761581421,0.699999988079071,0.8500000238418579,0.800000011920929]]]]
-        #format = "{:.3f}"
-        #wmlu.show_nparray(anchors,name="anchors",format=format)
-        #data = npodt.minmax_to_cyxsr(np.reshape(anchors,[-1,4]))
-        #data = np.reshape(data,[2,2,4,4])
-        #wmlu.show_nparray(data,name="data",format=format)
-        #e_data = npodt.minmax_to_cyxsr(np.reshape(expected_anchors,[-1,4]))
-        #e_data = np.reshape(e_data,[2,2,4,4])
-        #wmlu.show_nparray(e_data,name="e_data",format=format)
-
-        self.assertAllClose(expected_anchors,anchors,atol=1e-6,rtol=0)
 
     def test_select_2thdata_by_index(self):
         with self.test_session() as sess:
@@ -258,6 +181,11 @@ class WMLTest(tf.test.TestCase):
             res_imgs = np.reshape(res_imgs,[5,2,2,1])
             imgs = wmli.crop_image(img,2,2)
             self.assertAllEqual(imgs.eval(),res_imgs)
+            
+    def test_mdict(self):
+        mdict = MDict({"a":1,"b":2,"c":3})
+        self.assertAllEqual([mdict.a,mdict.b,mdict.c],[1,2,3])
+
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

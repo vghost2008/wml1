@@ -485,8 +485,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                 probs = tf.nn.softmax(self.rcn_logits)
                 if adjust_probability is not None:
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
-                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\ 
-                    od.get_predictionv3(class_prediction=probs,
+                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\
+                od.get_predictionv3(class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
                                          nms_threshold=nms_threshold,
