@@ -673,7 +673,7 @@ def sparse_softmax_cross_entropy_with_logits_alpha_balanced(
         return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits,name=name)
     elif alpha != "auto":
         raise ValueError(f"alphpa shold be None or auto, not {alpha}.")
-    with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
+    with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_alpha_balanced"):
         probability = tf.nn.softmax(logits)
         labels = tf.expand_dims(labels,axis=-1)
         r_probability = tf.batch_gather(probability,labels)

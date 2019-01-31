@@ -10,6 +10,7 @@ import numpy as np
 import math
 import img_utils as wmli
 import time
+import logging
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
@@ -297,6 +298,10 @@ return:
 x:(Y,N,...)
 '''
 def select_2thdata_by_index(x,index):
+    if not isinstance(x,tf.Tensor):
+        x = tf.convert_to_tensor(x)
+    if not isinstance(index,tf.Tensor):
+        index = tf.convert_to_tensor(index)
     if not x.get_shape().is_fully_defined() or not index.get_shape().is_fully_defined():
         return select_2thdata_by_index_v2(x,index)
     d_shape = index.get_shape().as_list()
@@ -318,6 +323,10 @@ def select_2thdata_by_index_v2(x,index):
     :param index: (Y)
     :return: (Y,N,...)
     '''
+    if not isinstance(x,tf.Tensor):
+        x = tf.convert_to_tensor(x)
+    if not isinstance(index,tf.Tensor):
+        index = tf.convert_to_tensor(index)
     d_shape = tf.shape(index)
     x_2th_size = tf.shape(x)[1]
     range = tf.range(0, d_shape[0],dtype=tf.int32)
@@ -332,11 +341,15 @@ def select_2thdata_by_index_v2(x,index):
 
 def select_2thdata_by_index_v3(x,index):
     '''
-    handle with the situation which x or index's shape is not fully defined.
+    handle with the situation which x or index's first two dim is not fully defined.
     :param x: (Y,M,N,...)
     :param index: (Y)
     :return: (Y,N,...)
     '''
+    if not isinstance(x,tf.Tensor):
+        x = tf.convert_to_tensor(x)
+    if not isinstance(index,tf.Tensor):
+        index = tf.convert_to_tensor(index)
     batch_size = x.get_shape().as_list()[0]
     old_shape = tf.shape(x)
     new_shape = [-1]+x.get_shape().as_list()[2:]
@@ -434,29 +447,7 @@ def bytes_vec_feature(value):
 
 def draw_points(points,image,color,size=3):
     pass
-'''
-对图像image进行剪切，生成四个角及中间五个不同位置的图像
-如果resize_size不为None， 那么生成的图像会被缩放为resize_size指定的大小
-'''
-def crop_image(image,width,height,resize_size=None):
-    shape = tf.shape(image)
-    images = []
-    img = tf.image.crop_to_bounding_box(image,0,0,height,width)
-    images.append(img)
-    img = tf.image.crop_to_bounding_box(image,shape[0]-height,shape[1]-width,height,width)
-    images.append(img)
-    img = tf.image.crop_to_bounding_box(image, (shape[0] - height)/2, (shape[1] - width)/2, height, width)
-    images.append(img)
-    img = tf.image.crop_to_bounding_box(image, 0, shape[1] - width, height, width)
-    images.append(img)
-    img = tf.image.crop_to_bounding_box(image, shape[0] - height, 0, height, width)
-    images.append(img)
 
-    if resize_size is not None:
-        images = tf.stack(images,axis=0)
-        return tf.image.resize_images(images,resize_size)
-    else:
-        return tf.stack(images,axis=0)
 
 def merge(scopes=None):
     if scopes is None:
@@ -488,7 +479,7 @@ def merge_exclude(excludes=None):
 
 def join_scopes(scope,subscopes):
     if isinstance(subscopes,str):
-        subscopes = [ x.strip() for x in subscopes.split(",")]
+        subscopes = [x.strip() for x in subscopes.split(",")]
     else:
         assert(isinstance(subscopes,list))
     return [scope+"/"+x for x in subscopes]
@@ -506,9 +497,9 @@ def reshape(tensor,shape,name=None):
 def check_value_in_ckp(sess,scope):
     variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                               scope)
-    print("Check {}".format(scope))
+    logging.info("Check {}".format(scope))
     if len(variables) == 0:
-        print(f"No variables in {scope}.")
+        logging.warning(f"No variables in {scope}.")
         return None
     print(sess.run([tf.reduce_sum(variables[0]),
         tf.reduce_sum(tf.abs(variables[0])),

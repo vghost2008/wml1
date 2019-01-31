@@ -154,7 +154,9 @@ class FasterRCN(object):
     neg_nr: number of negative box in every example
     pos_nr: number of postive box in every example
     '''
-    def encodeRCNBoxes(self, gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3,proposal_boxes=None,neg_nr=200,pos_nr=100):
+    def encodeRCNBoxes(self, gbboxes, glabels,lens,
+                       pos_threshold=0.7, neg_threshold=0.3,
+                       proposal_boxes=None,neg_nr=200,pos_nr=100):
         with tf.name_scope("EncodeRCNBoxes"):
             if proposal_boxes is None:
                 proposal_boxes = self.proposal_boxes
@@ -223,7 +225,9 @@ class FasterRCN(object):
                     p_scores = tf.boolean_mask(scores,p_mask)
                     p_boxes,p_boxes_regs,p_labels,p_scores = random_select(p_boxes,p_boxes_regs,p_labels,p_scores,pos_nr)
                     n_boxes,n_boxes_regs,n_labels,n_scores = random_select(n_boxes,n_boxes_regs,n_labels,n_scores,neg_nr)
-                    return tf.concat([p_boxes,n_boxes],axis=0),tf.concat([p_boxes_regs,n_boxes_regs],axis=0),tf.concat([p_labels,n_labels],axis=0),tf.concat([p_scores,n_scores],axis=0)
+                    
+                    return tf.concat([p_boxes,n_boxes],axis=0),tf.concat([p_boxes_regs,n_boxes_regs],axis=0),\
+                           tf.concat([p_labels,n_labels],axis=0),tf.concat([p_scores,n_scores],axis=0)
 
             def selectRCNBoxesM1():
                 with tf.name_scope("M1"):
@@ -242,7 +246,8 @@ class FasterRCN(object):
                     p_boxes_regs = tf.boolean_mask(boxes_regs,p_mask)
                     p_scores = tf.boolean_mask(scores,p_mask)
                     with tf.name_scope("Select"):
-                        n_boxes,n_boxes_regs,n_labels,n_scores = random_select(n_boxes,n_boxes_regs,n_labels,n_scores,nr-total_pos_nr)
+                        n_boxes,n_boxes_regs,n_labels,n_scores =\
+                            random_select(n_boxes,n_boxes_regs,n_labels,n_scores,nr-total_pos_nr)
                     return tf.concat([p_boxes,n_boxes],axis=0),tf.concat([p_boxes_regs,n_boxes_regs],axis=0),tf.concat([p_labels,n_labels],axis=0),tf.concat([p_scores,n_scores],axis=0)
             def selectRCNBoxesM3():
                 with tf.name_scope("M3"):
@@ -275,11 +280,12 @@ class FasterRCN(object):
             assert proposal_boxes_prob.get_shape().ndims==1, "Proposal boxes_prob's dims should be 1."
 
             glabels = tf.ones(shape=[tf.shape(proposal_boxes)[0]],dtype=tf.int32)
-            rcn_gtregs, rcn_gtlabels, rcn_gtscores,remove_indices = boxes_encode1(bboxes=proposal_boxes,
-                                                                                  gboxes=gbboxes,
-                                                                                  glabels=glabels,
-                                                                                  pos_threshold=pos_threshold,
-                                                                                  neg_threshold=0.0)
+            rcn_gtregs, rcn_gtlabels, rcn_gtscores,remove_indices =\
+                boxes_encode1(bboxes=proposal_boxes,
+                               gboxes=gbboxes,
+                               glabels=glabels,
+                               pos_threshold=pos_threshold,
+                               neg_threshold=0.0)
             if remove_indices is not None:
                 if remove_indices.get_shape().ndims > 1:
                     remove_indices = tf.squeeze(remove_indices,axis=0)
@@ -356,7 +362,8 @@ class FasterRCN(object):
 
     def getProposalBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1):
         with tf.variable_scope("RPNProposalBoxes"):
-            self.proposal_boxes,labels,self.proposal_boxes_prob,_ =  od.get_prediction(class_prediction=tf.nn.softmax(self.rpn_logits),
+            self.proposal_boxes,labels,self.proposal_boxes_prob,_ =\
+                od.get_prediction(class_prediction=tf.nn.softmax(self.rpn_logits),
                                      bboxes_regs=self.rpn_regs,
                                      proposal_bboxes=self.anchors,
                                      threshold=threshold,
@@ -371,7 +378,8 @@ class FasterRCN(object):
     '''
     def getProposalBoxesV2(self,k=1000,candiate_multipler=10):
         with tf.variable_scope("RPNProposalBoxes"):
-            self.proposal_boxes,labels,self.proposal_boxes_prob =  od.get_proposal_boxes(class_prediction=tf.nn.softmax(self.rpn_logits),
+            self.proposal_boxes,labels,self.proposal_boxes_prob =\
+                od.get_proposal_boxes(class_prediction=tf.nn.softmax(self.rpn_logits),
                                      bboxes_regs=self.rpn_regs,
                                      proposal_bboxes=self.anchors,
                                      candiate_nr=k,
@@ -385,7 +393,8 @@ class FasterRCN(object):
     '''
     def getProposalBoxesV3(self,k=1000):
         with tf.variable_scope("RPNProposalBoxes"):
-            self.proposal_boxes,labels,self.proposal_boxes_prob = od.get_proposal_boxesv2(class_prediction=tf.nn.softmax(self.rpn_logits),
+            self.proposal_boxes,labels,self.proposal_boxes_prob =\
+                od.get_proposal_boxesv2(class_prediction=tf.nn.softmax(self.rpn_logits),
                                      bboxes_regs=self.rpn_regs,
                                      proposal_bboxes=self.anchors,
                                      candiate_nr=k,
@@ -399,7 +408,8 @@ class FasterRCN(object):
     '''
     def getProposalBoxesV4(self,k=1000,nms_threshold=0.8):
         with tf.variable_scope("RPNProposalBoxes"):
-            self.proposal_boxes,labels,self.proposal_boxes_prob =  od.get_proposal_boxesv3(class_prediction=tf.nn.softmax(self.rpn_logits),
+            self.proposal_boxes,labels,self.proposal_boxes_prob = \
+                od.get_proposal_boxesv3(class_prediction=tf.nn.softmax(self.rpn_logits),
                                      bboxes_regs=self.rpn_regs,
                                      proposal_bboxes=self.anchors,
                                      candiate_nr=k,
@@ -422,7 +432,8 @@ class FasterRCN(object):
                     probs = tf.squeeze(probs,axis=0)
                     probs = probability_adjust(probs=probs,classes=adjust_probability)
                     probs = tf.expand_dims(probs,axis=0)
-                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.finally_indices =  od.get_prediction(
+                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,\
+                    self.finally_indices = od.get_prediction(
                                          class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
@@ -452,7 +463,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                     probs = tf.squeeze(probs,axis=0)
                     probs = probability_adjust(probs=probs,classes=adjust_probability)
                     probs = tf.expand_dims(probs,axis=0)
-                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.finally_indices,self.rcn_bboxes_lens =  od.get_predictionv2(
+                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.finally_indices,\
+                self.rcn_bboxes_lens = od.get_predictionv2(
                                          class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
@@ -477,8 +489,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                 probs = tf.nn.softmax(self.rcn_logits)
                 if adjust_probability is not None:
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
-                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =  od.get_predictionv3(
-                                         class_prediction=probs,
+                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\ 
+                    od.get_predictionv3(class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
                                          nms_threshold=nms_threshold,

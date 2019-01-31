@@ -200,6 +200,30 @@ def crop_and_resize_imgs(img,boxes,crop_size):
 
     return np.stack(res_imgs,axis=0)
 
+'''
+对图像image进行剪切，生成四个角及中间五个不同位置的图像, 生成的图像大小为[height,width]
+如果resize_size不为None， 那么生成的图像会被缩放为resize_size指定的大小
+'''
+def crop_image(image,width,height,resize_size=None):
+    shape = tf.shape(image)
+    images = []
+    img = tf.image.crop_to_bounding_box(image,0,0,height,width)
+    images.append(img)
+    img = tf.image.crop_to_bounding_box(image, 0, shape[1] - width, height, width)
+    images.append(img)
+    img = tf.image.crop_to_bounding_box(image, shape[0] - height, 0, height, width)
+    images.append(img)
+    img = tf.image.crop_to_bounding_box(image,shape[0]-height,shape[1]-width,height,width)
+    images.append(img)
+    img = tf.image.crop_to_bounding_box(image, (shape[0] - height)//2, (shape[1] - width)//2, height, width)
+    images.append(img)
+
+    if resize_size is not None:
+        images = tf.stack(images,axis=0)
+        return tf.image.resize_images(images,resize_size)
+    else:
+        return tf.stack(images,axis=0)
+
 def imread(filepath):
     img = cv2.imread(filepath)
     cv2.cvtColor(img,cv2.COLOR_BGR2RGB,img)

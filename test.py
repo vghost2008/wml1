@@ -12,6 +12,7 @@ import wnn
 import object_detection.npod_toolkit as npodt
 from wml_utils import *
 import object_detection.bboxes as bboxes
+import img_utils as wmli
 
 class WMLTest(tf.test.TestCase):
     '''def testLabelSmooth(self):
@@ -152,7 +153,7 @@ class WMLTest(tf.test.TestCase):
             shape = [3,2]
             scales = [0.01,0.02]
             ratios = [1.,2.]
-            anchors = bboxes.get_anchor_bboxes(shape=shape,sizes=scales,ratios=ratios)
+            anchors = bboxes.get_anchor_bboxes(shape=shape,sizes=scales,ratios=ratios,is_area=True)
             anchors = np.reshape(anchors,[3,2,4,4])
             expected_anchors = [[[[0.126,0.189,0.207,0.311],[0.109,0.207,0.224,0.293],[0.109,0.163,0.224,0.337],[0.085,0.189,0.248,0.311]]
                                     ,[[0.126,0.689,0.207,0.811],[0.109,0.707,0.224,0.793],[0.109,0.663,0.224,0.837],[0.085,0.689,0.248,0.811]] ]
@@ -175,7 +176,7 @@ class WMLTest(tf.test.TestCase):
         shape = [2,2]
         scales = [0.01,0.02]
         ratios = [1.,2.]
-        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios)
+        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios,is_area=True)
         anchors = np.reshape(anchors,[2,2,4,4])
         expected_anchors = [[[[0.20000000298023224,0.20000000298023224,0.30000001192092896,0.30000001192092896],[0.1792893260717392,0.214644655585289,0.320710688829422,0.2853553295135498],[0.1792893260717392,0.1792893260717392,0.320710688829422,0.320710688829422],[0.15000000596046448,0.20000000298023224,0.3499999940395355,0.30000001192092896]]
                                 ,[[0.20000000298023224,0.699999988079071,0.30000001192092896,0.800000011920929],[0.1792893260717392,0.7146446704864502,0.320710688829422,0.7853553295135498],[0.1792893260717392,0.6792893409729004,0.320710688829422,0.8207106590270996],[0.15000000596046448,0.699999988079071,0.3499999940395355,0.800000011920929]] ]
@@ -204,7 +205,7 @@ class WMLTest(tf.test.TestCase):
         shape = [2,2]
         scales = [0.01,0.02]
         ratios = [1.,2.]
-        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios)
+        anchors = bboxes.get_anchor_bboxesv2(shape=shape,sizes=scales,ratios=ratios,is_area=True)
         anchors = np.reshape(anchors,[2,2,4,4])
         expected_anchors = [[[[0.20000000298023224,0.20000000298023224,0.30000001192092896,0.30000001192092896],[0.1792893260717392,0.214644655585289,0.320710688829422,0.2853553295135498],[0.1792893260717392,0.1792893260717392,0.320710688829422,0.320710688829422],[0.15000000596046448,0.20000000298023224,0.3499999940395355,0.30000001192092896]]
                                 ,[[0.20000000298023224,0.699999988079071,0.30000001192092896,0.800000011920929],[0.1792893260717392,0.7146446704864502,0.320710688829422,0.7853553295135498],[0.1792893260717392,0.6792893409729004,0.320710688829422,0.8207106590270996],[0.15000000596046448,0.699999988079071,0.3499999940395355,0.800000011920929]] ]
@@ -221,7 +222,42 @@ class WMLTest(tf.test.TestCase):
 
         self.assertAllClose(expected_anchors,anchors,atol=1e-6,rtol=0)
 
+    def test_select_2thdata_by_index(self):
+        with self.test_session() as sess:
+            data = [[1,2,3],[4,5,6],[7,8,9]]
+            index = [1,2,0]
+            res = [2,6,7]
+            tf_res = wmlt.select_2thdata_by_index(data,index)
+            self.assertAllEqual(res,tf_res.eval())
 
+    def test_select_2thdata_by_index_v2(self):
+        with self.test_session() as sess:
+            data = [[1,2,3],[4,5,6],[7,8,9]]
+            index = [1,2,0]
+            res = [2,6,7]
+            tf_res = wmlt.select_2thdata_by_index_v2(data,index)
+            self.assertAllEqual(res,tf_res.eval())
+    def test_select_2thdata_by_index_v3(self):
+        with self.test_session() as sess:
+            data = [[1,2,3],[4,5,6],[7,8,9]]
+            index = [1,2,0]
+            res = [2,6,7]
+            tf_res = wmlt.select_2thdata_by_index_v3(data,index)
+            self.assertAllEqual(res,tf_res.eval())
+
+    def test_crop_image(self):
+        with self.test_session() as sess:
+            data = np.array(range(16))
+            img = np.reshape(data,[4,4,1])
+            res_imgs = [[0,1,4,5],
+                        [2,3,6,7],
+                        [8,9,12,13],
+                        [10,11,14,15],
+                        [5,6,9,10]]
+            res_imgs = np.array(res_imgs)
+            res_imgs = np.reshape(res_imgs,[5,2,2,1])
+            imgs = wmli.crop_image(img,2,2)
+            self.assertAllEqual(imgs.eval(),res_imgs)
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

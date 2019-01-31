@@ -163,7 +163,7 @@ class SSD(object):
 
         return self.scales
 
-    def getBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1,
+    def getBoxes(self,k=1000,threshold=0.5,nms_threshold=0.4,
                  limits=None,
                  classes_wise_nms=True,
                  use_soft_nms=True):
