@@ -150,3 +150,44 @@ def plt_bboxesv2(img, classes, scores, bboxes, linewidth=1.5,cmap=None,show_text
                        fontsize=12, color='red')
     if not hold:
         plt.show()
+
+
+def plt_bboxesv3(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap=None,show_text=True,title=None,save_path=None):
+    plt.figure(figsize=(10, 10))
+    plt.imshow(img,cmap=cmap)
+    height = img.shape[0]
+    width = img.shape[1]
+    colors = {1:(0.,0.,1.),2:(1.,0.,0.)}
+    if isinstance(classes,list):
+        classes = np.array(classes)
+    if isinstance(bboxes,list):
+        bboxes = np.array(bboxes)
+    for i in range(classes.shape[0]):
+        cls_id = classes[i]
+        score = scores[i]
+        if cls_id not in colors:
+            colors[cls_id] = (random.random(), random.random(), random.random())
+        ymin = int(bboxes[i, 0] * height)
+        xmin = int(bboxes[i, 1] * width)
+        ymax = int(bboxes[i, 2] * height)
+        xmax = int(bboxes[i, 3] * width)
+        rect = plt.Rectangle((xmin, ymin), xmax - xmin,
+                             ymax - ymin, fill=False,
+                             edgecolor=colors[cls_id],
+                             linewidth=linewidth)
+        plt.gca().add_patch(rect)
+        class_name = str(cls_id)
+        if show_text:
+            plt.gca().text(xmin, ymin - 2,
+                           '{:s} | {:.3f}'.format(class_name, score),
+                           bbox=dict(facecolor=colors[cls_id], alpha=0.5),
+                           fontsize=12, color='white')
+    if title is not None:
+        plt.gca().text(width/2, 16 ,
+                       title,
+                       bbox=None,
+                       fontsize=12, color='red')
+    if save_path is not None:
+        plt.savefig(save_path)
+    else:
+        plt.show()

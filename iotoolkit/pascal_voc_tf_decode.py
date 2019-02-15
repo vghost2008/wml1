@@ -65,7 +65,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='train_*.tfrecord',
             num_classes=num_classes,
             labels_to_names=None)
 
-def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label=[]):
+def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label={}):
     dataset = get_database(dataset_dir=data_dir,num_classes=num_classes,num_samples=num_samples)
     with tf.name_scope('data_provider'):
         provider = slim.dataset_data_provider.DatasetDataProvider(
@@ -78,7 +78,7 @@ def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label=[]):
         odu.tf_summary_image_with_box(image,bboxes,"input_data")
     label = 1
     if len(id_to_label) == 0:
-        for i in range(1,20):
+        for i in range(1,80):
             id_to_label[i] = label
             label += 1
     table = tf.contrib.lookup.HashTable(

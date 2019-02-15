@@ -37,11 +37,31 @@ SAMPLES_PER_FILES = 200
 
 def labels_text_to_labels(labels_text):
     return [TEXT_TO_ID[x] for x in labels_text]'''
+text = []
+for i in range(ord('a'),ord('z')+1):
+    text.append(chr(i))
+for i in range(ord('A'), ord('Z') + 1):
+    text.append(chr(i))
+for i in range(ord('0'), ord('9') + 1):
+    text.append(chr(i))
+text.append('/')
+text.append('\\')
+text.append('-')
+text.append('+')
+text.append(":")
+text.append("WORD")
+text_to_id = {}
+for i,t in enumerate(text):
+    text_to_id[t] = i+1
+
+
 def category_id_filter(category_id):
     return True
 
 def labels_text_to_labels(labels_text):
-    return [int(x) for x in labels_text]
+
+    # return [int(x) for x in labels_text]
+    return [text_to_id[x] for x in labels_text]
 
 def is_good_data(labels):
     for label in labels:
@@ -180,8 +200,8 @@ if __name__ == "__main__":
 
     #dataset_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012"
     #output_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012/tfdata"
-    dataset_dir = "/home/vghost/ai/mldata/videovoc"
-    output_dir = "/home/vghost/ai/mldata/videovoc/tfdata"
+    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1"
+    output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
