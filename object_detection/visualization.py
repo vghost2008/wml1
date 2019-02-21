@@ -72,12 +72,11 @@ def bboxes_draw_on_img(img, classes, scores, bboxes,
 '''
 sigsize:(w,h)图像大小
 '''
-def plt_bboxes(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap=None,show_text=True,title=None,save_path=None):
+def plt_bboxes(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap=None,show_text=True,title=None,save_path=None,colors = {1:(0.,0.,1.),2:(1.,0.,0.)}):
     plt.figure(figsize=(10, 10))
     plt.imshow(img,cmap=cmap)
     height = img.shape[0]
     width = img.shape[1]
-    colors = {1:(0.,0.,1.),2:(1.,0.,0.)}
     if isinstance(classes,list):
         classes = np.array(classes)
     if isinstance(bboxes,list):

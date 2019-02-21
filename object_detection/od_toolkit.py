@@ -729,11 +729,38 @@ def bboxes_flip_up_down(bboxes):
     bboxes = tf.transpose(bboxes)
     return bboxes
 
-
 def random_flip_up_down(image,bboxes):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
-            lambda: (image, bboxes),
-            lambda: flip_up_down(image,bboxes))
+                   lambda: (image, bboxes),
+                   lambda: flip_up_down(image,bboxes))
+
+def rot90(image,bboxes,clockwise=True):
+    if clockwise:
+        k = 1
+    else:
+        k = 3
+    image = tf.image.rot90(image,k)
+    return image,bboxes_rot90(bboxes,clockwise)
+
+def bboxes_rot90(bboxes,clockwise=True):
+    bboxes = tf.transpose(bboxes)
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
+    if clockwise:
+        nxmax = 1.0-xmin
+        nxmin = 1.0-xmax
+        bboxes = tf.stack([nxmin,ymin,nxmax,ymax],axis=0)
+    else:
+        nymax = 1.0-ymin
+        nymin = 1.0-ymax
+        bboxes = tf.stack([xmin,nymin,xmax,nymax],axis=0)
+    bboxes = tf.transpose(bboxes)
+    return bboxes
+
+
+def random_rot90(image,bboxes,clockwise=True):
+    return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
+                   lambda: (image, bboxes),
+                   lambda: rot90(image,bboxes,clockwise))
 
 '''
 dst为原图中box指定区域的mask

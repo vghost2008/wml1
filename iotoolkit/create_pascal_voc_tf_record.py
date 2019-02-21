@@ -200,7 +200,7 @@ if __name__ == "__main__":
 
     #dataset_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012"
     #output_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012/tfdata"
-    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1"
+    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/train"
     output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata"
     output_name = "train"
 

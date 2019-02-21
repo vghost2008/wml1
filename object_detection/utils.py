@@ -161,15 +161,11 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                 logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
                 continue
             else:
-                box = (ymin / shape[0],
-                 xmin / shape[1],
-                 ymax / shape[0],
-                 xmax / shape[1]
-                 )
-                for v in box:
-                    if v<0. or v>1.:
-                        print(f"error boxes {box}.")
-                        box_ok = False
+                box = (max(0.,ymin / shape[0]),
+                       max(0.,xmin / shape[1]),
+                       min(1.,ymax / shape[0]),
+                       min(1.,xmax / shape[1])
+                       )
 
         else:
             ymin = float(bbox.find('ymin').text)-float(adjust[1])
@@ -180,15 +176,11 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
                 logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
                 continue
             else:
-                box = (ymin / shape[0],
-                 xmin / shape[1],
-                 ymax / shape[0],
-                 xmax / shape[1]
+                box = (max(0.,ymin / shape[0]),
+                 max(0.,xmin / shape[1]),
+                 min(1.,ymax / shape[0]),
+                 min(1.,xmax / shape[1])
                  )
-                for v in box:
-                    if v<0. or v>1.:
-                        print("error boxes")
-                        box_ok = False
         if aspect_range is not None:
             if float(box[2] - box[0]) / (box[3] - box[1]) > aspect_range[1] or float(box[2] - box[0]) / (box[3] - box[1]) < aspect_range[0]:
                 logging.warning("large aspect.")
