@@ -320,6 +320,9 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
 
     write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated)
 
+'''
+return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
+'''
 def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False):
     jpeg_dir = os.path.join(dir_path,image_sub_dir)
     xml_dir = os.path.join(dir_path,xml_sub_dir)

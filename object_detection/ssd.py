@@ -32,11 +32,15 @@ class SSD(object):
 
     def getAnchorBoxes(self):
         np_anchors=[]
+        offset = 0
         for i,shape in enumerate(self.feature_maps_shape):
             anchors = bboxes.get_anchor_bboxes(shape,sizes=self.scales[i],ratios=self.ratios[i],is_area=False)
+            print("Anchors size:",anchors.shape[0],", offset=",offset)
+            offset += anchors.shape[0]
             np_anchors.append(anchors)
 
         np_anchors = np.concatenate(np_anchors,axis=0)
+        self.np_anchors = np_anchors
         anchors = tf.convert_to_tensor(np_anchors)
         self.anchors = tf.expand_dims(anchors,axis=0)
         return self.anchors

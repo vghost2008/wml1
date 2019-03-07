@@ -358,6 +358,7 @@ def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,re
     file_path = wmlt.get_ckpt_file_path(path)
     if file_path is None:
         return
+    print(f"resotre from {file_path}.")
     for v in tf.global_variables():
         if "moving_mean" in v.name or "moving_variance" in v.name:
             tf.add_to_collection(tf.GraphKeys.MOVING_AVERAGE_VARIABLES,v)

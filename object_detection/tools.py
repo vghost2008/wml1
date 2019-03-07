@@ -7,6 +7,8 @@ import wml_utils
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import object_detection.visualization as odv
+import img_utils as wmli
 
 def statistics_boxes(boxes,nr=100):
     sizes = [(x[2]-x[0])*(x[3]-x[1]) for x in boxes]
@@ -44,7 +46,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
     def get_datas():
         if not os.path.exists(dir_path):
             print("path {} not exists.".format(dir_path))
-        files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")
+        files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")[:2000]
         print("\ntotal file size {}.".format(len(files)))
         for file in files:
             shape, bboxes, labels_text, difficult, truncated = utils.read_voc_xml(file,aspect_range=aspect_range)
@@ -155,10 +157,19 @@ def ticks(minv,maxv,order,nr):
     t_delta = (max(scale,((maxv-minv)/nr))//scale)*scale
     return np.arange(minv,maxv,t_delta).tolist()
 
+def show_anchor_box(img_file,boxes):
+    nr = boxes.shape[0]
+    classes = []
+    scores = []
+    for i in range(nr):
+        classes.append(0)
+        scores.append(1)
+    img = wmli.imread(img_file)
+    odv.plt_bboxes(img,classes,scores,boxes,show_text=False)
 
 if __name__ == "__main__":
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
-    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/BEHAVE/videovoc1",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/train",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)

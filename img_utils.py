@@ -1,5 +1,5 @@
 #coding=utf-8
-import pydicom as dcm
+#import pydicom as dcm
 import scipy.misc
 import matplotlib.image as mpimg
 import numpy as np
@@ -9,11 +9,11 @@ import os
 import cv2
 import tensorflow as tf
 
-def dcm_to_jpeg(input_file,output_file):
+'''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
     pix = ds.pixel_array
     scipy.misc.imsave(output_file, pix)
-    return pix.shape
+    return pix.shape'''
 
 def normal_image(image,min=0,max=255,dtype=np.uint8):
     if not isinstance(image,np.ndarray):
@@ -31,14 +31,29 @@ def normal_image(image,min=0,max=255,dtype=np.uint8):
     return image
 
 
-def dcms_to_jpegs(input_dir,output_dir):
+'''def dcms_to_jpegs(input_dir,output_dir):
     input_files = wmlu.recurse_get_filepath_in_dir(input_dir,suffix=".dcm")
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     for file in input_files:
         print('trans file \"%s\"'%(os.path.basename(file)))
         output_file = os.path.join(output_dir,wmlu.base_name(file)+".png")
-        dcm_to_jpeg(file,output_file)
+        dcm_to_jpeg(file,output_file)'''
+
+def blur(img,size=(5,5),sigmaX=0,sigmaY=0):
+    old_shape = img.get_shape()
+    def func(img):
+        dst = np.zeros_like(img)
+        cv2.GaussianBlur(img,dst=dst,ksize=size,sigmaX=sigmaX,sigmaY=sigmaY)
+        return dst
+    res = tf.py_func(func,[img],Tout=[img.dtype])[0]
+    res = tf.reshape(res,old_shape)
+    return res
+
+def random_blur(img,size=(5,5),sigmaX=0,sigmaY=0):
+    return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
+                   lambda: (img),
+                   lambda: blur(img,size,sigmaX,sigmaY))
 
 def to_jpeg(input_file,output_file):
     _input_file = input_file.lower()
