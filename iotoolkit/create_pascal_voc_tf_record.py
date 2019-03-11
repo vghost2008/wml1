@@ -29,7 +29,7 @@ tf.flags.DEFINE_string('output_dir', '/tmp/', 'Output data directory.')
 
 DIRECTORY_ANNOTATIONS = 'Annotations/'
 DIRECTORY_IMAGES = 'JPEGImages/'
-SAMPLES_PER_FILES = 200
+SAMPLES_PER_FILES = 500
 
 '''def category_id_filter(category_id):
     good_ids = [15,6,7,14,2]
@@ -59,8 +59,11 @@ def category_id_filter(category_id):
     return True
 
 def labels_text_to_labels(labels_text):
-
     # return [int(x) for x in labels_text]
+    for x in labels_text:
+        if x not in text_to_id:
+            print(f"\"{x}\" not in target set.")
+    labels_text = map(lambda x:x if x in text_to_id else "WORD",labels_text)
     return [text_to_id[x] for x in labels_text]
 
 def is_good_data(labels):
@@ -159,7 +162,7 @@ def _get_output_filename(output_dir, name, idx):
 '''
 将所有图像文件按SAMPLES_PER_FILES(200)一批保存在tfrecored文件中
 '''
-def to_tfrecords(dataset_dir, output_dir, name='train', shuffling=False):
+def to_tfrecords(dataset_dir, output_dir, name='train', shuffling=False,repeat=1,fidx=0):
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
         print("删除文件夹%s"%(output_dir))
@@ -173,12 +176,13 @@ def to_tfrecords(dataset_dir, output_dir, name='train', shuffling=False):
     filenames仅包含文件名，不包含文件路径
     '''
     filenames = sorted(os.listdir(path))
+    if repeat>1:
+        filenames = list(filenames)*repeat
     if shuffling:
         random.seed(time.time())
         random.shuffle(filenames)
 
     i = 0
-    fidx = 0
     while i < len(filenames):
         tf_filename = _get_output_filename(output_dir, name, fidx)
         with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
@@ -200,11 +204,11 @@ if __name__ == "__main__":
 
     #dataset_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012"
     #output_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012/tfdata"
-    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/train"
-    output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata"
+    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/rdatav2"
+    output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata1"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
     print('Output directory:',output_dir)
 
-    to_tfrecords(dataset_dir, output_dir, output_name)
+    to_tfrecords(dataset_dir, output_dir, output_name,repeat=65)

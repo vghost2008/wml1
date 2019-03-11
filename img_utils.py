@@ -41,7 +41,8 @@ def normal_image(image,min=0,max=255,dtype=np.uint8):
         dcm_to_jpeg(file,output_file)'''
 
 def blur(img,size=(5,5),sigmaX=0,sigmaY=0):
-    old_shape = img.get_shape()
+    #old_shape = img.get_shape()
+    old_shape = tf.shape(img)
     def func(img):
         dst = np.zeros_like(img)
         cv2.GaussianBlur(img,dst=dst,ksize=size,sigmaX=sigmaX,sigmaY=sigmaY)
