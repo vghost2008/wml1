@@ -6,6 +6,7 @@ from tensorflow.contrib.framework.python.ops import add_arg_scope
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import nn
 from tensorflow.contrib.layers.python.layers import initializers
+import nlp.wlayers as nlpl
 import numpy as np
 import math
 
@@ -242,3 +243,20 @@ def orthogonal_initializer(shape, dtype=tf.float32, *args, **kwargs):
   u, _, v = np.linalg.svd(w, full_matrices=False)
   w = u if u.shape == flat_shape else v
   return tf.constant(w.reshape(shape), dtype=dtype)
+
+def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
+    old_channel = net.get_shape().as_list()[-1]
+    if channel is not None:
+        net = slim.conv2d(net,channel,[1,1],scope="projection_0")
+    shape = net.get_shape().as_list()
+    new_shape = [-1,shape[1]*shape[2],shape[3]]
+    net = tf.reshape(net,new_shape)
+    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training)
+    if channel is not None:
+        out_shape = [-1,shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        net = slim.conv2d(net,old_channel,[1,1],scope="projection_1")
+    else:
+        out_shape = [-1,shape[1],shape[2],old_channel]
+        net = tf.reshape(net,out_shape)
+    return net
