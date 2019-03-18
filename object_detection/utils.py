@@ -336,6 +336,8 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
         if os.path.exists(xml_path):
             img_file_paths .append(file)
             xml_file_paths.append(xml_path)
+        else:
+            print("ERROR:",file,xml_path)
 
     res = []
     for x in zip(img_file_paths,xml_file_paths):
