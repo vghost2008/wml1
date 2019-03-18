@@ -11,6 +11,7 @@ import math
 from semantic.visualization_utils import draw_bounding_boxes_on_image_tensors
 import wml_utils
 import logging
+import shutil
 
 '''
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
@@ -324,8 +325,14 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
 '''
 def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False):
-    jpeg_dir = os.path.join(dir_path,image_sub_dir)
-    xml_dir = os.path.join(dir_path,xml_sub_dir)
+    if image_sub_dir is not None:
+        jpeg_dir = os.path.join(dir_path,image_sub_dir)
+    else:
+        jpeg_dir = dir_path
+    if xml_sub_dir is not None:
+        xml_dir = os.path.join(dir_path,xml_sub_dir)
+    else:
+        xml_dir = dir_path
     inputfilenames = wml_utils.recurse_get_filepath_in_dir(jpeg_dir,suffix=img_suffix)
 
     img_file_paths = []
@@ -345,6 +352,36 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
     if shuffe:
         random.shuffle(res)
     return res
+'''
+return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
+'''
+def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False):
+    if image_sub_dir is not None:
+        jpeg_dir = os.path.join(dir_path,image_sub_dir)
+    else:
+        jpeg_dir = dir_path
+    if xml_sub_dir is not None:
+        xml_dir = os.path.join(dir_path,xml_sub_dir)
+    else:
+        xml_dir = dir_path
+    inputfilenames = wml_utils.recurse_get_filepath_in_dir(jpeg_dir,suffix=img_suffix)
+
+    good_xml_names=[]
+    for file in inputfilenames:
+        base_name = os.path.basename(file)[:-4]+".xml"
+        xml_path = os.path.join(xml_dir,base_name)
+        if os.path.exists(xml_path):
+            good_xml_names.append(base_name)
+        else:
+            print(f"remove {file}")
+            os.remove(file)
+
+    for file in wml_utils.recurse_get_filepath_in_dir(xml_dir,suffix="xml"):
+        base_name = os.path.basename(file)
+        if base_name not in good_xml_names:
+            print(f"remove {file}")
+            os.remove(file)
+
 
 def __safe_persent(v0,v1):
     if v1==0:
