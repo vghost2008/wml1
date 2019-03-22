@@ -68,21 +68,16 @@ class SSD(object):
             self.anchor_remove_indices = remove_indices
         return gtregs, gtlabels, gtscores,remove_indices
 
-    def getLoss(self,loss=None,use_scores=False):
+    '''
+    ssd不适合使用scores
+    '''
+    def getLoss(self,loss=None):
         if loss is None:
             loss = losses.ODLossWithFocalLoss(gamma=2.,alpha="auto",max_alpha_scale=10.0,
                                         num_classes=self.num_classes,
                                         reg_loss_weight=self.reg_loss_weight,
                                        classes_wise=self.pred_bboxes_classwise)
-        if use_scores:
-            return loss(gregs=self.gtregs,
-                        glabels=self.gtlabels,
-                        classes_logits=self.logits,
-                        bboxes_regs=self.regs,
-                        bboxes_remove_indices=self.anchor_remove_indices,
-                        scores=self.gtscores)
-        else:
-            return loss(gregs=self.gtregs,
+        return loss(gregs=self.gtregs,
                    glabels=self.gtlabels,
                    classes_logits=self.logits,
                    bboxes_regs=self.regs,
