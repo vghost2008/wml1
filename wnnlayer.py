@@ -251,7 +251,7 @@ def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fal
     shape = net.get_shape().as_list()
     new_shape = [-1,shape[1]*shape[2],shape[3]]
     net = tf.reshape(net,new_shape)
-    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training)
+    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
     if channel is not None:
         out_shape = [-1,shape[1],shape[2],channel]
         net = tf.reshape(net,out_shape)
@@ -268,7 +268,7 @@ def cnn_self_hattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
     shape = net.get_shape().as_list()
     new_shape = [-1,shape[2],shape[3]]
     net = tf.reshape(net,new_shape)
-    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training)
+    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
     if channel is not None:
         out_shape = [-1,shape[1],shape[2],channel]
         net = tf.reshape(net,out_shape)

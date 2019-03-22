@@ -1,6 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
+import wnnlayer as wnnl
 import logging
 import wml_utils as wmlu
 import math
@@ -185,6 +186,14 @@ class WMLTest(tf.test.TestCase):
     def test_mdict(self):
         mdict = MDict({"a":1,"b":2,"c":3})
         self.assertAllEqual([mdict.a,mdict.b,mdict.c],[1,2,3])
+
+    def test_dropblock(self):
+        with self.test_session() as sess:
+            data = tf.ones(shape=[1,32,32,1],dtype=tf.float32)
+            data =wnnl.dropblock(data,keep_prob=0.8,block_size=4,is_training=True)
+            data = tf.reshape(data,shape=[32,32])
+            data = tf.cast(data,tf.int32)
+            wmlu.show_list(sess.run(data).tolist())
 
 
 if __name__ == "__main__":
