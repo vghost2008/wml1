@@ -283,3 +283,14 @@ def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
     output = cnn_self_hattenation(net,channel,n_head,keep_prob)
     return tf.transpose(output,perm=[0,2,1,3],name="transpose_1")
 
+def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=None):
+    with tf.variable_scope(scope,default_name="dropblock"):
+        if not is_training:
+            return tf.identity(inputs)
+        drop_prob = (1.0-keep_prob)/(block_size*block_size)
+        mask = tf.random_uniform(shape=tf.shape(inputs),minval=0.,maxval=1.0,dtype=tf.float32,seed=seed)
+        bin_mask = tf.greater(mask,drop_prob)
+        bin_mask = tf.cast(bin_mask,tf.float32)
+        bin_mask = -tf.nn.max_pool(-bin_mask,ksize=[1,block_size,block_size,1],strides=[1,1,1,1],padding="SAME")
+        bin_mask = tf.stop_gradient(bin_mask)
+        return inputs*bin_mask

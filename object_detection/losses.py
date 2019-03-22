@@ -103,6 +103,7 @@ class ODLoss:
             return self.lossv1(gregs,glabels,classes_logits,bboxes_regs,
                  bboxes_remove_indices)
         else:
+            print("Use loss with scores.")
             return self.lossv2(gregs, glabels, classes_logits, bboxes_regs,
                                bboxes_remove_indices,scores)
     
