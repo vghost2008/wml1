@@ -8,6 +8,7 @@ import object_detection.utils as odu
 from semantic.visualization_utils import STANDARD_COLORS
 import semantic.toolkit as smt
 import wml_tfutils as wmlt
+import time
 
 slim = tf.contrib.slim
 slim_example_decoder = tf.contrib.slim.tfexample_decoder
@@ -188,6 +189,7 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
             num_readers=2,
             common_queue_capacity=20 * batch_size,
             common_queue_min=10 * batch_size,
+            seed=int(time.time()),
             shuffle=True)
         [image, labels, bboxes,height,width,mask] = provider.get(["image", "object/label", "object/bbox","height","width","mask"])
         m_shape = tf.shape(image)

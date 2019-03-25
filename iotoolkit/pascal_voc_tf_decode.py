@@ -5,6 +5,7 @@ import os
 import numpy as np
 import wml_tfutils as wmlt
 import object_detection.utils as odu
+import time
 
 FLAGS = tf.app.flags.FLAGS
 slim = tf.contrib.slim
@@ -73,6 +74,7 @@ def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label={}):
             num_readers=2,
             common_queue_capacity=20 * batch_size,
             common_queue_min=10 * batch_size,
+            seed=int(time.time()),
             shuffle=True)
         [image, glabels, bboxes] = provider.get(["image", "object/label", "object/bbox"])
         odu.tf_summary_image_with_box(image,bboxes,"input_data")
