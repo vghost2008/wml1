@@ -291,6 +291,10 @@ def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=None):
         mask = tf.random_uniform(shape=tf.shape(inputs),minval=0.,maxval=1.0,dtype=tf.float32,seed=seed)
         bin_mask = tf.greater(mask,drop_prob)
         bin_mask = tf.cast(bin_mask,tf.float32)
+        nozero = tf.reduce_sum(bin_mask)
+        allsize = tf.cast(tf.reduce_prod(tf.shape(bin_mask)),tf.float32)
+        ratio = allsize/nozero
         bin_mask = -tf.nn.max_pool(-bin_mask,ksize=[1,block_size,block_size,1],strides=[1,1,1,1],padding="SAME")
+        bin_mask = bin_mask*ratio
         bin_mask = tf.stop_gradient(bin_mask)
         return inputs*bin_mask
