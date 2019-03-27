@@ -8,6 +8,8 @@ import numpy as np
 import object_detection.architectures_tools as atools
 import object_detection.od_toolkit as od
 import math
+import functools
+import wtfop.wtfop_ops as wop
 
 slim = tf.contrib.slim
 
@@ -170,10 +172,21 @@ class SSD(object):
 
         return self.scales
 
-    def getBoxes(self,k=1000,threshold=0.5,nms_threshold=0.4,
+    def getBoxes(self,k=1000,threshold=0.5,
                  limits=None,
-                 classes_wise_nms=True,
-                 use_soft_nms=True):
+                 nms=None):
+        '''
+        :param k:
+        :param threshold:
+        :param nms_threshold:
+        :param limits:
+        :param nms: parameters is boxes,labels,confidence
+        :param classes_wise_nms:
+        :param use_soft_nms:
+        :return:
+        '''
+        if nms is None:
+            nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
         with tf.variable_scope("GetBoxes"):
             probs = tf.nn.softmax(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
@@ -182,11 +195,9 @@ class SSD(object):
                 bboxes_regs=self.regs,
                 proposal_bboxes=self.anchors,
                 threshold=threshold,
-                nms_threshold=nms_threshold,
                 limits=limits,
                 candiate_nr=k,
                 classes_wise=self.pred_bboxes_classwise,
-                classes_wise_nms=classes_wise_nms,
-                use_soft_nms=use_soft_nms)
+                nms=nms)
         return self.boxes,self.labels,self.probs,self.boxes_lens
 
