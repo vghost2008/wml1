@@ -745,6 +745,12 @@ def bboxes_rot90(bboxes,clockwise=True):
     bboxes = tf.transpose(bboxes)
     return bboxes
 
+def bboxes_rot90_ktimes(bboxes,clockwise=True,k=1):
+    i = tf.constant(0)
+    c = lambda i,box:tf.less(i,k)
+    b = lambda i,box:(i+1,bboxes_rot90(box,clockwise))
+    _,box = tf.while_loop(c,b,loop_vars=[i,bboxes])
+    return box
 
 def random_rot90(image,bboxes,clockwise=True):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
