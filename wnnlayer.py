@@ -280,7 +280,7 @@ def cnn_self_hattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
 
 def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
     net = tf.transpose(net,perm=[0,2,1,3],name="transpose_0")
-    output = cnn_self_hattenation(net,channel,n_head,keep_prob)
+    output = cnn_self_hattenation(net,channel,n_head,keep_prob,is_training=is_training)
     return tf.transpose(output,perm=[0,2,1,3],name="transpose_1")
 
 def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=None):
