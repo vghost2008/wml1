@@ -68,11 +68,32 @@ def bboxes_draw_on_img(img, classes, scores, bboxes,
             p = (p1[0]-5, p1[1])
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
 
+def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
+                        color_fn=None,
+                         text_fn=None,
+                       thickness=4,show_text=False,fontScale=1.2):
+    shape = img.shape
+    for i in range(bboxes.shape[0]):
+        bbox = bboxes[i]
+        if color_fn is not None:
+            color = color_fn(classes[i])
+        else:
+            color = (random.random()*255, random.random()*255, random.random()*255)
+        p1 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+        p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
+        cv2.rectangle(img, p1[::-1], p2[::-1], color, thickness)
+        if show_text and text_fn is not None:
+            s = text_fn(classes[i], scores[i])
+            p = (p1[0]-5, p1[1])
+            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
+
+    return img
+
 
 '''
 sigsize:(w,h)图像大小
 '''
-def plt_bboxes(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap=None,show_text=True,title=None,save_path=None,colors = {1:(0.,0.,1.),2:(1.,0.,0.)}):
+def plt_bboxes(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap=None,show_text=True,title=None,save_path=None,colors = {1:(0.,0.,1.),2:(1.,0.,0.)},text_fn=None):
     plt.figure(figsize=(10, 10))
     plt.imshow(img,cmap=cmap)
     height = img.shape[0]
@@ -96,12 +117,20 @@ def plt_bboxes(img, classes, scores, bboxes, figsize=(10,10), linewidth=1.5,cmap
                                  edgecolor=colors[cls_id],
                                  linewidth=linewidth)
             plt.gca().add_patch(rect)
-            class_name = str(cls_id)
-            if show_text:
-                plt.gca().text(xmin, ymin - 2,
-                               '{:s} | {:.3f}'.format(class_name, score),
-                               bbox=dict(facecolor=colors[cls_id], alpha=0.5),
-                               fontsize=12, color='white')
+            if text_fn is None:
+                class_name = str(cls_id)
+                if show_text:
+                    plt.gca().text(xmin, ymin - 2,
+                                   '{:s} | {:.3f}'.format(class_name, score),
+                                   bbox=dict(facecolor=colors[cls_id], alpha=0.5),
+                                   fontsize=12, color='white')
+            else:
+                if show_text:
+                    plt.gca().text(xmin, ymin - 2,
+                                   text_fn(cls_id, score),
+                                   bbox=dict(facecolor=colors[cls_id], alpha=0.5),
+                                   fontsize=12, color='white')
+
     if title is not None:
         plt.gca().text(width/2, 16 ,
                        title,

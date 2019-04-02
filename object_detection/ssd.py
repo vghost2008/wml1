@@ -85,18 +85,20 @@ class SSD(object):
                    bboxes_regs=self.regs,
                    bboxes_remove_indices=self.anchor_remove_indices)
 
-    def merge_classes_predictor(self,logits):
+    def merge_classes_predictor(self,logits,num_classes=None):
         '''
         :param logits: list of [batch_size,hi,wi,channel] tensor, hi,wi,channel must fully defined
         :return:
         [batch_size,X,num_classes]
         note: channel should be num_classes*len(scales[i])*len(ratios[i])
         '''
+        if num_classes is None:
+            num_classes = self.num_classes
         logits_list = []
         for lg in logits:
             shape = lg.get_shape().as_list()
-            x_size = shape[1]*shape[2]*shape[3]//self.num_classes
-            lg = tf.reshape(lg,[-1,x_size,self.num_classes])
+            x_size = shape[1]*shape[2]*shape[3]//num_classes
+            lg = tf.reshape(lg,[-1,x_size,num_classes])
             logits_list.append(lg)
         return tf.concat(logits_list,axis=1)
 

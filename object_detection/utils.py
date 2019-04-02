@@ -9,6 +9,7 @@ import os
 import object_detection.npod_toolkit as npod
 import math
 from semantic.visualization_utils import draw_bounding_boxes_on_image_tensors
+import object_detection.visualization as odv
 import wml_utils
 import logging
 import shutil
@@ -65,6 +66,29 @@ def tf_summary_image_with_boxv2(image,
         image_with_box = draw_bounding_boxes_on_image_tensors(image,bboxes,classes,scores,
                                                               category_index=category_index,
                                                               max_boxes_to_draw=max_boxes_to_draw)
+        tf.summary.image(name, image_with_box)
+
+def tf_summary_image_with_boxv3(image,
+                                bboxes,
+                                classes,
+                                scores=None,
+                                get_color_func=None,
+                                name='summary_image_with_box',scale=True):
+    with tf.name_scope(name):
+        if scale:
+            if (image.dtype==tf.float32) or (image.dtype==tf.float16) or (image.dtype==tf.float64):
+                #floatpoint data value range is [-1,1]
+                image = (image+1.0)*127.5
+                image = tf.clip_by_value(image,clip_value_min=0.,clip_value_max=255.)
+                image = tf.cast(image,dtype=tf.uint8)
+        if image.dtype is tf.uint8:
+            image = tf.cast(image,tf.uint8)
+        if scores is None:
+            scores = tf.ones(shape=tf.shape(bboxes)[:2],dtype=tf.float32)
+        def draw_func(img,label,score,boxes):
+            return odv.bboxes_draw_on_imgv2(img,label,score,boxes,get_color_func,show_text=False)
+        image_with_box = tf.py_func(draw_func,(image,classes,scores,bboxes),image.dtype)
+        image_with_box = tf.expand_dims(image_with_box,axis=0)
         tf.summary.image(name, image_with_box)
 
 def tf_summary_image_with_boxs_and_lens(image, bboxes, lens,name='summary_image_with_box',scale=True):

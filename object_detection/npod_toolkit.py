@@ -62,6 +62,28 @@ def bboxes_intersection(bboxes_ref, bboxes):
     return score
 
 '''
+get the unio volume over bboxes_ref's volume.
+bboxes_ref:[4] ymin,xmin,ymax,xmax, relative coordinate
+bboxes2:[X,4], ymin,xmin,ymax,xmax, relative coordinate
+'''
+def bboxes_intersection_r(bboxes_ref, bboxes):
+
+    bboxes = np.transpose(bboxes)
+    # Intersection bbox and volume.
+    int_ymin = np.maximum([bboxes_ref[0]], bboxes[0])
+    int_xmin = np.maximum([bboxes_ref[1]], bboxes[1])
+    int_ymax = np.minimum([bboxes_ref[2]], bboxes[2])
+    int_xmax = np.minimum([bboxes_ref[3]], bboxes[3])
+
+    int_h = np.maximum(int_ymax - int_ymin, 0.)
+    int_w = np.maximum(int_xmax - int_xmin, 0.)
+    int_vol = int_h * int_w
+    # Union volume.
+    vol = (bboxes_ref[2] - bboxes_ref[0]) * (bboxes_ref[3] - bboxes_ref[1])
+    score = int_vol / vol
+    return score
+
+'''
 classes wise nms implementation by numpy.
 classes:[X]
 scores:[X]

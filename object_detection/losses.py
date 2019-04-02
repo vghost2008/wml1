@@ -98,17 +98,28 @@ class ODLoss:
     
     def __call__(self, gregs,glabels,classes_logits,bboxes_regs,
                  bboxes_remove_indices=None,
-                 scores=None):
+                 scores=None,
+                 call_back=None):
+        '''
+        :param gregs:
+        :param glabels:
+        :param classes_logits:
+        :param bboxes_regs:
+        :param bboxes_remove_indices:
+        :param scores:
+        :param call_back: func(pmask,nmask)
+        :return:
+        '''
         if scores is None:
             return self.lossv1(gregs,glabels,classes_logits,bboxes_regs,
-                 bboxes_remove_indices)
+                 bboxes_remove_indices,call_back=call_back)
         else:
             print("Use loss with scores.")
             return self.lossv2(gregs, glabels, classes_logits, bboxes_regs,
-                               bboxes_remove_indices,scores)
+                               bboxes_remove_indices,scores,call_back=call_back)
     
     def lossv1(self,gregs,glabels,classes_logits,bboxes_regs,
-                 bboxes_remove_indices=None):
+                 bboxes_remove_indices=None,call_back=None):
         batch_size = gregs.get_shape().as_list()[0]
         p_glabels, p_gregs, p_logits, p_pred_regs, psize,pmask,n_glabels, n_logits,nsize,nmask = \
             self.split_data(gregs=gregs,glabels=glabels,classes_logits=classes_logits,
@@ -129,6 +140,8 @@ class ODLoss:
             tf.losses.add_loss(loss)
 
         wml.variable_summaries_v2((nsize + psize) / batch_size, "total_boxes_size_for_loss")
+        if call_back is not None:
+            call_back(pmask,nmask)
         '''
         loss0:正样本分类损失
         loss1:正样本回归损失
@@ -142,7 +155,7 @@ class ODLoss:
     与lossv1相比lossv2的正样本概率不再是1.，而是由scores指定
     '''
     def lossv2(self,gregs,glabels,classes_logits,bboxes_regs,
-               bboxes_remove_indices=None,scores=None):
+               bboxes_remove_indices=None,scores=None,call_back=None):
         assert scores is not None, "scores is none."
         batch_size = gregs.get_shape().as_list()[0]
         scores = tf.reshape(scores,shape=[-1])
@@ -169,6 +182,8 @@ class ODLoss:
             tf.losses.add_loss(loss)
 
         wml.variable_summaries_v2((nsize + psize) / batch_size, "total_boxes_size_for_loss")
+        if call_back is not None:
+            call_back(pmask,nmask)
         '''
         loss0:正样本分类损失
         loss1:正样本回归损失
