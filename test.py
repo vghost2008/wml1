@@ -195,6 +195,17 @@ class WMLTest(tf.test.TestCase):
             data = tf.cast(data,tf.int32)
             wmlu.show_list(sess.run(data).tolist())
 
+    def test_merge_mask(self):
+        with self.test_session() as sess:
+            mask0 = [True,False,True,True,True,False,False,True,True,True,False]
+            mask1 = [True,True,True,False,False,True,False]
+            res = [True,False,True,True,False,False,False,False,True,False,False]
+            mask0 = tf.convert_to_tensor(mask0)
+            mask1 = tf.convert_to_tensor(mask1)
+            t_res = wmlt.merge_mask(mask0,mask1)
+            t_res = sess.run(t_res)
+            self.assertAllEqual(t_res,res)
+
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

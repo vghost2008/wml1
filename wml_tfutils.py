@@ -726,6 +726,18 @@ def indices_to_dense_vector(indices,
 
   return tf.dynamic_stitch([tf.range(size), tf.to_int32(indices)],
                            [zeros, values])
+'''
+mask0:[X]
+mask1:[Y]
+return:
+mask:[X]
+'''
+def merge_mask(mask0,mask1):
+    indices = tf.range(tf.reshape(tf.shape(mask0),()))
+    indices = tf.boolean_mask(indices,mask0)
+    indices = tf.boolean_mask(indices,mask1)
+    res = tf.sparse_to_dense(sparse_indices=indices,output_shape=tf.shape(mask0),sparse_values=True,default_value=False)
+    return res
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

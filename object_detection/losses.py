@@ -78,7 +78,10 @@ class ODLoss:
             
             n_glabels = tf.boolean_mask(glabels, nmask)
             n_logits = tf.boolean_mask(classes_logits, nmask)
-            
+            if bboxes_remove_indices is not None:
+                pmask = wml.merge_mask(keep_indices,pmask)
+                nmask = wml.merge_mask(keep_indices,nmask)
+
             return p_glabels,p_gregs,p_logits,p_pred_regs,psize,pmask,n_glabels,n_logits,nsize,nmask
         
     def sparse_softmax_cross_entropy_with_logits(self,    
