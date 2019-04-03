@@ -55,7 +55,7 @@ V_len is important, ensure softmax(A) attention on valid value, Q_len donsen't t
 if use multi layer of attention every layer have to use V_len
 res:[batch_size,n,nb_head*size_per_head]
 '''
-def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is_training=False,use_mask=True):
+def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is_training=False,use_mask=False):
     with tf.variable_scope("MultiHeadAttention"):
         Q = split_heads(Q,n_head)
         #now Q is [batch_size, nb_head,n,size_per_head0]
