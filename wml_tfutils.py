@@ -739,5 +739,9 @@ def merge_mask(mask0,mask1):
     res = tf.sparse_to_dense(sparse_indices=indices,output_shape=tf.shape(mask0),sparse_values=True,default_value=False)
     return res
 
+def batch_gather(params,indices,name=None):
+    with tf.name_scope(name=name,default_name="batch_gather"):
+        return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
