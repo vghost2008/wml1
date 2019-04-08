@@ -187,6 +187,24 @@ def copy_and_rename_file(input_dir,output_dir,input_suffix=".jpg",out_name_patte
         i = i+1
     print("Copy finish.")
 
+def safe_copy(src_file,dst_file):
+    if os.path.exists(dst_file) and os.path.isdir(dst_file):
+        dst_file = os.path.join(dst_file,os.path.basename(dst_file))
+        safe_copy(src_file,dst_file)
+
+    r_dst_file = dst_file
+    if os.path.exists(r_dst_file):
+        r_base_name = base_name(dst_file)
+        r_suffix = suffix(dst_file)
+        dst_dir = os.path.dirname(dst_file)
+        index = 1
+        while os.path.exists(r_dst_file):
+            r_dst_file = os.path.join(dst_dir,r_base_name+f"_{index}."+r_suffix)
+            index += 1
+
+    shutil.copy(src_file,r_dst_file)
+
+
 def base_name(v):
     base_name = os.path.basename(v)
     index = base_name.rfind(".")
