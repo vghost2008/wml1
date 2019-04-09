@@ -561,6 +561,10 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5):
     :param threshold: float
     :return: precision,recall float
     '''
+    if not isinstance(gtboxes,np.ndarray):
+        gtboxes = np.array(gtboxes)
+    if not isinstance(gtlabels,np.ndarray):
+        gtlabels = np.array(gtlabels)
     gt_shape = gtboxes.shape
     #indict if there have some box match with this ground-truth box
     gt_mask = np.zeros([gt_shape[0]],dtype=np.int32)
