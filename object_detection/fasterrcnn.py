@@ -63,6 +63,7 @@ class FasterRCN(object):
         anchor_size用于表示每个地方的anchor_boxes数量，为len(ratios)*len(scales)
         '''
         self.anchor_size=None
+        self.pred_bboxes_classwise = True
 
     def buildFasterRCNNet(self):
         self.buildRCNNet()
@@ -77,8 +78,8 @@ class FasterRCN(object):
         return self.pureBuildRPNNet(self.base_net)
 
     def pureBuildRPNNet(self,base_net):
-        rpn_regs,rpn_logits = self._buildRPNNet(base_net)
         with tf.variable_scope(self.rpn_scope):
+            rpn_regs,rpn_logits = self._buildRPNNet(base_net)
             regs_shape = rpn_regs.get_shape().as_list()
             logits_shape = rpn_logits.get_shape().as_list()
             anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
@@ -100,7 +101,7 @@ class FasterRCN(object):
     base_net: buildBaseNet的返回值,设base_net的shape为bn_shape
     返回:
     [rpn_regs,rpn_logits]
-    rpn_regs的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,num_classes,4], 用于表示每个位置的所有anchorbox到proposal box的变换参数
+    rpn_regs的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,4], 用于表示每个位置的所有anchorbox到proposal box的变换参数
     rpn_logits的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,2], 用于对第个位置的所有anchorbox分类，0为背影，1为目标
     '''
     @abstractmethod
@@ -119,14 +120,15 @@ class FasterRCN(object):
         pass
 
     def buildRCNNet(self,roipooling=odl.DFROI(),proposal_boxes=None,base_net=None,reuse=False):
-        if reuse:
-            tf.get_variable_scope().reuse_variables()
-        if proposal_boxes is None:
-            proposal_boxes = self.proposal_boxes
-        if base_net is None:
-            base_net = self.base_net
-        self.rcn_regs,self.rcn_logits = self._buildRCNNet(base_net,proposal_boxes,roipooling=roipooling)
-        return self.rcn_regs,self.rcn_logits
+        with tf.variable_scope(self.rcn_scope):
+            if reuse:
+                tf.get_variable_scope().reuse_variables()
+            if proposal_boxes is None:
+                proposal_boxes = self.proposal_boxes
+            if base_net is None:
+                base_net = self.base_net
+            self.rcn_regs,self.rcn_logits = self._buildRCNNet(base_net,proposal_boxes,roipooling=roipooling)
+            return self.rcn_regs,self.rcn_logits
 
     #在训练RPN时生成RCN网络参数
     def buildFakeRCNNet(self,roipooling=odl.DFROI()):
@@ -334,7 +336,7 @@ class FasterRCN(object):
     '''
     用于计算RCN网络的损失
     '''
-    def getRCNLoss(self,labels=None,loss=None,use_scores=True):
+    def getRCNLoss(self,labels=None,loss=None,use_scores=True,call_back=None):
         if labels is None:
             labels = self.rcn_gtlabels
         if use_scores:
@@ -354,7 +356,7 @@ class FasterRCN(object):
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        classes_logits=self.rcn_logits,
-                       bboxes_regs=self.rcn_regs)
+                       bboxes_regs=self.rcn_regs,call_back=call_back)
 
     def getProposalBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1):
         with tf.variable_scope("RPNProposalBoxes"):

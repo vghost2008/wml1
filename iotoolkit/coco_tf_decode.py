@@ -178,7 +178,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='*_train.record',
             num_classes=num_classes,
             labels_to_names=None)
 
-def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,file_pattern="*_train.record",id_to_label={}):
+def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,file_pattern="*.tfrecord",id_to_label={}):
     '''
     id_to_label:first id is the category_id in coco, second label is the label id for model
     '''

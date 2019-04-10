@@ -334,7 +334,7 @@ def get_variables_exclude(exclude_str=None,only_scope=None,key=None):
 
     return res_variables
 
-def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,key=None,name=None,silent=False):
+def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,key=None,name=None,silent=False,value_key=None):
     if key is None:
         key = tf.GraphKeys.TRAINABLE_VARIABLES
     variables_to_restore = get_variables_exclude(exclude_var,only_scope,key)
@@ -342,6 +342,12 @@ def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,ke
         return []
     if not silent:
         show_values(variables_to_restore, name+"_variables_to_restore",fn=logging.info)
+    if value_key is not None:
+        _variables_to_restore = variables_to_restore
+        variables_to_restore = {}
+        for v in _variables_to_restore:
+            variables_to_restore[value_key(v)] = v
+
     restorer = tf.train.Saver(variables_to_restore)
     if not silent:
         logging.info(name+"_variables_to_restore:"+str(parameterNum(variables_to_restore)))
@@ -352,7 +358,7 @@ def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,ke
         return file_path,variables_to_restore
     return []
 
-def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,restore_evckp=True):
+def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,restore_evckp=True,value_key=None):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
     file_path = wmlt.get_ckpt_file_path(path)
@@ -363,19 +369,28 @@ def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,re
         if "moving_mean" in v.name or "moving_variance" in v.name:
             tf.add_to_collection(tf.GraphKeys.MOVING_AVERAGE_VARIABLES,v)
     variables = []
-    variables0 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.TRAINABLE_VARIABLES,name="train",silent=silent)
+    variables0 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.TRAINABLE_VARIABLES,name="train",silent=silent,value_key=value_key)
 
     if len(variables0)>1:
-        for v in variables0[1]:
-            variables.append(v.name)
-    variables1 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.MOVING_AVERAGE_VARIABLES,name='moving',silent=silent)
+        if isinstance(variables0[1],list):
+            for v in variables0[1]:
+                variables.append(v.name)
+        else:
+            for v in variables0[1]:
+                variables.append(v)
+    variables1 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.MOVING_AVERAGE_VARIABLES,name='moving',silent=silent,value_key=value_key)
     if len(variables1)>1:
-        for v in variables1[1]:
-            variables.append(v.name)
+        if isinstance(variables1[1],list):
+            for v in variables1[1]:
+                variables.append(v.name)
+        else:
+            for v in variables1[1]:
+                variables.append(v)
 
     for i,v in enumerate(variables):
         index = v.find(':')
-        variables[i] = variables[i][:index]
+        if index>0:
+            variables[i] = variables[i][:index]
     unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
     show_values(unrestored_variables, "Unrestored variables")
 
