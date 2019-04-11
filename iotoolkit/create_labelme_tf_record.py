@@ -18,6 +18,7 @@ import time
 import iotoolkit.dataset_util as dataset_util
 import sys
 import img_utils as wmli
+import copy
 import iotoolkit.label_map_util as label_map_util
 
 flags = tf.app.flags
@@ -57,7 +58,7 @@ def get_files(data_dir,img_suffix="jpg"):
 
 def bbox_of_contour(cnt):
     all_points = np.array(cnt)
-    points = np.transpose(all_points[0])
+    points = np.transpose(all_points)
     x,y = np.vsplit(points,2)
     xmin = np.min(x)
     xmax = np.max(x)
@@ -111,18 +112,65 @@ def cut_contourv2(segmentation,rect):
 def bbox_to_xyminwh(bbox):
     return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
 
+'''
+bbox:(xmin,ymin,width,height)
+'''
+def random_int_in_bbox(bbox):
+    x = random.randint(bbox[0],bbox[0]+bbox[2]-1)
+    y = random.randint(bbox[1],bbox[1]+bbox[3]-1)
+    return x,y
+
+'''
+bbox:(xmin,ymin,width,height)
+size:(width,height)
+'''
+def random_bbox_in_bbox(bbox,size):
+    x,y = random_int_in_bbox(bbox)
+    xmin,ymin = x-size[0]//2,y-size[1]//2
+    return [xmin,ymin,size[0],size[1]]
+
+def random_bbox_in_bboxes(bboxes,size):
+    if len(bboxes) == 0:
+        return (0,0,size[0],size[1])
+    index = random.randint(0,len(bboxes)-1)
+    return random_bbox_in_bbox(bboxes[index],size)
+
+'''
+bbox:(xmin,ymin,width,height)
+size:(width,height)
+'''
+def expand_bbox(bboxes,scale=2):
+    res_bboxes = []
+    for bbox in bboxes:
+        cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
+        new_width = bbox[2]*scale
+        new_height = bbox[3]*scale
+        min_x = cx-new_width//2
+        min_y = cy-new_height//2
+        res_bboxes.append((min_x,min_y,new_width,new_height))
+
+    return res_bboxes
+
+def get_expand_bboxes_in_annotations(annotations,scale=2):
+   bboxes = [ann["bbox"] for ann in annotations]
+   bboxes = expand_bbox(bboxes,scale)
+   return bboxes
+
+
 def random_cut(image,annotations_list,img_data,size):
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
-    img_size = (image["height"],image["width"])
+    annotations_list = copy.deepcopy(annotations_list)
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
     image_info["file_name"] = "random_cut_img"
+    obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
     while True:
-        x = random.randint(0,x_max)
-        y = random.randint(0,y_max)
-        rect = (y,x,y+size[1],x+size[0])
+        t_bbox = random_bbox_in_bboxes(obj_ann_bboxes,size)
+        t_bbox[1] = min(t_bbox[1],y_max)
+        t_bbox[0] = min(t_bbox[0],x_max)
+        rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
         new_annotations_list = []
         for obj_ann in annotations_list:
             cnts,bboxes = cut_contourv2(obj_ann["segmentation"],rect)
@@ -132,7 +180,7 @@ def random_cut(image,annotations_list,img_data,size):
                     segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                     obj_ann["segmentation"] = segmentation
                     obj_ann["bbox"] = bbox_to_xyminwh(bbox_of_contour(cnt))
-                    new_annotations_list.append(obj_ann)
+                    new_annotations_list.append(copy.deepcopy(obj_ann))
         if len(new_annotations_list)>0:
             return (image_info,new_annotations_list,sub_image(img_data,rect))
 
@@ -228,11 +276,11 @@ def _add_to_tfrecord(file,writer):
     else:
         org_img_data = wmli.imread(img_file)
         for _ in range(RANDOM_CUT_NR):
-            image_info,annotations_list,img_data = random_cut(image_info, annotations_list, org_img_data, RANDOM_CUT_SIZE)
+            n_image_info,n_annotations_list,img_data = random_cut(image_info, annotations_list, org_img_data, RANDOM_CUT_SIZE)
             new_file_path = "/tmp/tmp.jpg"
             wmli.imwrite(new_file_path,img_data)
             tf_example, num_annotations_skipped = create_tf_example(
-                image_info, annotations_list,new_file_path)
+                n_image_info, n_annotations_list,new_file_path)
             if tf_example is not None:
                 writer.write(tf_example.SerializeToString())
 

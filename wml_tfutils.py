@@ -743,5 +743,16 @@ def batch_gather(params,indices,name=None):
     with tf.name_scope(name=name,default_name="batch_gather"):
         return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
 
+def assert_equal(v,values):
+    assert_ops = []
+    for i in range(1,len(values)):
+        assert_ops.append(tf.assert_equal(values[0],values[i]))
+    with tf.control_dependencies(assert_ops):
+        return tf.identity(v)
+
+def assert_shape_equal(v,values):
+    shapes = [tf.shape(value) for value in values]
+    return assert_equal(v,shapes)
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

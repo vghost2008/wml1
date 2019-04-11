@@ -11,9 +11,10 @@ import object_detection.losses as losses
 import sys
 import logging
 import wnnlayer as wnnl
+slim = tf.contrib.slim
 
 
-class FasterRCN(object):
+class FasterRCNN(object):
     __metaclass__ = ABCMeta
     '''
     num_classes: include background
@@ -49,6 +50,8 @@ class FasterRCN(object):
         self.rcn_gtscores=None
         self.rcn_logits=None
         self.rcn_regs=None
+        self.rcn_indices = None
+        self.rcn_anchor_to_gt_indices = None
         self.rcn_bboxes_lens = None
         self.finally_boxes=None
         self.finally_boxes_prob=None
@@ -57,8 +60,13 @@ class FasterRCN(object):
         self.train_rcn = False
         self.anchor_remove_indices = None
         self.finally_indices = None
-        self.rpn_scope = "RPN"
-        self.rcn_scope = "RCN"
+        self.fsbp_net = None
+        self.ssbp_net = None
+        self.net_after_roi = None
+        self.rcn_batch_size  = None
+        self.rcn_box_nr = None
+        self.rpn_scope = "FirstStageBoxPredictor"
+        self.rcn_scope = "SecondStageFeatureExtractor"
         '''
         anchor_size用于表示每个地方的anchor_boxes数量，为len(ratios)*len(scales)
         '''
@@ -77,16 +85,37 @@ class FasterRCN(object):
         self.buildBaseNet(bimage)
         return self.pureBuildRPNNet(self.base_net)
 
-    def pureBuildRPNNet(self,base_net):
-        with tf.variable_scope(self.rpn_scope):
-            rpn_regs,rpn_logits = self._buildRPNNet(base_net)
-            regs_shape = rpn_regs.get_shape().as_list()
-            logits_shape = rpn_logits.get_shape().as_list()
-            anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
-            self.rpn_regs = wmlt.reshape(rpn_regs,[regs_shape[0],anchor_nr,regs_shape[-1]])
-            self.rpn_logits = wmlt.reshape(rpn_logits,[logits_shape[0],anchor_nr,logits_shape[-1]])
+    def pureBuildRPNNet(self,base_net=None,channel=512):
+        self.rpnFeatureExtractor(base_net,channel)
+        rpn_regs,rpn_logits = self.rpnBoxPredictor()
+        regs_shape = rpn_regs.get_shape().as_list()
+        logits_shape = rpn_logits.get_shape().as_list()
+        anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
+        self.rpn_regs = wmlt.reshape(rpn_regs,[regs_shape[0],anchor_nr,regs_shape[-1]])
+        self.rpn_logits = wmlt.reshape(rpn_logits,[logits_shape[0],anchor_nr,logits_shape[-1]])
 
         return self.proposal_boxes,self.proposal_boxes_prob
+
+    def rpnFeatureExtractor(self,base_net=None,channel=512):
+        if base_net is None:
+            base_net = self.base_net
+        self.fsbp_net = slim.conv2d(base_net,channel,[3,3],padding="SAME")
+
+    '''
+    base_net: buildBaseNet的返回值,设base_net的shape为bn_shape
+    返回:
+    [rpn_regs,rpn_logits]
+    rpn_regs的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,4], 用于表示每个位置的所有anchorbox到proposal box的变换参数
+    rpn_logits的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,2], 用于对第个位置的所有anchorbox分类，0为背影，1为目标
+    '''
+    def rpnBoxPredictor(self):
+        with tf.variable_scope("FirstStageBoxPredictor"):
+            base_shape = self.fsbp_net.get_shape().as_list()
+            regs_net = slim.conv2d(self.fsbp_net,4*self.anchor_size,[3,3],activation_fn=None,normalizer_fn=None,scope="BoxEncodingPredictor")
+            regs_net = wmlt.reshape(regs_net,[base_shape[0],base_shape[1],base_shape[2],self.anchor_size,4])
+            logits_net = slim.conv2d(self.fsbp_net,2*self.anchor_size,[3,3],activation_fn=None,normalizer_fn=None,scope="ClassPredictor")
+            logits_net = wmlt.reshape(logits_net,[base_shape[0],base_shape[1],base_shape[2],self.anchor_size,2])
+            return regs_net,logits_net
 
     @abstractmethod
     def getTargetLayerShape(self):
@@ -98,15 +127,21 @@ class FasterRCN(object):
         pass
 
     '''
-    base_net: buildBaseNet的返回值,设base_net的shape为bn_shape
+    proposal_boxes:候选bboxes,[X,4]
     返回:
-    [rpn_regs,rpn_logits]
-    rpn_regs的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,4], 用于表示每个位置的所有anchorbox到proposal box的变换参数
-    rpn_logits的shape为[bn_shape[0],bn_shape[1],bn_shape[2],self.anchor_size,2], 用于对第个位置的所有anchorbox分类，0为背影，1为目标
+    rcn_regs,rcn_logits
+    rcn_regs的shape为[batch_size,box_nr,num_classes,4]
+    rcn_logits的shape为[batch_size,box_nr,num_classes]
     '''
-    @abstractmethod
-    def _buildRPNNet(self,base_net):
-        pass
+    def rcnFeatureExtractor(self,base_net,proposal_boxes,roipooling,bin_size=7,reuse=False):
+        net_channel = base_net.get_shape().as_list()[-1]
+
+        batch_index,batch_size,box_nr = self.rcn_batch_index_helper(proposal_boxes)
+        net = roipooling(base_net,proposal_boxes,batch_index,bin_size,bin_size)
+        self.net_after_roi = net
+        net = wmlt.reshape(net,[batch_size*box_nr,bin_size,bin_size,net_channel])
+        self.ssbp_net = self._rcnFeatureExtractor(net,reuse)
+        self.rcn_batch_size,self.rcn_box_nr = batch_size,box_nr
 
     '''
     proposal_boxes:候选bboxes,[X,4]
@@ -116,19 +151,39 @@ class FasterRCN(object):
     rcn_logits的shape为[batch_size,box_nr,num_classes]
     '''
     @abstractmethod
-    def _buildRCNNet(self,base_net,proposal_boxes,roipooling,reuse):
+    def _rcnFeatureExtractor(self,net,reuse=False):
         pass
 
-    def buildRCNNet(self,roipooling=odl.DFROI(),proposal_boxes=None,base_net=None,reuse=False):
-        with tf.variable_scope(self.rcn_scope):
+    def rcnBoxPredictor(self,batch_size,box_nr,reuse=False):
+        with tf.variable_scope("SecondStageBoxPredictor"):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
-            if proposal_boxes is None:
-                proposal_boxes = self.proposal_boxes
-            if base_net is None:
-                base_net = self.base_net
-            self.rcn_regs,self.rcn_logits = self._buildRCNNet(base_net,proposal_boxes,roipooling=roipooling)
-            return self.rcn_regs,self.rcn_logits
+            ssbp_net = tf.reduce_mean(self.ssbp_net,axis=[1,2],keepdims=False)
+            #分类子网络
+            rcn_logits = slim.fully_connected(ssbp_net, self.num_classes,
+                                              activation_fn = None,
+                                              weights_regularizer=None, biases_regularizer=None,
+                                              scope="ClassPredictor")
+            rcn_logits = tf.reshape(rcn_logits,[batch_size,box_nr,self.num_classes])
+
+            #回归子网络
+            pos_num_classes = self.num_classes-1
+            rcn_regs = slim.fully_connected(ssbp_net, 4 * pos_num_classes,
+                                            scope="BoxEncodingPredictor",
+                                            weights_regularizer=None, biases_regularizer=None,
+                                            activation_fn=None)
+            rcn_regs = tf.reshape(rcn_regs,[batch_size,box_nr,pos_num_classes,4])
+
+            return rcn_regs,rcn_logits
+
+    def buildRCNNet(self,roipooling=odl.DFROI(),proposal_boxes=None,bin_size=7,base_net=None,reuse=False):
+        if base_net is None:
+            base_net = self.base_net
+        if proposal_boxes is None:
+            proposal_boxes = self.proposal_boxes
+        self.rcnFeatureExtractor(base_net,proposal_boxes,roipooling,bin_size,reuse)
+        self.rcn_regs,self.rcn_logits = self.rcnBoxPredictor(self.rcn_batch_size,self.rcn_box_nr,reuse)
+        return self.rcn_regs,self.rcn_logits
 
     #在训练RPN时生成RCN网络参数
     def buildFakeRCNNet(self,roipooling=odl.DFROI()):
@@ -137,7 +192,7 @@ class FasterRCN(object):
 
     def encodeRPNBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
         with tf.name_scope("EncodeRPNBoxes"):
-            rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices = boxes_encode(bboxes=self.anchors,
+            rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices,_ = boxes_encode(bboxes=self.anchors,
                                                                    gboxes=gbboxes,
                                                                    glabels=glabels,
                                                                    length=lens,
@@ -153,6 +208,9 @@ class FasterRCN(object):
             self.anchor_remove_indices = remove_indices
             return rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices
     '''
+    gbboxes:[batch_size,X,4]
+    glabels:[batch_size,X]
+    lens:[batch_size]
     neg_nr: number of negative box in every example
     pos_nr: number of postive box in every example
     '''
@@ -162,19 +220,23 @@ class FasterRCN(object):
         with tf.name_scope("EncodeRCNBoxes"):
             if proposal_boxes is None:
                 proposal_boxes = self.proposal_boxes
-            rcn_gtregs, rcn_gtlabels, rcn_gtscores,remove_indices = boxes_encode(bboxes=proposal_boxes,
+            rcn_gtregs, rcn_gtlabels, rcn_gtscores,remove_indices,indices = boxes_encode(bboxes=proposal_boxes,
                                                                                   gboxes=gbboxes,
                                                                                   glabels=glabels,
                                                                                  length=lens,
                                                                                   pos_threshold=pos_threshold,
                                                                                   neg_threshold=neg_threshold)
             keep_indices = tf.logical_not(remove_indices)
-            self.proposal_boxes,self.rcn_gtregs,self.rcn_gtlabels,self.rcn_gtscores = \
-                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],x[2],x[3],x[4],neg_nr=neg_nr,pos_nr=pos_nr),
-                          elems = (self.proposal_boxes,rcn_gtregs,rcn_gtlabels,rcn_gtscores,keep_indices),
-                          dtype=(tf.float32,tf.float32,tf.int32,tf.float32),
+            self.rcn_gtlabels,self.rcn_indices = \
+                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),
+                          elems = (rcn_gtlabels,keep_indices),
+                          dtype=(tf.int32,tf.int32),
                           back_prop=False,
                           parallel_iterations=self.batch_size)
+            self.rcn_anchor_to_gt_indices = wmlt.batch_gather(indices,self.rcn_indices)
+            self.proposal_boxes = wmlt.batch_gather(self.proposal_boxes,self.rcn_indices)
+            self.rcn_gtregs = wmlt.batch_gather(self.rcn_gtregs,self.rcn_indices)
+            self.rcn_gtscores = wmlt.batch_gather(self.rcn_gtscores,self.rcn_indices)
 
             return self.rcn_gtregs, self.rcn_gtlabels, self.rcn_gtscores
     '''
@@ -191,86 +253,76 @@ class FasterRCN(object):
     r_scores:[M]
     '''
     @staticmethod
-    def selectRCNBoxes(boxes,boxes_regs,labels,scores,keep_indices,neg_nr,pos_nr):
+    def selectRCNBoxes(labels,keep_indices,neg_nr,pos_nr):
         nr = neg_nr+pos_nr
-        boxes = tf.boolean_mask(boxes,keep_indices)
-        boxes_regs = tf.boolean_mask(boxes_regs,keep_indices)
+        r_indices = tf.range(0,tf.shape(labels)[1])
         labels = tf.boolean_mask(labels,keep_indices)
-        scores = tf.boolean_mask(scores,keep_indices)
+        r_indices = tf.boolean_mask(r_indices,keep_indices)
         total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
         total_pos_nr = tf.shape(labels)[0] - total_neg_nr
+
         with tf.name_scope("SelectRCNBoxes"):
-            def random_select(boxes,boxes_regs,labels,scores,size):
+            def random_select(labels,indices,size):
                 with tf.name_scope("random_select"):
                     data_nr = tf.shape(labels)[0]
                     indexs = tf.range(data_nr)
                     indexs = wpad(indexs,[0,size-data_nr])
                     indexs = tf.random_shuffle(indexs)
                     indexs = tf.random_crop(indexs,[size])
-                    boxes = tf.gather(boxes,indexs)
-                    boxes_regs = tf.gather(boxes_regs,indexs)
                     labels = tf.gather(labels,indexs)
-                    scores = tf.gather(scores,indexs)
-                    return boxes,boxes_regs,labels,scores
-
+                    indices = tf.gather(indices,indexs)
+                    return labels,indices
+            #positive and negitave number satisfy the requement
             def selectRCNBoxesM0():
                 with tf.name_scope("M0"):
                     n_mask = tf.equal(labels,0)
                     p_mask = tf.logical_not(n_mask)
                     n_labels = tf.boolean_mask(labels,n_mask)
-                    n_boxes = tf.boolean_mask(boxes,n_mask)
-                    n_boxes_regs = tf.boolean_mask(boxes_regs,n_mask)
-                    n_scores = tf.boolean_mask(scores,n_mask)
+                    n_indices = tf.boolean_mask(r_indices,n_mask)
                     p_labels = tf.boolean_mask(labels,p_mask)
-                    p_boxes = tf.boolean_mask(boxes,p_mask)
-                    p_boxes_regs = tf.boolean_mask(boxes_regs,p_mask)
-                    p_scores = tf.boolean_mask(scores,p_mask)
-                    p_boxes,p_boxes_regs,p_labels,p_scores = random_select(p_boxes,p_boxes_regs,p_labels,p_scores,pos_nr)
-                    n_boxes,n_boxes_regs,n_labels,n_scores = random_select(n_boxes,n_boxes_regs,n_labels,n_scores,neg_nr)
-                    
-                    return tf.concat([p_boxes,n_boxes],axis=0),tf.concat([p_boxes_regs,n_boxes_regs],axis=0),\
-                           tf.concat([p_labels,n_labels],axis=0),tf.concat([p_scores,n_scores],axis=0)
+                    p_indices = tf.boolean_mask(r_indices,p_mask)
+                    p_labels,p_indices = random_select(p_labels,n_indices,pos_nr)
+                    n_labels,n_indices = random_select(n_labels,p_indices,neg_nr)
 
+                    return tf.concat([p_labels,n_labels],axis=0),tf.concat([p_indices,n_indices],axis=0)
+            #process the default situation
             def selectRCNBoxesM1():
                 with tf.name_scope("M1"):
-                    return random_select(boxes,boxes_regs, labels, scores,nr)
+                    return random_select(labels, r_indices,nr)
 
+            #positive dosen't satisfy the requement
             def selectRCNBoxesM2():
                 with tf.name_scope("M2"):
                     n_mask = tf.equal(labels,0)
                     p_mask = tf.logical_not(n_mask)
                     n_labels = tf.boolean_mask(labels,n_mask)
-                    n_boxes = tf.boolean_mask(boxes,n_mask)
-                    n_boxes_regs = tf.boolean_mask(boxes_regs,n_mask)
-                    n_scores = tf.boolean_mask(scores,n_mask)
+                    n_indices = tf.boolean_mask(r_indices,n_mask)
                     p_labels = tf.boolean_mask(labels,p_mask)
-                    p_boxes = tf.boolean_mask(boxes,p_mask)
-                    p_boxes_regs = tf.boolean_mask(boxes_regs,p_mask)
-                    p_scores = tf.boolean_mask(scores,p_mask)
+                    p_indices = tf.boolean_mask(r_indices,p_mask)
                     with tf.name_scope("Select"):
-                        n_boxes,n_boxes_regs,n_labels,n_scores =\
-                            random_select(n_boxes,n_boxes_regs,n_labels,n_scores,nr-total_pos_nr)
-                    return tf.concat([p_boxes,n_boxes],axis=0),tf.concat([p_boxes_regs,n_boxes_regs],axis=0),tf.concat([p_labels,n_labels],axis=0),tf.concat([p_scores,n_scores],axis=0)
+                        n_labels,n_indices = \
+                            random_select(n_labels,n_indices,nr-total_pos_nr)
+                    return tf.concat([p_labels,n_labels],axis=0),tf.concat([p_indices,n_indices],axis=0)
+
+            #positive and negative is empty
             def selectRCNBoxesM3():
                 with tf.name_scope("M3"):
-                    boxes = tf.constant([[0.0,0.0,0.001,0.001]],dtype=tf.float32)*tf.ones([nr,4],dtype=tf.float32)
-                    boxes_regs = tf.zeros_like(boxes,dtype=tf.float32)
+                    #boxes = tf.constant([[0.0,0.0,0.001,0.001]],dtype=tf.float32)*tf.ones([nr,4],dtype=tf.float32)
+                    #boxes_regs = tf.zeros_like(boxes,dtype=tf.float32)
                     labels = tf.constant([0])*tf.ones([nr],dtype=tf.int32)
-                    scores = tf.ones_like(labels,dtype=tf.float32)
-                    return boxes,boxes_regs,labels,scores
+                    #scores = tf.ones_like(labels,dtype=tf.float32)
+                    return labels,tf.zeros_like(labels)
 
-            r_boxes,r_boxes_regs,r_labels,r_scores = tf.case({
+            r_labels,r_indices= tf.case({
                 tf.logical_and(total_pos_nr>=pos_nr,total_neg_nr>=neg_nr):selectRCNBoxesM0,
                 tf.logical_and(tf.logical_and(total_pos_nr<pos_nr,total_neg_nr>=neg_nr),total_pos_nr>0): selectRCNBoxesM2,
                 tf.equal(tf.shape(labels)[0],0):selectRCNBoxesM3
             },
                 default=selectRCNBoxesM1,
                 exclusive=True)
-            r_boxes.set_shape([nr,4])
-            r_boxes_regs.set_shape([nr,4])
             r_labels.set_shape([nr])
-            r_scores.set_shape([nr])
-            return r_boxes,r_boxes_regs,r_labels,r_scores
+            r_indices.set_shape([nr])
+            return r_labels,r_indices
 
     def evalRPNNet(self, gbboxes,proposal_boxes,proposal_boxes_prob,pos_threshold=0.7):
         with tf.name_scope("EncodeRCNBoxes"):
@@ -403,6 +455,8 @@ class FasterRCN(object):
     get exactly k proposal boxes, the excess boxes was remove by heristic method.
     k: output boxes number
     nms_threshold: NMS operation threshold.
+    output:proposal_boxes:[batch_size,k,4]
+    output:proposal_prob:[batch_size,k]
     '''
     def getProposalBoxesV4(self,k=1000,nms_threshold=0.8):
         with tf.variable_scope("RPNProposalBoxes"):
