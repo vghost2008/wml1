@@ -234,9 +234,9 @@ class FasterRCNN(object):
                           back_prop=False,
                           parallel_iterations=self.batch_size)
             self.rcn_anchor_to_gt_indices = wmlt.batch_gather(indices,self.rcn_indices)
-            self.proposal_boxes = wmlt.batch_gather(self.proposal_boxes,self.rcn_indices)
-            self.rcn_gtregs = wmlt.batch_gather(self.rcn_gtregs,self.rcn_indices)
-            self.rcn_gtscores = wmlt.batch_gather(self.rcn_gtscores,self.rcn_indices)
+            self.proposal_boxes = wmlt.batch_gather(proposal_boxes,self.rcn_indices)
+            self.rcn_gtregs = wmlt.batch_gather(rcn_gtregs,self.rcn_indices)
+            self.rcn_gtscores = wmlt.batch_gather(rcn_gtscores,self.rcn_indices)
 
             return self.rcn_gtregs, self.rcn_gtlabels, self.rcn_gtscores
     '''
@@ -255,7 +255,7 @@ class FasterRCNN(object):
     @staticmethod
     def selectRCNBoxes(labels,keep_indices,neg_nr,pos_nr):
         nr = neg_nr+pos_nr
-        r_indices = tf.range(0,tf.shape(labels)[1])
+        r_indices = tf.range(0,tf.shape(labels)[0])
         labels = tf.boolean_mask(labels,keep_indices)
         r_indices = tf.boolean_mask(r_indices,keep_indices)
         total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
