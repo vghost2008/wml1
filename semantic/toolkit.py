@@ -77,6 +77,7 @@ def tf_summary_image_with_mask_and_boxes(image, mask, bboxes,color=None,alpha=0.
         if image.get_shape().ndims ==3:
             image = tf.expand_dims(image,axis=0)
         bboxes = tf.expand_dims(bboxes,axis=0)
+        image = tf.cast(image,tf.float32)/255
         image = tf.image.draw_bounding_boxes(image, bboxes)
         tf.summary.image(name, image)
 
