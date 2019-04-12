@@ -181,7 +181,7 @@ def bboxes_filter_overlap(labels, bboxes,
             bboxes = tf.boolean_mask(bboxes, mask)
 
         bboxes = tf_correct_yxminmax_boxes(bboxes)
-        return labels, bboxes
+        return labels, bboxes,mask
 
 
 def bboxes_filter_labels(labels, bboxes,

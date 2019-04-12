@@ -879,7 +879,7 @@ def distorted_bounding_box_crop(image,
         '''
         仅保留交叉面积大于threshold的bbox
         '''
-        labels, bboxes = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
+        labels, bboxes,mask = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
                                                    threshold=min_object_covered,
                                                    assign_negative=False)
-        return cropped_image, labels, bboxes,bbox_begin,bbox_size 
+        return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
