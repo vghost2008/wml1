@@ -61,6 +61,25 @@ def tf_summary_image_with_mask(image, mask, color=None,alpha=0.4,no_first_mask=F
             image = tf.expand_dims(image,axis=0)
         tf.summary.image(name, image)
 
+def tf_summary_image_with_mask_and_boxes(image, mask, bboxes,color=None,alpha=0.4,no_first_mask=False,name='summary_image_with_mask'):
+    with tf.device("/cpu:0"):
+        if no_first_mask:
+            mask = mask[:,:,1:]
+
+        if color is None:
+            with tf.device("/cpu:0"):
+                mask_nr = tf.shape(mask)[2]
+                color_nr = len(MIN_RANDOM_STANDARD_COLORS)
+                color_tensor = tf.convert_to_tensor(MIN_RANDOM_STANDARD_COLORS)
+                color = tf.gather(color_tensor,
+                                  tf.mod(tf.range(mask_nr,dtype=tf.int32), color_nr))
+        image = visu.tf_draw_masks_on_image(image=image,mask=mask,color=color,alpha=alpha)
+        if image.get_shape().ndims ==3:
+            image = tf.expand_dims(image,axis=0)
+        bboxes = tf.expand_dims(bboxes,axis=0)
+        image = tf.image.draw_bounding_boxes(image, bboxes)
+        tf.summary.image(name, image)
+
 '''
 image:[batch_size,height,width,3]
 mask:[batch_size,height,width,N]
