@@ -177,7 +177,13 @@ def get_database(dataset_dir,num_samples=1,file_pattern='*_train.record',
             items_to_descriptions=items_to_descriptions,
             num_classes=num_classes,
             labels_to_names=None)
-
+'''
+return:
+image:[H,W,C]
+labels:[X]
+bboxes:[X,4]
+mask:[X,H,W]
+'''
 def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,file_pattern="*.tfrecord",id_to_label={}):
     '''
     id_to_label:first id is the category_id in coco, second label is the label id for model
@@ -225,7 +231,6 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
             tf.contrib.lookup.KeyValueTensorInitializer(np.array(list(id_to_color.keys()), dtype=np.int64),
                                                         np.array(list(id_to_color.values()), dtype=np.str)), "Red")
         labels = table.lookup(labels)
-        mask = tf.transpose(mask,perm=[1,2,0])
         if log_summary:
             wmlt.variable_summaries_v2(labels,"labels")
             colors = color_table.lookup(labels)

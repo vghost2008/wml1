@@ -52,7 +52,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
         pmask = tf.Print(pmask,[pmask,tf.reduce_max(self.rcn_anchor_to_gt_indices),tf.reduce_min(self.rcn_anchor_to_gt_indices)],"pmask",first_n=64)
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
-        wmlt.image_summaries(gtmasks[0][:b_len[0], :, :, :], "mask0_1")
+        wmlt.image_summaries(gtmasks[0][:b_len[0],:,:,:],"mask0_1")
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
         for i in range(batch_size):
             gtmasks = tf.Print(gtmasks,[b_len[i],tf.reduce_max(self.rcn_anchor_to_gt_indices[i])],"test0")

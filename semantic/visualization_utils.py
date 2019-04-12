@@ -504,7 +504,7 @@ def tf_draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
 
 '''
 image:[height,width,3]
-mask:[height,width,N]
+mask:[N,height,width]
 colors:[N], string
 alpha:
 '''
@@ -513,7 +513,6 @@ def tf_draw_masks_on_image(image, mask, color,alpha=0.4,name='summary_image_with
         image = tf.cast(image,tf.uint8)
     if mask.dtype is not tf.uint8:
         mask = tf.cast(mask,tf.uint8)
-    mask = tf.transpose(mask,perm=[2,0,1])
     with tf.name_scope(name):
         nr = tf.shape(mask)[0]
         indexs = tf.range(nr)

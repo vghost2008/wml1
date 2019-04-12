@@ -685,7 +685,10 @@ image: A 3-D tensor of shape [height, width, channels].
 bboxes:[X,4] X个bboxes,使用相对坐标，[ymin,xmin,ymax,xmax]
 '''
 def flip_left_right(image,bboxes):
-    image = tf.image.flip_left_right(image)
+    if isinstance(image,list):
+        image = [tf.image.flip_left_right(img) for img in image]
+    else:
+        image = tf.image.flip_left_right(image)
     return image,bboxes_flip_left_right(bboxes)
 
 def bboxes_flip_left_right(bboxes):
@@ -706,7 +709,10 @@ image: A 3-D tensor of shape [height, width, channels].
 bboxes:[X,4] X个bboxes,使用相对坐标，[ymin,xmin,ymax,xmax]
 '''
 def flip_up_down(image,bboxes):
-    image = tf.image.flip_up_down(image)
+    if isinstance(image,list):
+        image = [tf.image.flip_up_down(img) for img in image]
+    else:
+        image = tf.image.flip_up_down(image)
     return image,bboxes_flip_up_down(bboxes)
 
 def bboxes_flip_up_down(bboxes):
@@ -728,7 +734,10 @@ def rot90(image,bboxes,clockwise=True):
         k = 1
     else:
         k = 3
-    image = tf.image.rot90(image,k)
+    if isinstance(image,list):
+        image = [tf.image.rot90(img,k) for img in image]
+    else:
+        image = tf.image.rot90(image,k)
     return image,bboxes_rot90(bboxes,clockwise)
 
 def bboxes_rot90(bboxes,clockwise=True):
@@ -848,6 +857,12 @@ def distorted_bounding_box_crop(image,
     :param max_attempts:
     :param scope:
     :return:
+    croped_image:[h,w,C]
+    labels:[n]
+    bboxes[n,4]
+    mask:[num_boxes]
+    bbox_begin:[3]
+    bbox_size:[3]
     '''
     with tf.name_scope(scope, 'distorted_bounding_box_crop', [image, bboxes]):
         '''
@@ -883,3 +898,30 @@ def distorted_bounding_box_crop(image,
                                                    threshold=min_object_covered,
                                                    assign_negative=False)
         return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
+
+'''
+mask:[N,H,W]
+'''
+def distorted_bounding_box_and_mask_crop(image,
+                                mask,
+                                labels,
+                                bboxes,
+                                min_object_covered=0.3,
+                                aspect_ratio_range=(0.9, 1.1),
+                                area_range=(0.1, 1.0),
+                                max_attempts=200,
+                                scope=None):
+    dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
+            distorted_bounding_box_crop(image, labels, bboxes,
+                                        area_range=area_range,
+                                        min_object_covered=min_object_covered,
+                                        aspect_ratio_range=aspect_ratio_range,
+                                        max_attempts=max_attempts,
+                                        scope=scope)
+    mask = tf.boolean_mask(mask,bboxes_mask)
+    mask = tf.transpose(mask,perm=[1,2,0])
+    mask = tf.slice(mask,bbox_begin,bbox_size)
+    dst_mask = tf.transpose(mask,perm=[2,0,1])
+    return dst_image,dst_mask,labels, bboxes, bbox_begin,bbox_size,bboxes_mask
+
+
