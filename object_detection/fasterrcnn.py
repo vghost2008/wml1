@@ -292,8 +292,8 @@ class FasterRCNN(object):
                     n_indices = tf.boolean_mask(r_indices,n_mask)
                     p_labels = tf.boolean_mask(labels,p_mask)
                     p_indices = tf.boolean_mask(r_indices,p_mask)
-                    p_labels,p_indices = random_select(p_labels,n_indices,pos_nr)
-                    n_labels,n_indices = random_select(n_labels,p_indices,neg_nr)
+                    p_labels,p_indices = random_select(p_labels,p_indices,pos_nr)
+                    n_labels,n_indices = random_select(n_labels,n_indices,neg_nr)
 
                     return tf.concat([p_labels,n_labels],axis=0),tf.concat([p_indices,n_indices],axis=0)
             #process the default situation
