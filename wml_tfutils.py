@@ -743,16 +743,16 @@ def batch_gather(params,indices,name=None):
     with tf.name_scope(name=name,default_name="batch_gather"):
         return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
 
-def assert_equal(v,values):
+def assert_equal(v,values,name=None):
     assert_ops = []
     for i in range(1,len(values)):
-        assert_ops.append(tf.assert_equal(values[0],values[i]))
+        assert_ops.append(tf.assert_equal(values[0],values[i],name=name))
     with tf.control_dependencies(assert_ops):
         return tf.identity(v)
 
-def assert_shape_equal(v,values):
+def assert_shape_equal(v,values,name=None):
     shapes = [tf.shape(value) for value in values]
-    return assert_equal(v,shapes)
+    return assert_equal(v,shapes,name=name)
 
 '''
 image:[batch_size,X,H,W,C]
