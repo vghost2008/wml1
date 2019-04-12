@@ -754,5 +754,21 @@ def assert_shape_equal(v,values):
     shapes = [tf.shape(value) for value in values]
     return assert_equal(v,shapes)
 
+'''
+image:[batch_size,X,H,W,C]
+bboxes:[batch_size,X,4] (ymin,xmin,ymax,xmax) in [0,1]
+size:(H,W)
+'''
+def tf_crop_and_resize(image,bboxes,size):
+    img_shape = image.get_shape().as_list()
+    new_img_shape = [img_shape[0]*img_shape[1]]+img_shape[2:]
+    bboxes_shape = bboxes.get_shape().as_list()
+    new_bboxes_shape = [bboxes_shape[0]*bboxes_shape[1],4]
+    image = reshape(image,new_img_shape)
+    bboxes = reshape(bboxes,new_bboxes_shape)
+    box_ind = tf.range(0,tf.reduce_prod(tf.shape(bboxes)[0]),dtype=tf.int32)
+    return tf.image.crop_and_resize(image,bboxes,box_ind,size)
+
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

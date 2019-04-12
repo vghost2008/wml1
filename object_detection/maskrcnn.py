@@ -8,6 +8,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def __init__(self,num_classes,input_shape,batch_size=1):
         super().__init__(num_classes,input_shape,batch_size)
         self.train_mask = False
+        #[X,h,w]
         self.mask_logits = None
 
     '''
@@ -41,23 +42,25 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
     '''
     gtmasks:[batch_size,X,H,W]
+    gtbboxes:[batch_size,X,4]
     '''
     def getMaskLoss(self,gtbboxes,gtmasks):
+        max_boxes_nr = gtbboxes.get_shape().as_list()[1]
         shape = self.mask_logits.get_shape().as_list()
-        #gtmasks = tf.transpose(gtmasks,perm=(0,2,3,1))
-        rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
-        gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
-        bboxes = wmlt.batch_gather(gtbboxes,rcn_anchor_to_gt_indices)
-        batch_index, batch_size, box_nr = self.rcn_batch_index_helper(bboxes)
-        bboxes = tf.reshape(bboxes,[-1,4])
-        batch_index = tf.reshape(batch_index,[-1])
-        gtmasks = tf.image.crop_and_resize(image=gtmasks, boxes=bboxes, box_ind=batch_index, crop_size=shape[1:3])
-        #gtmasks = tf.concat([tf.zeros_like(gtmasks),gtmasks],axis=3)
-
+        batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         pmask = tf.greater(self.rcn_gtlabels,0)
         pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
-        rcn_anchor_to_gt_indices = tf.boolean_mask(self.rcn_anchor_to_gt_indices,pmask)
-        gtmasks = tf.cast(gtmasks,tf.float32)
+        gtmasks = tf.expand_dims(gtmasks,axis=-1)
+        gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
+        gtmasks = tf.squeeze(gtmasks,axis=-1)
+        rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
+        rcn_anchor_to_gt_indices = tf.clip_by_value(rcn_anchor_to_gt_indices,0,max_boxes_nr)
+        gtmasks = wmlt.reshape(gtmasks,[batch_size,box_nr]+gtmasks.get_shape().as_list()[1:])
+        gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
+
+        gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
+        pmask = tf.reshape(pmask,[-1])
+        gtmasks = tf.boolean_mask(gtmasks,pmask)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.losses.add_loss(loss)

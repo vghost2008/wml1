@@ -26,31 +26,39 @@ class FasterRCNN(object):
         self.ratios=[]
         self.anchors=None
         self.np_anchors=None
+        #[batch_size,H,W,C]
         self.inputs=None
         self.batch_size = batch_size
         '''
         包含背景
         '''
         self.num_classes = num_classes
+        #[H,W]
         self.input_shape = input_shape
         '''
         回归损失乘以reg_loss_weight以增加回归的准确率
         '''
         self.reg_loss_weight = 3.
         self.bbox_regs = None
+        #[batch_size,h*w*anchor_size,2]
         self.rpn_logits=None
+        #[batch_size,h*w*anchor_size,4]
         self.rpn_regs=None
         self.rpn_gtlabels=None
         self.rpn_gtregs=None
         self.rpn_gtscores=None
         self.proposal_boxes=None
         self.proposal_boxes_prob=None
+        #[batch_size,pos_nr+neg_nr]
         self.rcn_gtlabels=None
         self.rcn_gtregs=None
         self.rcn_gtscores=None
+        #[batch_size,pos_nr+neg_nr,num_classes]
         self.rcn_logits=None
+        #[batch_size,pos_nr+neg_nr,num_classes-1,4]
         self.rcn_regs=None
         self.rcn_indices = None
+        #[batch_size,pos_nr+neg_nr]
         self.rcn_anchor_to_gt_indices = None
         self.rcn_bboxes_lens = None
         self.finally_boxes=None
@@ -60,8 +68,11 @@ class FasterRCNN(object):
         self.train_rcn = False
         self.anchor_remove_indices = None
         self.finally_indices = None
+        #[batch_size,h,w,C]
         self.fsbp_net = None
+        #[batch_size*(pos_nr+neg_nr),bin_h,bin_w,C]
         self.ssbp_net = None
+        #[batch_size*(pos_nr+neg_nr),bin_h,bin_w,C]
         self.net_after_roi = None
         self.rcn_batch_size  = None
         self.rcn_box_nr = None
