@@ -609,7 +609,7 @@ def get_proposal_boxesv3(class_prediction,
 
     boxes,labels,probability = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),elems=(proposal_bboxes,bboxes_regs,labels,probability),
                                          dtype=(tf.float32,tf.int32,tf.float32),back_prop=False)
-    return boxes,labels,probability
+    return tf.stop_gradient(boxes),tf.stop_gradient(labels),tf.stop_gradient(probability)
 
 def get_prediction_no_background(class_prediction,
                    bboxes_regs,

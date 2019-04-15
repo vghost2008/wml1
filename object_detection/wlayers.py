@@ -64,10 +64,10 @@ class WROIAlign:
                     bboxes = odb.scale_bboxes(bboxes,scale=self.multiplier)
                 net = tf.image.crop_and_resize(image=fmap,boxes=bboxes,box_ind=batch_index,crop_size=[height,width])
                 net = tf.nn.max_pool(net,ksize=[1]+self.bin_size+[1],strides=[1]+self.bin_size+[1],padding="SAME")'''
-            batch_index = tf.reshape(batch_index, [-1])
-            bboxes = tf.reshape(bboxes, [-1, 4])
+            batch_index = tf.stop_gradient(tf.reshape(batch_index, [-1]))
+            bboxes = tf.stop_gradient(tf.reshape(bboxes, [-1, 4]))
             if self.multiplier is not None and len(self.multiplier)>=2:
-                bboxes = odb.scale_bboxes(bboxes, scale=self.multiplier)
+                bboxes = tf.stop_gradient(odb.scale_bboxes(bboxes, scale=self.multiplier))
             net = tf.image.crop_and_resize(image=fmap, boxes=bboxes, box_ind=batch_index, crop_size=[height, width])
             net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
                                  padding="SAME")

@@ -237,15 +237,15 @@ class FasterRCNN(object):
                                                                                  length=lens,
                                                                                   pos_threshold=pos_threshold,
                                                                                   neg_threshold=neg_threshold)
-            keep_indices = tf.logical_not(remove_indices)
+            keep_indices = tf.stop_gradient(tf.logical_not(remove_indices))
             self.rcn_gtlabels,self.rcn_indices = \
                 tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),
                           elems = (rcn_gtlabels,keep_indices),
                           dtype=(tf.int32,tf.int32),
                           back_prop=False,
                           parallel_iterations=self.batch_size)
-            self.rcn_anchor_to_gt_indices = wmlt.batch_gather(indices,self.rcn_indices)
-            self.proposal_boxes = wmlt.batch_gather(proposal_boxes,self.rcn_indices)
+            self.rcn_anchor_to_gt_indices = tf.stop_gradient(wmlt.batch_gather(indices,self.rcn_indices))
+            self.proposal_boxes = tf.stop_gradient(wmlt.batch_gather(proposal_boxes,self.rcn_indices))
             self.rcn_gtregs = wmlt.batch_gather(rcn_gtregs,self.rcn_indices)
             self.rcn_gtscores = wmlt.batch_gather(rcn_gtscores,self.rcn_indices)
 
