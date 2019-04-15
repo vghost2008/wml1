@@ -198,7 +198,7 @@ class FasterRCNN(object):
 
     #在训练RPN时生成RCN网络参数
     def buildFakeRCNNet(self,roipooling=odl.DFROI()):
-        self.proposal_boxes = tf.placeholder(dtype=tf.float32,shape=[self.batch_size,9,4])
+        self.proposal_boxes = tf.placeholder(dtype=tf.float32,shape=[self.batch_size,8,4])
         return self.buildRCNNet(roipooling=roipooling)
 
     def encodeRPNBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
