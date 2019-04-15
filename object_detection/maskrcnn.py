@@ -50,18 +50,14 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         pmask = tf.greater(self.rcn_gtlabels,0)
         pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
-        pmask = tf.Print(pmask,[pmask,tf.reduce_max(self.rcn_anchor_to_gt_indices),tf.reduce_min(self.rcn_anchor_to_gt_indices)],"pmask",first_n=64)
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
         wmlt.image_summaries(gtmasks[0][:b_len[0],:,:,:],"mask0_1")
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
-        for i in range(batch_size):
-            gtmasks = tf.Print(gtmasks,[b_len[i],tf.reduce_max(self.rcn_anchor_to_gt_indices[i])],"test0")
 
         wmlt.image_summaries(gtmasks[:b_len[0],:,:,:],"mask0")
         gtmasks = tf.squeeze(gtmasks,axis=-1)
         rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
         rcn_anchor_to_gt_indices = tf.clip_by_value(rcn_anchor_to_gt_indices,0,max_boxes_nr)
-        pmask = tf.Print(pmask,[pmask,tf.reduce_max(rcn_anchor_to_gt_indices),tf.reduce_min(rcn_anchor_to_gt_indices)],"pmask2",first_n=64)
         gtmasks = wmlt.reshape(gtmasks,[batch_size,box_nr]+gtmasks.get_shape().as_list()[1:])
         gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
 
