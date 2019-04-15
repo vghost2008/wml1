@@ -31,6 +31,12 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.mask_logits = wmlt.batch_gather(net,labels-1)
         return self.mask_logits
 
+    def buildFakeMaskBranch(self):
+        pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
+        labels = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.int32)
+        self.buildMaskBranch(pmask,labels,size=[7,7])
+
+
     '''
     net:[batch_size*box_nr,bin_size,bin_size,net_channel]
     output: [batch_size*box_nr,bin_size,bin_size,num_classes]
