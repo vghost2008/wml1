@@ -9,6 +9,7 @@ import matplotlib.cm as mpcm
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+import semantic.visualization_utils as smv
 import wml_utils as wmlu
 
 
@@ -88,6 +89,26 @@ def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
 
     return img
+
+def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=1.2):
+    bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
+    for i,bbox in enumerate(bboxes):
+        if color_fn is not None:
+            color = list(color_fn(classes[i]))
+        else:
+            color = [random.random()*255, random.random()*255, random.random()*255]
+        x = bbox[1]*img.shape[1]
+        y = bbox[0]*img.shape[0]
+        w = (bbox[3]-bbox[1])*img.shape[1]
+        h = (bbox[2]-bbox[0])*img.shape[0]
+        mask = masks[i]
+        mask = cv2.resize(mask,(w,h))
+        img[y:y+h,x:x+w,:] += mask*color*0.4
+
+    return img
+
+
+
 
 
 '''

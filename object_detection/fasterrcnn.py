@@ -8,9 +8,11 @@ import object_detection.bboxes as bboxes
 import wml_tfutils as wmlt
 import object_detection.wlayers as odl
 import object_detection.losses as losses
+import wtfop.wtfop_ops as wop
 import sys
 import logging
 import wnnlayer as wnnl
+import functools
 slim = tf.contrib.slim
 
 
@@ -511,12 +513,14 @@ class FasterRCNN(object):
     '''
     process the situation of batch_size greater than one, target boxes number of each imag is very different, so the 
     boxes number of each image is return by lens
-    use_soft_nms:是否使用softnms,使用soft nms与不使用soft nms时, nms_threshold的意义有很大的区别， 不使用soft nms时，nms_threshold表示
+    nms:是否使用softnms,使用soft nms与不使用soft nms时, nms_threshold的意义有很大的区别， 不使用soft nms时，nms_threshold表示
 IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_threshold表示得分高于nms_threshold的才是真目标
     '''
-    def getBoxesV2(self,k=1000,threshold=0.5,nms_threshold=0.1,proposal_boxes=None,limits=None,
-                   adjust_probability=None,classes_wise_nms=True,
-                   use_soft_nms=False):
+    def getBoxesV2(self,k=1000,threshold=0.5,proposal_boxes=None,limits=None,
+                   adjust_probability=None,
+                   nms=None):
+        if nms is None:
+            nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
         if proposal_boxes is None:
             proposal_boxes = self.proposal_boxes
         with tf.device("/cpu:0"):
@@ -532,12 +536,10 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
                                          threshold=threshold,
-                                         nms_threshold=nms_threshold,
                                          limits=limits,
                                          candiate_nr=k,
                                          classes_wise=True,
-                                         classes_wise_nms=classes_wise_nms,
-                                         use_soft_nms=use_soft_nms)
+                                         nms=nms)
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.rcn_bboxes_lens
 
     '''

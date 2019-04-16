@@ -10,26 +10,49 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.train_mask = False
         #[X,h,w]
         self.mask_logits = None
+        #[X,h,w]
+        self.finally_mask = None
 
     '''
     labels:[batch_size*box_nr]
     pmask:[batch_size*box_nr]
     output:[batch_size*pbox_nr,M,N]
     '''
-    def buildMaskBranch(self,pmask=None,labels=None,size=(33,33)):
+    def buildMaskBranch(self,pmask=None,labels=None,size=(33,33),reuse=False,net=None):
+        if net is None:
+            net = self.ssbp_net
         if self.train_mask and pmask is None:
             pmask = tf.greater(self.rcn_gtlabels,0)
             pmask = tf.reshape(pmask,[-1])
-        #pmask = wmlt.assert_equal(pmask,[tf.shape(self.ssbp_net)[:1],tf.shape(pmask)])
-        net = tf.boolean_mask(self.ssbp_net,pmask)
+        pmask = wmlt.assert_equal(pmask,[tf.shape(net)[:1],tf.shape(pmask)])
+        net = tf.boolean_mask(net,pmask)
         net = tf.image.resize_bilinear(net,size)
-        net = self._maskFeatureExtractor(net)
+        net = self._maskFeatureExtractor(net,reuse=reuse)
         if labels is None:
             labels = tf.reshape(self.rcn_gtlabels,[-1])
         labels = tf.boolean_mask(labels,pmask)
         net = tf.transpose(net,perm=(0,3,1,2))
         self.mask_logits = wmlt.batch_gather(net,labels-1)
         return self.mask_logits
+
+    def getBoxesAndMask(self,k=1000,mask_threshold=0.5,box_threshold=0.5,proposal_boxes=None,limits=None,
+                   adjust_probability=None,nms=None,reuse=False,
+                        size=(33,33)
+                   ):
+        self.getBoxesV2(k=k,
+                        threshold=box_threshold,
+                        proposal_boxes=proposal_boxes,
+                        limits=limits,
+                        adjust_probability=adjust_probability,
+                        nms=nms)
+        max_len = tf.reduce_max(self.rcn_bboxes_lens)
+        ssbp_net = wmlt.batch_gather(self.ssbp_net,self.finally_indices[:,:max_len])
+        pmask = tf.sequence_mask(self.rcn_bboxes_lens,maxlen=max_len)
+        logits = self.buildMaskBranch(pmask,self.finally_boxes_label[:,:max_len],size=size,reuse=reuse,net=ssbp_net)
+        mask = tf.greater(tf.sigmoid(logits),mask_threshold)
+        mask = tf.cast(mask,tf.int32)
+        self.finally_mask = mask
+        return self.finally_mask
 
     def buildFakeMaskBranch(self):
         pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
@@ -42,7 +65,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     output: [batch_size*box_nr,bin_size,bin_size,num_classes]
     '''
     @abstractmethod
-    def _maskFeatureExtractor(self,net):
+    def _maskFeatureExtractor(self,net,reuse=False):
         pass
 
 

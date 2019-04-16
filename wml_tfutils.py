@@ -768,6 +768,44 @@ def tf_crop_and_resize(image,bboxes,size):
     bboxes = reshape(bboxes,new_bboxes_shape)
     box_ind = tf.range(0,tf.reduce_prod(tf.shape(bboxes)[0]),dtype=tf.int32)
     return tf.image.crop_and_resize(image,bboxes,box_ind,size)
+'''
+mask:[N]
+output:
+indices:[X]
+example:
+input:[True,True,False,False,False,True]
+output:[0,1,5]
+'''
+def mask_to_indices(mask):
+    indices = tf.range(tf.reshape(tf.shape(mask),()),dtype=tf.int32)
+    return tf.boolean_mask(indices,mask)
+
+def indices_to_mask(indices,size):
+    mask = tf.cast(indices_to_dense_vector(indices,size,1,default_value=0,dtype=tf.int32),tf.bool)
+    _,ind = tf.nn.top_k(indices,tf.reshape(tf.shape(indices),()))
+    ind = tf.reverse(ind,axis=[0])
+    return mask,ind
+
+def batch_indices_to_mask(indices,lens,size):
+    if indices.get_shape().is_fully_defined():
+        ind_size = indices.get_shape().as_list()[1]
+    else:
+        ind_size = tf.shape(indices)[1]
+    def fn(ind,l):
+        ind = ind[:l]
+        mask,ind = indices_to_mask(ind,size)
+        ind = tf.pad(ind,tf.convert_to_tensor([[0,ind_size-l]]))
+        return mask,ind
+    return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(indices,lens),dtype=(tf.bool,tf.int32),back_prop=False)
+
+def batch_boolean_mask(data,mask,size):
+    if not isinstance(data,tf.Tensor):
+        data = tf.convert_to_tensor(data)
+    def fn(d,m):
+        d = tf.boolean_mask(d,m)
+        d = tf.pad(d,[[0,size-tf.shape(d)[0]]]+[0,0]*(d.get_shape().ndims-1))
+        return d
+    return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
 
 
 if __name__ == "__main__":

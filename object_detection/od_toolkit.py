@@ -227,10 +227,11 @@ limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h
 prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
 
 返回:
-boxes:[candiate_nr,4]
-labels:[candiate_nr]
-probability:[candiate_nr]
-len: the available boxes number
+boxes:[batch_size,candiate_nr,4]
+labels:[batch_size,candiate_nr]
+probability:[batch_size,candiate_nr]
+indices:[batch_size,candiate_nr]
+len:[batch_size] the available boxes number
 '''
 def get_predictionv2(class_prediction,
                    bboxes_regs,

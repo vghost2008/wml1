@@ -206,6 +206,36 @@ class WMLTest(tf.test.TestCase):
             t_res = sess.run(t_res)
             self.assertAllEqual(t_res,res)
 
+    def test_mask_to_indices(self):
+        with self.test_session() as sess:
+            mask = [True, True, False, False, False, True]
+            res = [0, 1, 5]
+            mask = tf.convert_to_tensor(mask)
+            t_res = wmlt.mask_to_indices(mask)
+            t_res = sess.run(t_res)
+            self.assertAllEqual(t_res,res)
+
+    def test_batch_indices_to_mask(self):
+        with self.test_session() as sess:
+            data = [[1,4,5,6,7,9,0],[11,22,44,66,77,99,00]]
+            indices = np.array([[1,2,5,0],[4,3,0,0]])
+            lens = [3,2]
+            size = 7
+            r_mask = [[False,True,True,False,False,True,False],
+                      [False,False,False,True,True,False,False]
+                      ]
+            r_indices = [[0,1,2,0],[1,0,0,0]]
+            indices = tf.convert_to_tensor(indices)
+            lens = tf.convert_to_tensor(lens)
+            r_data = [[4,5,9,4],[77,66,66,66]]
+            t_mask,t_indices = wmlt.batch_indices_to_mask(indices,lens,size)
+            t_data = wmlt.batch_boolean_mask(data,t_mask,4)
+            t_data = wmlt.batch_gather(t_data,t_indices)
+            t_mask,t_indices,t_data = sess.run([t_mask,t_indices,t_data])
+            self.assertAllEqual(t_mask,r_mask)
+            self.assertAllEqual(t_indices,r_indices)
+            self.assertAllEqual(t_data,r_data)
+
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
