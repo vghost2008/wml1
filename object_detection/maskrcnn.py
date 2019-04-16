@@ -20,7 +20,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         if self.train_mask and pmask is None:
             pmask = tf.greater(self.rcn_gtlabels,0)
             pmask = tf.reshape(pmask,[-1])
-        pmask = wmlt.assert_equal(pmask,[tf.shape(self.ssbp_net)[:1],tf.shape(pmask)])
+        #pmask = wmlt.assert_equal(pmask,[tf.shape(self.ssbp_net)[:1],tf.shape(pmask)])
         net = tf.boolean_mask(self.ssbp_net,pmask)
         net = tf.image.resize_bilinear(net,size)
         net = self._maskFeatureExtractor(net)
@@ -55,7 +55,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         shape = self.mask_logits.get_shape().as_list()
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         pmask = tf.greater(self.rcn_gtlabels,0)
-        pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
+        #pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
         wmlt.image_summaries(gtmasks[0][:b_len[0],:,:,:],"mask0_1")
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])

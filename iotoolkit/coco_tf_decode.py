@@ -193,7 +193,7 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
         provider = slim.dataset_data_provider.DatasetDataProvider(
             dataset,
             num_readers=2,
-            common_queue_capacity=20 * batch_size,
+            common_queue_capacity=10 * batch_size,
             common_queue_min=3 * batch_size,
             seed=int(time.time()),
             shuffle=True)
