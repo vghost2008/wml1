@@ -10,6 +10,7 @@ from threadtoolkit import *
 import time
 import wnn
 import object_detection.npod_toolkit as npodt
+import object_detection.fasterrcnn as fasterrcnn
 from wml_utils import *
 import object_detection.bboxes as bboxes
 import img_utils as wmli
@@ -106,7 +107,7 @@ class ODTest(tf.test.TestCase):
             glabels = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=num_classes,dtype=tf.int32,seed=int(time.time()))
             classes_logits = tf.random_uniform(shape=[batch_size,box_nr,num_classes],minval=-10.,maxval=10.,dtype=tf.float32)
             bboxes_regs = tf.random_uniform(shape=[batch_size,box_nr,4],minval=-3.,maxval=3.,dtype=tf.float32)
-            bboxes_remove_indices = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=3,dtype=tf.int32)
+            bboxes_remove_indices = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=4,dtype=tf.int32)
             bboxes_remove_indices = tf.cast(bboxes_remove_indices,tf.bool)
 
             loss0,loss1,loss2,pdivn = od_loss(gregs, glabels, classes_logits, bboxes_regs, num_classes, reg_loss_weight=3.,
@@ -125,7 +126,7 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
             logging.info(f"loss:{loss0},{loss1},{loss2}.")
 
-    def test_loss_v2(self):
+    def test_loss_v2_0(self):
         batch_size = 8
         box_nr = 64
         num_classes = 2
@@ -137,13 +138,14 @@ class ODTest(tf.test.TestCase):
             bboxes_regs = tf.random_uniform(shape=[batch_size,box_nr,4],minval=-3.,maxval=3.,dtype=tf.float32)
             bboxes_remove_indices = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=3,dtype=tf.int32)
             bboxes_remove_indices = tf.cast(bboxes_remove_indices,tf.bool)
-            scores = tf.random_uniform(shape=[batch_size,box_nr],minval=0.5,maxval=1.,dtype=tf.float32,seed=int(time.time()))
+            scores = tf.ones_like(glabels,dtype=tf.float32)
 
-            loss0,loss1,loss2,pdivn = od_lossv2(gregs, glabels, classes_logits, bboxes_regs, num_classes, reg_loss_weight=3.,
+            loss0,loss1,loss2,pdivn = od_lossv2(gregs, glabels, classes_logits, bboxes_regs, num_classes,
+                                              reg_loss_weight=3.,
                                               bboxes_remove_indices=bboxes_remove_indices, scope="Loss",
                                               classes_wise=False,
                                               neg_multiplier=2.0,
-                                                scores=scores,
+                                              scores=scores,
                                               scale=10.0)
             cod_loss = ODLoss(num_classes=num_classes,reg_loss_weight=3.,classes_wise=False,neg_multiplier=2.,scale=10.)
             od_loss0,od_loss1,od_loss2,od_pdivn = cod_loss(gregs,glabels,classes_logits,bboxes_regs,
@@ -156,7 +158,38 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
             logging.info(f"loss:{loss0},{loss1},{loss2}.")
 
-    def test_loss_v3(self):
+    def test_loss_v2_1(self):
+        batch_size = 8
+        box_nr = 64
+        num_classes = 2
+        with self.test_session() as sess:
+            gregs = tf.random_uniform(shape=[batch_size,box_nr,4],minval=-3.,maxval=3.,dtype=tf.float32,
+                                      seed=int(time.time()))
+            glabels = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=num_classes,dtype=tf.int32,seed=int(time.time()))
+            classes_logits = tf.random_uniform(shape=[batch_size,box_nr,num_classes],minval=-10.,maxval=10.,dtype=tf.float32)
+            bboxes_regs = tf.random_uniform(shape=[batch_size,box_nr,4],minval=-3.,maxval=3.,dtype=tf.float32)
+            bboxes_remove_indices = tf.random_uniform(shape=[batch_size,box_nr],minval=0,maxval=3,dtype=tf.int32)
+            bboxes_remove_indices = tf.cast(bboxes_remove_indices,tf.bool)
+            scores = tf.random_uniform(shape=[batch_size,box_nr],minval=0.5,maxval=1.,dtype=tf.float32,seed=int(time.time()))
+            loss0,loss1,loss2,pdivn = od_lossv2(gregs, glabels, classes_logits, bboxes_regs, num_classes,
+                                              reg_loss_weight=3.,
+                                              bboxes_remove_indices=bboxes_remove_indices, scope="Loss",
+                                              classes_wise=False,
+                                              neg_multiplier=2.0,
+                                              scores=scores,
+                                              scale=10.0)
+            cod_loss = ODLoss(num_classes=num_classes,reg_loss_weight=3.,classes_wise=False,neg_multiplier=2.,scale=10.)
+            od_loss0,od_loss1,od_loss2,od_pdivn = cod_loss(gregs,glabels,classes_logits,bboxes_regs,
+                                                           scores=scores,
+                                                           bboxes_remove_indices=bboxes_remove_indices)
+            loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn = sess.run([loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn])
+            self.assertAllClose(loss0,od_loss0,atol=1e-6,rtol=0)
+            self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
+            self.assertAllClose(loss2,od_loss2,atol=1e-6,rtol=0)
+            self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+
+    '''def test_loss_v3(self):
         batch_size = 8
         box_nr = 64
         num_classes = 2
@@ -168,7 +201,7 @@ class ODTest(tf.test.TestCase):
             classes_logits = tf.random_uniform(shape=[batch_size, box_nr, num_classes], minval=-10., maxval=10.,
                                                dtype=tf.float32)
             bboxes_regs = tf.random_uniform(shape=[batch_size, box_nr, 4], minval=-3., maxval=3., dtype=tf.float32)
-            bboxes_remove_indices = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=3,
+            bboxes_remove_indices = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=4,
                                                       dtype=tf.int32)
             bboxes_remove_indices = tf.cast(bboxes_remove_indices, tf.bool)
 
@@ -190,7 +223,27 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(loss1, od_loss1, atol=1e-6, rtol=0)
             self.assertAllClose(loss2, od_loss2, atol=1e-6, rtol=0)
             self.assertAllClose(pdivn, od_pdivn, atol=1e-6, rtol=0)
-            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")'''
+
+    def test_select_rcn_bboxes(self):
+        bboxes = []
+        labels = []
+        for i in range(8):
+            bboxes.append([i,i+1,i+3,i+4])
+            labels.append(int(i>=4)*i)
+        keep_indices = np.ones_like(labels).astype(np.bool)
+        #keep_indices = np.zeros_like(labels).astype(np.bool)
+        keep_indices[1] = False
+        keep_indices[5] = False
+        print(labels)
+        with self.test_session() as sess:
+            labels = tf.convert_to_tensor(labels)
+            keep_indices = tf.convert_to_tensor(keep_indices)
+            labels,indices = fasterrcnn.FasterRCNN.selectRCNBoxes(labels,keep_indices,4,3)
+            bboxes = tf.gather(bboxes,indices)
+            labels,indices,bboxes = sess.run([labels,indices,bboxes])
+
+        print(labels,indices,bboxes)
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

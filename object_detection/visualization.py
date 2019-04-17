@@ -76,6 +76,7 @@ def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
     shape = img.shape
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
+        print(bbox,classes[i])
         if color_fn is not None:
             color = color_fn(classes[i])
         else:
@@ -91,20 +92,24 @@ def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
     return img
 
 def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=1.2):
-    bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
+    masks = masks.astype(np.uint8)
     for i,bbox in enumerate(bboxes):
         if color_fn is not None:
             color = list(color_fn(classes[i]))
         else:
             color = [random.random()*255, random.random()*255, random.random()*255]
-        x = bbox[1]*img.shape[1]
-        y = bbox[0]*img.shape[0]
-        w = (bbox[3]-bbox[1])*img.shape[1]
-        h = (bbox[2]-bbox[0])*img.shape[0]
+        x = int(bbox[1]*img.shape[1])
+        y = int(bbox[0]*img.shape[0])
+        w = int((bbox[3]-bbox[1])*img.shape[1])
+        h = int((bbox[2]-bbox[0])*img.shape[0])
+        if w<=0 or h<=0:
+            continue
         mask = masks[i]
         mask = cv2.resize(mask,(w,h))
-        img[y:y+h,x:x+w,:] += mask*color*0.4
+        mask = np.expand_dims(mask,axis=-1)
+        img[y:y+h,x:x+w,:] = img[y:y+h,x:x+w,:]*(np.ones_like(mask)-(mask*0.4).astype(np.uint8))+(mask*color*0.4).astype(np.uint8)
 
+    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
     return img
 
 

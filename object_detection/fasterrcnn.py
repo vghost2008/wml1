@@ -60,7 +60,10 @@ class FasterRCNN(object):
         #[batch_size,pos_nr+neg_nr,num_classes-1,4]
         self.rcn_regs=None
         self.rcn_indices = None
-        #[batch_size,pos_nr+neg_nr]
+        '''
+        batch_size,pos_nr+neg_nr]
+        the value representation rcn gtlabels to the index of ground truth box(in the order of input to encode rcn boxes).
+        '''
         self.rcn_anchor_to_gt_indices = None
         self.rcn_bboxes_lens = None
         self.finally_boxes=None
@@ -627,5 +630,15 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                     batch_size, self.batch_size)
 
         return batch_index,batch_size,box_nr
+
+    def get_5d_ssbp_net(self):
+        shape = self.ssbp_net.get_shape().as_list()[1:]
+        return wmlt.reshape(self.ssbp_net,[self.rcn_batch_size,self.rcn_box_nr]+shape)
+
+    def to_4d_ssbp_net(self,net):
+        shape = net.get_shape().as_list()[2:]
+        return wmlt.reshape(net,[-1]+shape)
+
+
 
 

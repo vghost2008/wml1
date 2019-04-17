@@ -490,7 +490,7 @@ def range_scopes(scope,min,max):
 
 def reshape(tensor,shape,name=None):
     if isinstance(shape,list):
-        shape = [ x if (x is not None and x >= 0) else -1 for x in shape]
+        shape = [ x if (isinstance(x,tf.Tensor) or (x is not None and x >= 0)) else -1 for x in shape]
         return tf.reshape(tensor,shape,name)
     return tf.reshape(tensor,shape,name)
 

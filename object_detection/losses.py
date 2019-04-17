@@ -371,6 +371,7 @@ def od_lossv2(gregs,glabels,classes_logits,bboxes_regs,num_classes,scores,reg_lo
             classes_logits = tf.boolean_mask(classes_logits,keep_indices)
             gregs = tf.boolean_mask(gregs,keep_indices)
             glabels = tf.boolean_mask(glabels,keep_indices)
+            scores = tf.boolean_mask(scores,keep_indices)
 
         pmask = tf.greater(glabels,0)
         psize = tf.reduce_sum(tf.cast(pmask,tf.float32))
