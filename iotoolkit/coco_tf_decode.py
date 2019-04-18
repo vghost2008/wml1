@@ -192,7 +192,7 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
     with tf.name_scope('data_provider'):
         provider = slim.dataset_data_provider.DatasetDataProvider(
             dataset,
-            num_readers=2,
+            num_readers=4,
             common_queue_capacity=10 * batch_size,
             common_queue_min=3 * batch_size,
             seed=int(time.time()),

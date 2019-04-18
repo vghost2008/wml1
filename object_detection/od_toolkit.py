@@ -484,7 +484,7 @@ def get_proposal_boxesv2(class_prediction,
     '''
     通过top_k+gather排序
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.maximum(candiate_nr,tf.shape(probability)[1]))
+    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr,tf.shape(probability)[1]))
     shape_2d = labels.get_shape().as_list()
     shape_box = bboxes_regs.get_shape().as_list()
     labels = wml.gather_in_axis(labels,indices,axis=1)
@@ -580,7 +580,7 @@ def get_proposal_boxesv3(class_prediction,
     '''
     通过top_k+gather排序
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.maximum(candiate_nr*5,tf.shape(probability)[1]))
+    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr*5,tf.shape(probability)[1]))
     shape_2d = labels.get_shape().as_list()
     shape_box = bboxes_regs.get_shape().as_list()
     labels = wml.gather_in_axis(labels,indices,axis=1)
