@@ -112,10 +112,12 @@ class FasterRCNN(object):
 
         return self.proposal_boxes,self.proposal_boxes_prob
 
+    def _rpnFeatureExtractor(self,base_net=None,channel=512):
+        return slim.conv2d(base_net,channel,[3,3],padding="SAME")
     def rpnFeatureExtractor(self,base_net=None,channel=512):
         if base_net is None:
             base_net = self.base_net
-        self.fsbp_net = slim.conv2d(base_net,channel,[3,3],padding="SAME")
+        self.fsbp_net = self._rpnFeatureExtractor(base_net,channel)
 
     '''
     base_net: buildBaseNet的返回值,设base_net的shape为bn_shape

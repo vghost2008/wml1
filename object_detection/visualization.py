@@ -87,11 +87,11 @@ def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
         if show_text and text_fn is not None:
             s = text_fn(classes[i], scores[i])
             p = (p1[0]-5, p1[1])
-            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
+            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(0.,255.,0.), thickness=1)
 
     return img
 
-def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=1.2):
+def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
     masks = masks.astype(np.uint8)
     for i,bbox in enumerate(bboxes):
         if color_fn is not None:
