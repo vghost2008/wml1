@@ -487,13 +487,9 @@ def get_proposal_boxesv2(class_prediction,
     probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr,tf.shape(probability)[1]))
     shape_2d = labels.get_shape().as_list()
     shape_box = bboxes_regs.get_shape().as_list()
-    labels = wml.gather_in_axis(labels,indices,axis=1)
-    bboxes_regs = wml.gather_in_axis(bboxes_regs,indices,axis=1)
-    proposal_bboxes = wml.gather_in_axis(proposal_bboxes,indices,axis=1)
-
-    labels = wml.reshape(labels,shape_2d)
-    bboxes_regs = wml.reshape(bboxes_regs,shape_box)
-    proposal_bboxes = wml.reshape(proposal_bboxes,shape_box)
+    labels = wml.batch_gather(labels,indices)
+    bboxes_regs = wml.batch_gather(bboxes_regs,indices)
+    proposal_bboxes = wml.batch_gather(proposal_bboxes,indices)
 
     if limits is not None:
         limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
