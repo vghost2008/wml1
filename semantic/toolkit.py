@@ -169,9 +169,14 @@ labels:[X]
 output:
 [num_classes,H,W]/[num_classes-1,H,W]
 '''
-def merge_masks(masks,labels,num_classes,no_background=True):
-    width = masks.shape[2]
-    height = masks.shape[1]
+def merge_masks(masks,labels,num_classes,size=None,no_background=True):
+    if size is not None:
+        width = size[1]
+        height = size[0]
+    elif len(masks.shape)>=3:
+        width = masks.shape[2]
+        height = masks.shape[1]
+
     if no_background:
         get_label = lambda x:max(0,x-1)
         res = np.zeros([num_classes-1,height,width],dtype=np.int32)
@@ -187,7 +192,7 @@ def merge_masks(masks,labels,num_classes,no_background=True):
 
 def get_fullsize_merged_mask(masks,bboxes,labels,size,num_classes,no_background=True):
     fullsize_masks = get_fullsize_mask(bboxes,masks,size)
-    return merge_masks(fullsize_masks,labels,num_classes,no_background)
+    return merge_masks(fullsize_masks,labels,num_classes,size,no_background)
 
 class ModelPerformance:
     def __init__(self,no_first_class=True):
