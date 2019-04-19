@@ -40,10 +40,10 @@ RANDOM_CUT_SIZE = (2048,2048)
 RANDOM_CUT_NR=10
 
 def category_id_filter(category_id):
-    good_ids = [1,2,3,4,6,8]
+    good_ids = [1,2,3]
     return category_id in good_ids
 
-text_to_id={"a":1,"b":2,"c":3}
+text_to_id={"a":1,"b":2,"c":3,"d":4}
 def label_text_to_id(text):
     return text_to_id[text]
 
@@ -128,7 +128,7 @@ def _get_output_filename(output_dir, name, idx):
 
 def _add_to_tfrecord(file,writer):
     img_file,json_file = file
-    image_info,annotations_list = read_labelme_data(json_file)
+    image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
     if RANDOM_CUT_SIZE is None:
         tf_example, num_annotations_skipped = create_tf_example(
             image_info, annotations_list,img_file)
@@ -140,6 +140,9 @@ def _add_to_tfrecord(file,writer):
         org_img_data = wmli.imread(img_file)
         for _ in range(RANDOM_CUT_NR):
             n_image_info,n_annotations_list,img_data = random_cut(image_info, annotations_list, org_img_data, RANDOM_CUT_SIZE)
+            if n_image_info is None:
+                print(f"Error data {json_file}")
+                continue
             new_file_path = "/tmp/tmp.jpg"
             wmli.imwrite(new_file_path,img_data)
             tf_example, num_annotations_skipped = create_tf_example(
@@ -182,8 +185,8 @@ def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shufflin
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/workfile/test"
-    output_dir = "/home/vghost/workfile/test/output"
+    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatav1"
+    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav1"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

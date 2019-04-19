@@ -22,8 +22,9 @@ def get_files(data_dir, img_suffix="jpg"):
 def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
     annotations_list = []
     image = {}
-    with open(file_path) as f:
-        json_data = json.load(f)
+    with open(file_path,"r",encoding="gb18030") as f:
+        data_str = f.read()
+        json_data = json.loads(data_str)
         img_width = json_data["imageWidth"]
         img_height = json_data["imageHeight"]
         image["height"] = img_height
@@ -137,7 +138,7 @@ def random_cut(image,annotations_list,img_data,size):
         t_bbox[0] = min(t_bbox[0],x_max)
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
         new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
-        if len(new_annotations_list)>0:
+        if new_annotations_list is not None and len(new_annotations_list)>0:
             return (new_image_info,new_annotations_list,new_image_data)
 
 def cut(annotations_list,img_data,bbox):
