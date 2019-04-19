@@ -3,10 +3,13 @@ import numpy as np
 import tensorflow as tf
 import os
 import sys
+import random
 sys.path.append(os.path.dirname(__file__))
 import math
 import object_detection.wmath as wmath
 import wtfop.wtfop_ops as wtfop
+import img_utils as wmli
+import cv2 as cv
 
 '''
 sizes:如果is_area=True, sizes相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1, 否则sizes为相对边的大小
@@ -294,6 +297,13 @@ def to_yxminmax(data):
 
     return data
 
+'''
+input:[ymin,xmin,ymax,xmax]
+output:[xmin,ymin,width,height]
+'''
+def to_xyminwh(bbox):
+    return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
+
 def scale_bboxes(bboxes,scale):
     old_shape = tf.shape(bboxes)
     data = tf.reshape(bboxes,[-1,4])
@@ -418,4 +428,88 @@ def decode_boxes(boxes,
     bboxes = tf.reshape(bboxes, l_shape)
     return bboxes
 
+'''
+cnt:[[x,y],[x,y],...]
+return the bbox of a contour
+'''
+def bbox_of_contour(cnt):
+    all_points = np.array(cnt)
+    points = np.transpose(all_points)
+    x,y = np.vsplit(points,2)
+    xmin = np.min(x)
+    xmax = np.max(x)
+    ymin = np.min(y)
+    ymax = np.max(y)
+    return (ymin,xmin,ymax,xmax)
 
+'''
+cnt is a contour in a image, cut the area of rect
+cnt:[[x,y],[x,y],...]
+rect:[ymin,xmin,ymax,xmax]
+output:
+the new contours in sub image
+'''
+def cut_contour(cnt,rect):
+    bbox = bbox_of_contour(cnt)
+    width = max(bbox[3],rect[3])
+    height = max(bbox[2],rect[2])
+    img = np.zeros(shape=(height,width),dtype=np.uint8)
+    segmentation = cv.drawContours(img,[cnt],-1,color=(1),thickness=cv.FILLED)
+    cuted_img = wmli.sub_image(segmentation,rect)
+    contours,hierarchy = cv.findContours(cuted_img,cv.CV_RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
+    return contours
+
+'''
+find the contours in rect of segmentation
+segmentation:[H,W]
+rect:[ymin,xmin,ymax,xmax]
+output:
+the new contours in sub image and correspond bbox
+'''
+def cut_contourv2(segmentation,rect):
+    cuted_img = wmli.sub_image(segmentation,rect)
+    contours,hierarchy = cv.findContours(cuted_img,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
+    boxes = []
+    for cnt in contours:
+        boxes.append(bbox_of_contour(cnt))
+    return contours,boxes
+
+'''
+bbox:(xmin,ymin,width,height)
+'''
+def random_int_in_bbox(bbox):
+    x = random.randint(bbox[0],bbox[0]+bbox[2]-1)
+    y = random.randint(bbox[1],bbox[1]+bbox[3]-1)
+    return x,y
+
+'''
+bbox:(xmin,ymin,width,height)
+size:(width,height) the size of return bbox
+random return a box with center point in the input bbox
+'''
+def random_bbox_in_bbox(bbox,size):
+    x,y = random_int_in_bbox(bbox)
+    xmin,ymin = x-size[0]//2,y-size[1]//2
+    return [xmin,ymin,size[0],size[1]]
+
+def random_bbox_in_bboxes(bboxes,size):
+    if len(bboxes) == 0:
+        return (0,0,size[0],size[1])
+    index = random.randint(0,len(bboxes)-1)
+    return random_bbox_in_bbox(bboxes[index],size)
+
+'''
+bbox:[(xmin,ymin,width,height),....]
+return a list of new bbox with the size scale times of the input
+'''
+def expand_bbox(bboxes,scale=2):
+    res_bboxes = []
+    for bbox in bboxes:
+        cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
+        new_width = bbox[2]*scale
+        new_height = bbox[3]*scale
+        min_x = cx-new_width//2
+        min_y = cy-new_height//2
+        res_bboxes.append((min_x,min_y,new_width,new_height))
+
+    return res_bboxes

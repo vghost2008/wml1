@@ -40,6 +40,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.mask_logits = wmlt.batch_gather(net,tf.clip_by_value(labels-1,0,self.num_classes-1))
         return self.mask_logits
 
+    '''
+    output:[batch_size,X,H,W]
+    '''
     def getBoxesAndMask(self,k=1000,mask_threshold=0.5,box_threshold=0.5,proposal_boxes=None,limits=None,
                    adjust_probability=None,nms=None,reuse=False,
                         size=(33,33)
@@ -51,11 +54,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                         adjust_probability=adjust_probability,
                         nms=nms)
         max_len = tf.maximum(1,tf.reduce_max(self.rcn_bboxes_lens))
-        self.ssbp_net = tf.Print(self.ssbp_net,[tf.shape(self.ssbp_net),max_len,self.finally_indices[:,:max_len],tf.shape(self.finally_indices)],"SHAPE0",first_n=100)
         ssbp_net = wmlt.batch_gather(self.get_5d_ssbp_net(),self.finally_indices[:,:max_len])
-        ssbp_net = tf.Print(ssbp_net,[tf.shape(ssbp_net)],"SHAPE0")
         ssbp_net = self.to_4d_ssbp_net(ssbp_net)
-        ssbp_net = tf.Print(ssbp_net,[tf.shape(ssbp_net)],"SHAPE2")
         labels = self.finally_boxes_label[:,:max_len]
         labels = tf.reshape(labels,[-1])
         logits = self.buildMaskBranch(labels=labels,size=size,reuse=reuse,net=ssbp_net)

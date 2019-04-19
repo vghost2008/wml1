@@ -12,6 +12,7 @@ import os
 import numpy as np
 import PIL.Image
 import wml_utils as wmlu
+import object_detection.bboxes as odb
 import random
 import tensorflow as tf
 import time
@@ -20,6 +21,7 @@ import sys
 import img_utils as wmli
 import copy
 import iotoolkit.label_map_util as label_map_util
+from iotoolkit.labelme_toolkit import *
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('data_dir', '',
@@ -44,145 +46,6 @@ def category_id_filter(category_id):
 text_to_id={"a":1,"b":2,"c":3}
 def label_text_to_id(text):
     return text_to_id[text]
-
-
-def get_files(data_dir,img_suffix="jpg"):
-    files = wmlu.recurse_get_filepath_in_dir(data_dir,suffix=".json")
-    res = []
-    for file in files:
-        img_file = wmlu.change_suffix(file,img_suffix)
-        if os.path.exists(img_file):
-            res.append((img_file,file))
-    
-    return res
-
-def bbox_of_contour(cnt):
-    all_points = np.array(cnt)
-    points = np.transpose(all_points)
-    x,y = np.vsplit(points,2)
-    xmin = np.min(x)
-    xmax = np.max(x)
-    ymin = np.min(y)
-    ymax = np.max(y)
-    return (ymin,xmin,ymax,xmax)
-
-def read_labelme_data(file_path):
-    annotations_list = []
-    image = {}
-    with open(file_path) as f:
-        json_data = json.load(f)
-        img_width = json_data["imageWidth"]
-        img_height = json_data["imageHeight"]
-        image["height"] = img_height
-        image["width"] = img_width
-        image["file_name"] = wmlu.base_name(file_path)
-        for shape in json_data["shapes"]:
-            mask = np.zeros(shape=[img_height,img_width],dtype=np.uint8)
-            all_points = np.array([shape["points"]])
-            points = np.transpose(all_points[0])
-            x,y = np.vsplit(points,2)
-            xmin = np.min(x)
-            xmax = np.max(x)
-            ymin = np.min(y)
-            ymax = np.max(y)
-            segmentation = cv.drawContours(mask,all_points,-1,color=(1),thickness=cv.FILLED)
-            label = label_text_to_id(shape["label"])
-            annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
-    return image,annotations_list
-
-def sub_image(img,rect):
-    return img[rect[0]:rect[2],rect[1]:rect[3]]
-'''
-'''
-def cut_contour(cnt,img_size,rect):
-    img = np.zeros(shape=img_size,dtype=np.uint8)
-    segmentation = cv.drawContours(img,[cnt],-1,color=(1),thickness=cv.FILLED)
-    cuted_img = sub_image(segmentation,rect)
-    contours,hierarchy = cv.findContours(cuted_img,cv.CV_RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
-    return contours
-
-def cut_contourv2(segmentation,rect):
-    cuted_img = sub_image(segmentation,rect)
-    contours,hierarchy = cv.findContours(cuted_img,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
-    boxes = []
-    for cnt in contours:
-        boxes.append(bbox_of_contour(cnt))
-    return contours,boxes
-
-def bbox_to_xyminwh(bbox):
-    return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
-
-'''
-bbox:(xmin,ymin,width,height)
-'''
-def random_int_in_bbox(bbox):
-    x = random.randint(bbox[0],bbox[0]+bbox[2]-1)
-    y = random.randint(bbox[1],bbox[1]+bbox[3]-1)
-    return x,y
-
-'''
-bbox:(xmin,ymin,width,height)
-size:(width,height)
-'''
-def random_bbox_in_bbox(bbox,size):
-    x,y = random_int_in_bbox(bbox)
-    xmin,ymin = x-size[0]//2,y-size[1]//2
-    return [xmin,ymin,size[0],size[1]]
-
-def random_bbox_in_bboxes(bboxes,size):
-    if len(bboxes) == 0:
-        return (0,0,size[0],size[1])
-    index = random.randint(0,len(bboxes)-1)
-    return random_bbox_in_bbox(bboxes[index],size)
-
-'''
-bbox:(xmin,ymin,width,height)
-size:(width,height)
-'''
-def expand_bbox(bboxes,scale=2):
-    res_bboxes = []
-    for bbox in bboxes:
-        cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
-        new_width = bbox[2]*scale
-        new_height = bbox[3]*scale
-        min_x = cx-new_width//2
-        min_y = cy-new_height//2
-        res_bboxes.append((min_x,min_y,new_width,new_height))
-
-    return res_bboxes
-
-def get_expand_bboxes_in_annotations(annotations,scale=2):
-   bboxes = [ann["bbox"] for ann in annotations]
-   bboxes = expand_bbox(bboxes,scale)
-   return bboxes
-
-
-def random_cut(image,annotations_list,img_data,size):
-    x_max = max(0,image["width"]-size[0])
-    y_max = max(0,image["height"]-size[1])
-    annotations_list = copy.deepcopy(annotations_list)
-    image_info = {}
-    image_info["height"] =size[1]
-    image_info["width"] =size[0]
-    image_info["file_name"] = "random_cut_img"
-    obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
-    while True:
-        t_bbox = random_bbox_in_bboxes(obj_ann_bboxes,size)
-        t_bbox[1] = min(t_bbox[1],y_max)
-        t_bbox[0] = min(t_bbox[0],x_max)
-        rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
-        new_annotations_list = []
-        for obj_ann in annotations_list:
-            cnts,bboxes = cut_contourv2(obj_ann["segmentation"],rect)
-            if len(cnts)>0:
-                for cnt,bbox in zip(cnts,bboxes):
-                    mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
-                    segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
-                    obj_ann["segmentation"] = segmentation
-                    obj_ann["bbox"] = bbox_to_xyminwh(bbox_of_contour(cnt))
-                    new_annotations_list.append(copy.deepcopy(obj_ann))
-        if len(new_annotations_list)>0:
-            return (image_info,new_annotations_list,sub_image(img_data,rect))
 
 def create_tf_example(image,
                       annotations_list,

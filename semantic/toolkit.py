@@ -7,6 +7,7 @@ from .mask_utils import iou,np_iou
 import numpy as np
 sys.path.append(os.path.dirname(__file__))
 import semantic.visualization_utils as visu
+import cv2
 from semantic.visualization_utils import MIN_RANDOM_STANDARD_COLORS
 
 '''
@@ -136,6 +137,57 @@ def np_draw_masks_on_images(image,mask,alpha,colors=MIN_RANDOM_STANDARD_COLORS,n
         res_images.append(new_img)
 
     return np.array(res_images)
+
+'''
+bboxes:[(ymin,xmin,ymax,xmax),....] value in range[0,1]
+mask:[X,h,w]
+size:[H,W]
+'''
+def get_fullsize_mask(bboxes,masks,size):
+    if masks.dtype != np.uint8:
+        masks = masks.astype(np.uint8)
+
+    res_masks = []
+    for i,bbox in enumerate(bboxes):
+        x = int(bbox[1]*size[1])
+        y = int(bbox[0]*size[0])
+        w = int((bbox[3]-bbox[1])*size[1])
+        h = int((bbox[2]-bbox[0])*size[0])
+        if w<=0 or h<=0:
+            continue
+        mask = masks[i]
+        mask = cv2.resize(mask,(w,h))
+        res_mask = np.zeros(size,dtype=np.uint8)
+        res_mask[y:y+h,x:x+w] = mask
+        res_masks.append(res_mask)
+
+    return np.array(res_masks)
+
+'''
+masks:[X,H,W]
+labels:[X]
+output:
+[num_classes,H,W]/[num_classes-1,H,W]
+'''
+def merge_masks(masks,labels,num_classes,no_background=True):
+    width = masks.shape[2]
+    height = masks.shape[1]
+    if no_background:
+        get_label = lambda x:max(0,x-1)
+        res = np.zeros([num_classes-1,height,width],dtype=np.int32)
+    else:
+        get_label = lambda x:x
+        res = np.zeros([num_classes,height,width],dtype=np.int32)
+
+    for i,mask in enumerate(masks):
+        label = get_label(labels[i])
+        res[label:label+1,:,:] = res[label:label+1,:,:]|np.expand_dims(mask,axis=0)
+
+    return res
+
+def get_fullsize_merged_mask(masks,bboxes,labels,size,num_classes,no_background=True):
+    fullsize_masks = get_fullsize_mask(bboxes,masks,size)
+    return merge_masks(fullsize_masks,labels,num_classes,no_background)
 
 class ModelPerformance:
     def __init__(self,no_first_class=True):

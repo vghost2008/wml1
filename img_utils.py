@@ -240,6 +240,13 @@ def crop_image(image,width,height,resize_size=None):
     else:
         return tf.stack(images,axis=0)
 
+'''
+img:[H,W]/[H,W,C]
+rect:[ymin,xmin,ymax,xmax]
+'''
+def sub_image(img,rect):
+    return img[rect[0]:rect[2],rect[1]:rect[3]]
+
 def imread(filepath):
     img = cv2.imread(filepath)
     cv2.cvtColor(img,cv2.COLOR_BGR2RGB,img)

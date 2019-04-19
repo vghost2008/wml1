@@ -107,7 +107,7 @@ def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=N
         mask = masks[i]
         mask = cv2.resize(mask,(w,h))
         mask = np.expand_dims(mask,axis=-1)
-        img[y:y+h,x:x+w,:] = img[y:y+h,x:x+w,:]*(np.ones_like(mask)-(mask*0.4).astype(np.uint8))+(mask*color*0.4).astype(np.uint8)
+        img[y:y+h,x:x+w,:] = (img[y:y+h,x:x+w,:]*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
 
     img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
     return img
