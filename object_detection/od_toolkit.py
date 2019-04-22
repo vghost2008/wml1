@@ -677,7 +677,7 @@ bboxes:[X,4] X个bboxes,使用相对坐标，[ymin,xmin,ymax,xmax]
 '''
 def flip_left_right(image,bboxes):
     if isinstance(image,list):
-        image = [tf.image.flip_left_right(img) for img in image]
+        image = [tf.cond(tf.reduce_min(tf.shape(img))>0,lambda:tf.image.flip_left_right(img),lambda:img) for img in image]
     else:
         image = tf.image.flip_left_right(image)
     return image,bboxes_flip_left_right(bboxes)
@@ -701,7 +701,7 @@ bboxes:[X,4] X个bboxes,使用相对坐标，[ymin,xmin,ymax,xmax]
 '''
 def flip_up_down(image,bboxes):
     if isinstance(image,list):
-        image = [tf.image.flip_up_down(img) for img in image]
+        image = [tf.cond(tf.reduce_min(tf.shape(img))>0,lambda:tf.image.flip_up_down(img),lambda:img) for img in image]
     else:
         image = tf.image.flip_up_down(image)
     return image,bboxes_flip_up_down(bboxes)
@@ -726,7 +726,7 @@ def rot90(image,bboxes,clockwise=True):
     else:
         k = 3
     if isinstance(image,list):
-        image = [tf.image.rot90(img,k) for img in image]
+        image = [tf.cond(tf.reduce_min(tf.shape(img))>0,lambda:tf.image.rot90(img,k),lambda:img) for img in image]
     else:
         image = tf.image.rot90(image,k)
     return image,bboxes_rot90(bboxes,clockwise)
