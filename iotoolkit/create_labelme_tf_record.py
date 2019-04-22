@@ -129,6 +129,9 @@ def _get_output_filename(output_dir, name, idx):
 def _add_to_tfrecord(file,writer):
     img_file,json_file = file
     image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
+    if len(annotations_list)==0:
+        print("No annotations.")
+        return False
     if RANDOM_CUT_SIZE is None:
         tf_example, num_annotations_skipped = create_tf_example(
             image_info, annotations_list,img_file)
