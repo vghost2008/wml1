@@ -4,6 +4,7 @@ import json
 import numpy as np
 import cv2 as cv
 import object_detection.bboxes as odb
+import object_detection.visualization as odv
 import copy
 import img_utils as wmli
 import random
@@ -141,23 +142,25 @@ def random_cut(image,annotations_list,img_data,size):
         if new_annotations_list is not None and len(new_annotations_list)>0:
             return (new_image_info,new_annotations_list,new_image_data)
 
-def cut(annotations_list,img_data,bbox):
-    annotations_list = copy.deepcopy(annotations_list)
+def cut(annotations_list,img_data,bbox,threshold=1e-3):
     size = (bbox[3]-bbox[1],bbox[2]-bbox[0])
     new_annotations_list = []
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
+    area = size[1]*size[0]
     image_info["file_name"] = f"IMG_L{bbox[1]:06}_T{bbox[0]:06}_W{bbox[3]-bbox[1]:06}_H{bbox[2]-bbox[0]:06}"
     for obj_ann in annotations_list:
         cnts,bboxes = odb.cut_contourv2(obj_ann["segmentation"],bbox)
+        label = obj_ann["category_id"]
         if len(cnts)>0:
             for cnt in cnts:
                 mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
                 segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
-                obj_ann["segmentation"] = segmentation
-                obj_ann["bbox"] = odb.to_xyminwh(odb.bbox_of_contour(cnt))
-                new_annotations_list.append(copy.deepcopy(obj_ann))
+                t_bbox = odb.to_xyminwh(odb.bbox_of_contour(cnt))
+                if t_bbox[2]*t_bbox[3]/area < threshold:
+                    continue
+                new_annotations_list.append({"bbox":t_bbox,"segmentation":segmentation,"category_id":label})
     if len(new_annotations_list)>0:
         return (image_info,new_annotations_list,wmli.sub_image(img_data,bbox))
     else:
@@ -186,6 +189,9 @@ def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=Non
             mask = cv.resize(mask,size)
         mask = np.expand_dims(mask,axis=-1)
         image_data  = (image_data*(np.array([[[1]]],dtype=np.float32) - mask * alpha)).astype(np.uint8) + (mask * color * alpha).astype(np.uint8)
+
+    labels,bboxes = get_labels_and_bboxes(image,annotation_list)
+    image_data = odv.bboxes_draw_on_imgv2(image_data,classes=labels,bboxes=bboxes,thickness=2)
 
     plt.figure(figsize=(10, 10))
     plt.imshow(image_data)

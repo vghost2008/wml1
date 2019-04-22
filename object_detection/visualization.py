@@ -69,14 +69,16 @@ def bboxes_draw_on_img(img, classes, scores, bboxes,
             p = (p1[0]-5, p1[1])
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
 
-def bboxes_draw_on_imgv2(img, classes, scores, bboxes,
+def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
                         color_fn=None,
                          text_fn=None,
                        thickness=4,show_text=False,fontScale=1.2):
     shape = img.shape
+    if scores is None:
+        scores = np.ones_like(classes,dtype=np.float32)
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
-        print(bbox,classes[i])
+        print(bbox,classes[i],scores[i])
         if color_fn is not None:
             color = color_fn(classes[i])
         else:
