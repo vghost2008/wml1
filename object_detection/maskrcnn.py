@@ -47,11 +47,11 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     output:[batch_size*pbox_nr,M,N]
     '''
     def buildMaskBranchV2(self,pmask=None,labels=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
-        batch_size = self.rcn_batch_size
-        box_nr = self.rcn_box_nr
-        net_channel = self.net_after_roi.get_shape().as_list()[-1]
-        net = wmlt.reshape(self.net_after_roi, [batch_size * box_nr, bin_size, bin_size, net_channel])
-        net = self._rcnFeatureExtractor(net, reuse)
+        base_net = self.base_net
+        batch_index, batch_size, box_nr = self.rcn_batch_index_helper(self.proposal_boxes)
+        net = roipooling(base_net, self.proposal_boxes, batch_index, bin_size, bin_size)
+        net_channel = net.get_shape().as_list()[-1]
+        net = wmlt.reshape(net, [batch_size * box_nr, bin_size, bin_size, net_channel])
 
         if self.train_mask and pmask is None:
             pmask = tf.greater(self.rcn_gtlabels,0)
@@ -102,6 +102,11 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
         labels = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.int32)
         self.buildMaskBranch(pmask,labels,size=[7,7])
+
+    def buildFakeMaskBranchV2(self):
+        pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
+        labels = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.int32)
+        self.buildMaskBranchV2(pmask,labels,size=[7,7])
 
 
     '''
