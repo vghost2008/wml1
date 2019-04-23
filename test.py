@@ -236,6 +236,23 @@ class WMLTest(tf.test.TestCase):
             self.assertAllEqual(t_indices,r_indices)
             self.assertAllEqual(t_data,r_data)
 
+    def test_crop_and_resize(self):
+        with self.test_session() as sess:
+            image = np.array([np.zeros([10,10]),np.ones([10,10]),np.ones([10,10])*2])
+            image = np.expand_dims(image,axis=-1).astype(np.float32)
+            image = np.expand_dims(image,axis=0)
+            bboxes = np.array([[0,0.3,0.1,0.4],[0.1,0.3,0.2,0.4],[0,0,1,1]]).astype(np.float32)
+            bboxes = np.expand_dims(bboxes,axis=0)
+            image = tf.convert_to_tensor(image)
+            bboxes = tf.convert_to_tensor(bboxes)
+            image = wmlt.tf_crop_and_resize(image,bboxes,[7,7])
+            image = sess.run(image)
+            d_image = np.array([np.zeros([7,7]),np.ones([7,7]),np.ones([7,7])*2])
+            d_image = np.expand_dims(d_image,axis=-1)
+            d_image = np.expand_dims(d_image,axis=0)
+            self.assertAllClose(image,d_image,1e-5,0.0)
+
+
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

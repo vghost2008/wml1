@@ -37,7 +37,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         net = tf.image.resize_bilinear(net,size)
         net = self._maskFeatureExtractor(net,reuse=reuse)
         net = tf.transpose(net,perm=(0,3,1,2))
-        self.mask_logits = wmlt.batch_gather(net,tf.clip_by_value(labels-1,0,self.num_classes-1))
+        assert net.get_shape().as_list()[1]==self.num_classes-1,"Error dim size."
+        self.mask_logits = wmlt.batch_gather(net,labels-1)
         return self.mask_logits
 
     '''
@@ -85,7 +86,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     gtmasks:[batch_size,X,H,W]
     gtbboxes:[batch_size,X,4]
     '''
-    def getMaskLoss(self,gtbboxes,gtmasks,b_len):
+    def getMaskLoss(self,gtbboxes,gtmasks,b_len,gtlabels=None):
         max_boxes_nr = gtbboxes.get_shape().as_list()[1]
         shape = self.mask_logits.get_shape().as_list()
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
@@ -99,11 +100,13 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         gtmasks = tf.squeeze(gtmasks,axis=-1)
         rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
         rcn_anchor_to_gt_indices = tf.clip_by_value(rcn_anchor_to_gt_indices,0,max_boxes_nr)
-        gtmasks = wmlt.reshape(gtmasks,[batch_size,box_nr]+gtmasks.get_shape().as_list()[1:])
         gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
 
         gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
         pmask = tf.reshape(pmask,[-1])
+        if gtlabels is not None:
+            gtlabels = wmlt.batch_gather(gtlabels,rcn_anchor_to_gt_indices)
+            gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(self.rcn_gtlabels,pmask)],"ASSERT GTLABELS EQUAL")
         gtmasks = tf.boolean_mask(gtmasks,pmask)
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
         wmlt.image_summaries(log_mask,"mask")

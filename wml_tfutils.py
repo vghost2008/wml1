@@ -758,16 +758,23 @@ def assert_shape_equal(v,values,name=None):
 image:[batch_size,X,H,W,C]
 bboxes:[batch_size,X,4] (ymin,xmin,ymax,xmax) in [0,1]
 size:(H,W)
+output:
+[batch_size,box_nr,size[0],size[1],C]
 '''
 def tf_crop_and_resize(image,bboxes,size):
     img_shape = image.get_shape().as_list()
+    batch_size = img_shape[0]
+    box_nr = img_shape[1]
     new_img_shape = [img_shape[0]*img_shape[1]]+img_shape[2:]
     bboxes_shape = bboxes.get_shape().as_list()
     new_bboxes_shape = [bboxes_shape[0]*bboxes_shape[1],4]
     image = reshape(image,new_img_shape)
     bboxes = reshape(bboxes,new_bboxes_shape)
     box_ind = tf.range(0,tf.reduce_prod(tf.shape(bboxes)[0]),dtype=tf.int32)
-    return tf.image.crop_and_resize(image,bboxes,box_ind,size)
+    images = tf.image.crop_and_resize(image,bboxes,box_ind,size)
+    shape = images.get_shape().as_list()
+    images = reshape(images,[batch_size,box_nr]+shape[1:])
+    return images
 '''
 mask:[N]
 output:

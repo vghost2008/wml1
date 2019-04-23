@@ -59,10 +59,12 @@ class FasterRCNN(object):
         self.rcn_logits=None
         #[batch_size,pos_nr+neg_nr,num_classes-1,4]
         self.rcn_regs=None
+        #[batch_size,pos_nr+neg_nr], 表示self.rcn_gt***对应的proposal_box索引
         self.rcn_indices = None
         '''
         batch_size,pos_nr+neg_nr]
-        the value representation rcn gtlabels to the index of ground truth box(in the order of input to encode rcn boxes).
+        the value representation rcn self.rcn_gt*** to the index of ground truth box(in the order of input to encode rcn boxes).
+        the background's value is -1
         '''
         self.rcn_anchor_to_gt_indices = None
         self.rcn_bboxes_lens = None
@@ -458,6 +460,8 @@ class FasterRCNN(object):
     '''
     get exactly k proposal boxes, the excess boxes was remove by probability.
     k: output boxes number
+    output:
+    [batch_size,k,4],[batch_size,k]
     '''
     def getProposalBoxesV3(self,k=1000):
         with tf.variable_scope("RPNProposalBoxes"):

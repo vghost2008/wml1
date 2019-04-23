@@ -129,7 +129,6 @@ def random_cut(image,annotations_list,img_data,size):
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
-    image_info["file_name"] = "random_cut_img"
     obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
     if len(annotations_list)==0:
         return None,None,None
@@ -196,4 +195,37 @@ def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=Non
     plt.figure(figsize=(10, 10))
     plt.imshow(image_data)
     plt.show()
+
+def data_statistics(data_dir):
+    files = get_files(data_dir)
+    statistics_data = {}
+
+    for img_file,json_file in files:
+        image, annotations_list = read_labelme_data(json_file,lambda x:x)
+        for ann in annotations_list:
+            label = ann["category_id"]
+            if label in statistics_data:
+                statistics_data[label] += 1
+            else:
+                statistics_data[label] = 1
+
+    print("Num of each classes")
+    wmlu.show_dict(statistics_data)
+
+    total_num = 0
+    for v in statistics_data.values():
+        total_num += v
+
+    _statistics = {}
+    for k,v in statistics_data.items():
+        _statistics[k] = 100.0*v/total_num
+
+    print("Percent of each classes")
+    wmlu.show_dict(_statistics)
+
+
+if __name__ == "__main__":
+    data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatav1")
+
+
 
