@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import object_detection.fasterrcnn as fasterrcnn
 import tensorflow as tf
 import wml_tfutils as wmlt
+import object_detection.wlayers as odl
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
     def __init__(self,num_classes,input_shape,batch_size=1):
@@ -21,6 +22,36 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def buildMaskBranch(self,pmask=None,labels=None,size=(33,33),reuse=False,net=None):
         if net is None:
             net = self.ssbp_net
+
+        if self.train_mask and pmask is None:
+            pmask = tf.greater(self.rcn_gtlabels,0)
+            pmask = tf.reshape(pmask,[-1])
+
+        if labels is None:
+            labels = tf.reshape(self.rcn_gtlabels,[-1])
+
+        if pmask is not None:
+            pmask = wmlt.assert_equal(pmask,[tf.shape(net)[:1],tf.shape(pmask)])
+            net = tf.boolean_mask(net,pmask)
+            labels = tf.boolean_mask(labels,pmask)
+
+        net = tf.image.resize_bilinear(net,size)
+        net = self._maskFeatureExtractor(net,reuse=reuse)
+        net = tf.transpose(net,perm=(0,3,1,2))
+        assert net.get_shape().as_list()[1]==self.num_classes-1,"Error dim size."
+        self.mask_logits = wmlt.batch_gather(net,labels-1)
+        return self.mask_logits
+    '''
+    labels:[batch_size*box_nr]
+    pmask:[batch_size*box_nr]
+    output:[batch_size*pbox_nr,M,N]
+    '''
+    def buildMaskBranchV2(self,pmask=None,labels=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
+        batch_size = self.rcn_batch_size
+        box_nr = self.rcn_box_nr
+        net_channel = self.net_after_roi.get_shape().as_list()[-1]
+        net = wmlt.reshape(self.net_after_roi, [batch_size * box_nr, bin_size, bin_size, net_channel])
+        net = self._rcnFeatureExtractor(net, reuse)
 
         if self.train_mask and pmask is None:
             pmask = tf.greater(self.rcn_gtlabels,0)
