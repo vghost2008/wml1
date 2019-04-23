@@ -127,7 +127,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         wmlt.image_summaries(gtmasks[0][:b_len[0],:,:,:],"mask0_1")
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
 
-        wmlt.image_summaries(gtmasks[:b_len[0],:,:,:],"mask0")
+        wmlt.image_summaries(gtmasks[0][:b_len[0],:,:,:],"mask0")
         gtmasks = tf.squeeze(gtmasks,axis=-1)
         rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
         rcn_anchor_to_gt_indices = tf.clip_by_value(rcn_anchor_to_gt_indices,0,max_boxes_nr)
@@ -137,7 +137,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         pmask = tf.reshape(pmask,[-1])
         if gtlabels is not None:
             gtlabels = wmlt.batch_gather(gtlabels,rcn_anchor_to_gt_indices)
-            gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(self.rcn_gtlabels,pmask)],"ASSERT GTLABELS EQUAL")
+            gtlabels = tf.cast(tf.reshape(gtlabels,[-1]),tf.int32)
+            cgtlabels = tf.cast(tf.reshape(self.rcn_gtlabels,[-1]),tf.int32)
+            gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(cgtlabels,pmask)],"ASSERT_GTLABELS_EQUAL")
         gtmasks = tf.boolean_mask(gtmasks,pmask)
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
         wmlt.image_summaries(log_mask,"mask")
