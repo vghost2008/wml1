@@ -98,15 +98,15 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.finally_mask = mask
         return self.finally_mask
 
-    def buildFakeMaskBranch(self):
+    def buildFakeMaskBranch(self,net=None):
         pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
         labels = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.int32)
-        self.buildMaskBranch(pmask,labels,size=[7,7])
+        self.buildMaskBranch(pmask,labels,size=[7,7],net=net)
 
-    def buildFakeMaskBranchV2(self):
+    def buildFakeMaskBranchV2(self,net=None):
         pmask = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.bool)
         labels = tf.ones(tf.shape(self.ssbp_net)[:1],dtype=tf.int32)
-        self.buildMaskBranchV2(pmask,labels,size=[7,7])
+        self.buildMaskBranchV2(pmask,labels,size=[7,7],net=net)
 
 
     '''

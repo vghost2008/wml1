@@ -125,14 +125,14 @@ def get_expand_bboxes_in_annotations(annotations,scale=2):
 def random_cut(image,annotations_list,img_data,size):
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
-    annotations_list = copy.deepcopy(annotations_list)
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
     obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
     if len(annotations_list)==0:
         return None,None,None
-    while True:
+    count = 1
+    while count<100:
         t_bbox = odb.random_bbox_in_bboxes(obj_ann_bboxes,size)
         t_bbox[1] = min(t_bbox[1],y_max)
         t_bbox[0] = min(t_bbox[0],x_max)
@@ -140,8 +140,11 @@ def random_cut(image,annotations_list,img_data,size):
         new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
         if new_annotations_list is not None and len(new_annotations_list)>0:
             return (new_image_info,new_annotations_list,new_image_data)
+        ++count
 
-def cut(annotations_list,img_data,bbox,threshold=1e-3):
+    return None,None,None
+
+def cut(annotations_list,img_data,bbox,threshold=2e-4):
     size = (bbox[3]-bbox[1],bbox[2]-bbox[0])
     new_annotations_list = []
     image_info = {}
@@ -154,11 +157,11 @@ def cut(annotations_list,img_data,bbox,threshold=1e-3):
         label = obj_ann["category_id"]
         if len(cnts)>0:
             for cnt in cnts:
-                mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
-                segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                 t_bbox = odb.to_xyminwh(odb.bbox_of_contour(cnt))
                 if t_bbox[2]*t_bbox[3]/area < threshold:
                     continue
+                mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
+                segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                 new_annotations_list.append({"bbox":t_bbox,"segmentation":segmentation,"category_id":label})
     if len(new_annotations_list)>0:
         return (image_info,new_annotations_list,wmli.sub_image(img_data,bbox))

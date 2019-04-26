@@ -199,7 +199,7 @@ def safe_copy(src_file,dst_file):
         dst_dir = os.path.dirname(dst_file)
         index = 1
         while os.path.exists(r_dst_file):
-            r_dst_file = os.path.join(dst_dir,r_base_name+f"_{index}."+r_suffix)
+            r_dst_file = os.path.join(dst_dir,r_base_name+f"_{index:02}."+r_suffix)
             index += 1
 
     shutil.copy(src_file,r_dst_file)
