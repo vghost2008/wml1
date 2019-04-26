@@ -121,19 +121,24 @@ def get_expand_bboxes_in_annotations(annotations,scale=2):
    bboxes = odb.expand_bbox(bboxes,scale)
    return bboxes
 
+def get_labels(annotations):
+    labels = [ann["category_id"] for ann in annotations]
+    return labels
 
-def random_cut(image,annotations_list,img_data,size):
+
+def random_cut(image,annotations_list,img_data,size,weights=None):
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
     obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
+    labels = get_labels(annotations_list)
     if len(annotations_list)==0:
         return None,None,None
     count = 1
     while count<100:
-        t_bbox = odb.random_bbox_in_bboxes(obj_ann_bboxes,size)
+        t_bbox = odb.random_bbox_in_bboxes(obj_ann_bboxes,size,weights,labels)
         t_bbox[1] = min(t_bbox[1],y_max)
         t_bbox[0] = min(t_bbox[0],x_max)
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])

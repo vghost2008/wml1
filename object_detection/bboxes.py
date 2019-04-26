@@ -492,11 +492,38 @@ def random_bbox_in_bbox(bbox,size):
     xmin,ymin = x-size[0]//2,y-size[1]//2
     return [xmin,ymin,size[0],size[1]]
 
-def random_bbox_in_bboxes(bboxes,size):
+'''
+weights [2,x],[0] values,[1]:labels
+'''
+def random_bbox_in_bboxes(bboxes,size,weights=None,labels=None):
     if len(bboxes) == 0:
         return (0,0,size[0],size[1])
-    index = random.randint(0,len(bboxes)-1)
-    return random_bbox_in_bbox(bboxes[index],size)
+    if weights is not None:
+        old_v = 0.0
+        values = []
+
+        for v in weights[0]:
+            old_v += v
+            values.append(old_v)
+        random_v = random.uniform(0.,old_v)
+        index = 0
+        for i,v in enumerate(values):
+            if random_v<v:
+                index = i
+                break
+        label = weights[1][index]
+        _bboxes = []
+        for l,bbox in zip(labels,bboxes):
+            if l==label:
+                _bboxes.append(bbox)
+
+        if len(_bboxes) == 0:
+            return random_bbox_in_bboxes(bboxes,size)
+        else:
+            return random_bbox_in_bboxes(_bboxes,size)
+    else:
+        index = random.randint(0,len(bboxes)-1)
+        return random_bbox_in_bbox(bboxes[index],size)
 
 '''
 bbox:[(xmin,ymin,width,height),....]
