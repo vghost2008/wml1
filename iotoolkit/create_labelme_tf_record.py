@@ -35,9 +35,6 @@ tf.logging.set_verbosity(tf.logging.INFO)
 TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
 SAMPLES_PER_FILES = 100
-#RANDOM_CUT_SIZE = None
-RANDOM_CUT_SIZE = (2048,2048)
-RANDOM_CUT_NR=10
 
 def category_id_filter(category_id):
     good_ids = [1,2,3]
@@ -132,28 +129,12 @@ def _add_to_tfrecord(file,writer):
     if len(annotations_list)==0:
         print("No annotations.")
         return False
-    if RANDOM_CUT_SIZE is None:
-        tf_example, num_annotations_skipped = create_tf_example(
-            image_info, annotations_list,img_file)
-        if tf_example is not None:
-            writer.write(tf_example.SerializeToString())
-            return True
-        return False
-    else:
-        org_img_data = wmli.imread(img_file)
-        for _ in range(RANDOM_CUT_NR):
-            n_image_info,n_annotations_list,img_data = random_cut(image_info, annotations_list, org_img_data, RANDOM_CUT_SIZE)
-            if n_image_info is None:
-                print(f"Error data {json_file}")
-                continue
-            new_file_path = "/tmp/tmp.jpg"
-            wmli.imwrite(new_file_path,img_data)
-            tf_example, num_annotations_skipped = create_tf_example(
-                n_image_info, n_annotations_list,new_file_path)
-            if tf_example is not None:
-                writer.write(tf_example.SerializeToString())
-
+    tf_example, num_annotations_skipped = create_tf_example(
+        image_info, annotations_list,img_file)
+    if tf_example is not None:
+        writer.write(tf_example.SerializeToString())
         return True
+    return False
 
 
 def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0):
@@ -188,8 +169,8 @@ def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shufflin
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatav1"
-    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav1"
+    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatasv2_preproc"
+    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav2"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
