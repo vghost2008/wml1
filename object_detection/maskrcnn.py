@@ -4,6 +4,7 @@ import object_detection.fasterrcnn as fasterrcnn
 import tensorflow as tf
 import wml_tfutils as wmlt
 import object_detection.wlayers as odl
+import object_detection.od_toolkit as od
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
     def __init__(self,num_classes,input_shape,batch_size=1):
@@ -125,7 +126,6 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def getMaskLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None):
         max_boxes_nr = gtbboxes.get_shape().as_list()[1]
         shape = self.mask_logits.get_shape().as_list()
-        batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         pmask = tf.greater(self.rcn_gtlabels,0)
         #pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
@@ -154,7 +154,46 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         tf.losses.add_loss(loss)
         return loss
 
+    def getMaskLossV1(self,gtmasks,gtlabels=None):
+        shape = self.mask_logits.get_shape().as_list()
+        pmask = tf.greater(self.rcn_gtlabels,0)
+
+        rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
+        rcn_anchor_to_gt_indices = tf.maximum(rcn_anchor_to_gt_indices,0)
+        gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
+        bboxes = self.getRCNBoxes()
+        gtmasks = tf.expand_dims(gtmasks,axis=-1)
+        gtmasks = wmlt.tf_crop_and_resize(gtmasks,bboxes,shape[1:3])
+        gtmasks = tf.squeeze(gtmasks,axis=-1)
+
+        gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
+        pmask = tf.reshape(pmask,[-1])
+        if gtlabels is not None:
+            gtlabels = wmlt.batch_gather(gtlabels,rcn_anchor_to_gt_indices)
+            gtlabels = tf.cast(tf.reshape(gtlabels,[-1]),tf.int32)
+            cgtlabels = tf.cast(tf.reshape(self.rcn_gtlabels,[-1]),tf.int32)
+            gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(cgtlabels,pmask)],"ASSERT_GTLABELS_EQUAL")
+        gtmasks = tf.boolean_mask(gtmasks,pmask)
+        log_mask  = tf.expand_dims(gtmasks,axis=-1)
+        wmlt.image_summaries(log_mask,"mask")
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+        loss = tf.reduce_mean(loss)
+        tf.summary.scalar("mask_loss",loss)
+        tf.losses.add_loss(loss)
+        return loss
+
+    def getRCNBoxes(self):
+        probs = tf.nn.softmax(self.rcn_logits)
+        boxes,_,_  = od.get_predictionv4(class_prediction=probs,bboxes_regs=self.rcn_regs,
+                                        proposal_bboxes=self.proposal_boxes,classes_wise=self.pred_bboxes_classwise)
+        return boxes
+
     def getLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None,use_scores=False):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
         mask_loss = self.getMaskLoss(gtbboxes=gtbboxes, gtmasks=gtmasks,gtlens=gtlens,gtlabels=gtlabels)
+        return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
+
+    def getLossV1(self,gtmasks,gtlabels=None,use_scores=False):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
+        mask_loss = self.getMaskLossV1(gtmasks=gtmasks,gtlabels=gtlabels)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
