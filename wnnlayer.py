@@ -268,7 +268,8 @@ def non_local_block(net,multiplier=0.5,keep_prob=None,is_training=False,scope=No
         out = nlpl.multi_head_attention(Q, K, V, 1, keep_prob=keep_prob, is_training=is_training,
                                  use_mask=False)
         out = restore_shape(out,shape,m_channel)
-        out = slim.conv2d(out,channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        out = slim.conv2d(out,channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None,
+                          weights_initializer=tf.zeros_initializer)
         return net+out
 
 def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
