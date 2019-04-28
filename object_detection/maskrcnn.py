@@ -81,6 +81,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def buildMaskBranchV3(self,gtbboxes,gtlabels,gtlens,bboxes_nr,net=None,net_process=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
         def random_select(labels,data_nr):
             with tf.name_scope("random_select"):
+                if labels.dtype != tf.int32:
+                    labels = tf.cast(labels,tf.int32)
                 size = tf.shape(labels)[0]
                 indexs = tf.range(data_nr)
                 indexs = wpad(indexs, [0, size - data_nr])
