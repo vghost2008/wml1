@@ -153,3 +153,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         tf.summary.scalar("mask_loss",loss)
         tf.losses.add_loss(loss)
         return loss
+
+    def getLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None,use_scores=False):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
+        mask_loss = self.getMaskLoss(gtbboxes=gtbboxes, gtmasks=gtmasks,gtlens=gtlens,gtlabels=gtlabels)
+        return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all

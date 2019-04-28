@@ -13,7 +13,7 @@ class ODLoss:
             scope="Loss",
             classes_wise=False,
             neg_multiplier=2.0,
-            scale=10.0):
+            scale=1.0):
         self.num_classes = num_classes
         self.reg_loss_weight = reg_loss_weight
         self.scope = scope

@@ -110,6 +110,7 @@ class WEvalModel:
                 if result<self.best_result:
                     logging.info("{} not the best result, best result is {}, achieved at {}, skip backup.".format(index,self.best_result, self.best_result_time))
                     continue
+                print("RESULT:",self.best_result,result)
                 logging.warning("New best result {}, {}.".format(file,info))
                 self.best_result = result
                 self.best_result_time = time.strftime("%m-%d %H:%M:%S", time.localtime())
