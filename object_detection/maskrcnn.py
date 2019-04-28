@@ -186,7 +186,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         probs = tf.nn.softmax(self.rcn_logits)
         boxes,_,_  = od.get_predictionv4(class_prediction=probs,bboxes_regs=self.rcn_regs,
                                         proposal_bboxes=self.proposal_boxes,classes_wise=self.pred_bboxes_classwise)
-        return boxes
+        return tf.stop_gradient(boxes)
 
     def getLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None,use_scores=False):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
