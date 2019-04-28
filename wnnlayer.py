@@ -244,6 +244,33 @@ def orthogonal_initializer(shape, dtype=tf.float32, *args, **kwargs):
   w = u if u.shape == flat_shape else v
   return tf.constant(w.reshape(shape), dtype=dtype)
 
+def non_local_block(net,multiplier=0.5,keep_prob=None,is_training=False,scope=None):
+    def reshape_net(net):
+        shape = net.get_shape().as_list()
+        new_shape = [-1,shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [-1,shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    with tf.variable_scope(scope,default_name="non_local"):
+        shape = net.get_shape().as_list()
+        channel = shape[-1]
+        m_channel = int(channel*multiplier)
+        Q = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        K = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        V = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, 1, keep_prob=keep_prob, is_training=is_training,
+                                 use_mask=False)
+        out = restore_shape(out,shape,m_channel)
+        out = slim.conv2d(out,channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        return net+out
+
 def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
     old_channel = net.get_shape().as_list()[-1]
     if channel is not None:
