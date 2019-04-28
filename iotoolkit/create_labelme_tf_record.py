@@ -169,8 +169,8 @@ def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shufflin
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatasv2_preproc"
-    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav2"
+    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatasv3_preproc"
+    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav3"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
