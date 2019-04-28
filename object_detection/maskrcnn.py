@@ -5,6 +5,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import object_detection.wlayers as odl
 import object_detection.od_toolkit as od
+from wtfop.wtfop_ops import wpad
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
     def __init__(self,num_classes,input_shape,batch_size=1):
@@ -72,6 +73,40 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         assert net.get_shape().as_list()[1]==self.num_classes-1,"Error dim size."
         self.mask_logits = wmlt.batch_gather(net,labels-1)
         return self.mask_logits
+    '''
+    labels:[batch_size*box_nr]
+    pmask:[batch_size*box_nr]
+    output:[batch_size*pbox_nr,M,N]
+    '''
+    def buildMaskBranchV3(self,gtbboxes,gtlabels,gtlens,bboxes_nr,net=None,net_process=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
+        def random_select(labels,data_nr):
+            with tf.name_scope("random_select"):
+                size = tf.shape(labels)[0]
+                indexs = tf.range(data_nr)
+                indexs = wpad(indexs, [0, size - data_nr])
+                indexs = tf.random_shuffle(indexs)
+                indexs = tf.random_crop(indexs, [bboxes_nr])
+                labels = tf.gather(labels, indexs)
+                return labels,indexs
+        def batch_random_select(labels,data_nr):
+            return tf.map_fn(lambda x:random_select(x[0],x[1]),elems=(labels,data_nr),dtype=(tf.int32,tf.int32),back_prop=False)
+        gtlabels,indices = batch_random_select(gtlabels,gtlens)
+        gtbboxes = wmlt.batch_gather(gtbboxes,indices)
+        if net is None:
+            net = self.base_net
+        batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
+        net = roipooling(net, gtbboxes, batch_index, bin_size, bin_size)
+        net_channel = net.get_shape().as_list()[-1]
+        net = wmlt.reshape(net, [batch_size * box_nr, bin_size, bin_size, net_channel])
+        if net_process is not None:
+            net = net_process(net)
+        net = tf.image.resize_bilinear(net,size)
+        net = self._maskFeatureExtractor(net,reuse=reuse)
+        net = tf.transpose(net,perm=(0,3,1,2))
+        assert net.get_shape().as_list()[1]==self.num_classes-1,"Error dim size."
+        gtlabels = tf.reshape(gtlabels,[-1])
+        self.mask_logits = wmlt.batch_gather(net,gtlabels-1)
+        return self.mask_logits,gtlabels,gtbboxes,indices
 
     '''
     output:[batch_size,X,H,W]
@@ -182,6 +217,23 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         tf.losses.add_loss(loss)
         return loss
 
+    def getMaskLossV2(self,gtbboxes,gtmasks,indices):
+        shape = self.mask_logits.get_shape().as_list()
+
+        gtmasks = wmlt.batch_gather(gtmasks,indices)
+        gtmasks = tf.expand_dims(gtmasks,axis=-1)
+        gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
+        gtmasks = tf.squeeze(gtmasks,axis=-1)
+
+        gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
+        log_mask  = tf.expand_dims(gtmasks,axis=-1)
+        wmlt.image_summaries(log_mask,"mask")
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+        loss = tf.reduce_mean(loss)
+        tf.summary.scalar("mask_loss",loss)
+        tf.losses.add_loss(loss)
+        return loss
+
     def getRCNBoxes(self):
         probs = tf.nn.softmax(self.rcn_logits)
         boxes,_,_  = od.get_predictionv4(class_prediction=probs,bboxes_regs=self.rcn_regs,
@@ -196,4 +248,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def getLossV1(self,gtmasks,gtlabels=None,use_scores=False):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
         mask_loss = self.getMaskLossV1(gtmasks=gtmasks,gtlabels=gtlabels)
+        return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
+
+    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
+        mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
