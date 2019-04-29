@@ -265,7 +265,7 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
         Q = reshape_net(Q)
         K = reshape_net(K)
         V = reshape_net(V)
-        out = nlpl.multi_head_attention(Q, K, V, 1, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
                                  use_mask=False)
         out = restore_shape(out,shape,m_channel)
         out = slim.conv2d(out,channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None,

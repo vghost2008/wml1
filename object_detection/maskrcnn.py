@@ -229,7 +229,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
         gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
-        wmlt.image_summaries(log_mask,"mask")
+        wmlt.image_summaries(log_mask,"mask",max_outputs=40)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.summary.scalar("mask_loss",loss)
