@@ -8,13 +8,14 @@ import object_detection.od_toolkit as od
 from wtfop.wtfop_ops import wpad
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
-    def __init__(self,num_classes,input_shape,batch_size=1):
+    def __init__(self,num_classes,input_shape,batch_size=1,loss_scale=10.0):
         super().__init__(num_classes,input_shape,batch_size)
         self.train_mask = False
         #[X,h,w]
         self.mask_logits = None
         #[X,h,w]
         self.finally_mask = None
+        self.loss_scale = loss_scale
 
     '''
     labels:[batch_size*box_nr]
@@ -188,7 +189,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.summary.scalar("mask_loss",loss)
-        tf.losses.add_loss(loss)
+        tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
     def getMaskLossV1(self,gtmasks,gtlabels=None):
@@ -216,7 +217,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.summary.scalar("mask_loss",loss)
-        tf.losses.add_loss(loss)
+        tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
     def getMaskLossV2(self,gtbboxes,gtmasks,indices):
@@ -233,7 +234,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.summary.scalar("mask_loss",loss)
-        tf.losses.add_loss(loss)
+        tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
     def getRCNBoxes(self):

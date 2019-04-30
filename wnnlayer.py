@@ -259,16 +259,16 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
         shape = net.get_shape().as_list()
         channel = shape[-1]
         m_channel = int(channel*multiplier)
-        Q = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
-        K = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
-        V = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None)
+        Q = slim.conv2d(net,m_channel,[1,1],activation_fn=None)
+        K = slim.conv2d(net,m_channel,[1,1],activation_fn=None)
+        V = slim.conv2d(net,m_channel,[1,1],activation_fn=None)
         Q = reshape_net(Q)
         K = reshape_net(K)
         V = reshape_net(V)
         out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
                                  use_mask=False)
         out = restore_shape(out,shape,m_channel)
-        out = slim.conv2d(out,channel,[1,1],activation_fn=None,normalizer_fn=None,weights_regularizer=None,
+        out = slim.conv2d(out,channel,[1,1],activation_fn=None,
                           weights_initializer=tf.zeros_initializer)
         return net+out
 
