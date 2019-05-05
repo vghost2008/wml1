@@ -139,8 +139,8 @@ def random_cut(image,annotations_list,img_data,size,weights=None):
     count = 1
     while count<100:
         t_bbox = odb.random_bbox_in_bboxes(obj_ann_bboxes,size,weights,labels)
-        t_bbox[1] = min(t_bbox[1],y_max)
-        t_bbox[0] = min(t_bbox[0],x_max)
+        t_bbox[1] = max(0,min(t_bbox[1],y_max))
+        t_bbox[0] = max(0,min(t_bbox[0],x_max))
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
         new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
         if new_annotations_list is not None and len(new_annotations_list)>0:
@@ -148,6 +148,28 @@ def random_cut(image,annotations_list,img_data,size,weights=None):
         ++count
 
     return None,None,None
+
+def random_cutv1(image,annotations_list,img_data,size):
+    res = []
+    x_max = max(0,image["width"]-size[0])
+    y_max = max(0,image["height"]-size[1])
+    image_info = {}
+    image_info["height"] =size[1]
+    image_info["width"] =size[0]
+    obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
+    if len(annotations_list)==0:
+        return res
+
+    for t_bbox in obj_ann_bboxes:
+        t_bbox = list(t_bbox)
+        t_bbox[1] = max(0,min(t_bbox[1],y_max))
+        t_bbox[0] = max(0,min(t_bbox[0],x_max))
+        t_bbox = odb.random_bbox_in_bbox(t_bbox,size)
+        rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
+        new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
+        if new_annotations_list is not None and len(new_annotations_list)>0:
+            res.append((new_image_info,new_annotations_list,new_image_data))
+    return res
 
 def cut(annotations_list,img_data,bbox,threshold=2e-4):
     size = (bbox[3]-bbox[1],bbox[2]-bbox[0])
