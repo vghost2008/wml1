@@ -18,6 +18,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         #[X,h,w]
         self.finally_mask = None
         self.loss_scale = loss_scale
+        self.debug = True
 
     '''
     labels:[batch_size*box_nr]
@@ -50,6 +51,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     labels:[batch_size*box_nr]
     pmask:[batch_size*box_nr]
     output:[batch_size*pbox_nr,M,N]
+    this version, the mask branch and rcn network didn't share any wieghts.
     '''
     def buildMaskBranchV2(self,pmask=None,labels=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
         base_net = self.base_net
@@ -203,6 +205,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
         bboxes = self.getRCNBoxes()
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
+        if self.debug:
+            org_mask = tf.identity(gtmasks)
+            org_mask = tf.reshape(org_mask,[-1]+org_mask.get_shape().as_list()[2:])
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,bboxes,shape[1:3])
         gtmasks = tf.squeeze(gtmasks,axis=-1)
 
@@ -215,6 +220,10 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
             gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(cgtlabels,pmask)],"ASSERT_GTLABELS_EQUAL")
         gtmasks = tf.boolean_mask(gtmasks,pmask)
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
+        if self.debug:
+            log_boxes = tf.expand_dims(tf.reshape(bboxes,[-1,4]),axis=1)
+            log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
+            log_mask = wmli.concat_images([log_mask1,log_mask])
         wmlt.image_summaries(log_mask,"mask")
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
@@ -227,16 +236,18 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
         gtmasks = wmlt.batch_gather(gtmasks,indices)
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
-        org_mask = tf.identity(gtmasks)
-        org_mask = tf.reshape(org_mask,[-1]+org_mask.get_shape().as_list()[2:])
+        if self.debug:
+            org_mask = tf.identity(gtmasks)
+            org_mask = tf.reshape(org_mask,[-1]+org_mask.get_shape().as_list()[2:])
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
         gtmasks = tf.squeeze(gtmasks,axis=-1)
 
         gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
-        log_boxes = tf.expand_dims(tf.reshape(gtbboxes,[-1,4]),axis=1)
-        log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
-        log_mask = wmli.concat_images([log_mask1,log_mask])
+        if self.debug:
+            log_boxes = tf.expand_dims(tf.reshape(gtbboxes,[-1,4]),axis=1)
+            log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
+            log_mask = wmli.concat_images([log_mask1,log_mask])
         wmlt.image_summaries(log_mask,"mask",max_outputs=40)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
@@ -262,7 +273,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
     '''
     use buildMaskBranchV3/buildFakeMaskBranch for mask branch
-    in this 
+    in this version, the input gtboxes and indices is the return value of buildMaskBranchV3
+    the gtmasks is the ground truth data.
     '''
     def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
