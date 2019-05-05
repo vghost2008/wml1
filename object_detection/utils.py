@@ -679,14 +679,22 @@ class ClassesWiseModelPerformace(object):
             lboxes,llabels = self.select_bboxes_and_labels(boxes,labels,classes)
             if lgtlabels.shape[0]==0 and llabels.shape[0]==0:
                 continue
-            self.data[i](lgtboxes.lgtlabels,lboxes,llabels)
-        return self.mp(gtboxes.gtlabels,boxes,labels)
+            self.data[i](lgtboxes,lgtlabels,lboxes,llabels)
+        return self.mp(gtboxes,gtlabels,boxes,labels)
 
     def show(self):
         for i in range(self.num_classes):
             classes = i+self.clases_begin_value
             mp = self.data[i]
             print(f"Classes:{classes},Samples nr {mp.test_nr}, mAP={mp.mAP}, precision={mp.precision}, recall={mp.recall}.")
+
+    def __getattr__(self, item):
+        if item=="mAP":
+            return self.mp.mAP
+        elif item =="recall":
+            return self.mp.recall
+        elif item=="precision":
+            return self.mp.precision
 
 
 
