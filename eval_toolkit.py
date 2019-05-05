@@ -7,6 +7,7 @@ import time
 import wml_utils as wmlu
 from multiprocessing import Process,Queue
 import logging
+import shutil
 
 
 def get_file_name_in_ckp(name):
@@ -213,6 +214,104 @@ class WEvalModel:
         return target_path
 
 
+class WEvalTarModel:
+    '''
+    Evaler: a evaler type, take args as initializer args if args is not none,
+    evaler(ckp_file_path) have to return a value(normal a float point value) to indict which one is better and a info
+    string to backup file.
+    '''
+    def __init__(self,Evaler,args=None,use_process=True,timeout=30*60):
+        self.Evaler = Evaler
+        self.evaler_args = args
+        self.best_result = -1.
+        self.best_result_time = ""
+        self.best_result_t = 0.
+        if not use_process:
+            if self.evaler_args is not None:
+                self.evaler = self.Evaler(*self.evaler_args)
+            else:
+                self.evaler = self.Evaler()
+        else:
+            self.evaler = None
+        self.q = Queue()
+        self.history = []
+        self.timeout = timeout
+        self.tmp_dir = "/tmp/wml_eval"
 
+    def extract_data(self,data_path):
+        if os.path.exists(self.tmp_dir):
+            shutil.rmtree(self.tmp_dir)
+        os.makedirs(self.tmp_dir)
+        os.system(f"tar xvf {data_path} -C {self.tmp_dir}")
+        files = wmlu.recurse_get_filepath_in_dir(self.tmp_dir,suffix=".index")
+        if len(files)==0:
+            print(f"Error data {data_path}")
+            return None
+        file_name = wmlu.base_name(files[0])
+        '''ckpt_file = os.path.join(self.tmp_dir,"checkpoint")
+        with open(ckpt_file,"w") as f:
+            f.write(f"model_checkpoint_path: \"{file_name}\"\n")
+            f.write(f"all_model_checkpoint_paths: \"{file_name}\"\n")'''
+        return os.path.join(data_path,file_name)
 
+    '''
+    dir_path: the check point file dir
+    '''
+    def __call__(self, dir_path):
+        dir_path = os.path.abspath(dir_path)
+        while True:
+            files = wmlu.recurse_get_filepath_in_dir(dir_path,suffix=".tar.gz")
+            process_nr = 0
+            for file in files:
+                ckpt_file = self.extract_data(file)
+                if ckpt_file is None:
+                    continue
+                if ckpt_file in self.history:
+                    continue
+                print("process file {}.".format(file))
+                self.history.append(file)
+                if self.evaler is not None:
+                    result,info = self.evaler(ckpt_file)
+                else:
+                    result,info = self.eval(ckpt_file)
+                if result<0.01:
+                    print("Unnormal result {}, ignored.".format(result))
+                    continue
+                if result<self.best_result:
+                    print("{} not the best result, best result is {}, achieved at {}, skip backup.".format(file,self.best_result, self.best_result_time))
+                    continue
+                print("RESULT:",self.best_result,result)
+                print("New best result {}, {}.".format(file,info))
+                self.best_result = result
+                self.best_result_time = time.strftime("%m-%d %H:%M:%S", time.localtime())
+                self.best_result_t = time.time()
 
+            if process_nr==0:
+                print("sleep for 30 seconds.")
+                sys.stdout.flush()
+                time.sleep(30)
+
+    '''
+    do the eval work with new process
+    '''
+    def eval(self,filepath):
+        def do_eval(path):
+            #self.q.put((10,"test"))
+            #return
+            try:
+                if self.evaler_args is not None:
+                    evaler = self.Evaler(**self.evaler_args)
+                else:
+                    evaler = self.Evaler()
+
+                self.q.put(evaler(path))
+            except Exception:
+                self.q.put((-1.,""))
+
+        try:
+            p0 = Process(target=do_eval, args=[filepath])
+            p0.start()
+            p0.join(self.timeout)
+            return self.q.get()
+        except:
+            return -1,""
