@@ -234,7 +234,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
         gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
-        log_boxes = tf.expand_dims(tf.reshape(gtbboxes.[-1,4]),axis=1)
+        log_boxes = tf.expand_dims(tf.reshape(gtbboxes,[-1,4]),axis=1)
         log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
         log_mask = wmli.concat_images([log_mask1,log_mask])
         wmlt.image_summaries(log_mask,"mask",max_outputs=40)
