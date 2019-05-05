@@ -1,7 +1,6 @@
 #coding=utf-8
-import object_detection.utils as utils
 import os
-import utils as odu
+import object_detection.utils as odu
 import object_detection.npod_toolkit as npod
 import wml_utils
 import matplotlib.pyplot as plt
@@ -49,7 +48,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
         files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")[:2000]
         print("\ntotal file size {}.".format(len(files)))
         for file in files:
-            shape, bboxes, labels_text, difficult, truncated = utils.read_voc_xml(file,aspect_range=aspect_range)
+            shape, bboxes, labels_text, difficult, truncated = odu.read_voc_xml(file,aspect_range=aspect_range)
             yield bboxes,labels_text,os.path.basename(file)
 
     return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)

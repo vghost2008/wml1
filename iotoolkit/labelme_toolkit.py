@@ -207,18 +207,34 @@ def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=Non
 def data_statistics(data_dir):
     files = get_files(data_dir)
     statistics_data = {}
+    file_statistics_data = {}
 
     for img_file,json_file in files:
         image, annotations_list = read_labelme_data(json_file,lambda x:x)
+        temp_file_statistics_data = {}
         for ann in annotations_list:
             label = ann["category_id"]
             if label in statistics_data:
                 statistics_data[label] += 1
             else:
                 statistics_data[label] = 1
-
+            temp_file_statistics_data[label] = 1
+        for k in temp_file_statistics_data.keys():
+            if k in file_statistics_data:
+                file_statistics_data[k] += 1
+            else:
+                file_statistics_data[k] = 1
+    if len(files)<1:
+        return
+    print(f"Data size {len(files)}.")
     print("Num of each classes")
     wmlu.show_dict(statistics_data)
+    print("Num of each classes in files")
+    wmlu.show_dict(file_statistics_data)
+    _file_statistics_data = {}
+    for k,v in file_statistics_data.items():
+        _file_statistics_data[k] = v*100.0/len(files)
+
 
     total_num = 0
     for v in statistics_data.values():
@@ -231,9 +247,12 @@ def data_statistics(data_dir):
     print("Percent of each classes")
     wmlu.show_dict(_statistics)
 
+    print("Percent of each classes in files")
+    wmlu.show_dict(_file_statistics_data)
+
 
 if __name__ == "__main__":
-    data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatav1")
+    data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatasv3")
 
 
 
