@@ -252,7 +252,7 @@ class WEvalTarModel:
         with open(ckpt_file,"w") as f:
             f.write(f"model_checkpoint_path: \"{file_name}\"\n")
             f.write(f"all_model_checkpoint_paths: \"{file_name}\"\n")'''
-        return os.path.join(data_path,file_name)
+        return os.path.join(self.tmp_dir,file_name)
 
     '''
     dir_path: the check point file dir

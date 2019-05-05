@@ -43,7 +43,7 @@ def np_iou(mask0,mask1):
     union = np.logical_or(mask0,mask1)
     union = union.astype(np.float32)
     union = np.sum(union)
-    logging.info("union={}, different={}, mask={}, gt={}".format(union,different,np.sum(mask0.astype(np.float32)),np.sum(mask1.astype(np.float32))))
+    #logging.info("union={}, different={}, mask={}, gt={}".format(union,different,np.sum(mask0.astype(np.float32)),np.sum(mask1.astype(np.float32))))
 
     if union == 0:
         return 100.0
