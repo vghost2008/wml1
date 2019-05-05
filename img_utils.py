@@ -240,6 +240,12 @@ def crop_image(image,width,height,resize_size=None):
     else:
         return tf.stack(images,axis=0)
 
+def concat_images(images):
+    new_images = []
+    size = tf.shape(images[0])[1:3]
+    for img in images:
+        new_images.append(tf.image.resize_bilinear(img,size=size))
+    return tf.concat(new_images,axis=2)
 '''
 img:[H,W]/[H,W,C]
 rect:[ymin,xmin,ymax,xmax]

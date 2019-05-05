@@ -5,7 +5,9 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import object_detection.wlayers as odl
 import object_detection.od_toolkit as od
+import object_detection.utils as odu
 from wtfop.wtfop_ops import wpad
+import img_utils as wmli
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
     def __init__(self,num_classes,input_shape,batch_size=1,loss_scale=10.0):
@@ -225,11 +227,14 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
 
         gtmasks = wmlt.batch_gather(gtmasks,indices)
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
+        org_mask = tf.identity(gtmasks)
         gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
         gtmasks = tf.squeeze(gtmasks,axis=-1)
 
         gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
         log_mask  = tf.expand_dims(gtmasks,axis=-1)
+        log_mask1 = odu.tf_draw_image_with_box(org_mask,gtbboxes)
+        log_mask = wmli.concat_images([log_mask1,log_mask])
         wmlt.image_summaries(log_mask,"mask",max_outputs=40)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)

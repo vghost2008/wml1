@@ -18,19 +18,26 @@ import shutil
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
 boxes:[X,4],relative coordinate, (ymin,xmin,ymax,xmax)
 '''
+def tf_draw_image_with_box(image, bboxes, name='summary_image_with_box',scale=True):
+    if scale:
+        if image.dtype != tf.float32:
+            image = tf.cast(image,tf.float32)
+        image = tf.expand_dims(image, 0)/255.
+    if image.get_shape().ndims == 3:
+        image = tf.expand_dims(image,axis=0)
+    if image.dtype is not tf.float32:
+        image = tf.cast(image,tf.float32)
+    if bboxes.get_shape().ndims == 2:
+        bboxes = tf.expand_dims(bboxes, 0)
+    image_with_box = tf.image.draw_bounding_boxes(image, bboxes)
+    return image_with_box
+'''
+image:[h,w,c], value range(0,255) if scale is True else (0,1)
+boxes:[X,4],relative coordinate, (ymin,xmin,ymax,xmax)
+'''
 def tf_summary_image_with_box(image, bboxes, name='summary_image_with_box',scale=True):
     with tf.name_scope(name):
-        if scale:
-            if image.dtype != tf.float32:
-                image = tf.cast(image,tf.float32)
-            image = tf.expand_dims(image, 0)/255.
-        if image.get_shape().ndims == 3:
-            image = tf.expand_dims(image,axis=0)
-        if image.dtype is not tf.float32:
-            image = tf.cast(image,tf.float32)
-        if bboxes.get_shape().ndims == 2:
-            bboxes = tf.expand_dims(bboxes, 0)
-        image_with_box = tf.image.draw_bounding_boxes(image, bboxes)
+        image_with_box = tf_draw_image_with_box(image,bboxes,name,scale)
         tf.summary.image(name, image_with_box)
 
 def tf_summary_image_with_boxv2(image,
