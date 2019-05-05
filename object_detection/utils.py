@@ -22,7 +22,7 @@ def tf_draw_image_with_box(image, bboxes, name='summary_image_with_box',scale=Tr
     if scale:
         if image.dtype != tf.float32:
             image = tf.cast(image,tf.float32)
-        image = tf.expand_dims(image, 0)/255.
+        image = image/255.
     if image.get_shape().ndims == 3:
         image = tf.expand_dims(image,axis=0)
     if image.dtype is not tf.float32:
