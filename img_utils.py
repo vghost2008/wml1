@@ -51,8 +51,8 @@ def blur(img,size=(5,5),sigmaX=0,sigmaY=0):
     res = tf.reshape(res,old_shape)
     return res
 
-def random_blur(img,size=(5,5),sigmaX=0,sigmaY=0):
-    return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
+def random_blur(img,size=(5,5),sigmaX=0,sigmaY=0,prob=0.5):
+    return tf.cond(tf.greater(tf.random_uniform(shape=[]), prob),
                    lambda: (img),
                    lambda: blur(img,size,sigmaX,sigmaY))
 
