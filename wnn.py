@@ -75,6 +75,7 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             apply_gradient_op = opt.apply_gradients(grads,global_step=global_step)
 
         slim_batch_norm_ops = get_batch_norm_ops(scopes=scopes,re_pattern=scopes_pattern)
+        show_values_name(slim_batch_norm_ops,"batch_norm_ops",fn=logging.info)
         train_op = tf.group(apply_gradient_op,slim_batch_norm_ops)
         if clip_norm:
             tf.summary.scalar("global_norm", global_norm)

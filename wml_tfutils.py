@@ -55,6 +55,14 @@ def show_values(values,name=None,fn=print):
         string += str(v)+"\n"
     fn(string)
 
+def show_values_name(values,name=None,fn=print):
+    string = ""
+    if name is not None:
+        string += name+"\n"
+    for v in values:
+        string += str(v.name)+"\n"
+    fn(string)
+
 def gather_in_axis_with_one_dim_indices(data,indices,axis=0):
     '''
     :param data: a tensor with more than one dims
