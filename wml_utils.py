@@ -425,3 +425,15 @@ class MDict(dict):
 
     def __delattr__(self, key):
         del self[key]
+
+def list_to_2dlist(data,size):
+    data_nr = len(data)
+    if data_nr<size:
+        return [data]
+    res = []
+    index = 0
+    while index<data_nr:
+       end_index = min(index+size,data_nr)
+       res.append(data[index:end_index])
+       index = end_index
+    return res

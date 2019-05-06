@@ -171,7 +171,17 @@ def random_cutv1(image,annotations_list,img_data,size):
             res.append((new_image_info,new_annotations_list,new_image_data))
     return res
 
+'''
+image_data:[h,w,c]
+bbox:[ymin,xmin,ymax,xmax)
+'''
 def cut(annotations_list,img_data,bbox,threshold=2e-4):
+    bbox = list(bbox)
+    bbox[0] = max(0,bbox[0])
+    bbox[1] = max(0,bbox[1])
+    bbox[2] = min(bbox[2],img_data.shape[0])
+    bbox[3] = min(bbox[3],img_data.shape[1])
+
     size = (bbox[3]-bbox[1],bbox[2]-bbox[0])
     new_annotations_list = []
     image_info = {}

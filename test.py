@@ -252,6 +252,14 @@ class WMLTest(tf.test.TestCase):
             d_image = np.expand_dims(d_image,axis=0)
             self.assertAllClose(image,d_image,1e-5,0.0)
 
+    def test_list_to_2dlist(self):
+        a = [1,2,3,4,5,6,7,8,9]
+        b = [[1,2],[3,4],[5,6],[7,8],[9,0]]
+        c = wmlu.list_to_2dlist(a,2)
+        print(c)
+        c[-1].append(0)
+        self.assertAllEqual(c,b)
+
 
 
 if __name__ == "__main__":
