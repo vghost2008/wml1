@@ -740,7 +740,7 @@ def merge_mask(mask0,mask1):
     return res
 
 def batch_gather(params,indices,name=None):
-    if indices.get_shape().ndims == 2:
+    if indices.get_shape().ndims <= 2:
         with tf.name_scope(name=name,default_name="batch_gather"):
             return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
     else:

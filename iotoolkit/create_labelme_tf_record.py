@@ -23,6 +23,7 @@ import copy
 import iotoolkit.label_map_util as label_map_util
 from iotoolkit.labelme_toolkit import *
 from multiprocessing import Pool
+import functools
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('data_dir', '',
@@ -166,6 +167,13 @@ def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shufflin
             fidx += 1
     print('\nFinished converting the dataset total %d examples.!'%(len(files)))
 
+def make_tfrecord(file_data,output_dir,name):
+    fidx,file_d = file_data
+    tf_filename = _get_output_filename(output_dir, name, fidx)
+    with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
+        for file in file_d:
+            _add_to_tfrecord(file, tfrecord_writer)
+
 def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0):
     files = get_files(data_dir,img_suffix=img_suffix)
     if os.path.exists(output_dir) and (data_dir != output_dir):
@@ -180,15 +188,9 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
     files = wmlu.list_to_2dlist(files,SAMPLES_PER_FILES)
     files_data = list(enumerate(files))
 
-    def make_tfrecord(file_data):
-        fidx,file_d = file_data
-        tf_filename = _get_output_filename(output_dir, name, fidx)
-        with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
-            for file in file_d:
-                _add_to_tfrecord(file, tfrecord_writer)
 
     pool = Pool(10)
-    pool.map(files_data,make_tfrecord)
+    pool.map(functools.partial(make_tfrecord,output_dir=output_dir,name=name),files_data)
     pool.close()
     pool.join()
 

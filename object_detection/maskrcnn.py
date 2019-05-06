@@ -105,10 +105,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
             gtbboxes = wmlt.batch_gather(gtbboxes,indices)
         else:
             indices = None
-        if self.mask_branch_input is None:
-            self.mask_branch_input = self.ssbp_net
         if net is None:
-            net = self.mask_branch_input
+            net = self.base_net
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         net = roipooling(net, gtbboxes, batch_index, bin_size, bin_size)
         net_channel = net.get_shape().as_list()[-1]
