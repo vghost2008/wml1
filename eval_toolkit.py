@@ -73,6 +73,7 @@ class WEvalModel:
         self.backup_dir = os.path.abspath(backup_dir)
         self.history = wmlu.CycleBuffer(cap=6)
         self.timeout = timeout
+        self.force_save_timeout = 60*60*2
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
 
@@ -84,7 +85,7 @@ class WEvalModel:
         check_point_file = os.path.join(dir_path,"checkpoint")
         while True:
             check_point_files,_ = read_check_file(check_point_file)
-            if self.best_result>0 and time.time()-self.best_result_t>60*60*2:
+            if self.best_result>0 and time.time()-self.best_result_t>self.force_save_timeout:
                 logging.warning("Best result haven't update for more than two hours, force clean best result.")
                 self.best_result = -1.
 
@@ -318,3 +319,18 @@ class WEvalTarModel:
             return self.q.get()
         except:
             return -1,""
+
+
+class AutoSaveEvaler:
+    def __init__(self):
+        self.value = 1e5
+
+    def __call__(self, filepath):
+        self.value -= 1e-3
+        return self.value,f"_1"
+
+def auto_save(ckpt_dir,backup_dir,base_name,time_duration=2*60*60):
+    eval = WEvalModel(AutoSaveEvaler,backup_dir=backup_dir,base_name=base_name,use_process=False)
+    eval.force_save_timeout = time_duration
+    eval(ckpt_dir)
+

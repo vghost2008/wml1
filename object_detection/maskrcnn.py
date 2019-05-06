@@ -198,7 +198,6 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         wmlt.image_summaries(log_mask,"mask")
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
-        tf.summary.scalar("mask_loss",loss)
         tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
@@ -234,7 +233,6 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         wmlt.image_summaries(log_mask,"mask",max_outputs=30)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
-        tf.summary.scalar("mask_loss",loss)
         tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
@@ -259,7 +257,6 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         wmlt.image_summaries(log_mask,"mask",max_outputs=40)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
-        tf.summary.scalar("mask_loss",loss)
         tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
