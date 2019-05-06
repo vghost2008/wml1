@@ -237,6 +237,7 @@ class WEvalTarModel:
         self.history = []
         self.timeout = timeout
         self.tmp_dir = "/tmp/wml_eval"
+        self.best_file = None
 
     def extract_data(self,data_path):
         if os.path.exists(self.tmp_dir):
@@ -261,12 +262,13 @@ class WEvalTarModel:
         dir_path = os.path.abspath(dir_path)
         while True:
             files = wmlu.recurse_get_filepath_in_dir(dir_path,suffix=".tar.gz")
+            wmlu.show_list(files)
             process_nr = 0
             for file in files:
+                if file in self.history:
+                    continue
                 ckpt_file = self.extract_data(file)
                 if ckpt_file is None:
-                    continue
-                if ckpt_file in self.history:
                     continue
                 print("process file {}.".format(file))
                 self.history.append(file)
@@ -278,10 +280,11 @@ class WEvalTarModel:
                     print("Unnormal result {}, ignored.".format(result))
                     continue
                 if result<self.best_result:
-                    print("{} not the best result, best result is {}, achieved at {}, skip backup.".format(file,self.best_result, self.best_result_time))
+                    print("{} not the best result, best result is {}/{}, achieved at {}, skip backup.".format(file,self.best_result, self.best_file,self.best_result_time))
                     continue
                 print("RESULT:",self.best_result,result)
                 print("New best result {}, {}.".format(file,info))
+                self.best_file = file
                 self.best_result = result
                 self.best_result_time = time.strftime("%m-%d %H:%M:%S", time.localtime())
                 self.best_result_t = time.time()

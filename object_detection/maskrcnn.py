@@ -97,8 +97,11 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                 return labels,indexs
         def batch_random_select(labels,data_nr):
             return tf.map_fn(lambda x:random_select(x[0],x[1]),elems=(labels,data_nr),dtype=(tf.int32,tf.int32),back_prop=False)
-        gtlabels,indices = batch_random_select(gtlabels,gtlens)
-        gtbboxes = wmlt.batch_gather(gtbboxes,indices)
+        if gtlens is not None:
+            gtlabels,indices = batch_random_select(gtlabels,gtlens)
+            gtbboxes = wmlt.batch_gather(gtbboxes,indices)
+        else:
+            indices = None
         if net is None:
             net = self.base_net
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
@@ -223,8 +226,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         if self.debug:
             log_boxes = tf.expand_dims(tf.reshape(bboxes,[-1,4]),axis=1)
             log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
+            log_mask1 = tf.boolean_mask(log_mask1,pmask)
             log_mask = wmli.concat_images([log_mask1,log_mask])
-        wmlt.image_summaries(log_mask,"mask")
+        wmlt.image_summaries(log_mask,"mask",max_outputs=30)
         loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
         loss = tf.reduce_mean(loss)
         tf.summary.scalar("mask_loss",loss)
@@ -234,7 +238,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def getMaskLossV2(self,gtbboxes,gtmasks,indices):
         shape = self.mask_logits.get_shape().as_list()
 
-        gtmasks = wmlt.batch_gather(gtmasks,indices)
+        if indices is not None:
+            gtmasks = wmlt.batch_gather(gtmasks,indices)
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
         if self.debug:
             org_mask = tf.identity(gtmasks)
