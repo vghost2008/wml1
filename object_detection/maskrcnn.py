@@ -19,6 +19,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.finally_mask = None
         self.loss_scale = loss_scale
         self.debug = True
+        self.mask_branch_input = None
 
     '''
     labels:[batch_size*box_nr]
@@ -26,8 +27,10 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     output:[batch_size*pbox_nr,M,N]
     '''
     def buildMaskBranch(self,pmask=None,labels=None,size=(33,33),reuse=False,net=None):
+        if self.mask_branch_input is None:
+            self.mask_branch_input = self.ssbp_net
         if net is None:
-            net = self.ssbp_net
+            net = self.mask_branch_input
 
         if self.train_mask and pmask is None:
             pmask = tf.greater(self.rcn_gtlabels,0)
@@ -102,8 +105,10 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
             gtbboxes = wmlt.batch_gather(gtbboxes,indices)
         else:
             indices = None
+        if self.mask_branch_input is None:
+            self.mask_branch_input = self.ssbp_net
         if net is None:
-            net = self.base_net
+            net = self.mask_branch_input
         batch_index, batch_size, box_nr = self.rcn_batch_index_helper(gtbboxes)
         net = roipooling(net, gtbboxes, batch_index, bin_size, bin_size)
         net_channel = net.get_shape().as_list()[-1]
@@ -132,8 +137,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                         adjust_probability=adjust_probability,
                         nms=nms)
         max_len = tf.maximum(1,tf.reduce_max(self.rcn_bboxes_lens))
-        ssbp_net = wmlt.batch_gather(self.get_5d_ssbp_net(),self.finally_indices[:,:max_len])
-        ssbp_net = self.to_4d_ssbp_net(ssbp_net)
+        ssbp_net = wmlt.batch_gather(self.get_5d_mask_branch_net(),self.finally_indices[:,:max_len])
+        ssbp_net = self.to_4d_mask_branch_net(ssbp_net)
         labels = self.finally_boxes_label[:,:max_len]
         labels = tf.reshape(labels,[-1])
         logits = self.buildMaskBranch(labels=labels,size=size,reuse=reuse,net=ssbp_net)
@@ -285,3 +290,13 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
         mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
+
+    def get_5d_mask_branch_net(self):
+        if self.mask_branch_input is None:
+            self.mask_branch_input = self.ssbp_net
+        shape = self.mask_branch_input.get_shape().as_list()[1:]
+        return wmlt.reshape(self.mask_branch_input,[self.rcn_batch_size,self.rcn_box_nr]+shape)
+
+    def to_4d_mask_branch_net(self,net):
+        shape = net.get_shape().as_list()[2:]
+        return wmlt.reshape(net,[-1]+shape)
