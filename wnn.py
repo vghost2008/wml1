@@ -63,7 +63,9 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         else:
             loss_wr = get_regularization_losses(scopes=scopes,re_pattern=scopes_pattern)
             tf.losses.add_loss(loss_wr)
-            total_loss = tf.add_n(tf.losses.get_losses(), "total_loss")
+            losses = tf.losses.get_losses()
+            show_values(losses,"Losses")
+            total_loss = tf.add_n(losses, "total_loss")
             total_loss = tf.reduce_sum(total_loss)
 
         if clip_norm is not None:
