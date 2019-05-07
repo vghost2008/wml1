@@ -189,8 +189,10 @@ def copy_and_rename_file(input_dir,output_dir,input_suffix=".jpg",out_name_patte
 
 def safe_copy(src_file,dst_file):
     if os.path.exists(dst_file) and os.path.isdir(dst_file):
-        dst_file = os.path.join(dst_file,os.path.basename(dst_file))
+        dst_file = os.path.join(dst_file,os.path.basename(src_file))
         safe_copy(src_file,dst_file)
+        return
+
 
     r_dst_file = dst_file
     if os.path.exists(r_dst_file):

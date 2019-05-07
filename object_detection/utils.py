@@ -13,6 +13,8 @@ import object_detection.visualization as odv
 import wml_utils
 import logging
 import shutil
+from object_detection.metrics import coco_evaluation
+from object_detection.metrics import standard_fields
 
 '''
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
@@ -704,10 +706,49 @@ class ClassesWiseModelPerformace(object):
             return self.mp.precision
 
 
+class COCOEvaluation(object):
+    def __init__(self,categories_list=None,num_classes=None):
+        assert categories_list is not None or num_classes is not None
+        if categories_list is None:
+            self.categories_list = [{"id":x+1,"name":str(x+1)} for x in range(num_classes)]
+        else:
+            self.categories_list = categories_list
+        self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
+            self.categories_list)
+        self.image_id = 0
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
+        if probability is None:
+            probability = np.ones_like(labels,dtype=np.float32)
+        if not isinstance(gtboxes,np.ndarray):
+            gtboxes = np.array(gtboxes)
+        if not isinstance(gtlabels,np.ndarray):
+            gtlabels = np.array(gtlabels)
+        if not isinstance(boxes,np.ndarray):
+            boxes = np.array(boxes)
+        if not isinstance(labels,np.ndarray):
+            labels = np.array(labels)
+        if probability is not None and not isinstance(probability,np.ndarray):
+            probability = np.array(probability)
+        self.coco_evaluator.add_single_ground_truth_image_info(
+            image_id=str(self.image_id),
+            groundtruth_dict={
+                standard_fields.InputDataFields.groundtruth_boxes:
+                    gtboxes,
+                standard_fields.InputDataFields.groundtruth_classes:gtlabels
+            })
+        self.coco_evaluator.add_single_detected_image_info(
+            image_id=str(self.image_id),
+            detections_dict={
+                standard_fields.DetectionResultFields.detection_boxes:
+                    boxes,
+                standard_fields.DetectionResultFields.detection_scores:
+                    probability,
+                standard_fields.DetectionResultFields.detection_classes:
+                    labels
+            })
 
-
-
-
+    def evaluate(self):
+        return self.coco_evaluator.evaluate()
 
 def removeLabels(bboxes,labels,labels_to_remove):
     if not isinstance(bboxes,np.ndarray):
