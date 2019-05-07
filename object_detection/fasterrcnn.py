@@ -424,7 +424,7 @@ class FasterRCNN(object):
         else:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
-                                     scope="RCNLoss",classes_wise=True)
+                                     scope=scope,classes_wise=self.pred_bboxes_classwise)
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        classes_logits=self.rcn_logits,
