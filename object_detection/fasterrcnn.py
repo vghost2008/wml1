@@ -395,10 +395,10 @@ class FasterRCNN(object):
     '''
     用于计算RPN网络的损失
     '''
-    def getRPNLoss(self,loss=None):
+    def getRPNLoss(self,loss=None,scope="RPNLoss"):
         if loss is None:
             loss = losses.ODLoss(num_classes=2,reg_loss_weight=self.reg_loss_weight,
-                                 scope="RPNLoss",
+                                 scope=scope,
                                  classes_wise=False)
         return loss(gregs=self.rpn_gtregs,
                    glabels=self.rpn_gtlabels,
@@ -408,13 +408,13 @@ class FasterRCNN(object):
     '''
     用于计算RCN网络的损失
     '''
-    def getRCNLoss(self,labels=None,loss=None,use_scores=True,call_back=None):
+    def getRCNLoss(self,labels=None,loss=None,use_scores=True,call_back=None,scope="RCNLoss"):
         if labels is None:
             labels = self.rcn_gtlabels
         if use_scores:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
-                                     scope="RCNLoss",classes_wise=True)
+                                     scope=scope,classes_wise=True)
             
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,

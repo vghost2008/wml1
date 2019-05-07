@@ -113,13 +113,14 @@ class ODLoss:
         :param call_back: func(pmask,nmask)
         :return:
         '''
-        if scores is None:
-            return self.lossv1(gregs,glabels,classes_logits,bboxes_regs,
-                 bboxes_remove_indices,call_back=call_back)
-        else:
-            print("Use loss with scores.")
-            return self.lossv2(gregs, glabels, classes_logits, bboxes_regs,
-                               bboxes_remove_indices,scores,call_back=call_back)
+        with tf.variable_scope(self.scope,default_name="Loss"):
+            if scores is None:
+                return self.lossv1(gregs,glabels,classes_logits,bboxes_regs,
+                     bboxes_remove_indices,call_back=call_back)
+            else:
+                print("Use loss with scores.")
+                return self.lossv2(gregs, glabels, classes_logits, bboxes_regs,
+                                   bboxes_remove_indices,scores,call_back=call_back)
     
     def lossv1(self,gregs,glabels,classes_logits,bboxes_regs,
                  bboxes_remove_indices=None,call_back=None):

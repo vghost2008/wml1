@@ -236,29 +236,30 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
-    def getMaskLossV2(self,gtbboxes,gtmasks,indices):
-        shape = self.mask_logits.get_shape().as_list()
+    def getMaskLossV2(self,gtbboxes,gtmasks,indices,scope="Loss"):
+        with tf.variable_scope(scope,default_name="MaskLoss"):
+            shape = self.mask_logits.get_shape().as_list()
 
-        if indices is not None:
-            gtmasks = wmlt.batch_gather(gtmasks,indices)
-        gtmasks = tf.expand_dims(gtmasks,axis=-1)
-        if self.debug:
-            org_mask = tf.identity(gtmasks)
-            org_mask = tf.reshape(org_mask,[-1]+org_mask.get_shape().as_list()[2:])
-        gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
-        gtmasks = tf.squeeze(gtmasks,axis=-1)
+            if indices is not None:
+                gtmasks = wmlt.batch_gather(gtmasks,indices)
+            gtmasks = tf.expand_dims(gtmasks,axis=-1)
+            if self.debug:
+                org_mask = tf.identity(gtmasks)
+                org_mask = tf.reshape(org_mask,[-1]+org_mask.get_shape().as_list()[2:])
+            gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
+            gtmasks = tf.squeeze(gtmasks,axis=-1)
 
-        gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
-        log_mask  = tf.expand_dims(gtmasks,axis=-1)
-        if self.debug:
-            log_boxes = tf.expand_dims(tf.reshape(gtbboxes,[-1,4]),axis=1)
-            log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
-            log_mask = wmli.concat_images([log_mask1,log_mask])
-        wmlt.image_summaries(log_mask,"mask",max_outputs=40)
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
-        loss = tf.reduce_mean(loss)
-        tf.losses.add_loss(loss*self.loss_scale)
-        return loss
+            gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
+            log_mask  = tf.expand_dims(gtmasks,axis=-1)
+            if self.debug:
+                log_boxes = tf.expand_dims(tf.reshape(gtbboxes,[-1,4]),axis=1)
+                log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
+                log_mask = wmli.concat_images([log_mask1,log_mask])
+            wmlt.image_summaries(log_mask,"mask",max_outputs=40)
+            loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+            loss = tf.reduce_mean(loss)
+            tf.losses.add_loss(loss*self.loss_scale)
+            return loss
 
     def getRCNBoxes(self):
         probs = tf.nn.softmax(self.rcn_logits)
@@ -281,9 +282,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     in this version, the input gtboxes and indices is the return value of buildMaskBranchV3
     the gtmasks is the ground truth data.
     '''
-    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False):
-        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
-        mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices)
+    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False,scope="Loss"):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores,scope=scope)
+        mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices,scope=scope)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
 
     def get_5d_mask_branch_net(self):
