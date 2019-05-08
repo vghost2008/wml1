@@ -9,6 +9,7 @@ from semantic.visualization_utils import STANDARD_COLORS
 import semantic.toolkit as smt
 import wml_tfutils as wmlt
 import time
+from iotoolkit.coco_toolkit import *
 
 slim = tf.contrib.slim
 slim_example_decoder = tf.contrib.slim.tfexample_decoder
