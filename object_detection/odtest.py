@@ -224,6 +224,71 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(loss2, od_loss2, atol=1e-6, rtol=0)
             self.assertAllClose(pdivn, od_pdivn, atol=1e-6, rtol=0)
             logging.info(f"loss:{loss0},{loss1},{loss2}.")'''
+    def test_label_smooth_loss(self):
+        batch_size = 8
+        box_nr = 64
+        num_classes = 2
+        with self.test_session() as sess:
+            gregs = tf.random_uniform(shape=[batch_size, box_nr, 4], minval=-3., maxval=3., dtype=tf.float32,
+                                      seed=int(time.time()))
+            glabels = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=num_classes, dtype=tf.int32,
+                                        seed=int(time.time()))
+            classes_logits = tf.random_uniform(shape=[batch_size, box_nr, num_classes], minval=-10., maxval=10.,
+                                               dtype=tf.float32)
+            bboxes_regs = tf.random_uniform(shape=[batch_size, box_nr, 4], minval=-3., maxval=3., dtype=tf.float32)
+            bboxes_remove_indices = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=4,
+                                                      dtype=tf.int32)
+            bboxes_remove_indices = tf.cast(bboxes_remove_indices, tf.bool)
+
+            od_loss = ODLoss(num_classes=num_classes, reg_loss_weight=3., classes_wise=False, neg_multiplier=2.,
+                             scale=10.)
+            loss0, loss1, loss2, pdivn = od_loss(gregs, glabels, classes_logits, bboxes_regs,
+                                                              bboxes_remove_indices=bboxes_remove_indices)
+            cod_loss = ODLossWithLabelSmooth(smoothed_value=1.0,
+                                           num_classes=num_classes, reg_loss_weight=3., classes_wise=False, neg_multiplier=2.,
+                              scale=10.)
+            od_loss0, od_loss1, od_loss2, od_pdivn = cod_loss(gregs, glabels, classes_logits, bboxes_regs,
+                                                              bboxes_remove_indices=bboxes_remove_indices)
+            loss0, loss1, loss2, pdivn, od_loss0, od_loss1, od_loss2, od_pdivn = sess.run(
+                [loss0, loss1, loss2, pdivn, od_loss0, od_loss1, od_loss2, od_pdivn])
+            self.assertAllClose(loss0, od_loss0, atol=1e-6, rtol=0)
+            self.assertAllClose(loss1, od_loss1, atol=1e-6, rtol=0)
+            self.assertAllClose(loss2, od_loss2, atol=1e-6, rtol=0)
+            self.assertAllClose(pdivn, od_pdivn, atol=1e-6, rtol=0)
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+
+    def test_label_smoothv1_loss(self):
+        batch_size = 8
+        box_nr = 64
+        num_classes = 2
+        with self.test_session() as sess:
+            gregs = tf.random_uniform(shape=[batch_size, box_nr, 4], minval=-3., maxval=3., dtype=tf.float32,
+                                      seed=int(time.time()))
+            glabels = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=num_classes, dtype=tf.int32,
+                                        seed=int(time.time()))
+            classes_logits = tf.random_uniform(shape=[batch_size, box_nr, num_classes], minval=-10., maxval=10.,
+                                               dtype=tf.float32)
+            bboxes_regs = tf.random_uniform(shape=[batch_size, box_nr, 4], minval=-3., maxval=3., dtype=tf.float32)
+            bboxes_remove_indices = tf.random_uniform(shape=[batch_size, box_nr], minval=0, maxval=4,
+                                                      dtype=tf.int32)
+            bboxes_remove_indices = tf.cast(bboxes_remove_indices, tf.bool)
+
+            od_loss = ODLoss(num_classes=num_classes, reg_loss_weight=3., classes_wise=False, neg_multiplier=2.,
+                             scale=10.)
+            loss0, loss1, loss2, pdivn = od_loss(gregs, glabels, classes_logits, bboxes_regs,
+                                                 bboxes_remove_indices=bboxes_remove_indices)
+            cod_loss = ODLossWithLabelSmoothV1(smoothed_value=1.0,
+                                             num_classes=num_classes, reg_loss_weight=3., classes_wise=False, neg_multiplier=2.,
+                                             scale=10.)
+            od_loss0, od_loss1, od_loss2, od_pdivn = cod_loss(gregs, glabels, classes_logits, bboxes_regs,
+                                                              bboxes_remove_indices=bboxes_remove_indices)
+            loss0, loss1, loss2, pdivn, od_loss0, od_loss1, od_loss2, od_pdivn = sess.run(
+                [loss0, loss1, loss2, pdivn, od_loss0, od_loss1, od_loss2, od_pdivn])
+            self.assertAllClose(loss0, od_loss0, atol=1e-6, rtol=0)
+            self.assertAllClose(loss1, od_loss1, atol=1e-6, rtol=0)
+            self.assertAllClose(loss2, od_loss2, atol=1e-6, rtol=0)
+            self.assertAllClose(pdivn, od_pdivn, atol=1e-6, rtol=0)
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")
 
     def test_select_rcn_bboxes(self):
         bboxes = []

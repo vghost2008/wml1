@@ -16,6 +16,18 @@ import object_detection.bboxes as bboxes
 import img_utils as wmli
 
 class WMLTest(tf.test.TestCase):
+    def testLabelSmoothV1(self):
+        with self.test_session():
+            labels = tf.constant([1, 2, 3, 4, 0, 2], dtype=tf.int32)
+            v = wmlt.label_smoothv1(labels, 5, 0.9)
+            a = v.eval()
+            b = [[0.1,0.9,0.0,0.0,0.0],
+                 [0.1,0.0,0.9,0.0,0.0],
+                 [0.1,0.0,0.0,0.9,0.0],
+                 [0.1,0.0,0.0,0.0,0.9],
+                 [0.9,0.0,0.0,0.0,0.0],
+                 [0.1,0.0,0.9,0.0,0.0]]
+            self.assertAllClose(a,b,atol=0.0001,rtol=0)
     '''def testLabelSmooth(self):
         with self.test_session():
             labels = tf.constant([1, 2, 3, 4, 0, 2], dtype=tf.int32)

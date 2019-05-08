@@ -217,6 +217,38 @@ class ODLossWithFocalLoss(ODLoss):
                                                                gamma=self.gamma,
                                                                alpha=self.alpha,
                                                                max_alpha_scale=self.max_alpha_scale)
+
+class ODLossWithLabelSmooth(ODLoss):
+    def __init__(self,
+                 smoothed_value=0.9,
+                 *args,**kwargs):
+        self.smoothed_value = smoothed_value
+        super().__init__(*args,**kwargs)
+
+    def sparse_softmax_cross_entropy_with_logits(self,
+                                                 _sentinel=None,  # pylint: disable=invalid-name
+                                                 labels=None,
+                                                 logits=None,
+                                                 name=None):
+        logging.info(f"Use smooth label loss, smoothed value={self.smoothed_value}.")
+        labels = wml.label_smooth(labels,self.num_classes,smoothed_value=self.smoothed_value)
+        return tf.nn.softmax_cross_entropy_with_logits(labels=labels,logits=logits,name=name)
+
+class ODLossWithLabelSmoothV1(ODLoss):
+    def __init__(self,
+                 smoothed_value=0.9,
+                 *args,**kwargs):
+        self.smoothed_value = smoothed_value
+        super().__init__(*args,**kwargs)
+
+    def sparse_softmax_cross_entropy_with_logits(self,
+                                                 _sentinel=None,  # pylint: disable=invalid-name
+                                                 labels=None,
+                                                 logits=None,
+                                                 name=None):
+        logging.info(f"Use smooth label v1 loss, smoothed value={self.smoothed_value}.")
+        labels = wml.label_smoothv1(labels,self.num_classes,smoothed_value=self.smoothed_value)
+        return tf.nn.softmax_cross_entropy_with_logits(labels=labels,logits=logits,name=name)
 '''
 gregs:proposal box/anchor box/default box到ground truth box的回归参数
 shape 为[batch_size,X,4]/[X,4] batch_size==1

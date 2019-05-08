@@ -654,6 +654,30 @@ def label_smooth(labels,num_classes,smoothed_value=0.9):
 
     return res
 
+def label_smoothv1(labels,num_classes,smoothed_value=0.9):
+    '''
+    :param labels: shape=[batch_size]
+    :param num_classes: shape=()
+    :param smoothed_value: shape=()
+    :return: shape-[batch_size,num_classes]
+    '''
+    if labels.get_shape().ndims != 1:
+        raise ValueError("Labels's should be one dimensional.")
+    if not isinstance(num_classes,int):
+        raise ValueError("num_classes should be a integer")
+    if not isinstance(smoothed_value,float):
+        raise ValueError("smoothed_value should be a float")
+    default_value = (1.0-smoothed_value)
+    res = tf.zeros(shape=[tf.shape(labels)[0],num_classes],dtype=tf.float32)
+    def fn(data,index):
+        data = set_value(data,v=tf.constant([default_value]),index=tf.constant(0))
+        data = set_value(data,v=tf.constant([smoothed_value]),index=index)
+        return data
+    res = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(res,labels),
+                    dtype=tf.float32,back_prop=False)
+
+    return res
+
 def split(datas,num):
     if isinstance(datas,tf.Tensor):
         return tf.split(datas,num_or_size_splits=num)
@@ -824,6 +848,11 @@ def batch_boolean_mask(data,mask,size):
         d = tf.pad(d,[[0,size-tf.shape(d)[0]]]+[0,0]*(d.get_shape().ndims-1))
         return d
     return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
+
+def Print(data,*inputs,**kwargs):
+    op = tf.print(*inputs,**kwargs)
+    with tf.control_dependencies([op]):
+        return tf.identity(data)
 
 
 if __name__ == "__main__":

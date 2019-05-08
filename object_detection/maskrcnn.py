@@ -282,8 +282,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     in this version, the input gtboxes and indices is the return value of buildMaskBranchV3
     the gtmasks is the ground truth data.
     '''
-    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False,scope="Loss"):
-        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores,scope=scope)
+    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False,od_loss=None,scope="Loss"):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores,scope=scope,loss=od_loss)
         mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices,scope=scope)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
 
