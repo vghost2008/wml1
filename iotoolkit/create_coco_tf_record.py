@@ -70,8 +70,7 @@ TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
 
 def category_id_filter(category_id):
-    good_ids = [1,2,3,4,6,8]
-    return category_id in good_ids
+    return True
 
 def create_tf_example(image,
                       annotations_list,
@@ -274,12 +273,13 @@ def main(_):
       train_output_path,
       FLAGS.include_masks,
       is_train_data=True)
+  '''
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
       FLAGS.include_masks,
-      is_train_data=False)
+      is_train_data=False)'''
 
 
 if __name__ == '__main__':
