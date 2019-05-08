@@ -716,7 +716,7 @@ class COCOEvaluation(object):
         self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
             self.categories_list)
         self.image_id = 0
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,is_crowd=None):
         if probability is None:
             probability = np.ones_like(labels,dtype=np.float32)
         if not isinstance(gtboxes,np.ndarray):
@@ -729,13 +729,26 @@ class COCOEvaluation(object):
             labels = np.array(labels)
         if probability is not None and not isinstance(probability,np.ndarray):
             probability = np.array(probability)
-        self.coco_evaluator.add_single_ground_truth_image_info(
-            image_id=str(self.image_id),
-            groundtruth_dict={
-                standard_fields.InputDataFields.groundtruth_boxes:
-                    gtboxes,
-                standard_fields.InputDataFields.groundtruth_classes:gtlabels
-            })
+        if is_crowd is None:
+            self.coco_evaluator.add_single_ground_truth_image_info(
+                image_id=str(self.image_id),
+                groundtruth_dict={
+                    standard_fields.InputDataFields.groundtruth_boxes:
+                        gtboxes,
+                    standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+                })
+        else:
+            if not isinstance(is_crowd,np.ndarray):
+                is_crowd = np.array(is_crowd)
+            self.coco_evaluator.add_single_ground_truth_image_info(
+                image_id=str(self.image_id),
+                groundtruth_dict={
+                    standard_fields.InputDataFields.groundtruth_boxes:
+                        gtboxes,
+                    standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+                    standard_fields.InputDataFields.groundtruth_is_crowd:
+                        is_crowd
+                })
         self.coco_evaluator.add_single_detected_image_info(
             image_id=str(self.image_id),
             detections_dict={

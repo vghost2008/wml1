@@ -42,6 +42,7 @@ import tensorflow as tf
 
 import iotoolkit.dataset_util as dataset_util
 import iotoolkit.label_map_util as label_map_util
+from iotoolkit.coco_toolkit import *
 
 flags = tf.app.flags
 tf.flags.DEFINE_boolean('include_masks', True,
