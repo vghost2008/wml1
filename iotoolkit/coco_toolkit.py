@@ -90,12 +90,13 @@ ID_TO_TEXT={1: {u'supercategory': u'person', u'id': 1, u'name': u'person'},
             90: {u'supercategory': u'indoor', u'id': 90, u'name': u'toothbrush'}}
 
 class COCOData:
-    def __init__(self):
+    def __init__(self,filter=None):
         self.images = None
         self.annotations_index = None
         self.image_dir = None
         self.include_masks = False
         self.category_index = None
+        self.filter=filter
 
     def get_image_full_path(self,image):
         filename = image['file_name']
@@ -105,6 +106,8 @@ class COCOData:
         with tf.gfile.GFile(annotations_file, 'r') as fid:
             groundtruth_data = json.load(fid)
             images = groundtruth_data['images']
+            if self.filter is not None:
+                images = list(filter(self.filter,images))
             category_index = label_map_util.create_category_index(
                 groundtruth_data['categories'])
 
@@ -181,7 +184,7 @@ class COCOData:
                 binary_mask = mask.decode(run_len_encoding)
                 if not object_annotations['iscrowd']:
                     binary_mask = np.amax(binary_mask, axis=2)
-            boxes = zip(ymin,xmin,ymax,xmax)
+            boxes = np.array(list(zip(ymin,xmin,ymax,xmax)))
 
         if len(category_ids)==0:
             return None,None,None

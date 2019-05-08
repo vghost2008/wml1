@@ -116,6 +116,7 @@ class FasterRCNN(object):
 
     def _rpnFeatureExtractor(self,base_net=None,channel=512):
         return slim.conv2d(base_net,channel,[3,3],padding="SAME")
+
     def rpnFeatureExtractor(self,base_net=None,channel=512):
         if base_net is None:
             base_net = self.base_net
@@ -131,9 +132,9 @@ class FasterRCNN(object):
     def rpnBoxPredictor(self):
         with tf.variable_scope("FirstStageBoxPredictor"):
             base_shape = self.fsbp_net.get_shape().as_list()
-            regs_net = slim.conv2d(self.fsbp_net,4*self.anchor_size,[3,3],activation_fn=None,normalizer_fn=None,scope="BoxEncodingPredictor")
+            regs_net = slim.conv2d(self.fsbp_net,4*self.anchor_size,[1,1],activation_fn=None,normalizer_fn=None,scope="BoxEncodingPredictor")
             regs_net = wmlt.reshape(regs_net,[base_shape[0],base_shape[1],base_shape[2],self.anchor_size,4])
-            logits_net = slim.conv2d(self.fsbp_net,2*self.anchor_size,[3,3],activation_fn=None,normalizer_fn=None,scope="ClassPredictor")
+            logits_net = slim.conv2d(self.fsbp_net,2*self.anchor_size,[1,1],activation_fn=None,normalizer_fn=None,scope="ClassPredictor")
             logits_net = wmlt.reshape(logits_net,[base_shape[0],base_shape[1],base_shape[2],self.anchor_size,2])
             return regs_net,logits_net
 
