@@ -66,7 +66,7 @@ FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-TRAIN_SIZE_LIMIT = None
+TRAIN_SIZE_LIMIT = 1000
 VAL_SIZE_LIMIT = None
 
 def category_id_filter(category_id):
@@ -201,7 +201,7 @@ def create_tf_example(image,
 
 
 def _create_tf_record_from_coco_annotations(
-    annotations_file, image_dir, output_path, include_masks,is_train_data=True):
+    annotations_file, image_dir, output_path, include_masks,is_train_data=True,img_filter=None):
   """Loads COCO annotation json files and converts to tf.Record format.
 
   Args:
@@ -214,6 +214,9 @@ def _create_tf_record_from_coco_annotations(
   with tf.gfile.GFile(annotations_file, 'r') as fid:
     groundtruth_data = json.load(fid)
     images = groundtruth_data['images']
+    if img_filter is not None:
+        images = list(filter(img_filter,images))
+        print(f"Image len {len(images)}.")
     category_index = label_map_util.create_category_index(
         groundtruth_data['categories'])
 
@@ -264,8 +267,8 @@ def main(_):
 
   if not tf.gfile.IsDirectory(FLAGS.output_dir):
     tf.gfile.MakeDirs(FLAGS.output_dir)
-  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.record')
-  val_output_path = os.path.join(FLAGS.output_dir, 'coco_val.record')
+  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.tfrecord')
+  val_output_path = os.path.join(FLAGS.output_dir, 'coco_train1.tfrecord')
 
   _create_tf_record_from_coco_annotations(
       FLAGS.train_annotations_file,
@@ -273,13 +276,20 @@ def main(_):
       train_output_path,
       FLAGS.include_masks,
       is_train_data=True)
-  '''
+
+  '''with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
+      ids = f.readlines()
+  ids = [int(x) for x in ids]
+
+  def filter(image):
+      return image["id"] not in ids
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
       FLAGS.include_masks,
-      is_train_data=False)'''
+      img_filter=filter,
+      is_train_data=True)'''
 
 
 if __name__ == '__main__':
