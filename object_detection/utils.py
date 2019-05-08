@@ -746,6 +746,7 @@ class COCOEvaluation(object):
                 standard_fields.DetectionResultFields.detection_classes:
                     labels
             })
+        self.image_id += 1
 
     def evaluate(self):
         return self.coco_evaluator.evaluate()

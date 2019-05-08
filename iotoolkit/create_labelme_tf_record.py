@@ -187,7 +187,11 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
         random.shuffle(files)
     files = wmlu.list_to_2dlist(files,SAMPLES_PER_FILES)
     files_data = list(enumerate(files))
-
+    if fidx != 0:
+        _files_data = []
+        for fid,file_d in files_data:
+            _files_data.append([fid+fidx,file_d])
+        files_data = _files_data
 
     pool = Pool(10)
     pool.map(functools.partial(make_tfrecord,output_dir=output_dir,name=name),files_data)
@@ -199,12 +203,12 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatasv3_preproc"
-    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav3"
+    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatav4_preproc"
+    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav4"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
     print('Output directory:',output_dir)
     random.seed(int(time.time()))
 
-    multithread_create_tf_record(dataset_dir, output_dir)
+    multithread_create_tf_record(dataset_dir, output_dir,fidx=330)

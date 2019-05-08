@@ -175,7 +175,7 @@ def random_cutv1(image,annotations_list,img_data,size):
 image_data:[h,w,c]
 bbox:[ymin,xmin,ymax,xmax)
 '''
-def cut(annotations_list,img_data,bbox,threshold=2e-4):
+def cut(annotations_list,img_data,bbox,threshold=1e-2):
     bbox = list(bbox)
     bbox[0] = max(0,bbox[0])
     bbox[1] = max(0,bbox[1])
@@ -195,7 +195,7 @@ def cut(annotations_list,img_data,bbox,threshold=2e-4):
         if len(cnts)>0:
             for cnt in cnts:
                 t_bbox = odb.to_xyminwh(odb.bbox_of_contour(cnt))
-                if t_bbox[2]*t_bbox[3]/area < threshold:
+                if t_bbox[2]<threshold*size[0] and t_bbox[3]< threshold*size[1]:
                     continue
                 mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
                 segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
