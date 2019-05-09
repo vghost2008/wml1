@@ -395,7 +395,9 @@ def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,re
         if index>0:
             variables[i] = variables[i][:index]
     unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
+    unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
     show_values(unrestored_variables, "Unrestored variables")
+    show_values(unrestored_variables0, "Unrestored variables0")
 
 def accuracy_ratio(logits,labels):
     with tf.name_scope("accuracy_ratio"):

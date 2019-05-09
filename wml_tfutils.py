@@ -431,6 +431,25 @@ def get_variables_unrestored(restored_values,file_path,exclude_var=None):
                     res_variable.remove(v)
     return res_variable
 
+def get_variables_unrestoredv1(restored_values,exclude_var=None):
+    all_variables = list(map(lambda x:x.name,tf.global_variables()))
+    for i, v in enumerate(all_variables):
+        index = v.find(':')
+        if index > 0:
+            all_variables[i] = all_variables[i][:index]
+    for value in restored_values:
+        if value in all_variables:
+            all_variables.remove(value)
+
+    res_variable = list(all_variables)
+    if exclude_var is not None:
+        scopes = [ scope.strip() for scope in exclude_var.split(",")]
+        for scope in scopes:
+            for v in all_variables:
+                if scope in v:
+                    res_variable.remove(v)
+    return res_variable
+
 def int64_feature(value):
     if not isinstance(value, list) and not isinstance(value,np.ndarray):
         value = [value]
