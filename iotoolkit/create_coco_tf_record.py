@@ -70,8 +70,7 @@ TRAIN_SIZE_LIMIT = 1000
 VAL_SIZE_LIMIT = None
 
 def category_id_filter(category_id):
-    good_ids = [1,2,3,4,6,8]
-    return category_id in good_ids
+    return True
 
 def create_tf_example(image,
                       annotations_list,
