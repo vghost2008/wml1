@@ -187,7 +187,8 @@ class COCOData:
             boxes = np.array(list(zip(ymin,xmin,ymax,xmax)))
 
         if len(category_ids)==0:
-            return None,None,None
+            print(full_path)
+            return None,None,None,None,None,None,None,None
         return full_path,category_ids,category_names,boxes,binary_mask,area,is_crowd,num_annotations_skipped
 
     def get_items(self):
