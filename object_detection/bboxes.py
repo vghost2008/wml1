@@ -56,6 +56,41 @@ def get_anchor_bboxesv2(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.],is_area=Fal
     res_bboxes = np.stack(anchor_bboxes,axis=1)
     res_bboxes = np.reshape(res_bboxes,[-1,4])
     return res_bboxes
+
+'''
+sizes:如果is_area=True, sizes相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1, 否则sizes为相对边的大小
+ratios:高与宽的比例，实际计算时还需要考虑图像的形状，才能保持真正的比例
+shape:[h,w]
+返回的shape为[-1,4],表示每个位置，,每个比率的bboxes,每个大小的anchorbox
+与v1的差别为两点：
+1, 先是大小后比率
+2, 不nchor box对进行截断也就是说可以为负数或大于的
+3，比率会在输入后进行翻转
+进行上述操作主要是为了与tensorflow进行适配
+也就是[位置0大小0比率0_anthorbox,位置0大小1比率0_anchorbox,...]
+'''
+def get_anchor_bboxesv3(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.],is_area=False):
+    anchor_bboxes = []
+    HEIGHT = shape[0]
+    WIDTH = shape[1]
+    ratios.reverse()
+    if not is_area:
+        sizes = [s*s for s in sizes]
+    for a in ratios:
+        for s in sizes:
+            '''
+            s_h:为相对于HEIGHT的大小，s_w为相对于WIDTH的大小，如果要让实际比例保持不变，需要
+            s_h*HEIGHT与s_w*WIDTH与实际比例一致
+            '''
+            s_h = math.sqrt(WIDTH/HEIGHT)*math.sqrt(s)
+            s_w = math.sqrt(HEIGHT/WIDTH)*math.sqrt(s)
+
+            bboxes = get_single_anchor_bboxes(shape,[s_h,s_w],a,clamp=False)
+            bboxes = np.reshape(bboxes,[-1,4])
+            anchor_bboxes.append(bboxes)
+    res_bboxes = np.stack(anchor_bboxes,axis=1)
+    res_bboxes = np.reshape(res_bboxes,[-1,4])
+    return res_bboxes
 '''
 输入：
 size:表示相对大小[h_size,w_size],取两个值用于处理图像宽高比不相同的情况
@@ -65,7 +100,7 @@ ratio:表示高宽比
 返回的shape为shape+[4]
 最后一维的四个数依次为ymin,xmin,ymax,xmax(相对坐标)
 '''
-def get_single_anchor_bboxes(shape=[38,38],size=[0.1,0.1],ratio=1.):
+def get_single_anchor_bboxes(shape=[38,38],size=[0.1,0.1],ratio=1.,clamp=True):
     y, x = np.mgrid[0:shape[0], 0:shape[1]]
     y_offset = 0.5/float(shape[0])
     x_offset = 0.5 / float(shape[1])
@@ -91,7 +126,10 @@ def get_single_anchor_bboxes(shape=[38,38],size=[0.1,0.1],ratio=1.):
     x_max = x_min+w
 
     res_data = np.stack([y_min,x_min,y_max,x_max],axis=2)
-    return correct_yxminmax_boxes(res_data)
+    if clamp:
+        return correct_yxminmax_boxes(res_data)
+    else:
+        return res_data
 
 def get_single_anchor_bboxesv2(shape=[38,38],size=0.1,ratio=1.):
     y, x = np.mgrid[0:shape[0], 0:shape[1]]

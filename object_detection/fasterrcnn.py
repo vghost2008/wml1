@@ -115,7 +115,7 @@ class FasterRCNN(object):
         return self.proposal_boxes,self.proposal_boxes_prob
 
     def _rpnFeatureExtractor(self,base_net=None,channel=512):
-        return slim.conv2d(base_net,channel,[3,3],padding="SAME")
+        return slim.conv2d(base_net,channel,[3,3],padding="SAME",normalizer_fn=None)
 
     def rpnFeatureExtractor(self,base_net=None,channel=512):
         if base_net is None:
@@ -392,6 +392,20 @@ class FasterRCNN(object):
         anchors = tf.convert_to_tensor(anchors)
         anchors = tf.expand_dims(anchors,axis=0)
         self.anchors = anchors*tf.ones([self.batch_size]+anchors.get_shape().as_list()[1:],dtype=tf.float32)
+        return self.anchors
+
+    '''
+    反回的为每一层，每一个位置，每一个比率,每一个大小的anchorbox
+    shape为[-1,4],最后一维为[ymin,xmin,ymax,xmax](相对坐标)
+    '''
+    def getAnchorBoxesV3(self):
+        shape = self.getTargetLayerShape()
+        anchors = bboxes.get_anchor_bboxesv3(shape,sizes=self.scales,ratios=self.ratios,is_area=False)
+        self.np_anchors = anchors
+        anchors = tf.convert_to_tensor(anchors)
+        anchors = tf.expand_dims(anchors,axis=0)
+        self.anchors = anchors*tf.ones([self.batch_size]+anchors.get_shape().as_list()[1:],dtype=tf.float32)
+
         return self.anchors
     '''
     用于计算RPN网络的损失

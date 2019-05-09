@@ -48,6 +48,22 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(expected_anchors,anchors,atol=1e-3,rtol=0)
 
     def testGetAnchorBboxes2(self):
+        with self.test_session() as sess:
+            shape = [512,512]
+            ratios = [0.5,1.0,2.0]
+            scales = [0.25,0.5,1.0]
+            anchors = bboxes.get_anchor_bboxes(shape=shape,sizes=scales,ratios=ratios,is_area=True)
+            print(bboxes.to_cxysa(anchors))
+            data = npodt.minmax_to_cyxsr(np.reshape(anchors,[-1,4]),h=math.sqrt(shape[0]/shape[1]),w=math.sqrt(shape[1]/shape[0]))
+            data = np.reshape(data,[3,2,4,4])
+            #wmlu.show_nparray(data,name="data",format=format)
+            #e_data = npodt.minmax_to_cyxsr(np.reshape(expected_anchors,[-1,4]))
+            #e_data = np.reshape(e_data,[2,2,4,4])
+            #wmlu.show_nparray(e_data,name="e_data",format=format)
+
+            #self.assertAllClose(expected_anchors,anchors,atol=1e-3,rtol=0)
+
+    def testGetAnchorBboxes2(self):
         shape = [2,2]
         scales = [0.01,0.02]
         ratios = [1.,2.]
