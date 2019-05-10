@@ -25,7 +25,7 @@ class WMLTest(tf.test.TestCase):
                  [0.1,0.0,0.9,0.0,0.0],
                  [0.1,0.0,0.0,0.9,0.0],
                  [0.1,0.0,0.0,0.0,0.9],
-                 [0.9,0.0,0.0,0.0,0.0],
+                 [1.0,0.0,0.0,0.0,0.0],
                  [0.1,0.0,0.9,0.0,0.0]]
             self.assertAllClose(a,b,atol=0.0001,rtol=0)
     '''def testLabelSmooth(self):

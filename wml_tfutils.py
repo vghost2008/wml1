@@ -687,15 +687,15 @@ def label_smoothv1(labels,num_classes,smoothed_value=0.9):
     if not isinstance(smoothed_value,float):
         raise ValueError("smoothed_value should be a float")
     default_value = (1.0-smoothed_value)
-    res = tf.zeros(shape=[tf.shape(labels)[0],num_classes],dtype=tf.float32)
-    def fn(data,index):
-        data = set_value(data,v=tf.constant([default_value]),index=tf.constant(0))
-        data = set_value(data,v=tf.constant([smoothed_value]),index=index)
-        return data
-    res = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(res,labels),
+    def fn(index):
+        data = tf.zeros(shape=[num_classes],dtype=tf.float32)
+        data0 = set_value(data,v=tf.constant([default_value]),index=tf.constant(0))
+        data1 = set_value(data,v=tf.constant([smoothed_value]),index=index)
+        return tf.add(data0,data1)
+    res_data = tf.map_fn(fn,elems=(labels),
                     dtype=tf.float32,back_prop=False)
 
-    return res
+    return res_data
 
 def split(datas,num):
     if isinstance(datas,tf.Tensor):
