@@ -716,7 +716,7 @@ class COCOEvaluation(object):
         self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
             self.categories_list)
         self.image_id = 0
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,is_crowd=None):
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],is_crowd=None):
         if probability is None:
             probability = np.ones_like(labels,dtype=np.float32)
         if not isinstance(gtboxes,np.ndarray):
@@ -727,6 +727,8 @@ class COCOEvaluation(object):
             boxes = np.array(boxes)
         if not isinstance(labels,np.ndarray):
             labels = np.array(labels)
+        boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
+        gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
         if probability is not None and not isinstance(probability,np.ndarray):
             probability = np.array(probability)
         if is_crowd is None:
