@@ -66,7 +66,7 @@ FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-TRAIN_SIZE_LIMIT = 1000
+TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
 
 def category_id_filter(category_id):
@@ -270,14 +270,14 @@ def main(_):
   train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.tfrecord')
   val_output_path = os.path.join(FLAGS.output_dir, 'coco_train1.tfrecord')
 
-  _create_tf_record_from_coco_annotations(
+  '''_create_tf_record_from_coco_annotations(
       FLAGS.train_annotations_file,
       FLAGS.train_image_dir,
       train_output_path,
       FLAGS.include_masks,
-      is_train_data=True)
+      is_train_data=True)'''
 
-  '''with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
+  with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
       ids = f.readlines()
   ids = [int(x) for x in ids]
 
@@ -289,7 +289,7 @@ def main(_):
       val_output_path,
       FLAGS.include_masks,
       img_filter=filter,
-      is_train_data=True)'''
+      is_train_data=True)
 
 
 if __name__ == '__main__':

@@ -115,7 +115,7 @@ class FasterRCNN(object):
         return self.proposal_boxes,self.proposal_boxes_prob
 
     def _rpnFeatureExtractor(self,base_net=None,channel=512):
-        return slim.conv2d(base_net,channel,[3,3],padding="SAME",normalizer_fn=None)
+        return slim.conv2d(base_net,channel,[3,3],padding="SAME",activation_fn=tf.nn.relu6,normalizer_fn=None)
 
     def rpnFeatureExtractor(self,base_net=None,channel=512):
         if base_net is None:
