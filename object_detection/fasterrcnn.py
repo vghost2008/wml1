@@ -108,7 +108,10 @@ class FasterRCNN(object):
         rpn_regs,rpn_logits = self.rpnBoxPredictor()
         regs_shape = rpn_regs.get_shape().as_list()
         logits_shape = rpn_logits.get_shape().as_list()
-        anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
+        if rpn_logits.get_shape().is_fully_defined():
+            anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
+        else:
+            anchor_nr = tf.reduce_prod(tf.shape(rpn_logits)[1:4])
         self.rpn_regs = wmlt.reshape(rpn_regs,[regs_shape[0],anchor_nr,regs_shape[-1]])
         self.rpn_logits = wmlt.reshape(rpn_logits,[logits_shape[0],anchor_nr,logits_shape[-1]])
 
@@ -131,7 +134,10 @@ class FasterRCNN(object):
     '''
     def rpnBoxPredictor(self):
         with tf.variable_scope("FirstStageBoxPredictor"):
-            base_shape = self.fsbp_net.get_shape().as_list()
+            if self.fsbp_net.get_shape().is_fully_defined():
+                base_shape = self.fsbp_net.get_shape().as_list()
+            else:
+                base_shape = tf.shape(self.fsbp_net)
             regs_net = slim.conv2d(self.fsbp_net,4*self.anchor_size,[1,1],activation_fn=None,normalizer_fn=None,scope="BoxEncodingPredictor")
             regs_net = wmlt.reshape(regs_net,[base_shape[0],base_shape[1],base_shape[2],self.anchor_size,4])
             logits_net = slim.conv2d(self.fsbp_net,2*self.anchor_size,[1,1],activation_fn=None,normalizer_fn=None,scope="ClassPredictor")
