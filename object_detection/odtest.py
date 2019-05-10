@@ -18,6 +18,8 @@ import object_detection.bboxes as bboxes
 import img_utils as wmli
 from object_detection.losses import *
 import logging
+import wtfop.wtfop_ops as wop
+
 class TestFasterRCNN(FasterRCNN):
     def __init__(self,*kargs,**kwargs):
         super().__init__(*kargs,**kwargs)
@@ -121,6 +123,15 @@ class ODTest(tf.test.TestCase):
         #wmlu.show_nparray(e_data,name="e_data",format=format)
 
         self.assertAllClose(expected_anchors,anchors,atol=1e-6,rtol=0)
+
+    def testGetAnchorBboxes5(self):
+        shape = [256,256]
+        scales = [0.01,0.02,0.9,1.0]
+        ratios = [0.5,1.,2.]
+        with self.test_session() as sess:
+            anchors0 = bboxes.get_anchor_bboxesv3(shape=shape,sizes=scales,ratios=ratios,is_area=False)
+            anchors1 = wop.anchor_generator(shape=shape,size=[1,1],scales=scales,aspect_ratios=ratios).eval()
+            self.assertAllClose(anchors0,anchors1,atol=1e-6,rtol=0)
 
     def test_loss_v1(self):
         batch_size = 8

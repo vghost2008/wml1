@@ -60,6 +60,7 @@ class CocoDetectionEvaluationTest(tf.test.TestCase):
             standard_fields.DetectionResultFields.detection_classes:
             np.array([1])
         })
+    metrics = coco_evaluator.evaluate()
     coco_evaluator.add_single_ground_truth_image_info(
         image_id='image2',
         groundtruth_dict={
@@ -77,6 +78,7 @@ class CocoDetectionEvaluationTest(tf.test.TestCase):
             standard_fields.DetectionResultFields.detection_classes:
             np.array([1])
         })
+    metrics = coco_evaluator.evaluate()
     coco_evaluator.add_single_ground_truth_image_info(
         image_id='image3',
         groundtruth_dict={
@@ -94,6 +96,8 @@ class CocoDetectionEvaluationTest(tf.test.TestCase):
             standard_fields.DetectionResultFields.detection_classes:
             np.array([1])
         })
+    metrics = coco_evaluator.evaluate()
+    metrics = coco_evaluator.evaluate()
     metrics = coco_evaluator.evaluate()
     self.assertAlmostEqual(metrics['DetectionBoxes_Precision/mAP'], 1.0)
 
