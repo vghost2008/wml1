@@ -108,7 +108,10 @@ class FasterRCNN(object):
         rpn_regs,rpn_logits = self.rpnBoxPredictor()
         regs_shape = rpn_regs.get_shape().as_list()
         logits_shape = rpn_logits.get_shape().as_list()
-        anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
+        if rpn_logits.get_shape().is_fully_defined():
+            anchor_nr = logits_shape[1]*logits_shape[2]*logits_shape[3]
+        else:
+            anchor_nr = -1
         self.rpn_regs = wmlt.reshape(rpn_regs,[regs_shape[0],anchor_nr,regs_shape[-1]])
         self.rpn_logits = wmlt.reshape(rpn_logits,[logits_shape[0],anchor_nr,logits_shape[-1]])
 
