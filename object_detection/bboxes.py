@@ -10,6 +10,7 @@ import object_detection.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 import img_utils as wmli
 import cv2 as cv
+import copy
 
 '''
 sizes:如果is_area=True, sizes相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1, 否则sizes为相对边的大小
@@ -73,6 +74,7 @@ def get_anchor_bboxesv3(shape=[38,38],sizes=[0.1,0.2],ratios=[1.,2.],is_area=Fal
     anchor_bboxes = []
     HEIGHT = shape[0]
     WIDTH = shape[1]
+    ratios = copy.deepcopy(ratios)
     ratios.reverse()
     if not is_area:
         sizes = [s*s for s in sizes]

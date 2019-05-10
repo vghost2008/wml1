@@ -2,7 +2,7 @@
 import tensorflow as tf
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from wtfop.wtfop_ops import boxes_encode1,boxes_encode,probability_adjust,wpad
+from wtfop.wtfop_ops import boxes_encode1,boxes_encode,probability_adjust,wpad,anchor_generator
 import object_detection.od_toolkit as od
 import object_detection.bboxes as bboxes
 import wml_tfutils as wmlt
@@ -405,6 +405,13 @@ class FasterRCNN(object):
         anchors = tf.convert_to_tensor(anchors)
         anchors = tf.expand_dims(anchors,axis=0)
         self.anchors = anchors*tf.ones([self.batch_size]+anchors.get_shape().as_list()[1:],dtype=tf.float32)
+
+        return self.anchors
+
+    def getAnchorBoxesV4(self,shape,img_size):
+        anchors = anchor_generator(shape=shape,size=img_size,scales=self.scales,aspect_ratios=self.ratios)
+        anchors = tf.expand_dims(anchors,axis=0)
+        self.anchors = anchors*tf.ones([self.batch_size]+[1]*(anchors.get_shape().ndims-1),dtype=tf.float32)
 
         return self.anchors
     '''
