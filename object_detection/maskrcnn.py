@@ -21,6 +21,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.debug = True
         self.mask_branch_input = None
 
+    def train_mask_bn(self):
+        return self.train_mask and self.train_bn
     '''
     labels:[batch_size*box_nr]
     pmask:[batch_size*box_nr]

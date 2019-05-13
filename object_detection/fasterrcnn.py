@@ -71,6 +71,7 @@ class FasterRCNN(object):
         self.finally_boxes=None
         self.finally_boxes_prob=None
         self.finally_boxes_label=None
+        self.train_base_net = False
         self.train_rpn = False
         self.train_rcn = False
         self.anchor_remove_indices = None
@@ -90,6 +91,17 @@ class FasterRCNN(object):
         '''
         self.anchor_size=None
         self.pred_bboxes_classwise = True
+        self.train_bn = True
+
+    def train_base_net_bn(self):
+        return self.train_base_net and self.train_bn
+
+    def train_rpn_bn(self):
+        return self.train_rpn and self.train_bn
+
+    def train_rcn_bn(self):
+        return self.train_rcn and self.train_bn
+
 
     def buildFasterRCNNet(self):
         self.buildRCNNet()
