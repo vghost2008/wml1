@@ -84,6 +84,8 @@ class FasterRCNN(object):
         self.net_after_roi = None
         self.rcn_batch_size  = None
         self.rcn_box_nr = None
+        #[batch_size*(pos_nr+neg_nr),C]
+        self.rcn_raw_probs = None
         self.rpn_scope = "FirstStageBoxPredictor"
         self.rcn_scope = "SecondStageFeatureExtractor"
         '''
@@ -432,6 +434,17 @@ class FasterRCNN(object):
         self.anchors = anchors*tf.ones([self.batch_size]+[1]*(anchors.get_shape().ndims-1),dtype=tf.float32)
 
         return self.anchors
+
+    def getAnchorBoxesByBaseNetAndImgV4(self,img,base_net):
+        if img.get_shape().is_fully_defined():
+            img_size = img.get_shape().as_list()[1:3]
+        else:
+            img_size = tf.shape(img)[1:3]
+        if base_net.get_shape().is_fully_defined():
+            shape = base_net.get_shape().as_list()[1:3]
+        else:
+            shape = tf.shape(base_net)
+        return self.getAnchorBoxesV4(shape,img_size)
     '''
     用于计算RPN网络的损失
     '''
@@ -541,7 +554,8 @@ class FasterRCNN(object):
             proposal_boxes = self.proposal_boxes
         with tf.device("/cpu:0"):
             with tf.variable_scope("RCNGetBoxes"):
-                probs = tf.nn.softmax(self.rcn_logits)
+                self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
+                probs = self.rcn_raw_probs
                 if adjust_probability is not None:
                     probs = tf.squeeze(probs,axis=0)
                     probs = probability_adjust(probs=probs,classes=adjust_probability)
@@ -574,7 +588,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
             proposal_boxes = self.proposal_boxes
         with tf.device("/cpu:0"):
             with tf.variable_scope("RCNGetBoxes"):
-                probs = tf.nn.softmax(self.rcn_logits)
+                self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
+                probs = self.rcn_raw_probs
                 if adjust_probability is not None:
                     probs = tf.squeeze(probs,axis=0)
                     probs = probability_adjust(probs=probs,classes=adjust_probability)
@@ -600,7 +615,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
             proposal_boxes = self.proposal_boxes
         with tf.device("/cpu:0"):
             with tf.variable_scope("RCNGetBoxes"):
-                probs = tf.nn.softmax(self.rcn_logits)
+                self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
+                probs = self.rcn_raw_probs
                 if adjust_probability is not None:
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
                 self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\
