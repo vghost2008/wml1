@@ -9,10 +9,10 @@ slim = tf.contrib.slim
 
 
 class ODLoss:
-    def __init__(self,num_classes,reg_loss_weight=3.,
+    def __init__(self,num_classes,reg_loss_weight=10.,
             scope="Loss",
             classes_wise=False,
-            neg_multiplier=2.0,
+            neg_multiplier=1.0,
             scale=10.0):
         self.num_classes = num_classes
         self.reg_loss_weight = reg_loss_weight
@@ -133,8 +133,8 @@ class ODLoss:
                 p_pred_regs = wml.select_2thdata_by_index_v2(p_pred_regs, p_glabels - 1)
             loss0 = self.sparse_softmax_cross_entropy_with_logits(logits=p_logits, labels=p_glabels)
             loss0 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
-            loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs) * self.reg_loss_weight
-            loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)
+            loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs)
+            loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.) * self.reg_loss_weight
         with tf.variable_scope("negative_loss"):
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0.5, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)
@@ -175,8 +175,8 @@ class ODLoss:
                                                                             num_classes=self.num_classes)
             loss0 = self.softmax_cross_entropy_with_logits(logits=p_logits,labels=probibality)
             loss0 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
-            loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs) * self.reg_loss_weight
-            loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)
+            loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs)
+            loss1 = tf.cond(tf.less(0.5, psize), lambda: tf.reduce_mean(loss1), lambda: 0.) * self.reg_loss_weight
         with tf.variable_scope("negative_loss"):
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0.5, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)

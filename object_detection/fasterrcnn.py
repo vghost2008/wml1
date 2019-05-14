@@ -40,7 +40,7 @@ class FasterRCNN(object):
         '''
         回归损失乘以reg_loss_weight以增加回归的准确率
         '''
-        self.reg_loss_weight = 3.
+        self.reg_loss_weight = 10.
         self.bbox_regs = None
         #[batch_size,h*w*anchor_size,2]
         self.rpn_logits=None
@@ -493,6 +493,7 @@ class FasterRCNN(object):
                                      nms_threshold=nms_threshold,
                                      candiate_nr=k,
                                      classes_wise=False)
+            self.proposal_boxes = bboxes.tf_correct_yxminmax_boxes(self.proposal_boxes)
         return self.proposal_boxes,self.proposal_boxes_prob
     '''
     get exactly k proposal boxes, the excess boxes was remove by nms, the nms's threshold is dynamic changed to fit the requirement boxes size.
@@ -508,6 +509,7 @@ class FasterRCNN(object):
                                      candiate_nr=k,
                                      candiate_multipler=candiate_multipler,
                                      classes_wise=False)
+            self.proposal_boxes = bboxes.tf_correct_yxminmax_boxes(self.proposal_boxes)
         return self.proposal_boxes,self.proposal_boxes_prob
 
     '''
@@ -524,6 +526,7 @@ class FasterRCNN(object):
                                      proposal_bboxes=self.anchors,
                                      candiate_nr=k,
                                      classes_wise=False)
+            self.proposal_boxes = bboxes.tf_correct_yxminmax_boxes(self.proposal_boxes)
         return self.proposal_boxes,self.proposal_boxes_prob
 
     '''
@@ -542,6 +545,7 @@ class FasterRCNN(object):
                                      candiate_nr=k,
                                      nms_threshold=nms_threshold,
                                      classes_wise=False)
+            self.proposal_boxes = bboxes.tf_correct_yxminmax_boxes(self.proposal_boxes)
         return self.proposal_boxes,self.proposal_boxes_prob
 
     '''
