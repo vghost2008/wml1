@@ -334,3 +334,53 @@ def auto_save(ckpt_dir,backup_dir,base_name,time_duration=2*60*60):
     eval.force_save_timeout = time_duration
     eval(ckpt_dir)
 
+
+class SearchParameters(object):
+    def __init__(self,params,eval_fn,test_nr=1000,use_process=True):
+        self.params = params
+        self.eval_fn = eval_fn
+        self.test_nr = test_nr
+        self.use_process = use_process
+        self.q = Queue()
+
+    def __call__(self,params=None):
+        best_result = -1.0
+        best_params = {}
+        if params is not None:
+            best_result = self.do_eval(params)
+            best_params = params
+        for _ in range(self.test_nr):
+            params = wmlu.random_uniform_indict(self.params)
+            res = self.do_eval(params)
+            if res>best_result:
+                best_result = res
+                best_params = params
+                print("New best params ",best_params," best result ",best_result)
+            else:
+                print("Best params ",best_params," best result ",best_result)
+
+    def do_eval(self,params):
+        if self.use_process:
+            return self.eval(params)
+        else:
+            return self.eval_fn(params)
+
+    '''
+    do the eval work with new process
+    '''
+    def eval(self,params):
+        def do_eval(params):
+            try:
+                self.q.put(self.eval_fn(params))
+            except Exception:
+                self.q.put((-1.))
+
+        try:
+            p0 = Process(target=do_eval, args=[params])
+            p0.start()
+            p0.join(self.timeout)
+            return self.q.get()
+        except:
+            return -1
+
+

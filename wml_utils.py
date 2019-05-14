@@ -9,6 +9,7 @@ import random
 from tensorflow.contrib.slim.python.slim.data import parallel_reader
 import time
 from functools import wraps
+import random
 
 slim = tf.contrib.slim
 
@@ -438,4 +439,16 @@ def list_to_2dlist(data,size):
        end_index = min(index+size,data_nr)
        res.append(data[index:end_index])
        index = end_index
+    return res
+
+def random_uniform(minmaxs):
+    res = []
+    for min,max in minmaxs:
+        res.append(random.uniform(min,max))
+    return res
+
+def random_uniform_indict(minmaxs):
+    res = {}
+    for key,(min,max) in minmaxs.items():
+        res[key] = random.uniform(min,max)
     return res
