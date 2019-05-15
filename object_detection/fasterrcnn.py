@@ -378,11 +378,7 @@ class FasterRCNN(object):
     def getAnchorBoxesV4(self,shape,img_size):
         anchors = anchor_generator(shape=shape,size=img_size,scales=self.scales,aspect_ratios=self.ratios)
         anchors = tf.expand_dims(anchors,axis=0)
-        o_shape = tf.shape(anchors)
         self.anchors = anchors*tf.ones([self.batch_size]+[1]*(anchors.get_shape().ndims-1),dtype=tf.float32)
-        op = tf.print(img_size,shape,o_shape,tf.shape(self.anchors),name="shape0")
-        with tf.control_dependencies([op]):
-            self.anchors = tf.identity(self.anchors)
         return self.anchors
 
     def getAnchorBoxesByBaseNetAndImgV4(self,img,base_net):
