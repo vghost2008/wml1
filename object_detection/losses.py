@@ -9,17 +9,25 @@ slim = tf.contrib.slim
 
 
 class ODLoss:
+    SAMPLE_TYPE_BY_BAD_ORDER=0
+    SAMPLE_TYPE_UNIFORM=1
     def __init__(self,num_classes,reg_loss_weight=10.,
             scope="Loss",
             classes_wise=False,
             neg_multiplier=1.0,
-            scale=10.0):
+            scale=10.0,
+            do_sample=False,
+            sample_type=SAMPLE_TYPE_UNIFORM,
+            sample_size=256):
         self.num_classes = num_classes
         self.reg_loss_weight = reg_loss_weight
         self.scope = scope
         self.classes_wise = classes_wise
         self.neg_multiplier = neg_multiplier
         self.scale = scale
+        self.do_sample = do_sample
+        self.sample_type = sample_type
+        self.sample_size = sample_size
     '''
     与Faster-RCNN中定义的Smooth L1 loss完全一致
     '''
@@ -29,7 +37,7 @@ class ODLoss:
         minx = tf.minimum(absx, 1)
         r = 0.5 * ((absx - 1) * minx + absx)
         return r
-        
+
     '''
     将用于计算正负样本损失的数据分开
     '''
@@ -56,20 +64,35 @@ class ODLoss:
                 gregs = tf.boolean_mask(gregs, keep_indices)
                 glabels = tf.boolean_mask(glabels, keep_indices)
 
-            pmask = tf.greater(glabels, 0)
-            psize = tf.reduce_sum(tf.cast(pmask, def_ftype))
-            nmask = tf.logical_not(pmask)
-            fnmask = tf.cast(nmask, def_ftype)
-            class_prediction = slim.softmax(classes_logits)
-            # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
-            nclass_prediction = tf.where(nmask, class_prediction[:, 0], 1.0 - fnmask)
-            nsize = tf.reduce_sum(fnmask)
-            '''
-            默认负样本数最多为正样本的neg_multiplier倍+1
-            '''
-            nsize = tf.minimum(nsize, psize * self.neg_multiplier + 1)
-            # 取预测的最不好的nsize个负样本
-            nmask = tf.logical_and(nmask, wml.bottom_k_mask(nclass_prediction, k=tf.cast(nsize, tf.int32)))
+            if self.do_sample:
+                max_psize = int(self.sample_size/(1+self.neg_multiplier))
+                pmask = tf.greater(glabels, 0)
+                nmask = tf.logical_not(pmask)
+                pmask = wml.subsample_indicator(pmask,max_psize)
+                psize = tf.reduce_sum(tf.cast(pmask, def_ftype))
+                max_nsize = self.sample_size-psize
+                if self.sample_type == self.SAMPLE_TYPE_BY_BAD_ORDER:
+                    fnmask = tf.cast(nmask, def_ftype)
+                    class_prediction = slim.softmax(classes_logits)
+                    # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
+                    nclass_prediction = tf.where(nmask, class_prediction[:, 0], 1.0 - fnmask)
+                    nsize = tf.reduce_sum(fnmask)
+                    '''
+                    默认负样本数最多为正样本的neg_multiplier倍+1
+                    '''
+                    nsize = tf.minimum(nsize, max_nsize)
+                    # 取预测的最不好的nsize个负样本
+                    nmask = tf.logical_and(nmask, wml.bottom_k_mask(nclass_prediction, k=tf.cast(nsize, tf.int32)))
+                else:
+                    nmask = wml.subsample_indicator(nmask,max_nsize)
+                    nsize = tf.reduce_sum(tf.cast(nmask, def_ftype))
+            else:
+                pmask = tf.greater(glabels, 0)
+                psize = tf.reduce_sum(tf.cast(pmask, def_ftype))
+                nmask = tf.logical_not(pmask)
+                fnmask = tf.cast(nmask, def_ftype)
+                # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
+                nsize = tf.reduce_sum(fnmask)
 
             p_glabels = tf.boolean_mask(glabels, pmask)
             p_gregs = tf.boolean_mask(gregs, pmask)

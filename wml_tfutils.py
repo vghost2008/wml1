@@ -873,6 +873,22 @@ def Print(data,*inputs,**kwargs):
     with tf.control_dependencies([op]):
         return tf.identity(data)
 
+'''
+indicator:[X],tf.bool
+'''
+def subsample_indicator(indicator, num_samples):
+    indices = tf.where(indicator)
+    indices = tf.random_shuffle(indices)
+    indices = tf.reshape(indices, [-1])
+
+    num_samples = tf.minimum(tf.size(indices), num_samples)
+    selected_indices = tf.slice(indices, [0], tf.reshape(num_samples, [1]))
+
+    selected_indicator = indices_to_dense_vector(selected_indices,
+                                                     tf.shape(indicator)[0])
+
+    return tf.equal(selected_indicator, 1)
+
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
