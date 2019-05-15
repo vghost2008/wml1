@@ -371,16 +371,23 @@ class SearchParameters(object):
     def eval(self,params):
         def do_eval(params):
             try:
+                print("C",params)
                 self.q.put(self.eval_fn(params))
             except Exception:
+                print("ERROR",str(e))
                 self.q.put((-1.))
 
         try:
+            print("A")
             p0 = Process(target=do_eval, args=[params])
+            print("B")
             p0.start()
+            print("B")
             p0.join(self.timeout)
+            print("B")
             return self.q.get()
         except:
+            print("ERROR")
             return -1
 
 

@@ -443,7 +443,7 @@ class FasterRCNN(object):
         if base_net.get_shape().is_fully_defined():
             shape = base_net.get_shape().as_list()[1:3]
         else:
-            shape = tf.shape(base_net)
+            shape = tf.shape(base_net)[1:3]
         return self.getAnchorBoxesV4(shape,img_size)
     '''
     用于计算RPN网络的损失
