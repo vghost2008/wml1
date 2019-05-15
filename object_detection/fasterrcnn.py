@@ -257,7 +257,7 @@ class FasterRCNN(object):
     '''
     def encodeRCNBoxes(self, gbboxes, glabels,lens,
                        pos_threshold=0.7, neg_threshold=0.3,
-                       proposal_boxes=None,neg_nr=200,pos_nr=100):
+                       proposal_boxes=None,nr=256):
         with tf.name_scope("EncodeRCNBoxes"):
             if proposal_boxes is None:
                 proposal_boxes = self.proposal_boxes
@@ -269,7 +269,7 @@ class FasterRCNN(object):
                                                                                   neg_threshold=neg_threshold)
             keep_indices = tf.stop_gradient(tf.logical_not(remove_indices))
             self.rcn_gtlabels,self.rcn_indices = \
-                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),
+                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],nr=nr),
                           elems = (rcn_gtlabels,keep_indices),
                           dtype=(tf.int32,tf.int32),
                           back_prop=False,
@@ -283,24 +283,17 @@ class FasterRCNN(object):
     '''
     随机在输入中选择指定数量的box
     要求必须结果包含neg_nr+pos_nr个结果，如果总数小于这么大优先使用背影替代，然后使用随机替代
-    boxes:[X,4]
     labels:[X]
-    scores:[X]
-    remove_indices:[X]
+    keep_indices:[X],tf.bool
     返回:
-    M=neg_nr+pos_nr
-    r_boxes:[M,4]
-    r_labels:[M]
-    r_scores:[M]
+    r_labels:[nr]
+    r_indices:[nr]
     '''
     @staticmethod
-    def selectRCNBoxes(labels,keep_indices,neg_nr,pos_nr):
-        nr = neg_nr+pos_nr
+    def selectRCNBoxes(labels,keep_indices,nr):
         r_indices = tf.range(0,tf.shape(labels)[0])
         labels = tf.boolean_mask(labels,keep_indices)
         r_indices = tf.boolean_mask(r_indices,keep_indices)
-        total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
-        total_pos_nr = tf.shape(labels)[0] - total_neg_nr
 
         with tf.name_scope("SelectRCNBoxes"):
             def random_select(labels,indices,size):
@@ -313,54 +306,8 @@ class FasterRCNN(object):
                     labels = tf.gather(labels,indexs)
                     indices = tf.gather(indices,indexs)
                     return labels,indices
-            #positive and negitave number satisfy the requement
-            def selectRCNBoxesM0():
-                with tf.name_scope("M0"):
-                    n_mask = tf.equal(labels,0)
-                    p_mask = tf.logical_not(n_mask)
-                    n_labels = tf.boolean_mask(labels,n_mask)
-                    n_indices = tf.boolean_mask(r_indices,n_mask)
-                    p_labels = tf.boolean_mask(labels,p_mask)
-                    p_indices = tf.boolean_mask(r_indices,p_mask)
-                    p_labels,p_indices = random_select(p_labels,p_indices,pos_nr)
-                    n_labels,n_indices = random_select(n_labels,n_indices,neg_nr)
 
-                    return tf.concat([p_labels,n_labels],axis=0),tf.concat([p_indices,n_indices],axis=0)
-            #process the default situation
-            def selectRCNBoxesM1():
-                with tf.name_scope("M1"):
-                    return random_select(labels, r_indices,nr)
-
-            #positive dosen't satisfy the requement
-            def selectRCNBoxesM2():
-                with tf.name_scope("M2"):
-                    n_mask = tf.equal(labels,0)
-                    p_mask = tf.logical_not(n_mask)
-                    n_labels = tf.boolean_mask(labels,n_mask)
-                    n_indices = tf.boolean_mask(r_indices,n_mask)
-                    p_labels = tf.boolean_mask(labels,p_mask)
-                    p_indices = tf.boolean_mask(r_indices,p_mask)
-                    with tf.name_scope("Select"):
-                        n_labels,n_indices = \
-                            random_select(n_labels,n_indices,nr-total_pos_nr)
-                    return tf.concat([p_labels,n_labels],axis=0),tf.concat([p_indices,n_indices],axis=0)
-
-            #positive and negative is empty
-            def selectRCNBoxesM3():
-                with tf.name_scope("M3"):
-                    #boxes = tf.constant([[0.0,0.0,0.001,0.001]],dtype=tf.float32)*tf.ones([nr,4],dtype=tf.float32)
-                    #boxes_regs = tf.zeros_like(boxes,dtype=tf.float32)
-                    labels = tf.constant([0])*tf.ones([nr],dtype=tf.int32)
-                    #scores = tf.ones_like(labels,dtype=tf.float32)
-                    return labels,tf.zeros_like(labels)
-
-            r_labels,r_indices= tf.case({
-                tf.logical_and(total_pos_nr>=pos_nr,total_neg_nr>=neg_nr):selectRCNBoxesM0,
-                tf.logical_and(tf.logical_and(total_pos_nr<pos_nr,total_neg_nr>=neg_nr),total_pos_nr>0): selectRCNBoxesM2,
-                tf.equal(tf.shape(labels)[0],0):selectRCNBoxesM3
-            },
-                default=selectRCNBoxesM1,
-                exclusive=True)
+            r_labels,r_indices = random_select(labels, r_indices,nr)
             r_labels.set_shape([nr])
             r_indices.set_shape([nr])
             return r_labels,r_indices
@@ -431,8 +378,11 @@ class FasterRCNN(object):
     def getAnchorBoxesV4(self,shape,img_size):
         anchors = anchor_generator(shape=shape,size=img_size,scales=self.scales,aspect_ratios=self.ratios)
         anchors = tf.expand_dims(anchors,axis=0)
+        o_shape = tf.shape(anchors)
         self.anchors = anchors*tf.ones([self.batch_size]+[1]*(anchors.get_shape().ndims-1),dtype=tf.float32)
-
+        op = tf.print(img_size,shape,o_shape,tf.shape(self.anchors),name="shape0")
+        with tf.control_dependencies([op]):
+            self.anchors = tf.identity(self.anchors)
         return self.anchors
 
     def getAnchorBoxesByBaseNetAndImgV4(self,img,base_net):
@@ -452,7 +402,8 @@ class FasterRCNN(object):
         if loss is None:
             loss = losses.ODLoss(num_classes=2,reg_loss_weight=self.reg_loss_weight,
                                  scope=scope,
-                                 classes_wise=False)
+                                 classes_wise=False,do_sample=True,
+                                 sample_size=256)
         return loss(gregs=self.rpn_gtregs,
                    glabels=self.rpn_gtlabels,
                    classes_logits=self.rpn_logits,
@@ -467,7 +418,7 @@ class FasterRCNN(object):
         if use_scores:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
-                                     scope=scope,classes_wise=True)
+                                     scope=scope,classes_wise=True,do_sample=False)
             
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
