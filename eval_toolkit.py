@@ -55,7 +55,7 @@ class WEvalModel:
     evaler(ckp_file_path) have to return a value(normal a float point value) to indict which one is better and a info
     string to backup file.
     '''
-    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=30*60):
+    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60):
         self.Evaler = Evaler
         self.evaler_args = args
         self.best_result = -1.
@@ -336,12 +336,13 @@ def auto_save(ckpt_dir,backup_dir,base_name,time_duration=2*60*60):
 
 
 class SearchParameters(object):
-    def __init__(self,params,eval_fn,test_nr=1000,use_process=True):
+    def __init__(self,params,eval_fn,test_nr=1000,use_process=True,timeout=60*60):
         self.params = params
         self.eval_fn = eval_fn
         self.test_nr = test_nr
         self.use_process = use_process
         self.q = Queue()
+        self.timeout = timeout
 
     def __call__(self,params=None):
         best_result = -1.0
@@ -371,22 +372,16 @@ class SearchParameters(object):
     def eval(self,params):
         def do_eval(params):
             try:
-                print("C",params)
                 self.q.put(self.eval_fn(params))
             except Exception:
-                print("ERROR",str(e))
+                print("ERROR")
                 self.q.put((-1.))
-
         try:
-            print("A")
             p0 = Process(target=do_eval, args=[params])
-            print("B")
             p0.start()
-            print("B")
             p0.join(self.timeout)
-            print("B")
             return self.q.get()
-        except:
+        except Exception as e:
             print("ERROR")
             return -1
 
