@@ -42,7 +42,7 @@ class ODLoss:
     将用于计算正负样本损失的数据分开
     '''
     def split_data(self,gregs,glabels,classes_logits,bboxes_regs,
-            bboxes_remove_indices=None):
+            bboxes_remove_indices=None,batch_size=1):
         gregs = tf.reshape(gregs, [-1, 4])
         glabels = tf.reshape(glabels, shape=[-1])
         def_ftype = gregs.dtype
@@ -65,12 +65,13 @@ class ODLoss:
                 glabels = tf.boolean_mask(glabels, keep_indices)
 
             if self.do_sample:
-                max_psize = int(self.sample_size/(1+self.neg_multiplier))
+                sample_size = batch_size*self.sample_size
+                max_psize = int(sample_size/(1+self.neg_multiplier))
                 pmask = tf.greater(glabels, 0)
                 nmask = tf.logical_not(pmask)
                 pmask = wml.subsample_indicator(pmask,max_psize)
                 psize = tf.reduce_sum(tf.cast(pmask, def_ftype))
-                max_nsize = self.sample_size-psize
+                max_nsize = sample_size-psize
                 if self.sample_type == self.SAMPLE_TYPE_BY_BAD_ORDER:
                     fnmask = tf.cast(nmask, def_ftype)
                     class_prediction = slim.softmax(classes_logits)
@@ -150,7 +151,7 @@ class ODLoss:
         batch_size = gregs.get_shape().as_list()[0]
         p_glabels, p_gregs, p_logits, p_pred_regs, psize,pmask,n_glabels, n_logits,nsize,nmask = \
             self.split_data(gregs=gregs,glabels=glabels,classes_logits=classes_logits,
-                            bboxes_regs=bboxes_regs,bboxes_remove_indices=bboxes_remove_indices)
+                            bboxes_regs=bboxes_regs,bboxes_remove_indices=bboxes_remove_indices,batch_size=batch_size)
         with tf.variable_scope("positive_loss"):
             if self.classes_wise:
                 p_pred_regs = wml.select_2thdata_by_index_v2(p_pred_regs, p_glabels - 1)
@@ -188,7 +189,7 @@ class ODLoss:
         scores = tf.reshape(scores,shape=[-1])
         p_glabels, p_gregs, p_logits, p_pred_regs, psize,pmask,n_glabels, n_logits,nsize,nmask = \
             self.split_data(gregs=gregs,glabels=glabels,classes_logits=classes_logits,
-                            bboxes_regs=bboxes_regs,bboxes_remove_indices=bboxes_remove_indices)
+                            bboxes_regs=bboxes_regs,bboxes_remove_indices=bboxes_remove_indices,batch_size=batch_size)
         with tf.variable_scope("positive_loss"):
             if self.classes_wise:
                 p_pred_regs = wml.select_2thdata_by_index_v2(p_pred_regs, p_glabels - 1)
