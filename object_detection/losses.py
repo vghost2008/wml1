@@ -15,7 +15,7 @@ class ODLoss:
             scope="Loss",
             classes_wise=False,
             neg_multiplier=1.0,
-            scale=10.0,
+            scale=1.0,
             do_sample=False,
             sample_type=SAMPLE_TYPE_UNIFORM,
             sample_size=256):
