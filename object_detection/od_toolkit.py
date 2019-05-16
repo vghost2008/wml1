@@ -936,6 +936,7 @@ def distorted_bounding_box_crop(image,
                                 aspect_ratio_range=(0.9, 1.1),
                                 area_range=(0.1, 1.0),
                                 max_attempts=200,
+                                filter_threshold=0.1,
                                 scope=None):
     '''
     data argument for object detection
@@ -987,7 +988,7 @@ def distorted_bounding_box_crop(image,
         仅保留交叉面积大于threshold的bbox
         '''
         labels, bboxes,mask = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
-                                                   threshold=min_object_covered,
+                                                   threshold=filter_threshold,
                                                    assign_negative=False)
         return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
 
