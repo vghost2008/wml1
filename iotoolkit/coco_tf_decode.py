@@ -70,6 +70,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='*_train.record',
         'image/format': tf.FixedLenFeature((), tf.string, default_value='jpeg'),
         'image/height': tf.FixedLenFeature((), tf.int64,1),
         'image/width': tf.FixedLenFeature((), tf.int64,1),
+        'image/file_index': tf.FixedLenFeature((), tf.int64,1),
         'image/object/bbox/xmin': tf.VarLenFeature(dtype=tf.float32),
         'image/object/bbox/ymin': tf.VarLenFeature(dtype=tf.float32),
         'image/object/bbox/xmax': tf.VarLenFeature(dtype=tf.float32),
@@ -81,6 +82,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='*_train.record',
         'image': slim.tfexample_decoder.Image('image/encoded', 'image/format',channels=3),
         'height': slim.tfexample_decoder.Tensor('image/height'),
         'width': slim.tfexample_decoder.Tensor('image/width'),
+        'file_index': slim.tfexample_decoder.Tensor('image/file_index'),
         'mask': slim_example_decoder.ItemHandlerCallback(
             ['image/object/mask', 'image/height', 'image/width'],
             _decode_png_instance_masks),
@@ -119,7 +121,7 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
             common_queue_min=3 * batch_size,
             seed=int(time.time()),
             shuffle=True)
-        [image, labels, bboxes,height,width,mask] = provider.get(["image", "object/label", "object/bbox","height","width","mask"])
+        [image, labels, bboxes,height,width,mask,file_index] = provider.get(["image", "object/label", "object/bbox","height","width","mask","file_index"])
         m_shape = tf.shape(image)
         labels,mask = tf.cond(tf.greater(tf.shape(labels)[0],0),lambda :(labels,mask),lambda :
         (tf.constant([0],dtype=tf.int64),tf.ones([1,m_shape[0],m_shape[1]],dtype=tf.float32)))
@@ -130,6 +132,7 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
             odu.tf_summary_image_with_box(image,bboxes)
             wmlt.variable_summaries_v2(mask,"mask")
             wmlt.variable_summaries_v2(image,"image")
+            wmlt.variable_summaries_v2(file_index,"file_index")
 
         dict = OrderedDict(ID_TO_TEXT)
         id_to_color = {} #id is the category_id, color is string

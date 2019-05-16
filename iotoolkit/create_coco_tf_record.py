@@ -68,6 +68,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 TRAIN_SIZE_LIMIT = 1000
 VAL_SIZE_LIMIT = None
+src_file_index = 0
 
 def category_id_filter(category_id):
     return True
@@ -106,6 +107,7 @@ def create_tf_example(image,
   Raises:
     ValueError: if the image pointed to by data['filename'] is not a valid JPEG
   """
+  global src_file_index
   image_height = image['height']
   image_width = image['width']
   filename = image['file_name']
@@ -189,6 +191,7 @@ def create_tf_example(image,
           dataset_util.int64_list_feature(is_crowd),
       'image/object/area':
           dataset_util.float_list_feature(area),
+      'image/file_index':dataset_util.int64_feature(src_file_index),
   }
   if include_masks:
     feature_dict['image/object/mask'] = (
@@ -197,6 +200,7 @@ def create_tf_example(image,
   #category_id is the key of ID_TO_TEXT
   if len(category_ids)==0:
       return None,None,None
+  src_file_index += 1
   return key, example, num_annotations_skipped
 
 
@@ -270,27 +274,26 @@ def main(_):
   train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.tfrecord')
   val_output_path = os.path.join(FLAGS.output_dir, 'coco_train1.tfrecord')
 
-  _create_tf_record_from_coco_annotations(
+  '''_create_tf_record_from_coco_annotations(
       FLAGS.train_annotations_file,
       FLAGS.train_image_dir,
       train_output_path,
       FLAGS.include_masks,
-      is_train_data=True)
+      is_train_data=True)'''
 
-'''
   with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
       ids = f.readlines()
   ids = [int(x) for x in ids]
 
   def filter(image):
-      return image["id"] not in ids
+      return image["id"] in ids
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
       FLAGS.include_masks,
       img_filter=filter,
-      is_train_data=True)'''
+      is_train_data=True)
 
 
 if __name__ == '__main__':
