@@ -58,7 +58,7 @@ def tf_summary_image_with_boxv2(image,
                 image = tf.cast(image,dtype=tf.uint8)
         if image.get_shape().ndims == 3:
             image = tf.expand_dims(image,axis=0)
-        if image.dtype is tf.uint8:
+        if image.dtype is not tf.uint8:
             image = tf.cast(image,tf.uint8)
         if bboxes.get_shape().ndims == 2:
             bboxes = tf.expand_dims(bboxes, 0)
