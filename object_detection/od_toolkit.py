@@ -936,7 +936,7 @@ def distorted_bounding_box_crop(image,
                                 aspect_ratio_range=(0.9, 1.1),
                                 area_range=(0.1, 1.0),
                                 max_attempts=200,
-                                filter_threshold=0.1,
+                                filter_threshold=0.3,
                                 scope=None):
     '''
     data argument for object detection
@@ -1003,6 +1003,7 @@ def distorted_bounding_box_and_mask_crop(image,
                                 aspect_ratio_range=(0.9, 1.1),
                                 area_range=(0.1, 1.0),
                                 max_attempts=200,
+                                filter_threshold=0.3,
                                 scope=None):
     dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
             distorted_bounding_box_crop(image, labels, bboxes,
@@ -1010,6 +1011,7 @@ def distorted_bounding_box_and_mask_crop(image,
                                         min_object_covered=min_object_covered,
                                         aspect_ratio_range=aspect_ratio_range,
                                         max_attempts=max_attempts,
+                                        filter_threshold=filter_threshold,
                                         scope=scope)
     mask = tf.boolean_mask(mask,bboxes_mask)
     mask = tf.transpose(mask,perm=[1,2,0])
