@@ -93,22 +93,6 @@ class ODLoss:
 
     def split_data_with_sample(self,gregs,glabels,classes_logits,bboxes_regs,
                    bboxes_remove_indices=None):
-        if bboxes_remove_indices is None:
-            p_glabels, p_gregs, p_logits, p_pred_regs, psize, pmask, n_glabels, n_logits, nsize, nmask = \
-                tf.map_fn(lambda x:self._split_data_with_sample(x[0],x[1],x[2],x[3]),elems=(gregs,glabels,classes_logits,bboxes_regs),\
-                      dtype=(tf.int32,tf.float32,tf.float32,tf.float32,tf.int32,tf.bool,tf.int32,tf.float32,tf.int32,tf.bool),\
-                      back_prob=True)
-        else:
-            p_glabels, p_gregs, p_logits, p_pred_regs, psize, pmask, n_glabels, n_logits, nsize, nmask = \
-                tf.map_fn(lambda x:self._split_data_with_sample(x[0],x[1],x[2],x[3],x[4]),elems=(gregs,glabels,classes_logits,bboxes_regs,bboxes_remove_indices),\
-                             dtype=(tf.int32,tf.float32,tf.float32,tf.float32,tf.int32,tf.bool,tf.int32,tf.float32,tf.int32,tf.bool),\
-                             back_prop=True)
-        psize = tf.reduce_sum(psize)
-        nsize = tf.reduce_sum(nsize)
-        return p_glabels,p_gregs,p_logits,p_pred_regs,psize,pmask,n_glabels,n_logits,nsize,nmask
-
-    def _split_data_with_sample(self,gregs,glabels,classes_logits,bboxes_regs,
-                   bboxes_remove_indices=None):
         gregs = tf.reshape(gregs, [-1, 4])
         glabels = tf.reshape(glabels, shape=[-1])
 
@@ -196,13 +180,32 @@ class ODLoss:
         '''
         with tf.variable_scope(self.scope,default_name="Loss"):
             if scores is None:
-                return self.lossv1(gregs,glabels,classes_logits,bboxes_regs,
-                     bboxes_remove_indices,call_back=call_back)
+                if bboxes_remove_indices is not None:
+                    loss0, loss1, loss2,total_nr,p_div_all = \
+                    tf.map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3],x[4],call_back=call_back),elems=(gregs,glabels,classes_logits,bboxes_regs,
+                     bboxes_remove_indices),dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32))
+                else:
+                    loss0, loss1, loss2,total_nr,p_div_all = \
+                        tf.map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3],call_back=call_back),
+                                  elems=(gregs,glabels,classes_logits,bboxes_regs),
+                                  dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32))
             else:
                 print("Use loss with scores.")
-                return self.lossv2(gregs, glabels, classes_logits, bboxes_regs,
-                                   bboxes_remove_indices,scores,call_back=call_back)
-    
+                if bboxes_remove_indices is not None:
+                    loss0, loss1, loss2,total_nr,p_div_all = \
+                        tf.map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],x[4],scores=x[5],call_back=call_back),
+                                  elems=(gregs,glabels,classes_logits,bboxes_regs,bboxes_remove_indices,scores),
+                                  dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32))
+                else:
+                    loss0, loss1, loss2,total_nr,p_div_all = \
+                        tf.map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],scores=x[4],call_back=call_back),
+                                  elems=(gregs,glabels,classes_logits,bboxes_regs,scores),
+                                  dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32))
+            wml.variable_summaries_v2(total_nr,"total_nr_for_loss")
+            loss = tf.reduce_sum(loss0)+tf.reduce_sum(loss1)+tf.reduce_sum(loss2)
+            tf.losses.add_loss(loss*self.scale)
+            return loss0,loss1,loss2,p_div_all
+
     def lossv1(self,gregs,glabels,classes_logits,bboxes_regs,
                  bboxes_remove_indices=None,call_back=None):
         batch_size = gregs.get_shape().as_list()[0]
@@ -220,11 +223,6 @@ class ODLoss:
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)
 
-        with tf.variable_scope("total_loss"):
-            loss = (loss0 + loss1 + loss2) * self.scale
-            tf.losses.add_loss(loss)
-
-        wml.variable_summaries_v2((nsize + psize) / batch_size, "total_boxes_size_for_loss")
         if call_back is not None:
             call_back(pmask,nmask)
         '''
@@ -233,7 +231,7 @@ class ODLoss:
         loss2:负样本分类损失
         psize / (nsize + psize + 1E-8):正样本占的比重
         '''
-        return loss0, loss1, loss2, tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32) + 1E-8)
+        return loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32) + 1E-8)
     
     
     '''
@@ -262,11 +260,6 @@ class ODLoss:
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)
 
-        with tf.variable_scope("total_loss"):
-            loss = (loss0 + loss1 + loss2) * self.scale
-            tf.losses.add_loss(loss)
-
-        wml.variable_summaries_v2((nsize + psize) / batch_size, "total_boxes_size_for_loss")
         if call_back is not None:
             call_back(pmask,nmask)
         '''
@@ -275,7 +268,7 @@ class ODLoss:
         loss2:负样本分类损失
         psize / (nsize + psize + 1E-8):正样本占的比重
         '''
-        return loss0, loss1, loss2, tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32)+ 1E-8)
+        return loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32)+ 1E-8)
     
 class ODLossWithFocalLoss(ODLoss):
     def __init__(self,
