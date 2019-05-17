@@ -190,7 +190,6 @@ class ODTest(tf.test.TestCase):
             loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn = sess.run([loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn])
             self.assertAllClose(loss0,od_loss0,atol=1e-6,rtol=0)
             self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
-            self.assertAllClose(loss2,od_loss2,atol=1e-6,rtol=0)
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
             logging.info(f"loss:{loss0},{loss1},{loss2}.")
 
@@ -221,7 +220,6 @@ class ODTest(tf.test.TestCase):
             loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn = sess.run([loss0, loss1, loss2, pdivn,od_loss0,od_loss1,od_loss2,od_pdivn])
             self.assertAllClose(loss0,od_loss0,atol=1e-6,rtol=0)
             self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
-            self.assertAllClose(loss2,od_loss2,atol=1e-6,rtol=0)
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
             logging.info(f"loss:{loss0},{loss1},{loss2}.")
 

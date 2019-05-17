@@ -257,7 +257,7 @@ class FasterRCNN(object):
     '''
     def encodeRCNBoxes(self, gbboxes, glabels,lens,
                        pos_threshold=0.7, neg_threshold=0.3,
-                       proposal_boxes=None,nr=256):
+                       proposal_boxes=None,neg_nr=64,pos_nr=64):
         with tf.name_scope("EncodeRCNBoxes"):
             if proposal_boxes is None:
                 proposal_boxes = self.proposal_boxes
@@ -269,7 +269,7 @@ class FasterRCNN(object):
                                                                                   neg_threshold=neg_threshold)
             keep_indices = tf.stop_gradient(tf.logical_not(remove_indices))
             self.rcn_gtlabels,self.rcn_indices = \
-                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],nr=nr),
+                tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),
                           elems = (rcn_gtlabels,keep_indices),
                           dtype=(tf.int32,tf.int32),
                           back_prop=False,
@@ -283,6 +283,7 @@ class FasterRCNN(object):
     '''
     随机在输入中选择指定数量的box
     要求必须结果包含neg_nr+pos_nr个结果，如果总数小于这么大优先使用背影替代，然后使用随机替代
+    注:Fast-RCNN原文中随机取25% IOU>0.5的目标, 75%IOU<=0.5的目标, 一个批次总共取128个目标，也就是每张图取128/batch_size个目标
     labels:[X]
     keep_indices:[X],tf.bool
     返回:
@@ -290,27 +291,79 @@ class FasterRCNN(object):
     r_indices:[nr]
     '''
     @staticmethod
-    def selectRCNBoxes(labels,keep_indices,nr):
-        r_indices = tf.range(0,tf.shape(labels)[0])
-        labels = tf.boolean_mask(labels,keep_indices)
-        r_indices = tf.boolean_mask(r_indices,keep_indices)
+    def selectRCNBoxes(labels, keep_indices, neg_nr, pos_nr):
+        nr = neg_nr + pos_nr
+        r_indices = tf.range(0, tf.shape(labels)[0])
+        labels = tf.boolean_mask(labels, keep_indices)
+        r_indices = tf.boolean_mask(r_indices, keep_indices)
+        total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
+        total_pos_nr = tf.shape(labels)[0] - total_neg_nr
 
         with tf.name_scope("SelectRCNBoxes"):
-            def random_select(labels,indices,size):
+            def random_select(labels, indices, size):
                 with tf.name_scope("random_select"):
                     data_nr = tf.shape(labels)[0]
                     indexs = tf.range(data_nr)
-                    indexs = wpad(indexs,[0,size-data_nr])
+                    indexs = wpad(indexs, [0, size - data_nr])
                     indexs = tf.random_shuffle(indexs)
-                    indexs = tf.random_crop(indexs,[size])
-                    labels = tf.gather(labels,indexs)
-                    indices = tf.gather(indices,indexs)
-                    return labels,indices
+                    indexs = tf.random_crop(indexs, [size])
+                    labels = tf.gather(labels, indexs)
+                    indices = tf.gather(indices, indexs)
+                    return labels, indices
 
-            r_labels,r_indices = random_select(labels, r_indices,nr)
+            # positive and negitave number satisfy the requement
+            def selectRCNBoxesM0():
+                with tf.name_scope("M0"):
+                    n_mask = tf.equal(labels, 0)
+                    p_mask = tf.logical_not(n_mask)
+                    n_labels = tf.boolean_mask(labels, n_mask)
+                    n_indices = tf.boolean_mask(r_indices, n_mask)
+                    p_labels = tf.boolean_mask(labels, p_mask)
+                    p_indices = tf.boolean_mask(r_indices, p_mask)
+                    p_labels, p_indices = random_select(p_labels, p_indices, pos_nr)
+                    n_labels, n_indices = random_select(n_labels, n_indices, neg_nr)
+
+                    return tf.concat([p_labels, n_labels], axis=0), tf.concat([p_indices, n_indices], axis=0)
+
+            # process the default situation
+            def selectRCNBoxesM1():
+                with tf.name_scope("M1"):
+                    return random_select(labels, r_indices, nr)
+
+            # positive dosen't satisfy the requement
+            def selectRCNBoxesM2():
+                with tf.name_scope("M2"):
+                    n_mask = tf.equal(labels, 0)
+                    p_mask = tf.logical_not(n_mask)
+                    n_labels = tf.boolean_mask(labels, n_mask)
+                    n_indices = tf.boolean_mask(r_indices, n_mask)
+                    p_labels = tf.boolean_mask(labels, p_mask)
+                    p_indices = tf.boolean_mask(r_indices, p_mask)
+                    with tf.name_scope("Select"):
+                        n_labels, n_indices = \
+                            random_select(n_labels, n_indices, nr - total_pos_nr)
+                    return tf.concat([p_labels, n_labels], axis=0), tf.concat([p_indices, n_indices], axis=0)
+
+            # positive and negative is empty
+            def selectRCNBoxesM3():
+                with tf.name_scope("M3"):
+                    # boxes = tf.constant([[0.0,0.0,0.001,0.001]],dtype=tf.float32)*tf.ones([nr,4],dtype=tf.float32)
+                    # boxes_regs = tf.zeros_like(boxes,dtype=tf.float32)
+                    labels = tf.constant([0]) * tf.ones([nr], dtype=tf.int32)
+                    # scores = tf.ones_like(labels,dtype=tf.float32)
+                    return labels, tf.zeros_like(labels)
+
+            r_labels, r_indices = tf.case({
+                tf.logical_and(total_pos_nr >= pos_nr, total_neg_nr >= neg_nr): selectRCNBoxesM0,
+                tf.logical_and(tf.logical_and(total_pos_nr < pos_nr, total_neg_nr >= neg_nr),
+                               total_pos_nr > 0): selectRCNBoxesM2,
+                tf.equal(tf.shape(labels)[0], 0): selectRCNBoxesM3
+            },
+                default=selectRCNBoxesM1,
+                exclusive=True)
             r_labels.set_shape([nr])
             r_indices.set_shape([nr])
-            return r_labels,r_indices
+            return r_labels, r_indices
 
     def evalRPNNet(self, gbboxes,proposal_boxes,proposal_boxes_prob,pos_threshold=0.7):
         with tf.name_scope("EncodeRCNBoxes"):
