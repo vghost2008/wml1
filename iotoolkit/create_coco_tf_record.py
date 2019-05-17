@@ -271,22 +271,22 @@ def main(_):
 
   if not tf.gfile.IsDirectory(FLAGS.output_dir):
     tf.gfile.MakeDirs(FLAGS.output_dir)
-  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.tfrecord')
+  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train0.tfrecord')
   val_output_path = os.path.join(FLAGS.output_dir, 'coco_train1.tfrecord')
 
-  '''_create_tf_record_from_coco_annotations(
+  _create_tf_record_from_coco_annotations(
       FLAGS.train_annotations_file,
       FLAGS.train_image_dir,
       train_output_path,
       FLAGS.include_masks,
-      is_train_data=True)'''
+      is_train_data=True)
 
   with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
       ids = f.readlines()
   ids = [int(x) for x in ids]
 
   def filter(image):
-      return image["id"] in ids
+      return image["id"] not in ids
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
@@ -302,5 +302,5 @@ if __name__ == '__main__':
     FLAGS.val_image_dir =  os.path.join(SCRATCH_DIR,"val2014")
     FLAGS.train_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_train2014.json")
     FLAGS.val_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_val2014.json")
-    FLAGS.output_dir = output_dir = os.path.join(SCRATCH_DIR,"tfdata")
+    FLAGS.output_dir = output_dir = os.path.join(SCRATCH_DIR,"tfdata1")
     tf.app.run()
