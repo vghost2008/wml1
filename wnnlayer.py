@@ -297,7 +297,7 @@ def non_local_blockv1(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
                                         use_mask=False)
         out = restore_shape(out,shape,m_channel)
         out = slim.conv2d(out,channel,[1,1],normalizer_fn=None)
-        out = slim.batch_norm(out+net)
+        out = slim.batch_norm(out+net,is_training=is_training)
         return out
 
 def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
