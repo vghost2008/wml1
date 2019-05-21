@@ -272,7 +272,7 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
                           weights_initializer=tf.zeros_initializer)
         return net+out
 
-def non_local_blockv1(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False,scope=None):
+def non_local_blockv1(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
     def reshape_net(net):
         shape = net.get_shape().as_list()
         new_shape = [-1,shape[1]*shape[2],shape[3]]
@@ -297,7 +297,8 @@ def non_local_blockv1(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
                                         use_mask=False)
         out = restore_shape(out,shape,m_channel)
         out = slim.conv2d(out,channel,[1,1],normalizer_fn=None)
-        out = slim.batch_norm(out+net,is_training=is_training)
+        normalizer_params  = normalizer_params or {}
+        out = normalizer_fn(out+net,**normalizer_params)
         return out
 
 def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
