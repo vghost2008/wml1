@@ -223,9 +223,7 @@ class DynamicAdjacentMatrix:
             edge_index = tf.range(edge_nr)
             edge_index = tf.boolean_mask(edge_index,self.line_mask)
 
-            def fn(_index):
-                index = edge_index[_index]
-
+            def fn(index):
                 i = index // p_nr
                 j = tf.mod(index, p_nr)
                 return tf.concat([tf.reshape(i,[1]),tf.reshape(j,[1])],axis=0)
