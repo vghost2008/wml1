@@ -15,6 +15,7 @@ import logging
 import shutil
 from object_detection.metrics import coco_evaluation
 from object_detection.metrics import standard_fields
+import wml_utils as wmlu
 
 '''
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
@@ -384,6 +385,15 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
         res.append(list(x))
     if shuffe:
         random.shuffle(res)
+    return res
+
+def filterVOCFilesByName(voc_files,file_names):
+    res = []
+    for img_file,xml_file in voc_files:
+        base_name = wmlu.base_name(img_file)
+        if base_name not in file_names:
+            continue
+        res.append((img_file,xml_file))
     return res
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]

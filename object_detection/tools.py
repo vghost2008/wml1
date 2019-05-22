@@ -59,6 +59,7 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
     max_examples = 0
     label_file_count={}
     labels_to_file={}
+    example_nrs = []
     for data in datas:
         bboxes,labels_text,file = data
         if len(labels_text)==0:
@@ -66,7 +67,9 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
         aspect = npod.box_aspect(bboxes)
         if max_aspect is not None and np.max(aspect)>max_aspect:
             print(f"asepct is too large, expect max aspect is {max_aspect}, actual get {np.max(aspect)}")
-        max_examples = max(len(labels_text),max_examples)
+        e_nr = len(labels_text)
+        example_nrs.append(e_nr)
+        max_examples = max(e_nr,max_examples)
         all_boxes.extend(bboxes)
         all_labels.extend(labels_text)
 
@@ -98,7 +101,8 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
             org_labels_counter[_l] = org_labels_counter[_l]+1
         else:
             org_labels_counter[_l] = 1
-    print("Max element size {}.".format(max_examples))
+    example_nrs = np.array(example_nrs)
+    print(f"Max element size {np.max(example_nrs)}, element min {np.min(example_nrs)}, element mean {np.mean(example_nrs)}, element var {np.var(example_nrs)}.")
     print("\n--->BBoxes count:")
     labels_counter = list(labels_counter.items())
     labels_counter.sort(key=lambda x:x[1],reverse=True)
@@ -168,7 +172,7 @@ def show_anchor_box(img_file,boxes):
 
 if __name__ == "__main__":
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
-    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatasvx/train",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/VOC2012",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)

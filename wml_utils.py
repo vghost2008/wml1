@@ -272,6 +272,8 @@ def show_member(obj,name=None):
         print("%s : "%(name),var)
 
 def show_list(values):
+    if values is None:
+        return
     print("[")
     for v in values:
         print(v)
