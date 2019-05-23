@@ -34,7 +34,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         if net is None:
             net = self.mask_branch_input
 
-        if self.train_mask and pmask is None:
+        if self.train_mask and pmask is None and self.rcn_gtlabels is not None:
             pmask = tf.greater(self.rcn_gtlabels,0)
             pmask = tf.reshape(pmask,[-1])
 
