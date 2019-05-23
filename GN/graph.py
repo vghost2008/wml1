@@ -195,6 +195,12 @@ class DynamicAdjacentMatrix:
     axis: the axis of attribute begin, now, it must be one.
     '''
     def __init__(self,adj_mt,points_data,edges_data,axis=1):
+        if not isinstance(adj_mt,tf.Tensor) and adj_mt is not None:
+            adj_mt = tf.convert_to_tensor(adj_mt)
+        if not isinstance(points_data,tf.Tensor) and points_data is not None:
+            points_data = tf.convert_to_tensor(points_data)
+        if not isinstance(edges_data,tf.Tensor) and edges_data is not None:
+            edges_data = tf.convert_to_tensor(edges_data)
         self.adj_mt = adj_mt
         if self.adj_mt.dtype is not tf.bool:
             self.adj_mt = tf.cast(self.adj_mt,tf.bool)
