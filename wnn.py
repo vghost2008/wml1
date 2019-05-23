@@ -77,7 +77,6 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             apply_gradient_op = opt.apply_gradients(grads,global_step=global_step)
 
         slim_batch_norm_ops = get_batch_norm_ops(scopes=scopes,re_pattern=scopes_pattern)
-        show_values_name(slim_batch_norm_ops,"batch_norm_ops",fn=logging.info)
         train_op = tf.group(apply_gradient_op,slim_batch_norm_ops)
         if clip_norm:
             tf.summary.scalar("global_norm", global_norm)
@@ -85,7 +84,20 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
 
 def get_batch_norm_ops(scopes=None,re_pattern=None):
     bn_ops = get_variables_of_collection(key=tf.GraphKeys.UPDATE_OPS,scopes=scopes,re_pattern=re_pattern)
+    show_values_name(bn_ops,"batch_norm_ops",fn=logging.info)
     return bn_ops
+
+def get_update_batch_norm_ops(global_step,scopes=None,re_pattern=None):
+    bn_ops = get_variables_of_collection(key=tf.GraphKeys.UPDATE_OPS,scopes=scopes,re_pattern=re_pattern)
+    values = get_variables_of_collection(key=tf.GraphKeys.GLOBAL_VARIABLES,scopes=scopes,re_pattern=".*moving_.*")
+    show_values_name(bn_ops,"batch_norm_ops",fn=logging.info)
+    global_step = tf.assign_add(global_step,tf.constant(1,dtype=global_step.dtype))
+    losses = tf.losses.get_losses()
+    show_values(losses,"Losses")
+    total_loss = tf.add_n(losses, "total_loss")
+    total_loss = tf.reduce_sum(total_loss)
+    op = tf.group(global_step,bn_ops)
+    return op,total_loss,values
 
 '''
 主要用于在不同时间在同一个GPU上训练同一个网络 
