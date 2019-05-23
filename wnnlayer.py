@@ -9,6 +9,7 @@ from tensorflow.contrib.layers.python.layers import initializers
 import nlp.wlayers as nlpl
 import numpy as np
 import time
+from tensorflow.contrib.framework.python.ops import add_arg_scope
 
 slim = tf.contrib.slim
 
@@ -115,7 +116,8 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
         output = tf.nn.batch_normalization(input, c_mean, c_variance, offset, gamma, 1E-6, "BN")
     return output
 
-def group_norm(x, G=32, eps=1e-5):
+@add_arg_scope
+def group_norm(x, G=32, epsilon=1e-5):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope("group_norm"):
@@ -124,15 +126,17 @@ def group_norm(x, G=32, eps=1e-5):
         beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
         x = tf.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
-        x = (x - mean) / tf.sqrt(var + eps)
+        x = (x - mean) / tf.sqrt(var + epsilon)
         x = tf.reshape(x, [N,H,W,C])
         return x*gamma + beta
 
+@add_arg_scope
 def layer_norm(x,scope="layer_norm"):
     return tf.contrib.layers.layer_norm(
         inputs=x, begin_norm_axis=-1, begin_params_axis=-1, scope=scope)
 
 
+@add_arg_scope
 def instance_norm(x, eps=1e-5):
     with tf.variable_scope("layer_norm"):
         N, H, W, C = x.shape

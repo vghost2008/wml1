@@ -323,10 +323,10 @@ def get_variables_not_to_train(train_variables):
     return variables
 
 
-def get_variables_exclude(exclude_str=None,only_scope=None,key=None):
+def get_variables_exclude(exclude=None,only_scope=None,key=None):
     if key is None:
         key = tf.GraphKeys.TRAINABLE_VARIABLES
-    if exclude_str is None and only_scope is None:
+    if exclude is None and only_scope is None:
         return tf.get_collection(key)
     if only_scope is not None:
         res_variables = []
@@ -337,22 +337,30 @@ def get_variables_exclude(exclude_str=None,only_scope=None,key=None):
     else:
         res_variables = tf.get_collection(key)
 
-    if exclude_str is not None:
-        scopes = [scope.strip() for scope in exclude_str.split(',')]
-        variables_to_exclude=[]
-        for scope in scopes:
-            variables = tf.get_collection(key,scope)
-            variables_to_exclude.extend(variables)
-        for v in variables_to_exclude:
-            if v in res_variables:
-                res_variables.remove(v)
+    if exclude is not None:
+        if isinstance(exclude,str):
+            scopes = [scope.strip() for scope in exclude.split(',')]
+            variables_to_exclude=[]
+            for scope in scopes:
+                variables = tf.get_collection(key,scope)
+                variables_to_exclude.extend(variables)
+            for v in variables_to_exclude:
+                if v in res_variables:
+                    res_variables.remove(v)
+        elif callable(exclude):
+            clone_res = [x.name for x in res_variables]
+            remove_names = []
+            for name in clone_res:
+                if exclude(name):
+                    remove_names.append(name)
 
+            res_variables = list(filter(lambda x:x.name not in remove_names,res_variables))
     return res_variables
 
-def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,key=None,name=None,silent=False,value_key=None):
+def restore_variables_by_key(sess,file_path, exclude=None,only_scope=None,key=None,name=None,silent=False,value_key=None):
     if key is None:
         key = tf.GraphKeys.TRAINABLE_VARIABLES
-    variables_to_restore = get_variables_exclude(exclude_var,only_scope,key)
+    variables_to_restore = get_variables_exclude(exclude,only_scope,key)
     if len(variables_to_restore) == 0:
         return []
     if not silent:
@@ -373,9 +381,11 @@ def restore_variables_by_key(sess,file_path, exclude_var=None,only_scope=None,ke
         return file_path,variables_to_restore
     return []
 
-def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,restore_evckp=True,value_key=None):
+def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
+    if exclude is None and exclude_var is not None:
+        exclude = exclude_var
     file_path = wmlt.get_ckpt_file_path(path)
     if file_path is None:
         return
@@ -384,7 +394,7 @@ def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,re
         if "moving_mean" in v.name or "moving_variance" in v.name:
             tf.add_to_collection(tf.GraphKeys.MOVING_AVERAGE_VARIABLES,v)
     variables = []
-    variables0 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.TRAINABLE_VARIABLES,name="train",silent=silent,value_key=value_key)
+    variables0 = restore_variables_by_key(sess,file_path,exclude,only_scope,key=tf.GraphKeys.TRAINABLE_VARIABLES,name="train",silent=silent,value_key=value_key)
 
     if len(variables0)>1:
         if isinstance(variables0[1],list):
@@ -393,7 +403,7 @@ def restore_variables(sess,path,exclude_var=None,only_scope=None,silent=False,re
         else:
             for v in variables0[1]:
                 variables.append(v)
-    variables1 = restore_variables_by_key(sess,file_path,exclude_var,only_scope,key=tf.GraphKeys.MOVING_AVERAGE_VARIABLES,name='moving',silent=silent,value_key=value_key)
+    variables1 = restore_variables_by_key(sess,file_path,exclude,only_scope,key=tf.GraphKeys.MOVING_AVERAGE_VARIABLES,name='moving',silent=silent,value_key=value_key)
     if len(variables1)>1:
         if isinstance(variables1[1],list):
             for v in variables1[1]:

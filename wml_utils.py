@@ -274,6 +274,8 @@ def show_member(obj,name=None):
 def show_list(values):
     if values is None:
         return
+    if isinstance(values,str):
+        return show_list([values])
     print("[")
     for v in values:
         print(v)
