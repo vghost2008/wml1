@@ -233,7 +233,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
     assert len(bboxes)==len(difficult),"error size"
     assert len(bboxes)==len(truncated),"error size"
 
-    return shape, bboxes, labels_text, difficult, truncated
+    return shape, np.array(bboxes), labels_text, difficult, truncated
 
 def create_text_element(doc,name,value):
     if not isinstance(value,str):

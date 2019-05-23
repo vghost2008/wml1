@@ -880,7 +880,8 @@ def subsample_indicator(indicator, num_samples):
     indices = tf.where(indicator)
     indices = tf.random_shuffle(indices)
     indices = tf.reshape(indices, [-1])
-
+    if isinstance(num_samples,tf.Tensor) and num_samples.dtype != tf.int32:
+        num_samples = tf.cast(num_samples,tf.int32)
     num_samples = tf.minimum(tf.size(indices), num_samples)
     selected_indices = tf.slice(indices, [0], tf.reshape(num_samples, [1]))
 

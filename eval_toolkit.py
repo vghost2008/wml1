@@ -353,6 +353,7 @@ class SearchParameters(object):
         for _ in range(self.test_nr):
             params = wmlu.random_uniform_indict(self.params)
             res = self.do_eval(params)
+            print("Result:",res)
             if res>best_result:
                 best_result = res
                 best_params = params

@@ -66,7 +66,7 @@ FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-TRAIN_SIZE_LIMIT = 1000
+TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
 src_file_index = 0
 
