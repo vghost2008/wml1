@@ -257,6 +257,29 @@ def bboxes_jaccard(bbox_ref, bboxes, name=None):
             + (bbox_ref[2] - bbox_ref[0]) * (bbox_ref[3] - bbox_ref[1])
         jaccard = wmath.safe_divide(inter_vol, union_vol, 'jaccard')
         return jaccard
+'''
+bboxes0:[nr,4]
+bboxes1:[nr,4]
+return:
+[nr]
+'''
+def batch_bboxes_jaccard(bboxes0, bboxes1, name=None):
+
+    with tf.name_scope(name, 'bboxes_jaccard'):
+        bboxes0 = tf.transpose(bboxes0)
+        bboxes1 = tf.transpose(bboxes1)
+        int_ymin = tf.maximum(bboxes0[0], bboxes1[0])
+        int_xmin = tf.maximum(bboxes0[1], bboxes1[1])
+        int_ymax = tf.minimum(bboxes0[2], bboxes1[2])
+        int_xmax = tf.minimum(bboxes0[3], bboxes1[3])
+        h = tf.maximum(int_ymax - int_ymin, 0.)
+        w = tf.maximum(int_xmax - int_xmin, 0.)
+        inter_vol = h * w
+        union_vol = -inter_vol \
+                    + (bboxes0[2] - bboxes0[0]) * (bboxes0[3] - bboxes0[1]) \
+                    + (bboxes1[2] - bboxes1[0]) * (bboxes1[3] - bboxes1[1])
+        jaccard = wmath.safe_divide(inter_vol, union_vol, 'jaccard')
+        return jaccard
 
 '''
 返回交叉面积的百分比，面积是相对于bboxes
