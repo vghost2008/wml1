@@ -288,10 +288,12 @@ class DynamicAdjacentMatrix:
         res = tf.concat([p0,p1],axis=self.axis)
         return res
 
+
     def avg_edges_data_for_point(self,i):
         s_edges_indexs,r_edges_indexs = self.points_to_edges_index[i]
-        s_edge = tf.gather(self.edges_data,s_edges_indexs)
-        r_edge = tf.gather(self.edges_data,r_edges_indexs)
+        default_value = tf.zeros([1,self.edges_data.get_shape().as_list()[-1]],dtype=tf.float32)
+        s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=default_value)
+        r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=default_value)
 
         s_edge = tf.reduce_mean(s_edge,axis=0,keepdims=False)
 
@@ -367,4 +369,8 @@ class DynamicAdjacentMatrix:
             self.points_data = tf.concat([self.points_data,datas["nodes"]],axis=1)
         if "global" in datas and datas["global"] is not None:
             self.global_attr = tf.concat([self.global_attr,datas["global"]],axis=1)
+
+    @staticmethod
+    def safe_gather(params, indices,default_value):
+        return tf.cond(tf.greater(tf.shape(indices)[0],0),lambda:tf.gather(params,indices),lambda:default_value)
 
