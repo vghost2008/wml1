@@ -150,16 +150,14 @@ def group_norm_4d(x, G=32, epsilon=1e-5):
 
 @add_arg_scope
 def group_norm_2d(x, G=32, epsilon=1e-5):
-    # x: input features with shape [N,H,W,C]
-    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope("group_norm"):
-        N,C = x.shape
+        N,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
         beta = tf.get_variable(name="beta",shape=[1,C],initializer=tf.zeros_initializer())
-        x = tf.reshape(x, [N,G, C // G,])
+        x = wmlt.reshape(x, [N,G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
         x = (x - mean) / tf.sqrt(var + epsilon)
-        x = tf.reshape(x, [N,C])
+        x = wmlt.reshape(x, [N,C])
         return x*gamma + beta
 
 @add_arg_scope
