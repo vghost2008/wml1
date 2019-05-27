@@ -291,9 +291,14 @@ class DynamicAdjacentMatrix:
 
     def avg_edges_data_for_point(self,i):
         s_edges_indexs,r_edges_indexs = self.points_to_edges_index[i]
-        default_value = tf.zeros([1,self.edges_data.get_shape().as_list()[-1]],dtype=tf.float32)
-        s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=default_value)
-        r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=default_value)
+        default_value_s = tf.get_variable("default_edge_s",shape=[1,self.edges_data.get_shape().as_list()[-1]],
+                                          dtype=tf.float32,
+                                          initializer=tf.zeros_initializer,trainable=True)
+        default_value_r = tf.get_variable("default_edge_r",shape=[1,self.edges_data.get_shape().as_list()[-1]],
+                                          dtype=tf.float32,
+                                          initializer=tf.zeros_initializer,trainable=True)
+        s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=default_value_s)
+        r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=default_value_r)
 
         s_edge = tf.reduce_mean(s_edge,axis=0,keepdims=False)
 
