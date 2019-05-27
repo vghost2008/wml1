@@ -1,5 +1,6 @@
 import tensorflow as tf
 import wtfop.wtfop_ops as wtfop
+import wml_tfutils as wmlt
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import variable_scope
 from tensorflow.contrib.framework.python.ops import add_arg_scope
@@ -121,13 +122,24 @@ def group_norm(x, G=32, epsilon=1e-5):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope("group_norm"):
-        N, H, W, C = x.shape
+        if x.get_shape().is_fully_defined():
+            N,H,W,C = x.get_shape().as_list()
+        else:
+            none_nr = 0
+            for v in x.get_shape().as_list():
+                if v is None:
+                    none_nr += 1
+            if none_nr>1:
+                N, H, W, _ = tf.unstack(tf.shape(x),axis=0)
+                C = x.get_shape().as_list()[-1]
+            else:
+                N,H,W,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
         beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
-        x = tf.reshape(x, [N, H, W, G, C // G,])
+        x = wmlt.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
         x = (x - mean) / tf.sqrt(var + epsilon)
-        x = tf.reshape(x, [N,H,W,C])
+        x = wmlt.reshape(x, [N,H,W,C])
         return x*gamma + beta
 
 @add_arg_scope

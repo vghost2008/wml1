@@ -19,6 +19,7 @@ import img_utils as wmli
 from object_detection.losses import *
 import logging
 import wtfop.wtfop_ops as wop
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 class TestFasterRCNN(FasterRCNN):
     def __init__(self,*kargs,**kwargs):
@@ -29,6 +30,13 @@ class TestFasterRCNN(FasterRCNN):
         return slim.conv2d(net,channel,[1,1],weights_initializer=tf.ones_initializer,biases_initializer=None)
 
 class ODTest(tf.test.TestCase):
+    def test_batch_bboxes_jaccard(self):
+        with self.test_session() as sess:
+            boxes0 = tf.convert_to_tensor(np.array([[0.0, 0.0, 0.2, 0.2], [0.3, 0.3, 0.5, 0.6], [0.1, 0.1, 0.4, 0.4], [0.7, 0.7, 0.9, 0.8]]))
+            boxes1 = tf.convert_to_tensor(np.array([[0.0, 0.1, 0.2, 0.3], [0.3, 0.3, 0.5, 0.6], [0.1, 0.1, 0.4, 0.4], [0.91, 0.7, 1.0, 0.8]]))
+            iou = bboxes.batch_bboxes_jaccard(boxes0,boxes1)
+            print(iou.eval())
+
     def testGetAnchorBoxes1(self):
         data0 = bboxes.get_anchor_bboxes(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
         data1 = bboxes.get_anchor_bboxesv2(shape=[4, 4], sizes=[0.1, 0.2], ratios=[0.5,1., 2.])
