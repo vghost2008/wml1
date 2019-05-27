@@ -115,9 +115,15 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
             c_variance = m_variance
         output = tf.nn.batch_normalization(input, c_mean, c_variance, offset, gamma, 1E-6, "BN")
     return output
-
 @add_arg_scope
 def group_norm(x, G=32, epsilon=1e-5):
+    if x.get_shape().ndims == 4:
+        return group_norm_4d(x,G,epsilon)
+    elif x.get_shape().ndims == 2:
+        return group_norm_2d(x,G,epsilon)
+
+@add_arg_scope
+def group_norm_4d(x, G=32, epsilon=1e-5):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope("group_norm"):
@@ -128,6 +134,20 @@ def group_norm(x, G=32, epsilon=1e-5):
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
         x = (x - mean) / tf.sqrt(var + epsilon)
         x = tf.reshape(x, [N,H,W,C])
+        return x*gamma + beta
+
+@add_arg_scope
+def group_norm_2d(x, G=32, epsilon=1e-5):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
+    with tf.variable_scope("group_norm"):
+        N,C = x.shape
+        gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,C],initializer=tf.zeros_initializer())
+        x = tf.reshape(x, [N,G, C // G,])
+        mean, var = tf.nn.moments(x, [2], keep_dims=True)
+        x = (x - mean) / tf.sqrt(var + epsilon)
+        x = tf.reshape(x, [N,C])
         return x*gamma + beta
 
 @add_arg_scope
@@ -150,6 +170,9 @@ def gelu(x):
     cdf = 0.5 * (1.0 + tf.erf(x/ tf.sqrt(2.0)))
     return x* cdf
     #return 0.5*x*(1+tf.tanh(math.sqrt(2/math.pi)*(x+0.044715*tf.pow(x, 3))))
+
+def h_swish(x):
+    return x*tf.nn.relu6(x+3)/6.0
 
 def spectral_norm(w, iteration=1):
     with tf.variable_scope("spectral_norm"):
