@@ -157,6 +157,17 @@ class WMLTest(tf.test.TestCase):
             data = data.eval()
             self.assertAllEqual(a=np_data,b=data)
 
+    def testIndicesToDenseVector2(self):
+        with self.test_session() as sess:
+            size = 10
+            np_indices = [1,3,3,4,7,9,2,1]
+            np_data = [0,1,1,1,1,0,0,1,0,1]
+            indices = tf.constant(np_indices,dtype=tf.int32)
+            data = wmlt.indices_to_dense_vector(indices=indices,size=size,indices_value=1,dtype=tf.int32)
+            data = data.eval()
+            print(data)
+            self.assertAllEqual(a=np_data,b=data)
+
 
     def test_select_2thdata_by_index(self):
         with self.test_session() as sess:

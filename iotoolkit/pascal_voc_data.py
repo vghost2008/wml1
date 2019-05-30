@@ -43,3 +43,9 @@ TEXT_TO_ID = {
     'train':  19,
     'tvmonitor':20
 }
+def get_id_to_textv2():
+    res = {}
+    for k,v in ID_TO_TEXT.items():
+        res[k] = {"name":v}
+    return res
+
