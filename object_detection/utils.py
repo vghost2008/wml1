@@ -183,7 +183,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False):
         else:
             dif = 0
         if has_probs and obj.find("prob") is not None:
-            prob = float(obj.find("prob"))
+            prob = float(obj.find("prob").text)
         else:
             prob = 1.0
 
