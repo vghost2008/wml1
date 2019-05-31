@@ -766,11 +766,10 @@ class COCOEvaluation(object):
             boxes = np.array(boxes)
         if not isinstance(labels,np.ndarray):
             labels = np.array(labels)
-        boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
-        gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
         if probability is not None and not isinstance(probability,np.ndarray):
             probability = np.array(probability)
         if gtlabels.shape[0]>0:
+            gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
             if is_crowd is None:
                 self.coco_evaluator.add_single_ground_truth_image_info(
                     image_id=str(self.image_id),
@@ -792,6 +791,7 @@ class COCOEvaluation(object):
                             is_crowd
                     })
         if labels.shape[0]>0:
+            boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
             self.coco_evaluator.add_single_detected_image_info(
                 image_id=str(self.image_id),
                 detections_dict={
