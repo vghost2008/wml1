@@ -770,36 +770,38 @@ class COCOEvaluation(object):
         gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
         if probability is not None and not isinstance(probability,np.ndarray):
             probability = np.array(probability)
-        if is_crowd is None:
-            self.coco_evaluator.add_single_ground_truth_image_info(
+        if gtlabels.shape[0]>0:
+            if is_crowd is None:
+                self.coco_evaluator.add_single_ground_truth_image_info(
+                    image_id=str(self.image_id),
+                    groundtruth_dict={
+                        standard_fields.InputDataFields.groundtruth_boxes:
+                            gtboxes,
+                        standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+                    })
+            else:
+                if not isinstance(is_crowd,np.ndarray):
+                    is_crowd = np.array(is_crowd)
+                self.coco_evaluator.add_single_ground_truth_image_info(
+                    image_id=str(self.image_id),
+                    groundtruth_dict={
+                        standard_fields.InputDataFields.groundtruth_boxes:
+                            gtboxes,
+                        standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+                        standard_fields.InputDataFields.groundtruth_is_crowd:
+                            is_crowd
+                    })
+        if labels.shape[0]>0:
+            self.coco_evaluator.add_single_detected_image_info(
                 image_id=str(self.image_id),
-                groundtruth_dict={
-                    standard_fields.InputDataFields.groundtruth_boxes:
-                        gtboxes,
-                    standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+                detections_dict={
+                    standard_fields.DetectionResultFields.detection_boxes:
+                        boxes,
+                    standard_fields.DetectionResultFields.detection_scores:
+                        probability,
+                    standard_fields.DetectionResultFields.detection_classes:
+                        labels
                 })
-        else:
-            if not isinstance(is_crowd,np.ndarray):
-                is_crowd = np.array(is_crowd)
-            self.coco_evaluator.add_single_ground_truth_image_info(
-                image_id=str(self.image_id),
-                groundtruth_dict={
-                    standard_fields.InputDataFields.groundtruth_boxes:
-                        gtboxes,
-                    standard_fields.InputDataFields.groundtruth_classes:gtlabels,
-                    standard_fields.InputDataFields.groundtruth_is_crowd:
-                        is_crowd
-                })
-        self.coco_evaluator.add_single_detected_image_info(
-            image_id=str(self.image_id),
-            detections_dict={
-                standard_fields.DetectionResultFields.detection_boxes:
-                    boxes,
-                standard_fields.DetectionResultFields.detection_scores:
-                    probability,
-                standard_fields.DetectionResultFields.detection_classes:
-                    labels
-            })
         self.image_id += 1
 
     def evaluate(self):
