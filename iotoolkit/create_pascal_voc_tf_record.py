@@ -16,7 +16,7 @@ from iotoolkit.pascal_voc_data import TEXT_TO_ID
 
 DIRECTORY_ANNOTATIONS = 'Annotations/'
 DIRECTORY_IMAGES = 'JPEGImages/'
-SAMPLES_PER_FILES = 500
+SAMPLES_PER_FILES = 6000
 '''def category_id_filter(category_id):
     good_ids = [15,6,7,14,2]
     return category_id in good_ids

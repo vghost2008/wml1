@@ -158,7 +158,7 @@ return:
 shape: image size
 boxes: relative coordinate,(ymin,xmin,ymax,xmax)
 '''
-def read_voc_xml(file_path,adjust=None,aspect_range=None):
+def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -174,6 +174,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
     labels_text = []
     difficult = []
     truncated = []
+    probs = []
     for obj in root.findall('object'):
         label = obj.find('name').text
         #文件中difficult用0,1表示
@@ -181,6 +182,11 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
             dif = int(obj.find('difficult').text)
         else:
             dif = 0
+        if has_probs and obj.find("prob") is not None:
+            prob = float(obj.find("prob"))
+        else:
+            prob = 1.0
+
         if obj.find('truncated') is not None:
             trun = int(obj.find('truncated').text)
         else:
@@ -228,12 +234,16 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None):
         labels_text.append(label)
         difficult.append(dif)
         truncated.append(trun)
+        probs.append(prob)
 
     assert len(bboxes)==len(labels_text),"error size"
     assert len(bboxes)==len(difficult),"error size"
     assert len(bboxes)==len(truncated),"error size"
 
-    return shape, np.array(bboxes), labels_text, difficult, truncated
+    if has_probs:
+        return shape, np.array(bboxes), labels_text, difficult, truncated,probs
+    else:
+        return shape, np.array(bboxes), labels_text, difficult, truncated
 
 def create_text_element(doc,name,value):
     if not isinstance(value,str):
@@ -249,7 +259,7 @@ file_path:图像文件路径
 shape:[h,w,d]
 boxes:相对大小
 '''
-def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None):
+def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None):
 
     if len(shape)==2:
         shape = list(shape)+[1]
@@ -295,19 +305,35 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
 
     objectlist.appendChild(create_text_element(doc,"segmented","0"))
 
-    for (box,label,dif,trun) in zip(bboxes,labels_text,difficult,truncated):
-        object = doc.createElement("object")
-        object.appendChild(create_text_element(doc,"name",str(label)))
-        object.appendChild(create_text_element(doc,"pose","Unspecified"))
-        object.appendChild(create_text_element(doc,"truncated",trun))
-        object.appendChild(create_text_element(doc,"difficult",dif))
-        bndbox = doc.createElement("bndbox")
-        bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
-        bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
-        bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
-        bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
-        object.appendChild(bndbox)
-        objectlist.appendChild(object)
+    if probs is not None:
+        for (box, label, dif, trun,prob) in zip(bboxes, labels_text, difficult, truncated,probs):
+            object = doc.createElement("object")
+            object.appendChild(create_text_element(doc, "name", str(label)))
+            object.appendChild(create_text_element(doc, "pose", "Unspecified"))
+            object.appendChild(create_text_element(doc, "truncated", trun))
+            object.appendChild(create_text_element(doc, "difficult", dif))
+            object.appendChild(create_text_element(doc, "prob", prob))
+            bndbox = doc.createElement("bndbox")
+            bndbox.appendChild(create_text_element(doc, "xmin", int(box[1] * shape[1])))
+            bndbox.appendChild(create_text_element(doc, "ymin", int(box[0] * shape[0])))
+            bndbox.appendChild(create_text_element(doc, "xmax", int(box[3] * shape[1])))
+            bndbox.appendChild(create_text_element(doc, "ymax", int(box[2] * shape[0])))
+            object.appendChild(bndbox)
+            objectlist.appendChild(object)
+    else:
+        for (box,label,dif,trun) in zip(bboxes,labels_text,difficult,truncated):
+            object = doc.createElement("object")
+            object.appendChild(create_text_element(doc,"name",str(label)))
+            object.appendChild(create_text_element(doc,"pose","Unspecified"))
+            object.appendChild(create_text_element(doc,"truncated",trun))
+            object.appendChild(create_text_element(doc,"difficult",dif))
+            bndbox = doc.createElement("bndbox")
+            bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
+            bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
+            bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
+            bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
+            object.appendChild(bndbox)
+            objectlist.appendChild(object)
 
     with open(save_path,'w') as f:
         #f.write(doc.toprettyxml(indent='\t', encoding='utf-8'))
@@ -317,7 +343,7 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
 file_path:图像文件路径
 bboxes:相对坐标
 '''
-def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None):
+def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -335,9 +361,12 @@ def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncat
         base_name = base_name[:-4]+".xml"
         save_path = os.path.join(dir_path,base_name)
 
-    write_voc_xml(save_path,file_path,img.shape,bboxes,labels,difficult,truncated)
+    write_voc_xml(save_path,file_path,img.shape,bboxes,labels,difficult,truncated,probs=probs)
 
-def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None, truncated=None):
+'''
+与上一个版本的区别为 img shape 为输入值，不需要读图获取
+'''
+def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -353,7 +382,7 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
         base_name = base_name[:-4]+".xml"
         save_path = os.path.join(dir_path,base_name)
 
-    write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated)
+    write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated,probs=probs)
 
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
