@@ -83,9 +83,14 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
             color = color_fn(classes[i])
         else:
             color = (random.random()*255, random.random()*255, random.random()*255)
-        p1 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+        p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+        p11 = (int(bbox[2] * shape[0]), int(bbox[1] * shape[1]))
+        if bbox[0]<0.1:
+            p1 = p11
+        else:
+            p1 = p10
         p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
-        cv2.rectangle(img, p1[::-1], p2[::-1], color, thickness)
+        cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
         if show_text and text_fn is not None:
             s = text_fn(classes[i], scores[i])
             p = (p1[0]-5, p1[1])
