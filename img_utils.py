@@ -377,3 +377,20 @@ def resize_to_range(image,
 
     result.append(new_size)
     return result
+
+def np_resize_to_range(img,min_dimension,max_dimension=-1):
+    new_shape = list(img.shape[:2])
+    if img.shape[0]<img.shape[1]:
+        new_shape[0] = min_dimension
+        if max_dimension>0:
+            new_shape[1] = min(int(new_shape[0]*img.shape[1]/img.shape[0]),max_dimension)
+        else:
+            new_shape[1] = int(new_shape[0]*img.shape[1]/img.shape[0])
+    else:
+        new_shape[1] = min_dimension
+        if max_dimension>0:
+            new_shape[0] = min(int(new_shape[1]*img.shape[0]/img.shape[1]),max_dimension)
+        else:
+            new_shape[0] = int(new_shape[1]*img.shape[0]/img.shape[1])
+
+    return resize_img(img,new_shape)
