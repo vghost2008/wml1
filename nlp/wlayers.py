@@ -82,7 +82,10 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
         O = tf.transpose(O, [0, 2, 1, 3])
         #now O is  [batch_size,n,nb_head,size_per_head1]
         o_shape = O.get_shape().as_list()
-        O = tf.reshape(O, [-1, o_shape[1],np.prod(o_shape[-2:])])
+        if o_shape[0] is not None:
+            O = tf.reshape(O, [o_shape[0], -1,np.prod(o_shape[-2:])])
+        else:
+            O = tf.reshape(O, [-1, o_shape[1],np.prod(o_shape[-2:])])
         if Q_len is not None:
             O = mask_attn_of_length(O, Q_len, 'mul')
         return O

@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import tensorflow as tf
 import wml_tfutils as wmlt
+import functools
 
 class AdjacentMatrix:
     '''
@@ -218,6 +219,14 @@ class DynamicAdjacentMatrix:
         self.global_attr = None
         #[points_nr,2] list,value is tf.Tensor, Tensor's shape is [], tensor's value is [0,edge_nr)
         self.points_to_edges_index = self.make_points_to_edges_indexs()
+        #输入为[X,edge_hiden_size],输出为[1,edge_hiden_size]
+        self.sedges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
+        #输入为[X,node_hiden_size],输出为[1,node_hiden_size]
+        self.redges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
+        #输入为[X,edge_hiden_size],输出为[1,edge_hiden_size]
+        self.edges_reducer_for_global = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
+        #输入为[X,node_hiden_size],输出为[1,node_hiden_size]
+        self.points_reducer_for_global = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
 
     def points_size(self):
         return self._points_size
@@ -289,7 +298,7 @@ class DynamicAdjacentMatrix:
         return res
 
 
-    def avg_edges_data_for_point(self,i):
+    def reduce_edges_data_for_point(self,i):
         s_edges_indexs,r_edges_indexs = self.points_to_edges_index[i]
         with tf.variable_scope("default_edge_value", reuse=tf.AUTO_REUSE):
             default_value_s = tf.get_variable("default_edge_s",shape=[1,self.edges_data.get_shape().as_list()[-1]],
@@ -301,19 +310,21 @@ class DynamicAdjacentMatrix:
         s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=default_value_s)
         r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=default_value_r)
 
-        s_edge = tf.reduce_mean(s_edge,axis=0,keepdims=False)
+        s_edge = self.sedges_reducer_for_points(s_edge)
+        s_edge = tf.squeeze(s_edge,axis=0)
 
-        r_edge = tf.reduce_mean(r_edge,axis=0,keepdims=False)
+        r_edge = self.redges_reducer_for_points(r_edge)
+        r_edge = tf.squeeze(r_edge,axis=0)
 
         res = tf.expand_dims(tf.concat([s_edge,r_edge],axis=0),axis=0)
         return res
 
-    def avg_edges_data(self):
-        res = tf.reduce_mean(self.edges_data, axis=0, keepdims=True)
+    def reduce_edges_data_for_global(self):
+        res = self.edges_reducer_for_global(self.edges_data)
         return res
 
-    def avg_points_data(self):
-        res = tf.reduce_mean(self.points_data, axis=0, keepdims=True)
+    def reduce_points_data_for_global(self):
+        res = self.points_reducer_for_global(self.points_data)
         return res
 
     def update_edges(self,edge_fn,scope=None):
@@ -328,7 +339,7 @@ class DynamicAdjacentMatrix:
         points_data = []
         with tf.variable_scope(scope,default_name="UpdatePoints"):
             for i in range(self._points_size):
-                edges = self.avg_edges_data_for_point(i)
+                edges = self.reduce_edges_data_for_point(i)
                 point = tf.expand_dims(self.points_data[i],axis=0)
                 net = tf.concat([point, edges, self.global_attr], axis=1)
                 output = point_fn(net)
@@ -337,8 +348,8 @@ class DynamicAdjacentMatrix:
 
     def update_global(self,global_fn,scope=None):
         with tf.variable_scope(scope,default_name="UpdateGlobals"):
-            edge = self.avg_edges_data()
-            point = self.avg_points_data()
+            edge = self.reduce_edges_data_for_global()
+            point = self.reduce_points_data_for_global()
             net = tf.concat([point, edge, self.global_attr], axis=1)
             output = global_fn(net)
             self.global_attr = output

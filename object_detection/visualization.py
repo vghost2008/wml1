@@ -78,7 +78,7 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
         scores = np.ones_like(classes,dtype=np.float32)
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
-        print(bbox,classes[i],scores[i])
+        #print(bbox,classes[i],scores[i])
         if color_fn is not None:
             color = color_fn(classes[i])
         else:

@@ -341,3 +341,15 @@ def bboxes_sort(classes, scores, bboxes, top_k=400):
     scores = scores[idxes][:top_k]
     bboxes = bboxes[idxes][:top_k]
     return classes, scores, bboxes
+
+def bboxes_filter(bboxes,labels, probs,threshold=0.5):
+
+    keep_bboxes = np.greater(probs,threshold)
+    idxes = np.where(keep_bboxes)
+    if not isinstance(bboxes,np.ndarray):
+        bboxes = np.array(bboxes)
+    if not isinstance(labels,np.ndarray):
+        labels = np.array(labels)
+    if not isinstance(probs,np.ndarray):
+        probs = np.array(probs)
+    return bboxes[idxes],labels[idxes],probs[idxes]
