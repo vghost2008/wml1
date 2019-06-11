@@ -504,14 +504,13 @@ def __get_predictionv5(class_prediction,
         probability= class_prediction[:,i]
         #背景的类别为0，前面已经删除了背景，需要重新加上
         labels = i+1
-        ndims = class_prediction.get_shape().ndims
-        probability = tf.squeeze(probability, axis=ndims - 1)
-        labels = tf.squeeze(labels, axis=ndims - 1)
         res_indices = tf.range(tf.shape(bboxes_regs)[0])
     
         #按类别在bboxes_regs选择相应类的回归参数
         if classes_wise:
             lbboxes_regs = bboxes_regs[:,i,:]
+        else:
+            lbboxes_regs = tf.identity(bboxes_regs)
         '''
         NMS前数据必须已经排好序
         通过top_k+gather排序
@@ -524,31 +523,31 @@ def __get_predictionv5(class_prediction,
         pmask = tf.greater(probability,threshold)
         probability = tf.boolean_mask(probability,pmask)
         lproposal_bboxes = tf.boolean_mask(lproposal_bboxes,pmask)
-        boxes_regs = tf.boolean_mask(lbboxes_regs,pmask)
+        lboxes_regs = tf.boolean_mask(lbboxes_regs,pmask)
         res_indices = tf.boolean_mask(res_indices,pmask)
         if limits is not None:
             limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
-            cy,cx,h,w = tf.unstack(tf.transpose(boxes_regs,perm=[1,0]),axis=0)
+            cy,cx,h,w = tf.unstack(tf.transpose(lboxes_regs,perm=[1,0]),axis=0)
             cy = tf.clip_by_value(cy,clip_value_min=limits[0][0],clip_value_max=limits[0][1])
             cx = tf.clip_by_value(cx,clip_value_min=limits[1][0],clip_value_max=limits[1][1])
             h = tf.clip_by_value(h,clip_value_min=limits[2][0],clip_value_max=limits[2][1])
             w = tf.clip_by_value(w,clip_value_min=limits[3][0],clip_value_max=limits[3][1])
-            boxes_regs = tf.stack([cy,cx,h,w],axis=0)
-            boxes_regs = tf.transpose(boxes_regs)
+            lboxes_regs = tf.stack([cy,cx,h,w],axis=0)
+            lboxes_regs = tf.transpose(lboxes_regs)
     
-        boxes = decode_boxes1(lproposal_bboxes,boxes_regs)
+        boxes = decode_boxes1(lproposal_bboxes,lboxes_regs)
         labels = tf.ones_like(probability)*labels
         boxes,labels,indices = nms(boxes,labels,confidence=probability)
-        bboxes = bboxes[:max_detection_per_class,:]
+        boxes = boxes[:max_detection_per_class,:]
         labels = labels[:max_detection_per_class]
         indices = indices[:max_detection_per_class]
         probability = tf.gather(probability,indices)
         res_indices = tf.gather(res_indices,indices)
         r_bboxes.append(boxes)
         r_labels.append(labels)
-        r_probs.append(labels)
+        r_probs.append(probability)
         r_indices.append(res_indices)
-        n_v = wmlt.indices_to_dense_vector(res_indices,size=tf.shape(bboxes)[0],indices_value=-1.0,default_value=1.0)
+        n_v = wmlt.indices_to_dense_vector(res_indices,size=tf.shape(bboxes_regs)[0],indices_value=-1.0,default_value=1.0)
         n_v = tf.reshape(n_v,[-1,1])
         class_prediction = class_prediction*n_v
         ##############################
@@ -558,7 +557,7 @@ def __get_predictionv5(class_prediction,
     r_probs = tf.concat(r_probs,axis=0)
     r_indices = tf.concat(r_labels,axis=0)
     
-    probability,indices = tf.nn.top_k(r_probs,k=tf.minimum(candiate_nr,tf.shape(probability)[0]))
+    probability,indices = tf.nn.top_k(r_probs,k=tf.minimum(candiate_nr,tf.shape(r_probs)[0]))
     labels = tf.gather(r_labels,indices)
     boxes = tf.gather(r_bboxes,indices)
     res_indices = tf.gather(r_indices,indices)

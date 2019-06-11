@@ -299,7 +299,7 @@ class SSD(object):
     def getBoxes(self,k=1000,threshold=0.5,
                    limits=None,
                    nms=None):
-        return self.getBoxesV1(k=k,threshold=threshold,limits=limits,nms=nms)
+        return self.getBoxesV2(k=k,threshold=threshold,limits=limits,nms=nms)
 
     def getBoxesV1(self,k=1000,threshold=0.5,
                  limits=None,
@@ -348,7 +348,7 @@ class SSD(object):
         with tf.variable_scope("GetBoxes"):
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
-                od.get_predictionv2(
+                od.get_predictionv5(
                     class_prediction=probs,
                     bboxes_regs=self.regs,
                     proposal_bboxes=self.anchors,
