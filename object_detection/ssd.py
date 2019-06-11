@@ -348,7 +348,7 @@ class SSD(object):
         with tf.variable_scope("GetBoxes"):
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
-                od.get_predictionv2(
+                od.get_predictionv5(
                     class_prediction=probs,
                     bboxes_regs=self.regs,
                     proposal_bboxes=self.anchors,
