@@ -805,6 +805,7 @@ class COCOEvaluation(object):
         self.image_id += 1
 
     def evaluate(self):
+        print(f"Test size {len(self.coco_evaluator._image_ids)}")
         return self.coco_evaluator.evaluate()
 
 def removeLabels(bboxes,labels,labels_to_remove):
