@@ -37,8 +37,8 @@ def read_check_file(filepath):
                 continue
             checkpoint_files.append(name)
 
-    if len(lines)>5:
-        checkpoint_files = checkpoint_files[-5:]
+    if len(lines)>2:
+        checkpoint_files = checkpoint_files[-2:]
     return checkpoint_files,recently_file
 
 '''

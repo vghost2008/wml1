@@ -299,7 +299,7 @@ class SSD(object):
     def getBoxes(self,k=1000,threshold=0.5,
                    limits=None,
                    nms=None):
-        return self.getBoxesV1(k=k,threshold=threshold,limits=limits,nms=nms)
+        return self.getBoxesV2(k=k,threshold=threshold,limits=limits,nms=nms)
 
     def getBoxesV1(self,k=1000,threshold=0.5,
                  limits=None,
