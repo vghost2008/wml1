@@ -2,7 +2,7 @@
 import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 import object_detection.bboxes as bboxes
-from wtfop.wtfop_ops import boxes_encode,multi_anchor_generator
+from wtfop.wtfop_ops import boxes_encode,multi_anchor_generator,anchor_generator
 import object_detection.losses as losses
 import numpy as np
 import object_detection.architectures_tools as atools
@@ -38,6 +38,7 @@ class SSD(object):
         self.regs = None
         self.input_img = None
         self.box_specs_list = None
+        self.score_converter = tf.nn.sigmoid
 
     def getAnchorBoxes(self):
         np_anchors=[]
@@ -294,4 +295,66 @@ class SSD(object):
                 classes_wise=self.pred_bboxes_classwise,
                 nms=nms)
         return self.boxes,self.labels,self.probs,self.boxes_lens
+    
+    def getBoxes(self,k=1000,threshold=0.5,
+                   limits=None,
+                   nms=None):
+        return self.getBoxesV1(k=k,threshold=threshold,limits=limits,nms=nms)
 
+    def getBoxesV1(self,k=1000,threshold=0.5,
+                 limits=None,
+                 nms=None):
+        '''
+        :param k:
+        :param threshold:
+        :param nms_threshold:
+        :param limits:
+        :param nms: parameters is boxes,labels,confidence
+        :param classes_wise_nms:
+        :param use_soft_nms:
+        :return:
+        '''
+        if nms is None:
+            nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
+        with tf.variable_scope("GetBoxes"):
+            probs = tf.nn.softmax(self.logits)
+            self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
+                od.get_predictionv2(
+                    class_prediction=probs,
+                    bboxes_regs=self.regs,
+                    proposal_bboxes=self.anchors,
+                    threshold=threshold,
+                    limits=limits,
+                    candiate_nr=k,
+                    classes_wise=self.pred_bboxes_classwise,
+                    nms=nms)
+        return self.boxes,self.labels,self.probs,self.boxes_lens
+
+    def getBoxesV2(self,k=1000,threshold=0.5,
+                   limits=None,
+                   nms=None):
+        '''
+        :param k:
+        :param threshold:
+        :param nms_threshold:
+        :param limits:
+        :param nms: parameters is boxes,labels,confidence
+        :param classes_wise_nms:
+        :param use_soft_nms:
+        :return:
+        '''
+        if nms is None:
+            nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
+        with tf.variable_scope("GetBoxes"):
+            probs = self.score_converter(self.logits)
+            self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
+                od.get_predictionv2(
+                    class_prediction=probs,
+                    bboxes_regs=self.regs,
+                    proposal_bboxes=self.anchors,
+                    threshold=threshold,
+                    limits=limits,
+                    candiate_nr=k,
+                    classes_wise=self.pred_bboxes_classwise,
+                    nms=nms)
+        return self.boxes,self.labels,self.probs,self.boxes_lens

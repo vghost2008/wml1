@@ -451,6 +451,185 @@ def get_predictionv4(class_prediction,
                                                               )
     return boxes,labels,probability
 
+'''
+this version of get_prediction have no batch dim.
+
+class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
+shape为[X,num_classes]
+
+bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
+shape为[X,4](classes_wise=Flase)或者(X,num_classes,4](classes_wise=True)
+
+proposal_bboxes:候选box
+shape为[X,4]
+
+threshold:选择class_prediction的阀值
+
+nms_threshold: nms阀值
+
+candiate_nr:选择proposal_bboxes中预测最好的candiate_nr个bboxes进行筛选
+
+limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h,w的回归参数，limits的值对应于prio_scaling=[1,1,1,1]是的设置
+prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
+
+nms:nms函数,是否使用softnms,使用soft nms与不使用soft nms时, nms_threshold的意义有很大的区别， 不使用soft nms时，nms_threshold表示
+IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_threshold表示得分高于nms_threshold的才是真目标
+
+返回:
+boxes:[candiate_nr,4]
+labels:[candiate_nr]
+probability:[candiate_nr]
+len: the available boxes number
+'''
+def __get_predictionv5(class_prediction,
+                   bboxes_regs,
+                   proposal_bboxes,
+                   limits=None,
+                   prio_scaling=[0.1,0.1,0.2,0.2],
+                   threshold=0.5,
+                   classes_wise=False,
+                   candiate_nr = 1500,
+                   explicit_remove_background_class=True,
+                   max_detection_per_class=100,
+                   nms=None):
+    #删除背景
+    if explicit_remove_background_class:
+        class_prediction = class_prediction[:,1:]
+    num_classes = class_prediction.get_shape().as_list()[-1]
+    r_bboxes = []
+    r_labels = []
+    r_probs = []
+    r_indices = []
+    for i in range(num_classes):
+        probability= class_prediction[:,i]
+        #背景的类别为0，前面已经删除了背景，需要重新加上
+        labels = i+1
+        ndims = class_prediction.get_shape().ndims
+        probability = tf.squeeze(probability, axis=ndims - 1)
+        labels = tf.squeeze(labels, axis=ndims - 1)
+        res_indices = tf.range(tf.shape(bboxes_regs)[0])
+    
+        #按类别在bboxes_regs选择相应类的回归参数
+        if classes_wise:
+            lbboxes_regs = bboxes_regs[:,i,:]
+        '''
+        NMS前数据必须已经排好序
+        通过top_k+gather排序
+        '''
+        probability,indices = tf.nn.top_k(probability,k=tf.shape(probability)[0])
+        lbboxes_regs = wml.gather_in_axis(lbboxes_regs,indices,axis=0)
+        lproposal_bboxes = wml.gather_in_axis(proposal_bboxes,indices,axis=0)
+        res_indices = wml.gather_in_axis(res_indices,indices,axis=0)
+    
+        pmask = tf.greater(probability,threshold)
+        probability = tf.boolean_mask(probability,pmask)
+        lproposal_bboxes = tf.boolean_mask(lproposal_bboxes,pmask)
+        boxes_regs = tf.boolean_mask(lbboxes_regs,pmask)
+        res_indices = tf.boolean_mask(res_indices,pmask)
+        if limits is not None:
+            limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
+            cy,cx,h,w = tf.unstack(tf.transpose(boxes_regs,perm=[1,0]),axis=0)
+            cy = tf.clip_by_value(cy,clip_value_min=limits[0][0],clip_value_max=limits[0][1])
+            cx = tf.clip_by_value(cx,clip_value_min=limits[1][0],clip_value_max=limits[1][1])
+            h = tf.clip_by_value(h,clip_value_min=limits[2][0],clip_value_max=limits[2][1])
+            w = tf.clip_by_value(w,clip_value_min=limits[3][0],clip_value_max=limits[3][1])
+            boxes_regs = tf.stack([cy,cx,h,w],axis=0)
+            boxes_regs = tf.transpose(boxes_regs)
+    
+        boxes = decode_boxes1(lproposal_bboxes,boxes_regs)
+        labels = tf.ones_like(probability)*labels
+        boxes,labels,indices = nms(boxes,labels,confidence=probability)
+        bboxes = bboxes[:max_detection_per_class,:]
+        labels = labels[:max_detection_per_class]
+        indices = indices[:max_detection_per_class]
+        probability = tf.gather(probability,indices)
+        res_indices = tf.gather(res_indices,indices)
+        r_bboxes.append(boxes)
+        r_labels.append(labels)
+        r_probs.append(labels)
+        r_indices.append(res_indices)
+        n_v = wmlt.indices_to_dense_vector(res_indices,size=tf.shape(bboxes)[0],indices_value=-1.0,default_value=1.0)
+        n_v = tf.reshape(n_v,[-1,1])
+        class_prediction = class_prediction*n_v
+        ##############################
+    
+    r_bboxes = tf.concat(r_bboxes,axis=0)
+    r_labels = tf.concat(r_labels,axis=0)
+    r_probs = tf.concat(r_probs,axis=0)
+    r_indices = tf.concat(r_labels,axis=0)
+    
+    probability,indices = tf.nn.top_k(r_probs,k=tf.minimum(candiate_nr,tf.shape(probability)[0]))
+    labels = tf.gather(r_labels,indices)
+    boxes = tf.gather(r_bboxes,indices)
+    res_indices = tf.gather(r_indices,indices)
+    len = tf.shape(probability)[0]
+    boxes = tf.pad(boxes,paddings=[[0,candiate_nr-len],[0,0]])
+    labels = tf.pad(labels,paddings=[[0,candiate_nr-len]])
+    probability = tf.pad(probability,paddings=[[0,candiate_nr-len]])
+    res_indices = tf.pad(res_indices,paddings=[[0,candiate_nr-len]])
+    boxes = tf.reshape(boxes,[candiate_nr,4])
+    labels = tf.reshape(labels,[candiate_nr])
+    probability = tf.reshape(probability,[candiate_nr])
+    res_indices = tf.reshape(res_indices,[candiate_nr])
+    return boxes,labels,probability,res_indices,len
+
+'''
+class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
+shape为[batch_size,X,num_classes]
+
+bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
+shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
+
+proposal_bboxes:候选box
+shape为[batch_size,X,4] (ymin,xmin,ymax,xmax) relative coordinate
+
+threshold:选择class_prediction的阀值
+
+candiate_nr:选择proposal_bboxes中预测最好的candiate_nr个bboxes进行筛选
+
+limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h,w的回归参数，limits的值对应于prio_scaling=[1,1,1,1]是的设置
+prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
+
+返回:
+boxes:[batch_size,candiate_nr,4]
+labels:[batch_size,candiate_nr]
+probability:[batch_size,candiate_nr]
+indices:[batch_size,candiate_nr]
+len:[batch_size] the available boxes number
+'''
+def get_predictionv5(class_prediction,
+                   bboxes_regs,
+                   proposal_bboxes,
+                   limits=None,
+                   prio_scaling=[0.1,0.1,0.2,0.2],
+                   threshold=0.5,
+                   candiate_nr = 1500,
+                   classes_wise=False,
+                   explicit_remove_background_class=True,
+                   nms=None):
+    if proposal_bboxes.get_shape().as_list()[0] == 1:
+        '''
+        In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
+        '''
+        proposal_bboxes = tf.squeeze(proposal_bboxes,axis=0)
+        boxes,labels,probability,res_indices,lens = tf.map_fn(lambda x:__get_predictionv5(x[0],x[1],proposal_bboxes,limits,prio_scaling,
+                                                                                          threshold,
+                                                                                          candiate_nr=candiate_nr,
+                                                                                          classes_wise=classes_wise,
+                                                                                          explicit_remove_background_class=explicit_remove_background_class,
+                                                                                          nms=nms),
+                                                              elems=(class_prediction,bboxes_regs),dtype=(tf.float32,tf.int32,tf.float32,tf.int32,tf.int32)
+                                                              )
+    else:
+        boxes,labels,probability,res_indices,lens = tf.map_fn(lambda x:__get_predictionv5(x[0],x[1],x[2],limits,prio_scaling,
+                                                                                          threshold,
+                                                                                          candiate_nr=candiate_nr,
+                                                                                          classes_wise=classes_wise,
+                                                                                          explicit_remove_background_class=explicit_remove_background_class,
+                                                                                          nms=nms),
+                                                              elems=(class_prediction,bboxes_regs,proposal_bboxes),dtype=(tf.float32,tf.int32,tf.float32,tf.int32,tf.int32)
+                                                              )
+    return boxes,labels,probability,res_indices,lens
 
 '''
 this function use nms to remove excess boxes
