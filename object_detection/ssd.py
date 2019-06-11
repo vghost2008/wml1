@@ -2,7 +2,7 @@
 import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 import object_detection.bboxes as bboxes
-from wtfop.wtfop_ops import boxes_encode
+from wtfop.wtfop_ops import boxes_encode,multi_anchor_generator
 import object_detection.losses as losses
 import numpy as np
 import object_detection.architectures_tools as atools
@@ -10,6 +10,8 @@ import object_detection.od_toolkit as od
 import math
 import functools
 import wtfop.wtfop_ops as wop
+import wml_utils as wmlu
+import wml_tfutils as wmlt
 
 slim = tf.contrib.slim
 
@@ -22,6 +24,9 @@ class SSD(object):
         self.np_anchors=[]
         self.inputs=None
         self.batch_size = batch_size
+        '''
+        list of [h,w]
+        '''
         self.feature_maps_shape = []
         self.num_classes = num_classes
         '''
@@ -31,6 +36,8 @@ class SSD(object):
         self.pred_bboxes_classwise = pred_bboxes_classwise
         self.logits = None
         self.regs = None
+        self.input_img = None
+        self.box_specs_list = None
 
     def getAnchorBoxes(self):
         np_anchors=[]
@@ -46,6 +53,78 @@ class SSD(object):
         anchors = tf.convert_to_tensor(np_anchors)
         self.anchors = tf.expand_dims(anchors,axis=0)
         return self.anchors
+    
+    def getAnchorBoxesV2(self):
+        tf_anchors=[]
+        for i,shape in enumerate(self.feature_maps_shape):
+            anchors = anchor_generator(shape=shape, size=tf.shape(self.input_img)[1:3], scales=self.scales[i], aspect_ratios=self.ratios[i])
+            tf_anchors.append(anchors)
+
+        anchors = tf.concat(tf_anchors,axis=0)
+        self.anchors = tf.expand_dims(anchors,axis=0)
+        return self.anchors
+
+    def getAnchorBoxesByFeaturesMapV2(self,features_map):
+        shapes = [tf.shape(fm)[1:3] for fm in features_map]
+        self.feature_maps_shape = shapes
+        return self.getAnchorBoxesV2()
+    
+    def getAnchorBoxesV3(self,min_scale=0.2,max_scale=0.95,
+                       scales=None,
+                       aspect_ratios=(1.0, 2.0, 3.0, 1.0 / 2, 1.0 / 3),
+                       interpolated_scale_aspect_ratio=1.0,
+                       reduce_boxes_in_lowest_layer=True):
+        num_layers = len(self.feature_maps_shape)
+        box_specs_list = []
+        if scales is None or not scales:
+            scales = [min_scale + (max_scale - min_scale) * i / (num_layers - 1)
+                      for i in range(num_layers)] + [1.0]
+        else:
+            # Add 1.0 to the end, which will only be used in scale_next below and used
+            # for computing an interpolated scale for the largest scale in the list.
+            scales += [1.0]
+
+        tf_anchors=[]
+        for layer, scale, scale_next,shape in zip(
+                range(num_layers), scales[:-1], scales[1:],self.feature_maps_shape):
+            layer_box_specs = []
+            if layer == 0 and reduce_boxes_in_lowest_layer:
+                layer_box_specs = [(0.1, 1.0), (scale, 2.0), (scale, 0.5)]
+            else:
+                for aspect_ratio in aspect_ratios:
+                    layer_box_specs.append((scale, aspect_ratio))
+                # Add one more anchor, with a scale between the current scale, and the
+                # scale for the next layer, with a specified aspect ratio (1.0 by
+                # default).
+                if interpolated_scale_aspect_ratio > 0.0:
+                    layer_box_specs.append((np.sqrt(scale * scale_next),
+                                            interpolated_scale_aspect_ratio))
+            box_specs_list.append(layer_box_specs)
+
+            tf_anchors.append(SSD.get_a_layer_anchors(layer_box_specs=layer_box_specs,shape=shape,size=[1,1]))
+        wmlu.show_list(box_specs_list)
+        self.box_specs_list = box_specs_list
+        anchors = tf.concat(tf_anchors,axis=0)
+        self.anchors = tf.expand_dims(anchors,axis=0)
+        return self.anchors
+
+    @staticmethod
+    def get_a_layer_anchors(layer_box_specs,shape,size):
+        scales,ratios = zip(*layer_box_specs)
+        return multi_anchor_generator(shape=shape,size=size,scales=scales,aspect_ratios=ratios)
+
+    def getAnchorBoxesByFeaturesMapV3(self,features_map,min_scale=0.2,max_scale=0.95,
+                       scales=None,
+                       aspect_ratios=(1.0, 2.0, 3.0, 1.0 / 2, 1.0 / 3),
+                       interpolated_scale_aspect_ratio=1.0,
+                       reduce_boxes_in_lowest_layer=True):
+        shapes = [tf.shape(fm)[1:3] for fm in features_map]
+        self.feature_maps_shape = shapes
+        return self.getAnchorBoxesV3(min_scale=min_scale,max_scale=max_scale,
+                       scales=scales,
+                       aspect_ratios=aspect_ratios,
+                       interpolated_scale_aspect_ratio=interpolated_scale_aspect_ratio,
+                       reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer)
 
     def encodeBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
         '''
@@ -97,8 +176,11 @@ class SSD(object):
         logits_list = []
         for lg in logits:
             shape = lg.get_shape().as_list()
-            x_size = shape[1]*shape[2]*shape[3]//num_classes
-            lg = tf.reshape(lg,[-1,x_size,num_classes])
+            if shape[0] is None:
+                x_size = shape[1]*shape[2]*shape[3]//num_classes
+                lg = tf.reshape(lg,[-1,x_size,num_classes])
+            else:
+                lg = tf.reshape(lg,[shape[0],-1,num_classes])
             logits_list.append(lg)
         return tf.concat(logits_list,axis=1)
 
@@ -113,29 +195,39 @@ class SSD(object):
         regs_list = []
         for rg in regs:
             shape = rg.get_shape().as_list()
-            x_size = shape[1]*shape[2]*shape[3]//4
-            rg = tf.reshape(rg,[-1,x_size,4])
+            if shape[0] is None:
+                x_size = shape[1]*shape[2]*shape[3]//4
+                rg = tf.reshape(rg,[-1,x_size,4])
+            else:
+                rg = tf.reshape(rg,[shape[0],-1,4])
             regs_list.append(rg)
         return tf.concat(regs_list,axis=1)
 
+    def buildNet(self,inputs,reuse=False):
+        self.input_img = inputs
+        return self._buildNet(inputs,reuse=reuse)
+    
     @abstractmethod
-    def buildNet(self,inputs):
+    def _buildNet(self,inputs,reuse=False):
         pass
 
-    def buildPredictor(self,feature_maps):
+    def buildPredictor(self,feature_maps,kernel_size=[1,1]):
         logits_list = []
         boxes_regs_list = []
         for i,net in enumerate(feature_maps.values()):
             with tf.variable_scope(f"BoxPredictor_{i}"):
-                logits_nr = len(self.scales[i])*len(self.ratios[i])
+                if self.box_specs_list is None:
+                    logits_nr = len(self.scales[i])*len(self.ratios[i])
+                else:
+                    logits_nr = len(self.box_specs_list[i])
                 if self.pred_bboxes_classwise:
                     regs_nr = logits_nr*self.num_classes
                 else:
                     regs_nr = logits_nr
-                logits_net = slim.conv2d(net,logits_nr*self.num_classes, [1, 1], activation_fn=None,
+                logits_net = slim.conv2d(net,logits_nr*self.num_classes, kernel_size, activation_fn=None,
                                          normalizer_fn=None,
                                          scope="ClassPredictor")
-                boxes_regs = slim.conv2d(net, regs_nr*4, [1, 1], activation_fn=None,
+                boxes_regs = slim.conv2d(net, regs_nr*4, kernel_size, activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxEncodingPredictor")
 

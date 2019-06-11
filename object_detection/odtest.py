@@ -19,6 +19,7 @@ import img_utils as wmli
 from object_detection.losses import *
 import logging
 import wtfop.wtfop_ops as wop
+from object_detection.ssd import SSD
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 class TestFasterRCNN(FasterRCNN):
@@ -141,7 +142,7 @@ class ODTest(tf.test.TestCase):
             anchors1 = wop.anchor_generator(shape=shape,size=[1,1],scales=scales,aspect_ratios=ratios).eval()
             self.assertAllClose(anchors0,anchors1,atol=1e-6,rtol=0)
 
-    def test_loss_v1(self):
+    '''def test_loss_v1(self):
         batch_size = 8
         box_nr = 64
         num_classes = 2
@@ -168,9 +169,9 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
             self.assertAllClose(loss2,od_loss2,atol=1e-6,rtol=0)
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
-            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")'''
 
-    def test_loss_v2_0(self):
+    '''def test_loss_v2_0(self):
         batch_size = 8
         box_nr = 64
         num_classes = 2
@@ -199,9 +200,9 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(loss0,od_loss0,atol=1e-6,rtol=0)
             self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
-            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")'''
 
-    def test_loss_v2_1(self):
+    '''def test_loss_v2_1(self):
         batch_size = 8
         box_nr = 64
         num_classes = 2
@@ -229,7 +230,7 @@ class ODTest(tf.test.TestCase):
             self.assertAllClose(loss0,od_loss0,atol=1e-6,rtol=0)
             self.assertAllClose(loss1,od_loss1,atol=1e-6,rtol=0)
             self.assertAllClose(pdivn,od_pdivn,atol=1e-6,rtol=0)
-            logging.info(f"loss:{loss0},{loss1},{loss2}.")
+            logging.info(f"loss:{loss0},{loss1},{loss2}.")'''
 
     '''def test_loss_v3(self):
         batch_size = 8
@@ -442,6 +443,31 @@ class ODTest(tf.test.TestCase):
             sess.run(tf.global_variables_initializer())
             predict = sess.run(m.ssbp_net)
             self.assertAllClose(predict,expected_data,1e-5,0.)
+
+    def test_ssd_gen_anchor_boxes(self):
+        with self.test_session() as sess:
+            box_specs_list = [
+                [(0.1, 1.0), (0.2, 2.0), (0.2, 0.5)],
+                [(0.35, 1.0), (0.35, 2.0), (0.35, 0.5), (0.35, 3.0), (0.35, 0.3333333333333333),
+                 (0.4183300132670378, 1.0)],
+                [(0.5, 1.0), (0.5, 2.0), (0.5, 0.5), (0.5, 3.0), (0.5, 0.3333333333333333), (0.570087712549569, 1.0)],
+                [(0.65, 1.0), (0.65, 2.0), (0.65, 0.5), (0.65, 3.0), (0.65, 0.3333333333333333),
+                 (0.7211102550927979, 1.0)],
+                [(0.8, 1.0), (0.8, 2.0), (0.8, 0.5), (0.8, 3.0), (0.8, 0.3333333333333333), (0.8717797887081347, 1.0)],
+                [(0.95, 1.0), (0.95, 2.0), (0.95, 0.5), (0.95, 3.0), (0.95, 0.3333333333333333),
+                 (0.9746794344808963, 1.0)],
+            ]
+
+            for corners in box_specs_list:
+                print("T")
+                datas = SSD.get_a_layer_anchors(corners,shape=[1,1],size=[1,1])
+                datas = sess.run(datas)
+                for anchor_corners_out in datas:
+                    #wmlu.show_nparray(anchor_corners_out)
+                    d = bboxes.to_cxysa(anchor_corners_out)
+                    print("A")
+                    wmlu.show_list(d)
+                    print("B")
 
 
 if __name__ == "__main__":

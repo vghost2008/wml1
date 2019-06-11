@@ -456,3 +456,15 @@ def random_uniform_indict(minmaxs):
     for key,(min,max) in minmaxs.items():
         res[key] = random.uniform(min,max)
     return res
+
+def isChildOf(obj, cls):
+    try:
+        for i in obj.__bases__:
+            if i is cls or isinstance(i, cls):
+                return True
+        for i in obj.__bases__:
+            if isChildOf(i, cls):
+                return True
+    except AttributeError:
+        return isChildOf(obj.__class__, cls)
+    return False
