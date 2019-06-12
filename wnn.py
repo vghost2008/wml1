@@ -674,37 +674,30 @@ def get_variables_of_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES,scopes=None
         variables_to_return = list(filter(lambda x: pattern.match(x.name) is not None,variables_to_return))
     return variables_to_return
 
+'''
+alpha:每个类别的权重，一般为样本中类别数的逆频率
+'''
 def sparse_softmax_cross_entropy_with_logits_FL(
     _sentinel=None,  # pylint: disable=invalid-name
     labels=None,
     logits=None,
     gamma=2.,
-    alpha="auto",
-    max_alpha_scale=10.0,
+    alpha=None,
     name=None):
     with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
         probability = tf.nn.softmax(logits)
         labels = tf.expand_dims(labels,axis=-1)
         r_probability = wmlt.batch_gather(probability,labels)
         r_probability = tf.squeeze(r_probability,axis=-1)
-        r_probability = tf.maximum(1e-10*(1+r_probability),r_probability)
         beta = tf.pow((1.-r_probability),gamma)
-        if alpha == "auto":
-            num_classes = logits.get_shape().as_list()[-1]
-            labels = tf.squeeze(labels,axis=-1)
-            one_hot_labels = tf.one_hot(indices=labels,depth=num_classes)
-            count = tf.reduce_sum(one_hot_labels,axis=list(range(one_hot_labels.get_shape().ndims-1)),keepdims=True)
-            count = tf.cast(tf.maximum(count,1),tf.float32)
-            ratio = tf.cast(tf.reduce_prod(tf.shape(labels)),tf.float32)/(count*float(num_classes))
-            alpha_t = tf.minimum(max_alpha_scale,1.0/ratio)
-            alpha_t = alpha_t*tf.ones_like(one_hot_labels,dtype=tf.float32)
-            labels = tf.expand_dims(labels,axis=-1)
-            alpha_t = wmlt.batch_gather(params=alpha_t,indices=labels)
+        if alpha is not None:
+            def fn(l):
+                return tf.gather(alpha,l)
+            alpha_t = tf.map_fn(fn,elems=(labels),back_prop=False,dtype=(tf.float32))
             alpha_t = tf.squeeze(alpha_t,axis=-1)
             beta = alpha_t*beta
         loss = -beta*tf.math.log(r_probability)
         return loss
-    tf.nn.sigmoid_cross_entropy_with_logits
 
 def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
     _sentinel=None,

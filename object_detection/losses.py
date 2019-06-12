@@ -218,7 +218,10 @@ class ODLoss:
                 p_pred_regs = wml.select_2thdata_by_index_v2(p_pred_regs, p_glabels - 1)
             loss0 = self.sparse_softmax_cross_entropy_with_logits(logits=p_logits, labels=p_glabels)
             loss0 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
-            loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs)
+            loss1 = tf.losses.huber_loss(p_gregs,p_pred_regs,
+                                         loss_collection=None,
+                                          reduction=tf.losses.Reduction.NONE)
+            loss1 = tf.reduce_sum(loss1,axis=1)
             loss1 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss1), lambda: 0.) * self.reg_loss_weight
         with tf.variable_scope("negative_loss"):
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
@@ -270,15 +273,16 @@ class ODLoss:
         psize / (nsize + psize + 1E-8):正样本占的比重
         '''
         return loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32)+ 1E-8)
-    
+'''
+alpha:每个类别的权重，一般为样本中类别数的逆频率
+'''
 class ODLossWithFocalLoss(ODLoss):
     def __init__(self,
                  gamma=2.,
-                 alpha="auto",
-                 max_alpha_scale=10.0,*args,**kwargs):
+                 alpha=None,
+                 *args,**kwargs):
         self.gamma = gamma
         self.alpha = alpha
-        self.max_alpha_scale = max_alpha_scale
         super().__init__(*args,**kwargs)
         
     def sparse_softmax_cross_entropy_with_logits(self,
@@ -286,12 +290,11 @@ class ODLossWithFocalLoss(ODLoss):
                                                  labels=None,
                                                  logits=None,
                                                  name=None):
-        logging.info(f"Use focal loss, gamma={self.gamma}, alpha={self.alpha}, max_alpha_scale={self.max_alpha_scale}.")
+        logging.info(f"Use focal loss, gamma={self.gamma}.")
         return wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,
                                                                logits=logits,name=name,
                                                                gamma=self.gamma,
-                                                               alpha=self.alpha,
-                                                               max_alpha_scale=self.max_alpha_scale)
+                                                               alpha=self.alpha)
 
 
 class ODLossWithSigmoid(ODLoss):
@@ -307,8 +310,9 @@ class ODLossWithSigmoid(ODLoss):
         logging.info(f"Use sigmoid loss.")
         num_classes = logits.get_shape().as_list()[-1]
         labels = tf.one_hot(labels,num_classes,dtype=tf.float32)
-        return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels,
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=labels,
                                                                logits=logits, name=name)
+        return tf.reduce_sum(loss,axis=1)
 
 class ODLossWithSigmoidFL(ODLoss):
     def __init__(self,
@@ -327,11 +331,12 @@ class ODLossWithSigmoidFL(ODLoss):
         logging.info(f"Use sigmoid focal loss, gamma={self.gamma}, alpha={self.alpha}.")
         num_classes = logits.get_shape().as_list()[-1]
         labels = tf.one_hot(labels,num_classes,dtype=tf.float32)
-        return wnn.sigmoid_cross_entropy_with_logits_FL(labels=labels,
+        loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=labels,
                                                         logits=logits,
                                                         gamma=self.gamma,
                                                         alpha=self.alpha,
                                                         name=name)
+        return tf.reduce_sum(loss,axis=1)
 class ODLossWithLabelSmooth(ODLoss):
     def __init__(self,
                  smoothed_value=0.9,

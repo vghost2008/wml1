@@ -156,8 +156,9 @@ class SSD(object):
     '''
     def getLoss(self,loss=None):
         if loss is None:
-            loss = losses.ODLossWithFocalLoss(gamma=2.,alpha="auto",max_alpha_scale=10.0,
+            loss = losses.ODLossWithFocalLoss(gamma=2.,
                                         num_classes=self.num_classes,
+                                              alpha=[1.0]*self.num_classes,
                                         reg_loss_weight=self.reg_loss_weight,
                                        classes_wise=self.pred_bboxes_classwise)
         return loss(gregs=self.gtregs,
