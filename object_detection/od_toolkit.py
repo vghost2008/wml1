@@ -284,9 +284,9 @@ limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h
 prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
 
 返回:
-boxes:[candiate_nr,4]
-labels:[candiate_nr]
-probability:[candiate_nr]
+boxes:[batch_size,candiate_nr,4]
+labels:[batch_size,candiate_nr]
+probability:[batch_size,candiate_nr]
 '''
 def get_predictionv3(class_prediction,
                    bboxes_regs,
@@ -297,7 +297,6 @@ def get_predictionv3(class_prediction,
                    candiate_nr = 1500,
                    classes_wise=False,
                    classes_wise_nms=True):
-
     #删除背景
     class_prediction = class_prediction[:,:,1:]
     probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
@@ -555,7 +554,7 @@ def __get_predictionv5(class_prediction,
     r_bboxes = tf.concat(r_bboxes,axis=0)
     r_labels = tf.concat(r_labels,axis=0)
     r_probs = tf.concat(r_probs,axis=0)
-    r_indices = tf.concat(r_labels,axis=0)
+    r_indices = tf.concat(r_indices,axis=0)
     
     probability,indices = tf.nn.top_k(r_probs,k=tf.minimum(candiate_nr,tf.shape(r_probs)[0]))
     labels = tf.gather(r_labels,indices)

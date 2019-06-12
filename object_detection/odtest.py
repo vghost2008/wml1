@@ -1,5 +1,6 @@
 #coding=utf-8
 from object_detection.fasterrcnn import *
+from object_detection.ssd import *
 from object_detection.wlayers import WROIAlign
 import tensorflow as tf
 import wml_tfutils as wmlt
@@ -468,6 +469,74 @@ class ODTest(tf.test.TestCase):
                     print("A")
                     wmlu.show_list(d)
                     print("B")
+
+    def test_ssd_get_boxes1(self):
+        with self.test_session() as sess:
+            num_classes = 20
+            m = SSD(num_classes=num_classes,batch_size=1)
+            boxes = np.array([[
+                [0.0,0.0,0.5,0.5],[0.5,0.0,1.0,0.5],
+                [0.0,0.5,0.5,1.0],[0.5,0.5,1.0,1.0],
+                [0.1,0.1,0.4,0.4],[0.6,0.0,0.9,0.4],
+                [0.1,0.6,0.4,0.9],[0.6,0.6,0.9,0.9],
+            ]],np.float32)
+            boxes_nr = 8
+            labels = np.array(range(boxes_nr),dtype=np.int32)+10
+
+            m.logits = tf.reshape(tf.one_hot(labels,depth=num_classes),[1,boxes_nr,num_classes])
+            m.logits = tf.random_uniform(shape=[1,boxes_nr,num_classes])
+            m.regs = tf.zeros([1,boxes_nr,4])
+            m.anchors = tf.convert_to_tensor(boxes)
+            bboxes,labels,probs,lens = m.getBoxesV1(k=3,threshold=0.)
+            indices = m.indices
+            bboxes,labels,probs,lens,indices = sess.run([bboxes,labels,probs,lens,indices])
+            self.assertAllClose(bboxes[0],boxes[0][indices[0]])
+            
+    def test_ssd_get_boxes2(self):
+        with self.test_session() as sess:
+            num_classes = 20
+            m = SSD(num_classes=num_classes,batch_size=1)
+            boxes = np.array([[
+                [0.0,0.0,0.5,0.5],[0.5,0.0,1.0,0.5],
+                [0.0,0.5,0.5,1.0],[0.5,0.5,1.0,1.0],
+                [0.1,0.1,0.4,0.4],[0.6,0.0,0.9,0.4],
+                [0.1,0.6,0.4,0.9],[0.6,0.6,0.9,0.9],
+            ]],np.float32)
+            boxes_nr = 8
+            labels = np.array(range(boxes_nr),dtype=np.int32)+10
+
+            m.logits = tf.reshape(tf.one_hot(labels,depth=num_classes),[1,boxes_nr,num_classes])
+            m.logits = tf.random_uniform(shape=[1,boxes_nr,num_classes])
+            m.regs = tf.zeros([1,boxes_nr,4])
+            m.anchors = tf.convert_to_tensor(boxes)
+            bboxes,labels,probs,lens = m.getBoxesV2(k=3,threshold=0.)
+            indices = m.indices
+            bboxes,labels,probs,lens,indices = sess.run([bboxes,labels,probs,lens,indices])
+            self.assertAllClose(bboxes[0],boxes[0][indices[0]])
+
+    def test_ssd_get_boxes3(self):
+        with self.test_session() as sess:
+            num_classes = 20
+            m = SSD(num_classes=num_classes,batch_size=1)
+            boxes = np.array([[
+                [0.0,0.0,0.5,0.5],[0.5,0.0,1.0,0.5],
+                [0.0,0.5,0.5,1.0],[0.5,0.5,1.0,1.0],
+                [0.1,0.1,0.4,0.4],[0.6,0.0,0.9,0.4],
+                [0.1,0.6,0.4,0.9],[0.6,0.6,0.9,0.9],
+            ]],np.float32)
+            boxes_nr = 8
+            labels = np.array(range(boxes_nr),dtype=np.int32)+10
+
+            m.logits = tf.reshape(tf.one_hot(labels,depth=num_classes),[1,boxes_nr,num_classes])
+            m.logits = tf.random_uniform(shape=[1,boxes_nr,num_classes])
+            m.regs = tf.zeros([1,boxes_nr,4])
+            m.anchors = tf.convert_to_tensor(boxes)
+            bboxes,labels,probs,lens = m.getBoxesV3(k=2,threshold=0.)
+            indices = m.indices
+            bboxes,labels,probs,lens,indices = sess.run([bboxes,labels,probs,lens,indices])
+            self.assertAllClose(bboxes[0],boxes[0][indices[0]])
+            wmlu.show_list(indices)
+            wmlu.show_list(bboxes)
 
 
 if __name__ == "__main__":

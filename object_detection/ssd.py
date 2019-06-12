@@ -39,6 +39,7 @@ class SSD(object):
         self.input_img = None
         self.box_specs_list = None
         self.score_converter = tf.nn.sigmoid
+        self.raw_probs = None
 
     def getAnchorBoxes(self):
         np_anchors=[]
@@ -268,35 +269,6 @@ class SSD(object):
         return self.scales
 
     def getBoxes(self,k=1000,threshold=0.5,
-                 limits=None,
-                 nms=None):
-        '''
-        :param k:
-        :param threshold:
-        :param nms_threshold:
-        :param limits:
-        :param nms: parameters is boxes,labels,confidence
-        :param classes_wise_nms:
-        :param use_soft_nms:
-        :return:
-        '''
-        if nms is None:
-            nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
-        with tf.variable_scope("GetBoxes"):
-            probs = tf.nn.softmax(self.logits)
-            self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
-            od.get_predictionv2(
-                class_prediction=probs,
-                bboxes_regs=self.regs,
-                proposal_bboxes=self.anchors,
-                threshold=threshold,
-                limits=limits,
-                candiate_nr=k,
-                classes_wise=self.pred_bboxes_classwise,
-                nms=nms)
-        return self.boxes,self.labels,self.probs,self.boxes_lens
-    
-    def getBoxes(self,k=1000,threshold=0.5,
                    limits=None,
                    nms=None):
         return self.getBoxesV2(k=k,threshold=threshold,limits=limits,nms=nms)
@@ -358,3 +330,16 @@ class SSD(object):
                     classes_wise=self.pred_bboxes_classwise,
                     nms=nms)
         return self.boxes,self.labels,self.probs,self.boxes_lens
+    
+    '''
+    process the situation of batch_size greater than one, target boxes number of each imag is specified by k
+    '''
+    def getBoxesV3(self,k=1000,threshold=0.1,limits=None,
+                   nms=None):
+        with tf.device("/cpu:0"):
+            if nms is None:
+                nms = functools.partial(wop.boxes_nms_nr2, threshold=0.3,
+                                                           k=k, classes_wise=True)
+            
+            return self.getBoxesV1(k,threshold,limits=limits,nms=nms)
+
