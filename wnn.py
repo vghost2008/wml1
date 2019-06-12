@@ -704,6 +704,31 @@ def sparse_softmax_cross_entropy_with_logits_FL(
             beta = alpha_t*beta
         loss = -beta*tf.math.log(r_probability)
         return loss
+    tf.nn.sigmoid_cross_entropy_with_logits
+
+def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
+    _sentinel=None,
+    labels=None,
+    logits=None,
+    gamma=2.0,
+    alpha=0.25,
+    name=None):
+    with tf.name_scope(name,default_name="sigmoid_cross_entropy_with_logits_FL"):
+        per_entry_cross_ent = (tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=labels, logits=logits))
+        prediction_probabilities = tf.sigmoid(logits)
+        p_t = ((labels* prediction_probabilities) +
+               ((1 - labels) * (1 - prediction_probabilities)))
+        modulating_factor = 1.0
+        if gamma is not None:
+            modulating_factor = tf.pow(1.0 - p_t, gamma)
+        alpha_weight_factor = 1.0
+        if alpha is not None:
+          alpha_weight_factor = (labels* alpha +
+                                 (1 - labels) * (1 - alpha))
+        focal_cross_entropy_loss = (modulating_factor * alpha_weight_factor *
+                                    per_entry_cross_ent)
+        return focal_cross_entropy_loss
 
 def sparse_softmax_cross_entropy_with_logits_alpha_balanced(
         _sentinel=None,  # pylint: disable=invalid-name

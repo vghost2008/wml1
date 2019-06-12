@@ -285,13 +285,52 @@ class ODLossWithFocalLoss(ODLoss):
                                                  labels=None,
                                                  logits=None,
                                                  name=None):
-        logging.info(f"Use focal loss, gamma={self.gamma}, alpha={self.gamma}, max_alpha_scale={self.max_alpha_scale}.")
+        logging.info(f"Use focal loss, gamma={self.gamma}, alpha={self.alpha}, max_alpha_scale={self.max_alpha_scale}.")
         return wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,
                                                                logits=logits,name=name,
                                                                gamma=self.gamma,
                                                                alpha=self.alpha,
                                                                max_alpha_scale=self.max_alpha_scale)
 
+
+class ODLossWithSigmoid(ODLoss):
+    def __init__(self,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def sparse_softmax_cross_entropy_with_logits(self,
+                                                 _sentinel=None,  # pylint: disable=invalid-name
+                                                 labels=None,
+                                                 logits=None,
+                                                 name=None):
+        logging.info(f"Use sigmoid loss.")
+        num_classes = logits.get_shape().as_list()[-1]
+        labels = tf.one_hot(labels,num_classes,dtype=tf.float32)
+        return tf.nn.sigmoid_cross_entropy_with_logits(labels=labels,
+                                                               logits=logits, name=name)
+
+class ODLossWithSigmoidFL(ODLoss):
+    def __init__(self,
+                 gamma=2.,
+                 alpha=0.25,
+                 *args, **kwargs):
+        self.gamma = gamma
+        self.alpha = alpha
+        super().__init__(*args, **kwargs)
+
+    def sparse_softmax_cross_entropy_with_logits(self,
+                                                 _sentinel=None,  # pylint: disable=invalid-name
+                                                 labels=None,
+                                                 logits=None,
+                                                 name=None):
+        logging.info(f"Use sigmoid focal loss, gamma={self.gamma}, alpha={self.alpha}.")
+        num_classes = logits.get_shape().as_list()[-1]
+        labels = tf.one_hot(labels,num_classes,dtype=tf.float32)
+        return wnn.sigmoid_cross_entropy_with_logits_FL(labels=labels,
+                                                        logits=logits,
+                                                        gamma=self.gamma,
+                                                        alpha=self.alpha,
+                                                        name=name)
 class ODLossWithLabelSmooth(ODLoss):
     def __init__(self,
                  smoothed_value=0.9,
