@@ -202,7 +202,8 @@ class ODLoss:
                                   elems=(gregs,glabels,classes_logits,bboxes_regs,scores),
                                   dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32))
             wml.variable_summaries_v2(total_nr,"total_nr_for_loss")
-            loss = tf.reduce_sum(loss0)+tf.reduce_sum(loss1)+tf.reduce_sum(loss2)
+            loss0,loss1,loss2 = tf.reduce_sum(loss0),tf.reduce_sum(loss1),tf.reduce_sum(loss2)
+            loss = loss0+loss1+loss2
             tf.losses.add_loss(loss*self.scale)
             return loss0,loss1,loss2,p_div_all
 

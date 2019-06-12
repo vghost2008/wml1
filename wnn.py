@@ -62,7 +62,9 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             total_loss = loss
         else:
             loss_wr = get_regularization_losses(scopes=scopes,re_pattern=scopes_pattern)
-            tf.losses.add_loss(loss_wr)
+            if loss_wr is not None:
+                tf.losses.add_loss(loss_wr)
+                wmlt.variable_summaries_v2(loss_wr,"wr_loss")
             losses = tf.losses.get_losses()
             show_values(losses,"Losses")
             total_loss = tf.add_n(losses, "total_loss")
@@ -448,12 +450,10 @@ def accuracy_num(logits,labels):
 def get_regularization_losses(scopes=None,re_pattern=None):
     with tf.name_scope("regularization_losses"):
         col = get_variables_of_collection(tf.GraphKeys.REGULARIZATION_LOSSES,scopes=scopes,re_pattern=re_pattern)
-        res_loss = tf.constant(0.0,dtype=tf.float32)
         if len(col)>0:
-            tl = tf.reduce_mean(col)
-            res_loss = res_loss+tl
-
-    return res_loss
+            return tf.reduce_mean(col)
+        else:
+            return None
 
 '''
 for multi classifier problem
