@@ -75,7 +75,8 @@ class SSD(object):
                        scales=None,
                        aspect_ratios=(1.0, 2.0, 3.0, 1.0 / 2, 1.0 / 3),
                        interpolated_scale_aspect_ratio=1.0,
-                       reduce_boxes_in_lowest_layer=True):
+                       reduce_boxes_in_lowest_layer=True,
+                       size=[1,1]):
         num_layers = len(self.feature_maps_shape)
         box_specs_list = []
         if scales is None or not scales:
@@ -103,7 +104,7 @@ class SSD(object):
                                             interpolated_scale_aspect_ratio))
             box_specs_list.append(layer_box_specs)
 
-            tf_anchors.append(SSD.get_a_layer_anchors(layer_box_specs=layer_box_specs,shape=shape,size=[1,1]))
+            tf_anchors.append(SSD.get_a_layer_anchors(layer_box_specs=layer_box_specs,shape=shape,size=size))
         wmlu.show_list(box_specs_list)
         self.box_specs_list = box_specs_list
         anchors = tf.concat(tf_anchors,axis=0)
@@ -119,14 +120,15 @@ class SSD(object):
                        scales=None,
                        aspect_ratios=(1.0, 2.0, 3.0, 1.0 / 2, 1.0 / 3),
                        interpolated_scale_aspect_ratio=1.0,
-                       reduce_boxes_in_lowest_layer=True):
+                       reduce_boxes_in_lowest_layer=True,
+                       size=[1,1]):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
         self.feature_maps_shape = shapes
         return self.getAnchorBoxesV3(min_scale=min_scale,max_scale=max_scale,
                        scales=scales,
                        aspect_ratios=aspect_ratios,
                        interpolated_scale_aspect_ratio=interpolated_scale_aspect_ratio,
-                       reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer)
+                       reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer,size=size)
 
     def encodeBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
         '''
