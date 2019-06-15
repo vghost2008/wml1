@@ -24,6 +24,7 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
     annotations_list = []
     image = {}
     with open(file_path,"r",encoding="gb18030") as f:
+        print(file_path)
         data_str = f.read()
         json_data = json.loads(data_str)
         img_width = json_data["imageWidth"]
@@ -33,7 +34,9 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
         image["file_name"] = wmlu.base_name(file_path)
         for shape in json_data["shapes"]:
             mask = np.zeros(shape=[img_height,img_width],dtype=np.uint8)
-            all_points = np.array([shape["points"]])
+            all_points = np.array([shape["points"]]).astype(np.int32)
+            if len(all_points)<1:
+                continue
             points = np.transpose(all_points[0])
             x,y = np.vsplit(points,2)
             xmin = np.min(x)
