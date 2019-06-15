@@ -28,6 +28,7 @@ class ODLoss:
         self.do_sample = do_sample
         self.sample_type = sample_type
         self.sample_size = sample_size
+        self.score_converter = tf.nn.softmax
     '''
     与Faster-RCNN中定义的Smooth L1 loss完全一致
     '''
@@ -122,7 +123,7 @@ class ODLoss:
             max_nsize = sample_size-psize
             if self.sample_type == self.SAMPLE_TYPE_BY_BAD_ORDER:
                 fnmask = tf.cast(nmask, tf.int32)
-                class_prediction = slim.softmax(classes_logits)
+                class_prediction = self.score_converter(classes_logits)
                 # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
                 nclass_prediction = tf.where(nmask, class_prediction[:, 0], 1.0 - tf.cast(fnmask,tf.float32))
                 nsize = tf.reduce_sum(fnmask)
