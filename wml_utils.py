@@ -453,8 +453,18 @@ def random_uniform(minmaxs):
 
 def random_uniform_indict(minmaxs):
     res = {}
-    for key,(min,max) in minmaxs.items():
-        res[key] = random.uniform(min,max)
+    for key,data in minmaxs.items():
+        if len(data) == 2:
+            if isinstance(data[0],bool):
+                index = random.randint(0,1)
+                res[key] = data[index]
+            else:
+                min,max = data[0],data[1]
+                res[key] = random.uniform(min,max)
+        else:
+            index = random.randint(0,len(data)-1)
+            res[key] = data[index]
+
     return res
 
 def isChildOf(obj, cls):
