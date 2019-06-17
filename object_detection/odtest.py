@@ -460,8 +460,24 @@ class ODTest(tf.test.TestCase):
             ]
 
             for corners in box_specs_list:
-                print("T")
                 datas = SSD.get_a_layer_anchors(corners,shape=[1,1],size=[1,1])
+                datas = sess.run(datas)
+                for anchor_corners_out in datas:
+                    #wmlu.show_nparray(anchor_corners_out)
+                    d = bboxes.to_cxysa(anchor_corners_out)
+                    wmlu.show_list(d)
+
+    def test_ssd_gen_anchor_boxes(self):
+        with self.test_session() as sess:
+            box_specs_list = [
+                [(0.1, 1.0), (0.2, 2.0), (0.2, 0.5)],
+                [(0.35, 1.0), (0.35, 2.0), (0.35, 0.5), (0.35, 3.0), (0.35, 0.3333333333333333),
+                 (0.4183300132670378, 1.0)]
+            ]
+
+            for corners in box_specs_list:
+                print("T")
+                datas = SSD.get_a_layer_anchors(corners,shape=[3,3],size=[1,1])
                 datas = sess.run(datas)
                 for anchor_corners_out in datas:
                     #wmlu.show_nparray(anchor_corners_out)
@@ -531,7 +547,7 @@ class ODTest(tf.test.TestCase):
             m.logits = tf.random_uniform(shape=[1,boxes_nr,num_classes])
             m.regs = tf.zeros([1,boxes_nr,4])
             m.anchors = tf.convert_to_tensor(boxes)
-            bboxes,labels,probs,lens = m.getBoxesV3(k=2,threshold=0.)
+            bboxes,labels,probs,lens = m.getBoxesV3(k=2)
             indices = m.indices
             bboxes,labels,probs,lens,indices = sess.run([bboxes,labels,probs,lens,indices])
             self.assertAllClose(bboxes[0],boxes[0][indices[0]])
