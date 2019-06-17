@@ -11,6 +11,7 @@ import math
 import functools
 import wtfop.wtfop_ops as wop
 import wml_utils as wmlu
+import wnnlayer as wnnl
 import wml_tfutils as wmlt
 
 slim = tf.contrib.slim
@@ -38,7 +39,7 @@ class SSD(object):
         self.regs = None
         self.input_img = None
         self.box_specs_list = None
-        self.score_converter = tf.nn.sigmoid
+        self.score_converter = tf.nn.softmax
         self.raw_probs = None
 
     def getAnchorBoxes(self):
@@ -158,10 +159,10 @@ class SSD(object):
     '''
     def getLoss(self,loss=None):
         if loss is None:
-            loss = losses.ODLossWithFocalLoss(gamma=2.,
-                                        num_classes=self.num_classes,
-                                        reg_loss_weight=self.reg_loss_weight,
-                                       classes_wise=self.pred_bboxes_classwise)
+            loss = losses.ODLoss(num_classes=self.num_classes, reg_loss_weight=1.0, neg_multiplier=5.0,
+                                   do_sample=True,
+                                   sample_type=losses.ODLoss.SAMPLE_TYPE_BY_BAD_ORDER,
+                                   sample_size=384)
         return loss(gregs=self.gtregs,
                    glabels=self.gtlabels,
                    classes_logits=self.logits,
@@ -336,12 +337,23 @@ class SSD(object):
     '''
     process the situation of batch_size greater than one, target boxes number of each imag is specified by k
     '''
-    def getBoxesV3(self,k=1000,threshold=0.1,limits=None,
-                   nms=None):
+    def getBoxesV3(self, k=1000, nms=None,limits=None,
+                  adjust_probability=None):
         with tf.device("/cpu:0"):
+            with tf.variable_scope("GetBoxesV3"):
+                self.raw_probs = self.score_converter(self.logits)
+                probs = self.raw_probs
+                if adjust_probability is not None:
+                    probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
             if nms is None:
-                nms = functools.partial(wop.boxes_nms_nr2, threshold=0.3,
-                                                           k=k, classes_wise=True)
-            
-            return self.getBoxesV1(k,threshold,limits=limits,nms=nms)
+                nms = functools.partial(wop.boxes_nms_nr2,threshold=0.5,classes_wise=True,k=k)
+                self.boxes,self.labels,self.probs,self.indices= \
+                    od.get_predictionv6(class_prediction=probs,
+                                         bboxes_regs=self.regs,
+                                         proposal_bboxes=self.anchors,
+                                         nms=nms,
+                                         limits=limits,
+                                         classes_wise=self.pred_bboxes_classwise)
+                self.boxes_lens = tf.convert_to_tensor(np.array([k]),dtype=tf.int32)*tf.ones(shape=tf.shape(self.labels)[0],dtype=tf.int32)
+            return self.boxes,self.labels,self.probs,self.boxes_lens
 

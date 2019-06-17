@@ -547,7 +547,7 @@ class ODTest(tf.test.TestCase):
             m.logits = tf.random_uniform(shape=[1,boxes_nr,num_classes])
             m.regs = tf.zeros([1,boxes_nr,4])
             m.anchors = tf.convert_to_tensor(boxes)
-            bboxes,labels,probs,lens = m.getBoxesV3(k=2,threshold=0.)
+            bboxes,labels,probs,lens = m.getBoxesV3(k=2)
             indices = m.indices
             bboxes,labels,probs,lens,indices = sess.run([bboxes,labels,probs,lens,indices])
             self.assertAllClose(bboxes[0],boxes[0][indices[0]])
