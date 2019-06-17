@@ -349,13 +349,13 @@ class SSD(object):
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
             if nms is None:
                 nms = functools.partial(wop.boxes_nms_nr2,threshold=0.5,classes_wise=True,k=k)
-                self.boxes,self.labels,self.probs,self.indices= \
+            self.boxes,self.labels,self.probs,self.indices= \
                     od.get_predictionv6(class_prediction=probs,
                                          bboxes_regs=self.regs,
                                          proposal_bboxes=self.anchors,
                                          nms=nms,
                                          limits=limits,
                                          classes_wise=self.pred_bboxes_classwise)
-                self.boxes_lens = tf.convert_to_tensor(np.array([k]),dtype=tf.int32)*tf.ones(shape=tf.shape(self.labels)[0],dtype=tf.int32)
+            self.boxes_lens = tf.convert_to_tensor(np.array([k]),dtype=tf.int32)*tf.ones(shape=tf.shape(self.labels)[0],dtype=tf.int32)
             return self.boxes,self.labels,self.probs,self.boxes_lens
 
