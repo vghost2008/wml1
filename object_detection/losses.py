@@ -123,6 +123,7 @@ class ODLoss:
             max_nsize = sample_size-psize
             if self.sample_type == self.SAMPLE_TYPE_BY_BAD_ORDER:
                 fnmask = tf.cast(nmask, tf.int32)
+                print("score_converter:",self.score_converter)
                 class_prediction = self.score_converter(classes_logits)
                 # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
                 nclass_prediction = tf.where(nmask, class_prediction[:, 0], 1.0 - tf.cast(fnmask,tf.float32))
