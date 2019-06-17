@@ -460,8 +460,24 @@ class ODTest(tf.test.TestCase):
             ]
 
             for corners in box_specs_list:
-                print("T")
                 datas = SSD.get_a_layer_anchors(corners,shape=[1,1],size=[1,1])
+                datas = sess.run(datas)
+                for anchor_corners_out in datas:
+                    #wmlu.show_nparray(anchor_corners_out)
+                    d = bboxes.to_cxysa(anchor_corners_out)
+                    wmlu.show_list(d)
+
+    def test_ssd_gen_anchor_boxes(self):
+        with self.test_session() as sess:
+            box_specs_list = [
+                [(0.1, 1.0), (0.2, 2.0), (0.2, 0.5)],
+                [(0.35, 1.0), (0.35, 2.0), (0.35, 0.5), (0.35, 3.0), (0.35, 0.3333333333333333),
+                 (0.4183300132670378, 1.0)]
+            ]
+
+            for corners in box_specs_list:
+                print("T")
+                datas = SSD.get_a_layer_anchors(corners,shape=[3,3],size=[1,1])
                 datas = sess.run(datas)
                 for anchor_corners_out in datas:
                     #wmlu.show_nparray(anchor_corners_out)
