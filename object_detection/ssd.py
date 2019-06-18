@@ -284,7 +284,7 @@ class SSD(object):
         '''
         if nms is None:
             nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
-        with tf.variable_scope("GetBoxes"):
+        with tf.variable_scope("GetBoxesV1"):
             print("score_converter:",self.score_converter)
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
@@ -314,7 +314,7 @@ class SSD(object):
         '''
         if nms is None:
             nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
-        with tf.variable_scope("GetBoxes"):
+        with tf.variable_scope("GetBoxesV2"):
             print("score_converter:",self.score_converter)
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \

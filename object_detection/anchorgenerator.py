@@ -66,7 +66,7 @@ class SSDGridAnchorGenerator(object):
 
         tf_anchors=[]
         for layer, scale, scale_next,shape in zip(
-                range(num_layers), scales[:-1], scales[1:],self.feature_maps_shape):
+                range(num_layers), scales[:-1], scales[1:],feature_map_shape_list):
             layer_box_specs = []
             if layer == 0 and self.reduce_boxes_in_lowest_layer:
                 layer_box_specs = [(0.1, 1.0), (scale, 2.0), (scale, 0.5)]
