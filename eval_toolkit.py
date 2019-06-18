@@ -22,7 +22,7 @@ def get_file_name_in_ckp(name):
 '''
 read check point file, return the file name contented in file and the most recently file
 '''
-def read_check_file(filepath):
+def read_check_file(filepath,max_nr=-1):
     checkpoint_files = []
 
     if not os.path.exists(filepath):
@@ -37,8 +37,8 @@ def read_check_file(filepath):
                 continue
             checkpoint_files.append(name)
 
-    if len(lines)>2:
-        checkpoint_files = checkpoint_files[-2:]
+    if max_nr>0 and len(lines)>max_nr:
+        checkpoint_files = checkpoint_files[-max_nr:]
     return checkpoint_files,recently_file
 
 '''
@@ -76,6 +76,8 @@ class WEvalModel:
         self.history = wmlu.CycleBuffer(cap=6)
         self.timeout = timeout
         self.force_save_timeout = 60*60*2
+        self.max_file_nr_per_eval = 2
+        self.shuffle = True
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
 
@@ -86,13 +88,14 @@ class WEvalModel:
         dir_path = os.path.abspath(dir_path)
         check_point_file = os.path.join(dir_path,"checkpoint")
         while True:
-            check_point_files,_ = read_check_file(check_point_file)
+            check_point_files,_ = read_check_file(check_point_file,max_nr=self.max_file_nr_per_eval)
             if self.best_result>0 and time.time()-self.best_result_t>self.force_save_timeout:
                 logging.warning("Best result haven't update for more than two hours, force clean best result.")
                 self.best_result = -1.
 
             process_nr = 0
-            random.shuffle(check_point_files)
+            if self.shuffle:
+                random.shuffle(check_point_files)
 
             for file in check_point_files:
                 if len(wmlu.get_filenames_in_dir(dir_path=dir_path,prefix=file+".")) == 0:

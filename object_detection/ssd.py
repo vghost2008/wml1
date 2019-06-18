@@ -76,7 +76,10 @@ class SSD(object):
 
         self.feature_maps_shape = shapes
         return self.getAnchorBoxesV2()
-    
+
+    '''
+    default generator for SSD
+    '''
     def getAnchorBoxesV3(self,min_scale=0.2,max_scale=0.95,
                        scales=None,
                        aspect_ratios=(1.0, 2.0, 3.0, 1.0 / 2, 1.0 / 3),
@@ -107,6 +110,9 @@ class SSD(object):
                        interpolated_scale_aspect_ratio=interpolated_scale_aspect_ratio,
                        reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer,size=size)
 
+    '''
+    default generator for RetinaNet
+    '''
     def getAnchorBoxesV4(self,min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave=2,size=[640,640]):
         generator = MultiscaleGridAnchorGenerator(min_level=min_level, max_level=max_level,
                                                   aspect_ratios=self.ratios,
@@ -114,7 +120,6 @@ class SSD(object):
                                                   scales_per_octave=scales_per_octave)
         self.logits_nr_list = [scales_per_octave*len(aspect_ratios)]*(max_level-min_level+1)
         self.anchors = generator(feature_map_shape_list=self.feature_maps_shape, size=size)
-
     def getAnchorBoxesByFreaturesV4(self,features_map,min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave=2,size=[640,640]):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
         self.feature_maps_shape = shapes

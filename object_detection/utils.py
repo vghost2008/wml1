@@ -700,51 +700,6 @@ class ModelPerformance:
         elif item=="precision":
             return self.safe_div(self.total_precision,self.test_nr)
 
-class ClassesWiseModelPerformace(object):
-    def __init__(self,num_classes,threshold=0.5,classes_begin_value=1):
-        self.num_classes = num_classes
-        self.clases_begin_value = classes_begin_value
-        self.data = []
-        for i in range(self.num_classes):
-            self.data.append(ModelPerformance(threshold))
-        self.mp = ModelPerformance(threshold)
-
-    @staticmethod
-    def select_bboxes_and_labels(bboxes,labels,classes):
-        mask = np.equal(labels,classes)
-        rbboxes = bboxes[mask,:]
-        rlabels = labels[mask]
-        return rbboxes,rlabels
-
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
-        if not isinstance(gtboxes,np.ndarray):
-            gtboxes = np.array(gtboxes)
-        if not isinstance(gtlabels,np.ndarray):
-            gtlabels = np.array(gtlabels)
-        for i in range(self.num_classes):
-            classes = i+self.clases_begin_value
-            lgtboxes,lgtlabels = self.select_bboxes_and_labels(gtboxes,gtlabels,classes)
-            lboxes,llabels = self.select_bboxes_and_labels(boxes,labels,classes)
-            if lgtlabels.shape[0]==0 and llabels.shape[0]==0:
-                continue
-            self.data[i](lgtboxes,lgtlabels,lboxes,llabels)
-        return self.mp(gtboxes,gtlabels,boxes,labels)
-
-    def show(self):
-        for i in range(self.num_classes):
-            classes = i+self.clases_begin_value
-            mp = self.data[i]
-            print(f"Classes:{classes},Samples nr {mp.test_nr}, mAP={mp.mAP}, precision={mp.precision}, recall={mp.recall}.")
-
-    def __getattr__(self, item):
-        if item=="mAP":
-            return self.mp.mAP
-        elif item =="recall":
-            return self.mp.recall
-        elif item=="precision":
-            return self.mp.precision
-
-
 class COCOEvaluation(object):
     def __init__(self,categories_list=None,num_classes=None):
         assert categories_list is not None or num_classes is not None
@@ -807,6 +762,52 @@ class COCOEvaluation(object):
     def evaluate(self):
         print(f"Test size {len(self.coco_evaluator._image_ids)}")
         return self.coco_evaluator.evaluate()
+
+class ClassesWiseModelPerformace(object):
+    def __init__(self,num_classes,threshold=0.5,classes_begin_value=1,model_type=COCOEvaluation,**kwargs):
+        self.num_classes = num_classes
+        self.clases_begin_value = classes_begin_value
+        self.data = []
+        for i in range(self.num_classes):
+            self.data.append(model_type(**kwargs))
+        self.mp = model_type(**kwargs)
+
+    @staticmethod
+    def select_bboxes_and_labels(bboxes,labels,classes):
+        mask = np.equal(labels,classes)
+        rbboxes = bboxes[mask,:]
+        rlabels = labels[mask]
+        return rbboxes,rlabels
+
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
+        if not isinstance(gtboxes,np.ndarray):
+            gtboxes = np.array(gtboxes)
+        if not isinstance(gtlabels,np.ndarray):
+            gtlabels = np.array(gtlabels)
+        for i in range(self.num_classes):
+            classes = i+self.clases_begin_value
+            lgtboxes,lgtlabels = self.select_bboxes_and_labels(gtboxes,gtlabels,classes)
+            lboxes,llabels = self.select_bboxes_and_labels(boxes,labels,classes)
+            if lgtlabels.shape[0]==0 and llabels.shape[0]==0:
+                continue
+            self.data[i](lgtboxes,lgtlabels,lboxes,llabels)
+        return self.mp(gtboxes,gtlabels,boxes,labels)
+
+    def show(self):
+        for i in range(self.num_classes):
+            classes = i+self.clases_begin_value
+            mp = self.data[i]
+            print(f"Classes:{classes},Samples nr {mp.test_nr}, mAP={mp.mAP}, precision={mp.precision}, recall={mp.recall}.")
+
+    def __getattr__(self, item):
+        if item=="mAP":
+            return self.mp.mAP
+        elif item =="recall":
+            return self.mp.recall
+        elif item=="precision":
+            return self.mp.precision
+
+
 
 def removeLabels(bboxes,labels,labels_to_remove):
     if not isinstance(bboxes,np.ndarray):
