@@ -22,8 +22,9 @@ class MultiscaleGridAnchorGenerator(object):
 
     '''
     feature_map_shape_list: like [[20,20],[30,30]]
+    size:输入图像的大小
     '''
-    def __call__(self, feature_map_shape_list, size=[1.0,1.0]):
+    def __call__(self, feature_map_shape_list, size=[640.0,640.0]):
         raw_scales = []
         anchors = []
         for i,l in enumerate(range(self._min_level,self._max_level+1)):
@@ -32,7 +33,8 @@ class MultiscaleGridAnchorGenerator(object):
                 level_scales.append(s*self.anchor_scale*math.pow(2,l))
             raw_scales.append(level_scales)
             anchors.append(anchor_generator(shape=feature_map_shape_list[i],size=size,scales=level_scales,aspect_ratios=self._aspect_ratios))
-        return tf.concat(anchors,axis=0)
+        res = tf.concat(anchors,axis=0)
+        return tf.expand_dims(res,axis=0)
 
 
 class SSDGridAnchorGenerator(object):
@@ -47,6 +49,7 @@ class SSDGridAnchorGenerator(object):
         self.scales = scales
         self.interpolated_scale_aspect_ratio = interpolated_scale_aspect_ratio
         self.reduce_boxes_in_lowest_layer = reduce_boxes_in_lowest_layer
+        self.box_specs_list = None
 
     def __call__(self,feature_map_shape_list,
                        size=[1.0,1.0]):
@@ -82,8 +85,8 @@ class SSDGridAnchorGenerator(object):
         wmlu.show_list(box_specs_list)
         self.box_specs_list = box_specs_list
         anchors = tf.concat(tf_anchors,axis=0)
-        self.anchors = tf.expand_dims(anchors,axis=0)
-        return self.anchors
+        anchors = tf.expand_dims(anchors,axis=0)
+        return anchors
 
     @staticmethod
     def get_a_layer_anchors(layer_box_specs,shape,size):

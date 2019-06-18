@@ -3,7 +3,7 @@ import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 import object_detection.bboxes as bboxes
 from wtfop.wtfop_ops import boxes_encode,multi_anchor_generator,anchor_generator
-from object_detection.anchorgenerator import SSDGridAnchorGenerator
+from object_detection.anchorgenerator import SSDGridAnchorGenerator,MultiscaleGridAnchorGenerator
 import object_detection.losses as losses
 import numpy as np
 import object_detection.architectures_tools as atools
@@ -42,6 +42,7 @@ class SSD(object):
         self.box_specs_list = None
         self.score_converter = tf.nn.softmax
         self.raw_probs = None
+        self.logits_nr_list = []
 
     def getAnchorBoxes(self):
         np_anchors=[]
@@ -56,6 +57,7 @@ class SSD(object):
         self.np_anchors = np_anchors
         anchors = tf.convert_to_tensor(np_anchors)
         self.anchors = tf.expand_dims(anchors,axis=0)
+        self.logits_nr_list = [len(self.scales[i])*len(self.ratios[i]) for i in range(len(self.scales))]
         return self.anchors
     
     def getAnchorBoxesV2(self):
@@ -66,10 +68,12 @@ class SSD(object):
 
         anchors = tf.concat(tf_anchors,axis=0)
         self.anchors = tf.expand_dims(anchors,axis=0)
+        self.logits_nr_list = [len(self.scales[i])*len(self.ratios[i]) for i in range(len(self.scales))]
         return self.anchors
 
     def getAnchorBoxesByFeaturesMapV2(self,features_map):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
+
         self.feature_maps_shape = shapes
         return self.getAnchorBoxesV2()
     
@@ -84,7 +88,10 @@ class SSD(object):
                                            scales=scales,
                                            interpolated_scale_aspect_ratio=interpolated_scale_aspect_ratio,
                                            reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer)
-        return generator(feature_map_shape_list=self.feature_maps_shape,size=size)
+        self.anchors = generator(feature_map_shape_list=self.feature_maps_shape,size=size)
+        self.box_specs_list = generator.box_specs_list
+        self.logits_nr_list = [len(x) for x in self.box_specs_list]
+        return self.anchors
 
     def getAnchorBoxesByFeaturesMapV3(self,features_map,min_scale=0.2,max_scale=0.95,
                        scales=None,
@@ -99,6 +106,19 @@ class SSD(object):
                        aspect_ratios=aspect_ratios,
                        interpolated_scale_aspect_ratio=interpolated_scale_aspect_ratio,
                        reduce_boxes_in_lowest_layer=reduce_boxes_in_lowest_layer,size=size)
+
+    def getAnchorBoxesV4(self,min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave=2,size=[640,640]):
+        generator = MultiscaleGridAnchorGenerator(min_level=min_level, max_level=max_level,
+                                                  aspect_ratios=self.ratios,
+                                                  anchor_scale=anchor_scale,
+                                                  scales_per_octave=scales_per_octave)
+        self.logits_nr_list = [scales_per_octave*len(aspect_ratios)]*(max_level-min_level+1)
+        self.anchors = generator(feature_map_shape_list=self.feature_maps_shape, size=size)
+
+    def getAnchorBoxesByFreaturesV4(self,features_map,min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave=2,size=[640,640]):
+        shapes = [tf.shape(fm)[1:3] for fm in features_map]
+        self.feature_maps_shape = shapes
+        return self.getAnchorBoxesV4(min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave,size)
 
     def encodeBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
         '''
@@ -188,12 +208,11 @@ class SSD(object):
     def buildPredictor(self,feature_maps,kernel_size=[1,1]):
         logits_list = []
         boxes_regs_list = []
-        for i,net in enumerate(feature_maps.values()):
+        if isinstance(feature_maps,dict):
+            feature_maps = list(feature_maps.values())
+        for i,net in enumerate(feature_maps):
             with tf.variable_scope(f"BoxPredictor_{i}"):
-                if self.box_specs_list is None:
-                    logits_nr = len(self.scales[i])*len(self.ratios[i])
-                else:
-                    logits_nr = len(self.box_specs_list[i])
+                logits_nr = self.logits_nr_list[i]
                 if self.pred_bboxes_classwise:
                     regs_nr = logits_nr*self.num_classes
                 else:
