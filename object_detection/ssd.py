@@ -151,12 +151,12 @@ class SSD(object):
     '''
     ssd不适合使用scores
     '''
-    def getLoss(self,loss=None):
+    def getLoss(self,loss=None,sample_size=384):
         if loss is None:
             loss = losses.ODLoss(num_classes=self.num_classes, reg_loss_weight=1.0, neg_multiplier=5.0,
                                    do_sample=True,
                                    sample_type=losses.ODLoss.SAMPLE_TYPE_BY_BAD_ORDER,
-                                   sample_size=384)
+                                   sample_size=sample_size)
         return loss(gregs=self.gtregs,
                    glabels=self.gtlabels,
                    classes_logits=self.logits,
@@ -267,7 +267,7 @@ class SSD(object):
     def getBoxes(self,k=1000,threshold=0.5,
                    limits=None,
                    nms=None):
-        return self.getBoxesV2(k=k,threshold=threshold,limits=limits,nms=nms)
+        return self.getBoxesV1(k=k,threshold=threshold,limits=limits,nms=nms)
 
     def getBoxesV1(self,k=1000,threshold=0.5,
                  limits=None,
