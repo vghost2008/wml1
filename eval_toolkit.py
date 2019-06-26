@@ -45,19 +45,21 @@ def read_check_file(filepath,max_nr=-1):
 filepath: check point file name like data.ckpt-1401.data-00000-of-00001
 return the file index like 1401
 '''
-def file_index_of_check_file(filename):
-    base_file_name = wmlu.suffix(filename)
-    index = int(base_file_name.split("-")[-1])
-    return index
+def file_index_of_check_file(path):
+    index = path.rfind("-")
+    if index == -1:
+        return -1
+    return int(path[index+1:])
 
 class WEvalModel:
     '''
     tmp_dir: a dir to tmp save check point files and result
     Evaler: a evaler type, take args as initializer args if args is not none,
+    filter: bool (string:path,int:index) test if a file need to test
     evaler(ckp_file_path) have to return a value(normal a float point value) to indict which one is better and a info
     string to backup file.
     '''
-    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60*60):
+    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60*60,filter=None):
         self.Evaler = Evaler
         self.evaler_args = args
         self.best_result = -1.
@@ -78,6 +80,7 @@ class WEvalModel:
         self.force_save_timeout = 60*60*2
         self.max_file_nr_per_eval = 2
         self.shuffle = True
+        self.filter = filter
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
 
@@ -100,16 +103,16 @@ class WEvalModel:
 
             for file in check_point_files:
                 if len(wmlu.get_filenames_in_dir(dir_path=dir_path,prefix=file+".")) == 0:
-                    #print(dir_path)
-                    #print("Error file:",file)
                     continue
                 index = file_index_of_check_file(file)
                 if index in self.history:
-                    #print("in history :",file)
                     continue
                 logging.info("process file {}.".format(file))
                 process_nr += 1
                 self.history.append(index)
+                if self.filter is not None and not self.filter(file,index):
+                    print(f"WEvalModel: Filter {file} faild.")
+                    continue
                 filepath = os.path.join(dir_path,file)
                 if self.evaler is not None:
                     result,info = self.evaler(filepath)
