@@ -57,7 +57,7 @@ class WEvalModel:
     evaler(ckp_file_path) have to return a value(normal a float point value) to indict which one is better and a info
     string to backup file.
     '''
-    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60):
+    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60*60):
         self.Evaler = Evaler
         self.evaler_args = args
         self.best_result = -1.
@@ -89,6 +89,7 @@ class WEvalModel:
         check_point_file = os.path.join(dir_path,"checkpoint")
         while True:
             check_point_files,_ = read_check_file(check_point_file,max_nr=self.max_file_nr_per_eval)
+            #wmlu.show_list(check_point_files)
             if self.best_result>0 and time.time()-self.best_result_t>self.force_save_timeout:
                 logging.warning("Best result haven't update for more than two hours, force clean best result.")
                 self.best_result = -1.
@@ -99,9 +100,12 @@ class WEvalModel:
 
             for file in check_point_files:
                 if len(wmlu.get_filenames_in_dir(dir_path=dir_path,prefix=file+".")) == 0:
+                    #print(dir_path)
+                    #print("Error file:",file)
                     continue
                 index = file_index_of_check_file(file)
                 if index in self.history:
+                    #print("in history :",file)
                     continue
                 logging.info("process file {}.".format(file))
                 process_nr += 1
@@ -145,14 +149,19 @@ class WEvalModel:
 
                 self.q.put(evaler(path))
             except Exception:
+                print("Evaler: function error")
                 self.q.put((-1.,""))
-
+        p0 = None
         try:
             p0 = Process(target=do_eval, args=[filepath])
             p0.start()
             p0.join(self.timeout)
             return self.q.get()
         except:
+            if p0 is not None and p0.is_alive():
+                print("Evaler:Foce to terminate process.")
+                p0.terminate()
+            print("Evaler: process error")
             return -1,""
 
     @staticmethod
