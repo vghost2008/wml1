@@ -706,18 +706,21 @@ def sparse_softmax_cross_entropy_with_logits_FL(
     alpha=None,
     name=None):
     with tf.variable_scope(name,default_name="sparse_softmax_cross_entropy_with_logits_FL"):
+        per_entry_cross_ent = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,logits=logits)
         probability = tf.nn.softmax(logits)
-        labels = tf.expand_dims(labels,axis=-1)
-        r_probability = wmlt.batch_gather(probability,labels)
-        r_probability = tf.squeeze(r_probability,axis=-1)
+        #labels = tf.expand_dims(labels,axis=-1)
+        #r_probability = wmlt.batch_gather(probability,labels)
+        #r_probability = tf.squeeze(r_probability,axis=-1)
+        oh_labels = tf.one_hot(labels,depth=probability.get_shape().as_list()[-1],on_value=True,off_value=False,dtype=tf.bool)
+        r_probability = tf.boolean_mask(probability,oh_labels)
+
         beta = tf.pow((1.-r_probability),gamma)
         if alpha is not None:
-            def fn(l):
-                return tf.gather(alpha,l)
-            alpha_t = tf.map_fn(fn,elems=(labels),back_prop=False,dtype=(tf.float32))
+            alpha = tf.expand_dims(alpha,axis=0)*tf.ones_like(logits);
+            alpha_t = tf.boolean_mask(alpha,oh_labels)
             alpha_t = tf.squeeze(alpha_t,axis=-1)
             beta = alpha_t*beta
-        loss = -beta*tf.math.log(r_probability)
+        loss = beta*per_entry_cross_ent
         return loss
 
 def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
