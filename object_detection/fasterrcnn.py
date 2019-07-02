@@ -461,17 +461,16 @@ class FasterRCNN(object):
     '''
     用于计算RCN网络的损失
     '''
-    def getRCNLoss(self,labels=None,loss=None,use_scores=True,call_back=None,scope="RCNLoss"):
+    def getRCNLoss(self,labels=None,loss=None,scores=None,call_back=None,scope="RCNLoss"):
         if labels is None:
             labels = self.rcn_gtlabels
-        if use_scores:
+        if scores is not None:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
                                      scope=scope,classes_wise=True,do_sample=False)
-            
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
-                       scores=self.rcn_gtscores,
+                       scores=scores,
                        classes_logits=self.rcn_logits,
                        bboxes_regs=self.rcn_regs)
         else:
@@ -633,6 +632,31 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          classes_wise=True,
                                          classes_wise_nms=classes_wise_nms)
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob
+
+    def getRCNBBoxesPredictQuality(self,gbboxes,glabels,glens):
+        proposal_boxes = self.proposal_boxes
+        with tf.device("/cpu:0"):
+            with tf.variable_scope("RCNGetBoxes"):
+                self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
+                probs = self.rcn_raw_probs
+                bboxes,labels,probs = \
+                    od.get_predictionv7(class_prediction=probs,
+                                        bboxes_regs=self.rcn_regs,
+                                        proposal_bboxes=proposal_boxes,
+                                        classes_wise=True)
+                def fn(sbboxes,slabels,sgbboxes,sglabels,sglen):
+                    mask = tf.greater(slabels,0)
+                    partation_data = tf.dynamic_partition(sbboxes,tf.cast(mask,tf.int32),2)
+                    regs, labels, scores,remove_indices = boxes_encode1(bboxes=partation_data[1],
+                                                                                   gboxes=sgbboxes[:sglen],
+                                                                                   glabels=sglabels[:sglen],
+                                                                                   pos_threshold=0.0,
+                                                                                   neg_threshold=0.0)
+                    scores0 = tf.ones_like(slabels,dtype=tf.float32)
+                    indices = tf.dynamic_partition(tf.range(tf.shape(slabels)[0]),tf.cast(mask,tf.int32),2)
+                    return tf.dynamic_stitch(indices,[scores0,scores])
+                return tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3],x[4]),elems=(bboxes,labels,gbboxes,glabels,glens),dtype=tf.float32)
+
 
     def getRCNProbibality(self,adjust_probability=None):
         with tf.device(":/cpu:0"):

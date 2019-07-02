@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import object_detection.fasterrcnn as fasterrcnn
 import tensorflow as tf
 import wml_tfutils as wmlt
+import wnn
 import object_detection.wlayers as odl
 import object_detection.od_toolkit as od
 import object_detection.utils as odu
@@ -17,9 +18,10 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.mask_logits = None
         #[X,h,w]
         self.finally_mask = None
-        self.loss_scale = loss_scale
+        self.mask_loss_scale = loss_scale
         self.debug = True
         self.mask_branch_input = None
+        self.mask_loss_use_focal_loss = False
 
     def train_mask_bn(self):
         return self.train_mask and self.train_bn
@@ -258,9 +260,13 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                 log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
                 log_mask = wmli.concat_images([log_mask1,log_mask])
             wmlt.image_summaries(log_mask,"mask",max_outputs=5)
-            loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+            if self.mask_loss_use_focal_loss:
+                loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gtmasks,logits=self.mask_logits)
+            else:
+                loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+            loss = tf.reduce_sum(loss,axis=[1,2])
             loss = tf.reduce_mean(loss)
-            tf.losses.add_loss(loss*self.loss_scale)
+            tf.losses.add_loss(loss*self.mask_loss_scale)
             return loss
 
     def getRCNBoxes(self):
@@ -284,8 +290,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     in this version, the input gtboxes and indices is the return value of buildMaskBranchV3
     the gtmasks is the ground truth data.
     '''
-    def getLossV2(self,gtbboxes,gtmasks,indices,use_scores=False,od_loss=None,scope="Loss"):
-        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores,scope=scope,loss=od_loss)
+    def getLossV2(self,gtbboxes,gtmasks,indices,scores=None,od_loss=None,scope="Loss"):
+        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(scores=scores,scope=scope,loss=od_loss)
         mask_loss = self.getMaskLossV2(gtbboxes=gtbboxes,gtmasks=gtmasks,indices=indices,scope=scope)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
 
