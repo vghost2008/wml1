@@ -29,6 +29,9 @@ class ODLoss:
         self.sample_type = sample_type
         self.sample_size = sample_size
         self.score_converter = tf.nn.softmax
+        print("do_sample:", do_sample)
+        print("sample_type:", sample_type)
+        print("sample_size:", sample_size)
     '''
     与Faster-RCNN中定义的Smooth L1 loss完全一致
     '''
