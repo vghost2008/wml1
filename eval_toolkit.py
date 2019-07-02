@@ -59,7 +59,7 @@ class WEvalModel:
     evaler(ckp_file_path) have to return a value(normal a float point value) to indict which one is better and a info
     string to backup file.
     '''
-    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60*60,filter=None):
+    def __init__(self,Evaler,backup_dir,base_name="train_data",args=None,use_process=True,timeout=60*60*60,filter=None,reverse=False):
         self.Evaler = Evaler
         self.evaler_args = args
         self.best_result = -1.
@@ -75,12 +75,14 @@ class WEvalModel:
         self.q = Queue()
         self.base_name = base_name
         self.backup_dir = os.path.abspath(backup_dir)
-        self.history = wmlu.CycleBuffer(cap=6)
+        #self.history = wmlu.CycleBuffer(cap=6)
+        self.history = []
         self.timeout = timeout
         self.force_save_timeout = 60*60*2
         self.max_file_nr_per_eval = 2
         self.shuffle = True
         self.filter = filter
+        self.reverse = reverse
         if not os.path.exists(backup_dir):
             os.mkdir(backup_dir)
 
@@ -100,6 +102,8 @@ class WEvalModel:
             process_nr = 0
             if self.shuffle:
                 random.shuffle(check_point_files)
+            elif self.reverse:
+                check_point_files.reverse()
 
             for file in check_point_files:
                 if len(wmlu.get_filenames_in_dir(dir_path=dir_path,prefix=file+".")) == 0:
@@ -404,3 +408,48 @@ class SearchParameters(object):
             return -1
 
 
+class EvalParameters(object):
+    def __init__(self,params,eval_fn,use_process=True,timeout=60*60):
+        self.params = params
+        self.eval_fn = eval_fn
+        self.use_process = use_process
+        self.q = Queue()
+        self.timeout = timeout
+
+    def __call__(self):
+        best_result = -1.0
+        best_params = None
+        for v in self.params:
+            res = self.do_eval(v)
+            print("Cur params ",v," cur result ",res)
+            if res>best_result:
+                best_result = res
+                best_params = v 
+                print("New best params ",best_params," best result ",best_result)
+            else:
+                print("Best params ",best_params," best result ",best_result)
+
+    def do_eval(self,params):
+        if self.use_process:
+            return self.eval(params)
+        else:
+            return self.eval_fn(params)
+
+    '''
+    do the eval work with new process
+    '''
+    def eval(self,params):
+        def do_eval(params):
+            try:
+                self.q.put(self.eval_fn(params))
+            except Exception:
+                print("ERROR")
+                self.q.put((-1.))
+        try:
+            p0 = Process(target=do_eval, args=[params])
+            p0.start()
+            p0.join(self.timeout)
+            return self.q.get()
+        except Exception as e:
+            print("ERROR")
+            return -1
