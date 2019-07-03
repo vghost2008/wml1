@@ -138,8 +138,7 @@ def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn
         if w<=0 or h<=0:
             continue
         mask = masks[i]
-        mask = np.expand_dims(mask,axis=-1)
-        img = (img*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
+        img = smv.draw_mask_on_image_array(img,mask,color=color,alpha=0.4)
 
     img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
     return img
