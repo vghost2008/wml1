@@ -97,7 +97,9 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(0.,255.,0.), thickness=1)
 
     return img
-
+'''
+mask only include the area within bbox
+'''
 def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
     masks = masks.astype(np.uint8)
     for i,bbox in enumerate(bboxes):
@@ -115,6 +117,29 @@ def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=N
         mask = cv2.resize(mask,(w,h))
         mask = np.expand_dims(mask,axis=-1)
         img[y:y+h,x:x+w,:] = (img[y:y+h,x:x+w,:]*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
+
+    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
+    return img
+
+'''
+mask include the area of whole image
+'''
+def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
+    masks = masks.astype(np.uint8)
+    for i,bbox in enumerate(bboxes):
+        if color_fn is not None:
+            color = list(color_fn(classes[i]))
+        else:
+            color = [random.random()*255, random.random()*255, random.random()*255]
+        x = int(bbox[1]*img.shape[1])
+        y = int(bbox[0]*img.shape[0])
+        w = int((bbox[3]-bbox[1])*img.shape[1])
+        h = int((bbox[2]-bbox[0])*img.shape[0])
+        if w<=0 or h<=0:
+            continue
+        mask = masks[i]
+        mask = np.expand_dims(mask,axis=-1)
+        img = (img*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
 
     img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
     return img

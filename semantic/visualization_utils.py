@@ -473,9 +473,12 @@ def draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
   if image.shape[:2] != mask.shape:
     raise ValueError('The image has spatial dimensions %s but the mask has '
                      'dimensions %s' % (image.shape[:2], mask.shape))
-  if not isinstance(color,str):
-      color = str(color,encoding="utf-8")
-  rgb = ImageColor.getrgb(color)
+  if isinstance(color,tuple) or isinstance(color,list):
+      rgb = color
+  else:
+      if not isinstance(color,str):
+          color = str(color,encoding="utf-8")
+      rgb = ImageColor.getrgb(color)
   pil_image = Image.fromarray(image)
 
   solid_color = np.expand_dims(
