@@ -338,6 +338,40 @@ def non_local_blockv1(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
         out = normalizer_fn(out+net,**normalizer_params)
         return out
 
+def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
+    def reshape_net(net):
+        shape = net.get_shape().as_list()
+        new_shape = [-1,shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [-1,shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    with tf.variable_scope(scope,default_name="non_local"):
+        shape = net.get_shape().as_list()
+        channel = shape[-1]
+        m_channel = int(channel*multiplier)
+        Q = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None)
+        K = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None)
+        V = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None)
+        pos_embedding = tf.get_variable("pos_embedding",shape=[1]+Q.get_shape().as_list()[1:3]+[n_head,1],initializer=tf.random_normal_initializer()),
+        q_shape = tf.shape(Q)
+        Q = nlpl.split_states(Q,n_head)
+        Q = Q+pos_embedding
+        Q = tf.reshape(Q,q_shape)
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+                                        use_mask=False)
+        out = restore_shape(out,shape,m_channel)
+        out = slim.conv2d(out,channel,[1,1],normalizer_fn=None)
+        normalizer_params  = normalizer_params or {}
+        out = normalizer_fn(out+net,**normalizer_params)
+        return out
+
 def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
     old_channel = net.get_shape().as_list()[-1]
     if channel is not None:

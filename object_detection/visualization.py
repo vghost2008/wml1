@@ -147,6 +147,7 @@ def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn
 
 
 
+
 '''
 sigsize:(w,h)图像大小
 '''
