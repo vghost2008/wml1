@@ -349,6 +349,13 @@ def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
         net = tf.reshape(net,out_shape)
         return net
 
+    def pos_embedding_fn(V,P):
+        v_shape = tf.shape(V)
+        V = nlpl.split_states(V,n_head)
+        V = V+P
+        V = tf.reshape(V,v_shape)
+        return V
+
     with tf.variable_scope(scope,default_name="non_local"):
         shape = net.get_shape().as_list()
         channel = shape[-1]
@@ -357,10 +364,8 @@ def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
         K = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None)
         V = slim.conv2d(net,m_channel,[1,1],activation_fn=None,normalizer_fn=None)
         pos_embedding = tf.get_variable("pos_embedding",shape=[1]+Q.get_shape().as_list()[1:3]+[n_head,1],initializer=tf.random_normal_initializer()),
-        q_shape = tf.shape(Q)
-        Q = nlpl.split_states(Q,n_head)
-        Q = Q+pos_embedding
-        Q = tf.reshape(Q,q_shape)
+        Q = pos_embedding_fn(Q,pos_embedding)
+        K = pos_embedding_fn(K,pos_embedding)
         Q = reshape_net(Q)
         K = reshape_net(K)
         V = reshape_net(V)
