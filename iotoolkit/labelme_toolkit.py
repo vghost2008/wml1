@@ -89,6 +89,23 @@ def get_labels_and_bboxes(image,annotations_list):
         labels.append(ann["category_id"])
     return np.array(labels),np.array(bboxes)
 
+def get_labels_bboxes_and_masks(image,annotations_list):
+    labels = []
+    bboxes = []
+    masks = []
+    width = image["width"]
+    height = image["height"]
+    for ann in annotations_list:
+        t_box = ann["bbox"]
+        xmin = t_box[0]/width
+        ymin = t_box[1]/height
+        xmax = xmin+t_box[2]/width
+        ymax = ymin+t_box[3]/width
+        bboxes.append([ymin,xmin,ymax,xmax])
+        labels.append(ann["category_id"])
+        masks.append(ann["segmentation"])
+    return np.array(labels),np.array(bboxes),np.array(masks)
+
 '''
 output:
 [num_classes,h,w] or [num_classes-1,h,w], value is 0 or 1
