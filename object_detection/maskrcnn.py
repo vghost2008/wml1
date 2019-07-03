@@ -11,7 +11,7 @@ from wtfop.wtfop_ops import wpad
 import img_utils as wmli
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
-    def __init__(self,num_classes,input_shape,batch_size=1,loss_scale=10.0):
+    def __init__(self,num_classes,input_shape,batch_size=1,loss_scale=1.0):
         super().__init__(num_classes,input_shape,batch_size)
         self.train_mask = False
         #[X,h,w]
@@ -22,6 +22,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.debug = True
         self.mask_branch_input = None
         self.mask_loss_use_focal_loss = False
+        print("mask loss scale:",self.mask_loss_scale)
+        print("mask use focal loss: ",self.mask_loss_use_focal_loss)
 
     def train_mask_bn(self):
         return self.train_mask and self.train_bn
@@ -261,12 +263,13 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                 log_mask = wmli.concat_images([log_mask1,log_mask])
             wmlt.image_summaries(log_mask,"mask",max_outputs=5)
             if self.mask_loss_use_focal_loss:
+                print("USe focal mask loss")
                 loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gtmasks,logits=self.mask_logits)
             else:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
             loss = tf.reduce_sum(loss,axis=[1,2])
-            loss = tf.reduce_mean(loss)
-            tf.losses.add_loss(loss*self.mask_loss_scale)
+            loss = tf.reduce_mean(loss)*self.mask_loss_scale
+            tf.losses.add_loss(loss)
             return loss
 
     def getRCNBoxes(self):

@@ -32,6 +32,7 @@ class ODLoss:
         print("do_sample:", do_sample)
         print("sample_type:", sample_type)
         print("sample_size:", sample_size)
+        print("scale:", scale)
     '''
     与Faster-RCNN中定义的Smooth L1 loss完全一致
     '''
@@ -209,9 +210,9 @@ class ODLoss:
             if call_back is not None:
                 call_back(pmask,nmask)
             wml.variable_summaries_v2(total_nr,"total_nr_for_loss")
-            loss0,loss1,loss2 = tf.reduce_sum(loss0),tf.reduce_sum(loss1),tf.reduce_sum(loss2)
+            loss0,loss1,loss2 = tf.reduce_sum(loss0)*self.scale,tf.reduce_sum(loss1)*self.scale,tf.reduce_sum(loss2)*self.scale
             loss = loss0+loss1+loss2
-            tf.losses.add_loss(loss*self.scale)
+            tf.losses.add_loss(loss)
             return loss0,loss1,loss2,p_div_all
 
     def lossv1(self,gregs,glabels,classes_logits,bboxes_regs,
