@@ -654,6 +654,7 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                                                                    neg_threshold=0.0)
                     indices = tf.dynamic_partition(tf.range(tf.shape(slabels)[0]),tf.cast(mask,tf.int32),2)
                     scores0 = tf.ones_like(indices[0],dtype=tf.float32)
+
                     return tf.dynamic_stitch(indices,[scores0,scores])
                 return tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3],x[4]),elems=(bboxes,labels,gbboxes,glabels,glens),dtype=tf.float32)
 
