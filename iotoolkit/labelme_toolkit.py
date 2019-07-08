@@ -84,7 +84,7 @@ def get_labels_and_bboxes(image,annotations_list):
         xmin = t_box[0]/width
         ymin = t_box[1]/height
         xmax = xmin+t_box[2]/width
-        ymax = ymin+t_box[3]/width
+        ymax = ymin+t_box[3]/height
         bboxes.append([ymin,xmin,ymax,xmax])
         labels.append(ann["category_id"])
     return np.array(labels),np.array(bboxes)
