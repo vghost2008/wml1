@@ -187,7 +187,8 @@ def remove_boundary_boxes(bboxes,boundary=[0.1,0.1],threshold=0.9):
 
     return bboxes[keep_indicts],keep_indicts
 '''
-box：使用相对坐标表示，其参考区域为sub_box
+box：[x,4] 使用相对坐标表示，其参考区域为sub_box
+sub_box: [ymin,xmin,ymax,xmax] 可使用相对坐标或绝对坐标，返回的box表示与sub_box相同
 函数返回box在[0,0,1,1]区域的表示值
 '''
 def restore_sub_area(bboxes,sub_box):
