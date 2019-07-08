@@ -343,7 +343,7 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
 file_path:图像文件路径
 bboxes:相对坐标
 '''
-def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None):
+def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None,img_shape=None):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -353,7 +353,9 @@ def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncat
     if isinstance(truncated, np.ndarray):
         truncated = truncated.tolist()
 
-    img = mpimg.imread(file_path)
+    if img_shape is None:
+        img = mpimg.imread(file_path)
+        img_shape = img.shape
 
     if save_path is None:
         dir_path  = os.path.dirname(file_path)
@@ -361,7 +363,7 @@ def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncat
         base_name = base_name[:-4]+".xml"
         save_path = os.path.join(dir_path,base_name)
 
-    write_voc_xml(save_path,file_path,img.shape,bboxes,labels,difficult,truncated,probs=probs)
+    write_voc_xml(save_path,file_path,img_shape,bboxes,labels,difficult,truncated,probs=probs)
 
 '''
 与上一个版本的区别为 img shape 为输入值，不需要读图获取
