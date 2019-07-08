@@ -125,6 +125,8 @@ def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=N
 mask include the area of whole image
 '''
 def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
+    if not isinstance(masks,np.ndarray):
+        masks = np.array(masks)
     masks = masks.astype(np.uint8)
     for i,bbox in enumerate(bboxes):
         if color_fn is not None:

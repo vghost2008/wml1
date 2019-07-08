@@ -744,7 +744,7 @@ class COCOEvaluation(object):
                         standard_fields.InputDataFields.groundtruth_is_crowd:
                             is_crowd
                     })
-        if labels.shape[0]>0:
+        if labels.shape[0]>0 and gtlabels.shape[0]>0:
             boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
             self.coco_evaluator.add_single_detected_image_info(
                 image_id=str(self.image_id),
@@ -776,6 +776,8 @@ class ClassesWiseModelPerformace(object):
 
     @staticmethod
     def select_bboxes_and_labels(bboxes,labels,classes):
+        if len(labels) == 0:
+            return np.array([]),np.array([])
         mask = np.equal(labels,classes)
         rbboxes = bboxes[mask,:]
         rlabels = labels[mask]
@@ -786,6 +788,7 @@ class ClassesWiseModelPerformace(object):
             gtboxes = np.array(gtboxes)
         if not isinstance(gtlabels,np.ndarray):
             gtlabels = np.array(gtlabels)
+
         for i in range(self.num_classes):
             classes = i+self.clases_begin_value
             lgtboxes,lgtlabels = self.select_bboxes_and_labels(gtboxes,gtlabels,classes)
