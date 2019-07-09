@@ -221,7 +221,7 @@ def random_cutv2(image,annotations_list,ref_bbox,img_data,size,weights=None):
 image_data:[h,w,c]
 bbox:[ymin,xmin,ymax,xmax)
 '''
-def cut(annotations_list,img_data,bbox,threshold=1e-2):
+def cut(annotations_list,img_data,bbox,threshold=1e-2,return_none_if_no_ann=True):
     bbox = list(bbox)
     bbox[0] = max(0,bbox[0])
     bbox[1] = max(0,bbox[1])
@@ -246,7 +246,7 @@ def cut(annotations_list,img_data,bbox,threshold=1e-2):
                 mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
                 segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                 new_annotations_list.append({"bbox":t_bbox,"segmentation":segmentation,"category_id":label})
-    if len(new_annotations_list)>0:
+    if (len(new_annotations_list)>0) or (not return_none_if_no_ann):
         return (image_info,new_annotations_list,wmli.sub_image(img_data,bbox))
     else:
         return None,None,None
