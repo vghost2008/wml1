@@ -252,7 +252,7 @@ img:[H,W]/[H,W,C]
 rect:[ymin,xmin,ymax,xmax]
 '''
 def sub_image(img,rect):
-    return copy.deeepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
+    return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
 
 def imread(filepath):
     img = cv2.imread(filepath)
