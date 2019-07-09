@@ -557,6 +557,7 @@ def random_bbox_in_bbox(bbox,size):
 
 '''
 weights [2,x],[0] values,[1]:labels
+bboxes:[N,4],[xmin,ymin,width,height]
 '''
 def random_bbox_in_bboxes(bboxes,size,weights=None,labels=None):
     if len(bboxes) == 0:
