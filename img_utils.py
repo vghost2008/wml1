@@ -141,7 +141,7 @@ def merge_hotgraph_image(src,dst,alpha):
 
     return np.where(dst>mean,src*(1.0-(2.*dst-1.)*alpha)+rgb_dst*(2.*dst-1.)*alpha,src)
 
-def resize_img(img,size):
+'''def resize_img(img,size):
 
     image_shape = img.shape
 
@@ -153,7 +153,14 @@ def resize_img(img,size):
     if len(img.shape)==2:
         return scipy.ndimage.zoom(img, [h_scale, w_scale])
     else:
-        return scipy.ndimage.zoom(img, [h_scale, w_scale,1])
+        return scipy.ndimage.zoom(img, [h_scale, w_scale,1])'''
+def resize_img(img,size):
+
+    image_shape = img.shape
+
+    if size[0]==image_shape[0] and size[1]==image_shape[1]:
+        return img
+    cv2.resize(img,dsize=size)
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)
