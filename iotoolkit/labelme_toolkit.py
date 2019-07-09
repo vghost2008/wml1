@@ -145,6 +145,22 @@ def get_labels(annotations):
     labels = [ann["category_id"] for ann in annotations]
     return labels
 
+'''
+size:(h,w)
+'''
+def resize(image,annotations_list,img_data,size):
+    res_image = copy.deepcopy(image)
+    res_image["width"] = size[1]
+    res_image["height"] = size[0]
+    res_ann = []
+    for ann in  annotations_list:
+        bbox = copy.deepcopy(ann["bbox"])
+        segmentation = wmli.resize_img(ann["segmentation"],size)
+        category = copy.deepcopy(ann["category_id"])
+        res_ann.append({"bbox":bbox,"segmentation":segmentation,"category_id":category})
+    res_img_data = wmli.resize_img(img_data,size)
+
+    return res_image,res_ann,res_img_data
 
 def random_cut(image,annotations_list,img_data,size,weights=None):
     x_max = max(0,image["width"]-size[0])
