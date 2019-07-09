@@ -8,6 +8,7 @@ import shutil
 import os
 import cv2
 import tensorflow as tf
+import copy
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -251,7 +252,7 @@ img:[H,W]/[H,W,C]
 rect:[ymin,xmin,ymax,xmax]
 '''
 def sub_image(img,rect):
-    return img[rect[0]:rect[2],rect[1]:rect[3]]
+    return copy.deeepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
 
 def imread(filepath):
     img = cv2.imread(filepath)
