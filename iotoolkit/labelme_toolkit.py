@@ -9,6 +9,7 @@ import copy
 import img_utils as wmli
 import random
 import matplotlib.pyplot as plt
+import cv2
 
 def get_files(data_dir, img_suffix="jpg"):
     files = wmlu.recurse_get_filepath_in_dir(data_dir, suffix=".json")
@@ -155,7 +156,8 @@ def resize(image,annotations_list,img_data,size):
     res_ann = []
     for ann in  annotations_list:
         bbox = copy.deepcopy(ann["bbox"])
-        segmentation = wmli.resize_img(ann["segmentation"],size)
+        #segmentation = wmli.resize_img(ann["segmentation"],size)
+        segmentation = cv2.resize(ann["segmentation"],dsize=size,interpolation=cv2.INTER_NEAREST)
         category = copy.deepcopy(ann["category_id"])
         res_ann.append({"bbox":bbox,"segmentation":segmentation,"category_id":category})
     res_img_data = wmli.resize_img(img_data,size)
