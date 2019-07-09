@@ -552,7 +552,7 @@ random return a box with center point in the input bbox
 '''
 def random_bbox_in_bbox(bbox,size):
     x,y = random_int_in_bbox(bbox)
-    xmin,ymin = x-size[0]//2,y-size[1]//2
+    xmin,ymin = max(0,x-size[0]//2),max(0,y-size[1]//2)
     return [xmin,ymin,size[0],size[1]]
 
 '''
