@@ -90,33 +90,34 @@ def create_tf_example(image,
         output_io = io.BytesIO()
         pil_image.save(output_io, format='PNG')
         encoded_mask_png.append(output_io.getvalue())
-        feature_dict = {
-          'image/height':
-              dataset_util.int64_feature(image_height),
-          'image/width':
-              dataset_util.int64_feature(image_width),
-          'image/filename':
-              dataset_util.bytes_feature(filename.encode('utf8')),
-          'image/encoded':
-              dataset_util.bytes_feature(encoded_jpg),
-          'image/format':
-              dataset_util.bytes_feature('jpeg'.encode('utf8')),
-          'image/object/bbox/xmin':
-              dataset_util.float_list_feature(xmin),
-          'image/object/bbox/xmax':
-              dataset_util.float_list_feature(xmax),
-          'image/object/bbox/ymin':
-              dataset_util.float_list_feature(ymin),
-          'image/object/bbox/ymax':
-              dataset_util.float_list_feature(ymax),
-          'image/object/class/label':
-              dataset_util.int64_list_feature(category_ids),
-        }
-        feature_dict['image/object/mask'] = (
-            dataset_util.bytes_list_feature(encoded_mask_png))
-        example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
-        #category_id is the key of ID_TO_TEXT
-        #if len(category_ids)==0:
+
+    feature_dict = {
+      'image/height':
+          dataset_util.int64_feature(image_height),
+      'image/width':
+          dataset_util.int64_feature(image_width),
+      'image/filename':
+          dataset_util.bytes_feature(filename.encode('utf8')),
+      'image/encoded':
+          dataset_util.bytes_feature(encoded_jpg),
+      'image/format':
+          dataset_util.bytes_feature('jpeg'.encode('utf8')),
+      'image/object/bbox/xmin':
+          dataset_util.float_list_feature(xmin),
+      'image/object/bbox/xmax':
+          dataset_util.float_list_feature(xmax),
+      'image/object/bbox/ymin':
+          dataset_util.float_list_feature(ymin),
+      'image/object/bbox/ymax':
+          dataset_util.float_list_feature(ymax),
+      'image/object/class/label':
+          dataset_util.int64_list_feature(category_ids),
+    }
+    feature_dict['image/object/mask'] = (
+        dataset_util.bytes_list_feature(encoded_mask_png))
+    example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
+    #category_id is the key of ID_TO_TEXT
+    #if len(category_ids)==0:
           #return None,None,None
     if example is None:
         print("None example")
