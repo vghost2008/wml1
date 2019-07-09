@@ -203,10 +203,10 @@ def random_cutv2(image,annotations_list,ref_bbox,img_data,size,weights=None):
     image_info["width"] =size[0]
     obj_ann_bboxes = []
     for bbox in ref_bbox:
-        ymin = bbox[0]*image["height"]
-        xmin = bbox[1]*image["width"]
-        width = (bbox[3]-bbox[1])*image["width"]
-        height = (bbox[2]-bbox[0])*image["height"]
+        ymin = int(bbox[0]*image["height"])
+        xmin = int(bbox[1]*image["width"])
+        width = int((bbox[3]-bbox[1])*image["width"])
+        height = int((bbox[2]-bbox[0])*image["height"])
         obj_ann_bboxes.append([xmin,ymin,width,height])
     labels = get_labels(annotations_list)
     if len(annotations_list)==0:
