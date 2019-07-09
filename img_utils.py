@@ -160,7 +160,7 @@ def resize_img(img,size):
 
     if size[0]==image_shape[0] and size[1]==image_shape[1]:
         return img
-    cv2.resize(img,dsize=size)
+    return cv2.resize(img,dsize=size)
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)
