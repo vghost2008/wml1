@@ -36,7 +36,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
-SAMPLES_PER_FILES = 100
+SAMPLES_PER_FILES = 200
 
 def category_id_filter(category_id):
     good_ids = [1,2,3]
@@ -116,9 +116,10 @@ def create_tf_example(image,
             dataset_util.bytes_list_feature(encoded_mask_png))
         example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
         #category_id is the key of ID_TO_TEXT
-        if len(category_ids)==0:
-          return None,None,None
+        #if len(category_ids)==0:
+          #return None,None,None
     if example is None:
+        print("None example")
         return None,None
     return example, num_annotations_skipped
 
@@ -130,7 +131,7 @@ def _add_to_tfrecord(file,writer):
     image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
     if len(annotations_list)==0:
         print("No annotations.")
-        return False
+        #return False
     tf_example, num_annotations_skipped = create_tf_example(
         image_info, annotations_list,img_file)
     if tf_example is not None:

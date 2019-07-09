@@ -213,7 +213,7 @@ def random_cutv2(image,annotations_list,ref_bbox,img_data,size,weights=None):
     t_bbox[1] = max(0,min(t_bbox[1],y_max))
     t_bbox[0] = max(0,min(t_bbox[0],x_max))
     rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
-    new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
+    new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect,return_none_if_no_ann=False)
     return (new_image_info,new_annotations_list,new_image_data)
 
 
