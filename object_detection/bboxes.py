@@ -530,12 +530,19 @@ output:
 the new contours in sub image and correspond bbox
 '''
 def cut_contourv2(segmentation,rect):
+    org_contours,org_hierarchy = cv.findContours(segmentation,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
+    max_area = 1e-8
+    for cnt in org_contours:
+        area = cv.contourArea(cnt)
+        max_area = max(max_area,area)
     cuted_img = wmli.sub_image(segmentation,rect)
     contours,hierarchy = cv.findContours(cuted_img,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE)
     boxes = []
+    ratio = []
     for cnt in contours:
         boxes.append(bbox_of_contour(cnt))
-    return contours,boxes
+        ratio.append(cv.contourArea(cnt)/max_area)
+    return contours,boxes,ratio
 
 '''
 bbox:(xmin,ymin,width,height)
