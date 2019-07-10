@@ -261,8 +261,7 @@ def cut(annotations_list,img_data,bbox,threshold=0.15,return_none_if_no_ann=True
                 ratio = ratios[i]
                 t_bbox = odb.to_xyminwh(odb.bbox_of_contour(cnt))
                 if ratio<threshold:
-                    #################################################
-                    label = 4
+                    continue
                 mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
                 segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                 new_annotations_list.append({"bbox":t_bbox,"segmentation":segmentation,"category_id":label})
