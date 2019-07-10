@@ -305,10 +305,10 @@ def data_statistics(data_dir):
     statistics_data = {}
     file_statistics_data = {}
 
-    max_data_nr = 0
+    data_nrs = []
     for img_file,json_file in files:
         image, annotations_list = read_labelme_data(json_file,lambda x:x)
-        max_data_nr = max(max_data_nr,len(annotations_list))
+        data_nrs.append(len(annotations_list))
         temp_file_statistics_data = {}
         for ann in annotations_list:
             label = ann["category_id"]
@@ -324,8 +324,9 @@ def data_statistics(data_dir):
                 file_statistics_data[k] = 1
     if len(files)<1:
         return
+    data_nrs = np.array(data_nrs)
     print(f"Data size {len(files)}.")
-    print(f"Max data size in one file {max_data_nr}")
+    print(f"Data size per file: max data size {np.max(data_nrs)}, min data size {np.min(data_nrs)}, mean {np.mean(data_nrs)}, var {np.var(data_nrs)}")
     print("Num of each classes")
     wmlu.show_dict(statistics_data)
     print("Num of each classes in files")
