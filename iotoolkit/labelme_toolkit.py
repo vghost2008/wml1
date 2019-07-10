@@ -164,7 +164,7 @@ def resize(image,annotations_list,img_data,size):
 
     return res_image,res_ann,res_img_data
 
-def random_cut(image,annotations_list,img_data,size,weights=None):
+def random_cut(image,annotations_list,img_data,size,weights=None,threshold=0.15):
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
     image_info = {}
@@ -180,14 +180,14 @@ def random_cut(image,annotations_list,img_data,size,weights=None):
         t_bbox[1] = max(0,min(t_bbox[1],y_max))
         t_bbox[0] = max(0,min(t_bbox[0],x_max))
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
-        new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
+        new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect,threshold=threshold)
         if new_annotations_list is not None and len(new_annotations_list)>0:
             return (new_image_info,new_annotations_list,new_image_data)
         ++count
 
     return None,None,None
 
-def random_cutv1(image,annotations_list,img_data,size):
+def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
     res = []
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
@@ -204,7 +204,7 @@ def random_cutv1(image,annotations_list,img_data,size):
         t_bbox[0] = max(0,min(t_bbox[0],x_max))
         t_bbox = odb.random_bbox_in_bbox(t_bbox,size)
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
-        new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect)
+        new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect,threshold=threshold)
         if new_annotations_list is not None and len(new_annotations_list)>0:
             res.append((new_image_info,new_annotations_list,new_image_data))
     return res
@@ -239,7 +239,7 @@ def random_cutv2(image,annotations_list,ref_bbox,img_data,size,weights=None):
 image_data:[h,w,c]
 bbox:[ymin,xmin,ymax,xmax)
 '''
-def cut(annotations_list,img_data,bbox,threshold=1e-2,return_none_if_no_ann=True):
+def cut(annotations_list,img_data,bbox,threshold=0.15,return_none_if_no_ann=True):
     bbox = list(bbox)
     bbox[0] = max(0,bbox[0])
     bbox[1] = max(0,bbox[1])
@@ -254,13 +254,15 @@ def cut(annotations_list,img_data,bbox,threshold=1e-2,return_none_if_no_ann=True
     area = size[1]*size[0]
     image_info["file_name"] = f"IMG_L{bbox[1]:06}_T{bbox[0]:06}_W{bbox[3]-bbox[1]:06}_H{bbox[2]-bbox[0]:06}"
     for obj_ann in annotations_list:
-        cnts,bboxes = odb.cut_contourv2(obj_ann["segmentation"],bbox)
+        cnts,bboxes,ratios = odb.cut_contourv2(obj_ann["segmentation"],bbox)
         label = obj_ann["category_id"]
         if len(cnts)>0:
-            for cnt in cnts:
+            for i,cnt in enumerate(cnts):
+                ratio = ratios[i]
                 t_bbox = odb.to_xyminwh(odb.bbox_of_contour(cnt))
-                if t_bbox[2]<threshold*size[0] and t_bbox[3]< threshold*size[1]:
-                    continue
+                if ratio<threshold:
+                    #################################################
+                    label = 4
                 mask = np.zeros(shape=[size[1],size[0]],dtype=np.uint8)
                 segmentation = cv.drawContours(mask,np.array([cnt]),-1,color=(1),thickness=cv.FILLED)
                 new_annotations_list.append({"bbox":t_bbox,"segmentation":segmentation,"category_id":label})
