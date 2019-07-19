@@ -11,6 +11,9 @@ from wtfop.wtfop_ops import wpad
 import img_utils as wmli
 
 class MaskRCNN(fasterrcnn.FasterRCNN):
+    LT_SIGMOID=0
+    LT_FOCAL_LOSS=1
+    LT_USER_DEFINED=2
     def __init__(self,num_classes,input_shape,batch_size=1,loss_scale=1.0):
         super().__init__(num_classes,input_shape,batch_size)
         self.train_mask = False
@@ -21,9 +24,13 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.mask_loss_scale = loss_scale
         self.debug = True
         self.mask_branch_input = None
-        self.mask_loss_use_focal_loss = False
+        self.mask_loss_type = self.LT_SIGMOID
+        '''
+        user defined loss fn:input:[batch_size x h x w], [user_defined_loss_fn]
+        output: [batch_size x h' x w']
+        '''
+        self.user_defined_mask_loss_fn = tf.nn.sigmoid_cross_entropy_with_logits
         print("mask loss scale:",self.mask_loss_scale)
-        print("mask use focal loss: ",self.mask_loss_use_focal_loss)
 
     def train_mask_bn(self):
         return self.train_mask and self.train_bn
@@ -90,6 +97,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     '''
     labels:[batch_size*box_nr]
     pmask:[batch_size*box_nr]
+    net_process: process base net feature map (before rpn and rcn) 
     output:[batch_size*pbox_nr,M,N]
     '''
     def buildMaskBranchV3(self,gtbboxes,gtlabels,gtlens,bboxes_nr,net=None,net_process=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
@@ -262,11 +270,15 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                 log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
                 log_mask = wmli.concat_images([log_mask1,log_mask])
             wmlt.image_summaries(log_mask,"mask",max_outputs=5)
-            if self.mask_loss_use_focal_loss:
-                print("USe focal mask loss")
-                loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gtmasks,logits=self.mask_logits)
-            else:
+            if self.mask_loss_type == self.LT_SIGMOID:
+                print("Use sigmoid mask loss.")
                 loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
+            elif self.mask_loss_type == self.LT_FOCAL_LOSS:
+                print("Use focal mask loss")
+                loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gtmasks,logits=self.mask_logits)
+            elif self.mask_loss_type == self.LT_USER_DEFINED:
+                print("Use user defined mask loss")
+                loss = self.user_defined_mask_loss_fn(labels=gtmasks,logits=self.mask_logits)
             loss = tf.reduce_sum(loss,axis=[1,2])
             loss = tf.reduce_mean(loss)*self.mask_loss_scale
             tf.losses.add_loss(loss)

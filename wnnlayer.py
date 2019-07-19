@@ -435,3 +435,7 @@ def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=int(time
         bin_mask = bin_mask*ratio
         bin_mask = tf.stop_gradient(bin_mask)
         return inputs*bin_mask
+
+
+def min_pool2d(inputs,*args,**kwargs):
+    return -slim.max_pool2d(-inputs,*args,**kwargs)
