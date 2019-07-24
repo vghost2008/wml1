@@ -106,7 +106,7 @@ def tf_summary_image_with_boxs_and_lens(image, bboxes, lens,name='summary_image_
         if scale:
             if image.dtype != tf.float32:
                 image = tf.cast(image,tf.float32)
-            image = tf.expand_dims(image, 0)/255.
+            image = image/255.
         if image.get_shape().ndims == 3:
             image = tf.expand_dims(image,axis=0)
         if image.dtype is not tf.float32:
@@ -119,6 +119,26 @@ def tf_summary_image_with_boxs_and_lens(image, bboxes, lens,name='summary_image_
             img = tf.image.draw_bounding_boxes(img, boxes)
             return tf.squeeze(img,axis=0)
         image_with_box = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=(image,bboxes,lens),dtype=tf.float32)
+        tf.summary.image(name, image_with_box)
+
+def tf_summary_image_with_boxs_and_masks(image, bboxes, masks,name='summary_image_with_box',scale=True):
+    with tf.name_scope(name):
+        if scale:
+            if image.dtype != tf.float32:
+                image = tf.cast(image,tf.float32)
+            image = image/255.
+        if image.get_shape().ndims == 3:
+            image = tf.expand_dims(image,axis=0)
+        if image.dtype is not tf.float32:
+            image = tf.cast(image,tf.float32)
+        if bboxes.get_shape().ndims == 2:
+            bboxes = tf.expand_dims(bboxes, 0)
+        def fn(img,boxes,mask):
+            img = tf.expand_dims(img,axis=0)
+            boxes = tf.expand_dims(tf.boolean_mask(boxes,mask),axis=0)
+            img = tf.image.draw_bounding_boxes(img, boxes)
+            return tf.squeeze(img,axis=0)
+        image_with_box = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=(image,bboxes,masks),dtype=tf.float32)
         tf.summary.image(name, image_with_box)
 
 def tf_summary_image_grayscale_with_box(image, bboxes, name='image',scale=True):

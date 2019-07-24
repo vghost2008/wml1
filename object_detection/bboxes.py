@@ -11,6 +11,7 @@ import wtfop.wtfop_ops as wtfop
 import img_utils as wmli
 import cv2 as cv
 import copy
+import wml_tfutils as wmlt
 
 '''
 sizes:如果is_area=True, sizes相对于整个原始图像的面积大小, 也就是说无论比例是多少，整个图的大小永远是1, 否则sizes为相对边的大小
@@ -490,6 +491,27 @@ def decode_boxes(boxes,
     bboxes = tf.transpose(bboxes,perm=[1,0])
     bboxes = tf.reshape(bboxes, l_shape)
     return bboxes
+
+'''
+anchor_bboxes:[batch_size,N,4] (ymin,xmin,ymax,xmax)
+regs: [batch_size,N,4] (cy,cx,h,w) regs
+'''
+def batch_decode_boxes(anchor_bboxes,regs,prio_scaling=[0.1,0.1,0.2,0.2]):
+    batch_size,data_nr = regs.get_shape().as_list()[0:2]
+    if batch_size is not None and data_nr is not None:
+        old_shape = [batch_size,data_nr,4]
+    else:
+        old_shape = tf.shape(regs)
+    if anchor_bboxes.get_shape().as_list()[0] == 1:
+        anchor_bboxes = tf.squeeze(anchor_bboxes,axis=0)
+        return wmlt.static_or_dynamic_map_fn(lambda reg:wtfop.decode_boxes1(anchor_bboxes,reg,prio_scaling=prio_scaling),
+                                             elems=regs,
+                                             dtype=tf.float32,back_prop=False)
+    else:
+        anchor_bboxes = tf.reshape(anchor_bboxes,[-1,4])
+        regs = tf.reshape(regs,[-1,4])
+        res = wtfop.decode_boxes1(anchor_bboxes,regs,prio_scaling=prio_scaling)
+        return tf.reshape(res,old_shape)
 
 '''
 cnt:[[x,y],[x,y],...]
