@@ -5,6 +5,7 @@ from tensorflow.python.ops import nn
 from tensorflow.python.ops import init_ops
 from tensorflow.contrib.layers.python.layers import initializers
 import wml_tfutils as wmlt
+import wtfop.wtfop_ops as wop
 import numpy as np
 
 slim = tf.contrib.slim
@@ -65,6 +66,55 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
         #new V is [batch_size,nb_head,m,size_per_head1]
         #计算内积，然后mask，然后softmax
         A = tf.matmul(Q, K, transpose_b=True,name="MatMul_QK")*tf.rsqrt(tf.cast(tf.shape(V)[-1],tf.float32))
+        #now A is [batch_size, nb_head,n,m]
+        if use_mask:
+            A = mask_attn_weights(A)
+        if V_len is not None:
+            A = tf.transpose(A, [0, 3, 2, 1])
+            A = mask_attn_of_length(A, V_len, mode='add')
+            A = tf.transpose(A, [0, 3, 2, 1])
+        A = tf.nn.softmax(A)
+        if keep_prob is not None:
+            A = slim.dropout(A,keep_prob=keep_prob,is_training=is_training)
+        #输出并mask
+        O = tf.matmul(A, V,name="MatMul_AV")
+        #如果使用mask,O的第i行为V的第0到第i行的线性加权组合, 否则为所有的加权
+        #now O is  [batch_size,nb_head,n,size_per_head1]
+        O = tf.transpose(O, [0, 2, 1, 3])
+        #now O is  [batch_size,n,nb_head,size_per_head1]
+        o_shape = O.get_shape().as_list()
+        if o_shape[0] is not None:
+            O = tf.reshape(O, [o_shape[0], -1,np.prod(o_shape[-2:])])
+        else:
+            O = tf.reshape(O, [-1, o_shape[1],np.prod(o_shape[-2:])])
+        if Q_len is not None:
+            O = mask_attn_of_length(O, Q_len, 'mul')
+        return O
+
+'''
+Multi-Head Attention from ATTENTION IS ALL YOU NEED
+Q:[batch_size,n,dk]
+K:[batch_size,m,dk]
+V:[batch_size,m,dv]
+PW:[dk]
+PH:[dk]
+use_mask: where use the mask, in the original paper，use mask for decode, don't use mask for encode
+V_len is important, ensure softmax(A) attention on valid value, Q_len donsen't that important
+if use multi layer of attention every layer have to use V_len
+res:[batch_size,n,nb_head*size_per_head]
+'''
+def relative_multi_head_attention(Q, K, V,n_head,Q_len=None,V_len=None,keep_prob=None,is_training=False,use_mask=False):
+    with tf.variable_scope("MultiHeadAttention"):
+        Q = split_heads(Q,n_head)
+        #now Q is [batch_size, nb_head,n,size_per_head0]
+        K = split_heads(K,n_head)
+        #now K is [batch_size,nb_head,m,size_per_head0]
+        V = split_heads(V,n_head)
+        #new V is [batch_size,nb_head,m,size_per_head1]
+        #计算内积，然后mask，然后softmax
+        A = tf.matmul(Q, K, transpose_b=True,name="MatMul_QK")
+        P = tf.expand_dims(wop.plane_position_embedding(size=tf.shape(A)[2:]),axis=0)
+        A = (A+P)*tf.rsqrt(tf.cast(tf.shape(V)[-1],tf.float32))
         #now A is [batch_size, nb_head,n,m]
         if use_mask:
             A = mask_attn_weights(A)
