@@ -258,7 +258,7 @@ def fpn_top_down_feature_maps(image_features,
                               depth,
                               use_depthwise=False,
                               use_explicit_padding=False,
-                              scope=None):
+                              scope=None,smooth_last=False):
   """Generates `top-down` feature maps for Feature Pyramid Networks.
 
   See https://arxiv.org/abs/1612.03144 for details.
@@ -310,10 +310,13 @@ def fpn_top_down_feature_maps(image_features,
           conv_op = slim.conv2d
         if use_explicit_padding:
           top_down = fixed_padding(top_down, kernel_size)
-        output_feature_maps_list.append(conv_op(
-            top_down,
-            depth, [kernel_size, kernel_size],
-            scope='smoothing_%d' % (level + 1)))
+        if smooth_last and level != 0:
+            output_feature_maps_list.append(top_down)
+        else:
+            output_feature_maps_list.append(conv_op(
+                top_down,
+                depth, [kernel_size, kernel_size],
+                scope='smoothing_%d' % (level + 1)))
         output_feature_map_keys.append('top_down_%s' % image_features[level][0])
       return collections.OrderedDict(reversed(
           list(zip(output_feature_map_keys, output_feature_maps_list))))
