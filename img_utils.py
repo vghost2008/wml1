@@ -9,6 +9,7 @@ import os
 import cv2
 import tensorflow as tf
 import copy
+import random
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -260,6 +261,21 @@ rect:[ymin,xmin,ymax,xmax]
 '''
 def sub_image(img,rect):
     return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
+
+def nprandom_crop(img,size):
+    x_begin = 0
+    y_begin = 0
+    if img.size[0]>size[0]:
+        y_begin = random.randint(0,img.size[0]-size[0])
+    else:
+        size[0] = img.size[0]
+    if img.size[1]>size[1]:
+        x_begin = random.randint(0,img.size[1]-size[1])
+    else:
+        size[1] = img.size[1]
+
+    rect = [y_begin,x_begin,y_begin+size[0].x_begin+size[1]]
+    return sub_image(img,rect)
 
 def imread(filepath):
     img = cv2.imread(filepath)
