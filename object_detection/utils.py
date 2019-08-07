@@ -729,7 +729,7 @@ class COCOEvaluation(object):
         else:
             self.categories_list = categories_list
         self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
-            self.categories_list)
+            self.categories_list,include_metrics_per_category=True)
         self.image_id = 0
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],is_crowd=None):
         if probability is None:

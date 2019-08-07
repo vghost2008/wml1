@@ -11,6 +11,7 @@ import math
 import img_utils as wmli
 import time
 import logging
+import cv2
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
@@ -268,6 +269,25 @@ def image_summaries(var,name,max_outputs=3):
     if var.get_shape().ndims==3:
         var = tf.expand_dims(var,dim=0)
     tf.summary.image(name,var,max_outputs=max_outputs)
+
+def _draw_text_on_image(img,text,font_scale=1.2):
+    p = (0,img.shape[0]/2)
+    if not isinstance(text,str):
+        text = str(text)
+    cv2.putText(img, text, p, cv2.FONT_HERSHEY_DUPLEX, fontScale=font_scale, color=(255., 255., 255.), thickness=1)
+    return img
+
+def image_summaries_with_label(img,label,name,max_outputs=3):
+    shape = img.get_shape().as_list()
+    if shape[0] is not None:
+        img = img[:max_outputs,:,:,:]
+        label = label[:max_outputs]
+
+    def draw_func(var,l):
+        return tf.py_func(_draw_text_on_image,[var,l],var.dtype)
+
+    img = static_or_dynamic_map_fn(lambda x:draw_func(x[0],x[1]),elems=(img,label),dtype=img.dtype)
+    tf.summary.image(name,img,max_outputs=max_outputs)
 
 '''
 将var作为图像记录

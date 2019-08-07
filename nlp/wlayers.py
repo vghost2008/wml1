@@ -96,8 +96,6 @@ Multi-Head Attention from ATTENTION IS ALL YOU NEED
 Q:[batch_size,n,dk]
 K:[batch_size,m,dk]
 V:[batch_size,m,dv]
-PW:[dk]
-PH:[dk]
 use_mask: where use the mask, in the original paper，use mask for decode, don't use mask for encode
 V_len is important, ensure softmax(A) attention on valid value, Q_len donsen't that important
 if use multi layer of attention every layer have to use V_len
