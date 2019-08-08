@@ -265,16 +265,16 @@ def sub_image(img,rect):
 def nprandom_crop(img,size):
     x_begin = 0
     y_begin = 0
-    if img.size[0]>size[0]:
-        y_begin = random.randint(0,img.size[0]-size[0])
+    if img.shape[0]>size[0]:
+        y_begin = random.randint(0,img.shape[0]-size[0])
     else:
-        size[0] = img.size[0]
-    if img.size[1]>size[1]:
-        x_begin = random.randint(0,img.size[1]-size[1])
+        size[0] = img.shape[0]
+    if img.shape[1]>size[1]:
+        x_begin = random.randint(0,img.shape[1]-size[1])
     else:
-        size[1] = img.size[1]
+        size[1] = img.shape[1]
 
-    rect = [y_begin,x_begin,y_begin+size[0].x_begin+size[1]]
+    rect = [y_begin,x_begin,y_begin+size[0],x_begin+size[1]]
     return sub_image(img,rect)
 
 def imread(filepath):
