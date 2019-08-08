@@ -263,6 +263,7 @@ def sub_image(img,rect):
     return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
 
 def nprandom_crop(img,size):
+    size = copy.deepcopy(size)
     x_begin = 0
     y_begin = 0
     if img.shape[0]>size[0]:
