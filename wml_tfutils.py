@@ -277,11 +277,13 @@ def _draw_text_on_image(img,text,font_scale=1.2):
     cv2.putText(img, text, p, cv2.FONT_HERSHEY_DUPLEX, fontScale=font_scale, color=(0., 255., 0.), thickness=1)
     return img
 
-def image_summaries_with_label(img,label,name,max_outputs=3):
+def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
     shape = img.get_shape().as_list()
     if shape[0] is not None:
         img = img[:max_outputs,:,:,:]
         label = label[:max_outputs]
+    if scale:
+        img = (img+1.0)*127.5
 
     def draw_func(var,l):
         return tf.py_func(_draw_text_on_image,[var,l],var.dtype)
