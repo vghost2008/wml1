@@ -436,7 +436,7 @@ def random_perm_channel(img,seed=None):
             img = tf.transpose(img,perm=[1,2,0])
             return img
         else:
-            img = tf.map_fn(functools.partial(random_perm_channel,seed=seed),elems=[img],back_prop=False)
+            img = tf.map_fn(functools.partial(random_perm_channel,seed=seed),elems=img,back_prop=False)
             return img
 
 
