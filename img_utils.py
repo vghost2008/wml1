@@ -10,6 +10,8 @@ import cv2
 import tensorflow as tf
 import copy
 import random
+import itertools
+import functools
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -288,6 +290,7 @@ def imsave(filename,img):
 
 def imwrite(filename, img):
     if len(img.shape)==3 and img.shape[2]==3:
+        img = copy.deepcopy(img)
         cv2.cvtColor(img, cv2.COLOR_RGB2BGR,img)
     cv2.imwrite(filename, img)
 
@@ -419,3 +422,21 @@ def np_resize_to_range(img,min_dimension,max_dimension=-1):
             new_shape[0] = int(new_shape[1]*img.shape[0]/img.shape[1])
 
     return resize_img(img,new_shape)
+
+def random_perm_channel(img,seed=None):
+    with tf.name_scope("random_perm_channel"):
+        channel_nr = img.get_shape().as_list()[-1]
+        index = list(range(channel_nr))
+        indexs = list(itertools.permutations(index,channel_nr))
+        if len(img.get_shape()) == 3:
+            x = tf.random_shuffle(indexs,seed=seed)
+            x = x[0,:]
+            img = tf.transpose(img,perm=[2,0,1])
+            img = tf.gather(img,x)
+            img = tf.transpose(img,perm=[1,2,0])
+            return img
+        else:
+            img = tf.map_fn(functools.partial(random_perm_channel,seed=seed),elems=[img],back_prop=False)
+            return img
+
+
