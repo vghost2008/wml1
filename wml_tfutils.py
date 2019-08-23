@@ -291,6 +291,14 @@ def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
     img = static_or_dynamic_map_fn(lambda x:draw_func(x[0],x[1]),elems=[img,label],dtype=img.dtype)
     tf.summary.image(name,img,max_outputs=max_outputs)
 
+def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10):
+    with tf.name_scope(name):
+        log_image = tf.identity(imgs[0][:max_outputs])
+        for i in range(1,len(imgs)):
+            log_image = tf.pad(log_image, paddings=[[0, 0], [0, 0], [0, margin], [0, 0]])
+            log_image = tf.concat([log_image, imgs[i][:max_outputs]], axis=2)
+        image_summaries(log_image, "image_contrast")
+
 '''
 将var作为图像记录
 var:[batch_size,X]
