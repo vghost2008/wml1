@@ -89,6 +89,20 @@ def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
     return tf.reshape(output_tensor,
                       [batch_size, height * h_scale, width * w_scale, channels])
 
+def nearest_neighbor_downsampling(input_tensor, scale=None, height_scale=None,
+                                width_scale=None):
+    if not scale and (height_scale is None or width_scale is None):
+        raise ValueError('Provide either `scale` or `height_scale` and'
+                         ' `width_scale`.')
+    with tf.name_scope('nearest_neighbor_downsampling'):
+        h_scale = scale if height_scale is None else height_scale
+        w_scale = scale if width_scale is None else width_scale
+        (batch_size, height, width,
+         channels) = combined_static_and_dynamic_shape(input_tensor)
+        output_tensor = tf.reshape(
+            input_tensor, [batch_size, height//h_scale, h_scale, width//w_scale, w_scale, channels])
+        return output_tensor[:,:,0,:,0,:]
+
 def get_depth_fn(depth_multiplier, min_depth):
     """Builds a callable to compute depth (output channels) of conv filters.
 
