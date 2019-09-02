@@ -299,7 +299,7 @@ def nparray2str(value,split=",",format="{}"):
     else:
         r_str = "["
         for x in value[:-1]:
-            r_str+=nparray2str(x,split=split,format=format)+split
+            r_str+=nparray2str(x,split=split,format=format)+split+"\n"
         r_str+=nparray2str(value[-1],split=split,format=format)+"]\n"
         return r_str
 
@@ -324,7 +324,7 @@ class ExperienceBuffer():
             data = list(zip(*data))
             return [np.array(list(x)) for x in data]
         else:
-            return np.reshape(np.array(random.sample(self.buffer, size)), [size]+self.shape)
+            return np.reshape(np.array(random.sample(self.buffer, size)), [size]+list(self.buffer[0].shape))
 
 
 class CycleBuffer:
