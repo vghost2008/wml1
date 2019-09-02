@@ -442,7 +442,7 @@ def random_perm_channel(img,seed=None):
 
 def psnr(labels,predictions,scope=None):
     with tf.name_scope(scope,default_name="psnr"):
-        loss1 = tf.losses.mean_squared_error(labels=labels,predictions=predictions)
+        loss1 = tf.losses.mean_squared_error(labels=labels,predictions=predictions,loss_collection=None)
         return 10*tf.log(2**2/loss1)/np.log(10)
 
 

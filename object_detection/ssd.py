@@ -142,10 +142,11 @@ class SSD(object):
                                                                    length=lens,
                                                                    pos_threshold=pos_threshold,
                                                                    neg_threshold=neg_threshold)
-            self.gtregs = gtregs
-            self.gtlabels = gtlabels
-            self.gtscores = gtscores
-            self.anchor_remove_indices = remove_indices
+        with tf.device("/cpu:0"):
+            self.gtregs = tf.identity(gtregs)
+            self.gtlabels = tf.identity(gtlabels)
+            self.gtscores = tf.identity(gtscores)
+            self.anchor_remove_indices = tf.identity(remove_indices)
         return gtregs, gtlabels, gtscores,remove_indices
 
     '''

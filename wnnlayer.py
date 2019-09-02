@@ -206,13 +206,13 @@ def spectral_norm(w, iteration=1):
        u_hat = tf.stop_gradient(u_hat)
        v_hat = tf.stop_gradient(v_hat)
 
-       sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+       sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))+1e-10
 
        with tf.control_dependencies([u.assign(u_hat)]):
            w_norm = w / sigma
            w_norm = tf.reshape(w_norm, w_shape)
 
-
+       #w_norm = tf.Print(w_norm,[tf.reduce_mean(w_norm),tf.reduce_mean(sigma)],"w_norm")
        return w_norm
 
 @add_arg_scope
@@ -226,8 +226,12 @@ def conv2d_with_sn(inputs,
                    weights_regularizer=None,
                    biases_initializer=init_ops.zeros_initializer(),
                    biases_regularizer=None,
+                   normalizer_fn=None,
+                   normalizer_params=None,
+                   rate=1,
                    reuse=None,
                    scope=None):
+    del rate
     with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
         if isinstance(kernel_size,list):
             shape = kernel_size+[inputs.get_shape().as_list()[-1],num_outputs]
@@ -242,6 +246,8 @@ def conv2d_with_sn(inputs,
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
         outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w), strides=[1, stride, stride, 1],padding=padding) + b
+        if normalizer_fn is not None:
+            outputs = normalizer_fn(outputs,**normalizer_params)
         if activation_fn is not None:
             outputs = activation_fn(outputs)
 
