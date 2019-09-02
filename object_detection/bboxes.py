@@ -258,6 +258,23 @@ def bboxes_jaccard(bbox_ref, bboxes, name=None):
             + (bbox_ref[2] - bbox_ref[0]) * (bbox_ref[3] - bbox_ref[1])
         jaccard = wmath.safe_divide(inter_vol, union_vol, 'jaccard')
         return jaccard
+
+def npbboxes_jaccard(bbox_ref, bboxes, name=None):
+
+    bboxes = np.transpose(bboxes)
+    bbox_ref = np.transpose(bbox_ref)
+    int_ymin = np.maximum(bboxes[0], bbox_ref[0])
+    int_xmin = np.maximum(bboxes[1], bbox_ref[1])
+    int_ymax = np.minimum(bboxes[2], bbox_ref[2])
+    int_xmax = np.minimum(bboxes[3], bbox_ref[3])
+    h = np.maximum(int_ymax - int_ymin, 0.)
+    w = np.maximum(int_xmax - int_xmin, 0.)
+    inter_vol = h * w
+    union_vol = -inter_vol \
+                + (bboxes[2] - bboxes[0]) * (bboxes[3] - bboxes[1]) \
+                + (bbox_ref[2] - bbox_ref[0]) * (bbox_ref[3] - bbox_ref[1])
+    jaccard = wmath.npsafe_divide(inter_vol, union_vol, 'jaccard')
+    return jaccard
 '''
 bboxes0:[nr,4]
 bboxes1:[nr,4]
