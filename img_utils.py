@@ -439,10 +439,7 @@ def random_perm_channel(img,seed=None):
             img = tf.map_fn(functools.partial(random_perm_channel,seed=seed),elems=img,back_prop=False)
             return img
 
-
 def psnr(labels,predictions,scope=None):
     with tf.name_scope(scope,default_name="psnr"):
         loss1 = tf.losses.mean_squared_error(labels=labels,predictions=predictions,loss_collection=None)
-        return 10*tf.log(2**2/loss1)/np.log(10)
-
-
+        return tf.minimum(100.0,tf.cond(tf.greater(loss1,1e-6),lambda:10*tf.log(2**2/loss1)/np.log(10),lambda:100.0))

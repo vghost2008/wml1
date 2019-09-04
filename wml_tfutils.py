@@ -249,6 +249,7 @@ def variable_summaries(var,name):
     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
     tf.summary.scalar(name+'/stddev', stddev)
     tf.summary.histogram(name+'/hisogram', var)
+
 def variable_summaries_v2(var, name):
     if var.dtype != tf.float32:
         var = tf.cast(var, tf.float32)
@@ -267,6 +268,13 @@ def variable_summaries_v2(var, name):
 def histogram(var,name):
     if not isSingleValueTensor(var):
         tf.summary.histogram(name, var)
+
+def histogram_or_scalar(var,name):
+    if not isSingleValueTensor(var):
+        tf.summary.histogram(name, var)
+    else:
+        var = tf.reshape(var,())
+        tf.summary.scalar(name, var)
 
 def image_summaries(var,name,max_outputs=3):
     if var.get_shape().ndims==3:
