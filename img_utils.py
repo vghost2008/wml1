@@ -428,16 +428,19 @@ def random_perm_channel(img,seed=None):
         channel_nr = img.get_shape().as_list()[-1]
         index = list(range(channel_nr))
         indexs = list(itertools.permutations(index,channel_nr))
+        x = tf.random_shuffle(indexs,seed=seed)
+        x = x[0,:]
         if len(img.get_shape()) == 3:
-            x = tf.random_shuffle(indexs,seed=seed)
-            x = x[0,:]
             img = tf.transpose(img,perm=[2,0,1])
             img = tf.gather(img,x)
             img = tf.transpose(img,perm=[1,2,0])
-            return img
+        elif len(img.get_shape()) == 4:
+            img = tf.transpose(img,perm=[3,0,1,2])
+            img = tf.gather(img,x)
+            img = tf.transpose(img,perm=[1,2,3,0])
         else:
-            img = tf.map_fn(functools.partial(random_perm_channel,seed=seed),elems=img,back_prop=False)
-            return img
+            print("Error channel.")
+        return img
 
 def psnr(labels,predictions,scope=None):
     with tf.name_scope(scope,default_name="psnr"):
