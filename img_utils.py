@@ -442,7 +442,13 @@ def random_perm_channel(img,seed=None):
             print("Error channel.")
         return img
 
-def psnr(labels,predictions,scope=None):
+def psnr(labels,predictions,max_v = 2,scope=None):
     with tf.name_scope(scope,default_name="psnr"):
         loss1 = tf.losses.mean_squared_error(labels=labels,predictions=predictions,loss_collection=None)
-        return tf.minimum(100.0,tf.cond(tf.greater(loss1,1e-6),lambda:10*tf.log(2**2/loss1)/np.log(10),lambda:100.0))
+        return tf.minimum(100.0,tf.cond(tf.greater(loss1,1e-6),lambda:10*tf.log(max_v**2/loss1)/np.log(10),lambda:100.0))
+
+def nppsnr(labels,predictions,max_v = 2):
+    loss1 = np.mean(np.square(np.array(labels-predictions).astype(np.float32)))
+    if loss1<1e-6:
+        return 100.0
+    return 10*np.log(max_v**2/loss1)/np.log(10)
