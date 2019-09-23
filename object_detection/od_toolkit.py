@@ -291,12 +291,10 @@ probability:[batch_size,candiate_nr]
 def get_predictionv3(class_prediction,
                    bboxes_regs,
                    proposal_bboxes,
+                   nms=None,
                    limits=None,
                    prio_scaling=[0.1,0.1,0.2,0.2],
-                   nms_threshold=0.1,
-                   candiate_nr = 1500,
-                   classes_wise=False,
-                   classes_wise_nms=True):
+                   classes_wise=False):
     #删除背景
     class_prediction = class_prediction[:,:,1:]
     probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
@@ -343,7 +341,8 @@ def get_predictionv3(class_prediction,
 
     def fn(proposal_bboxes,bboxes_regs,labels,probability):
         boxes = decode_boxes1(proposal_bboxes,bboxes_regs)
-        boxes,labels,probability = wlayers.boxes_nms_nr(bboxes=boxes,labels=labels,probs=probability,threshold=nms_threshold,k=candiate_nr,classes_wise=classes_wise_nms)
+        boxes, labels, indices = nms(boxes,labels,confidence=probability)
+        probability = tf.gather(probability, indices)
         return boxes,labels,probability
 
     boxes,labels,probability = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),elems=(proposal_bboxes,bboxes_regs,labels,probability),

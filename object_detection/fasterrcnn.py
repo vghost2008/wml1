@@ -612,25 +612,29 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
     '''
     process the situation of batch_size greater than one, target boxes number of each imag is specified by k
     '''
-    def getBoxesV3(self,k=1000,nms_threshold=0.1,proposal_boxes=None,limits=None,
-                   adjust_probability=None,classes_wise_nms=True):
+    def getBoxesV3(self,k=1000,proposal_boxes=None,limits=None,
+                   adjust_probability=None,nms=None):
         if proposal_boxes is None:
             proposal_boxes = self.proposal_boxes
+        if k is None and nms is None:
+            print("Error arguments of getBoxesV3, k and nms can't be None at the same time.")
         with tf.device("/cpu:0"):
             with tf.variable_scope("RCNGetBoxes"):
                 self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
                 probs = self.rcn_raw_probs
                 if adjust_probability is not None:
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
+                if nms is None:
+                    nms = functools.partial(wop.boxes_nms_nr2, classes_wise=True, threshold=0.4, k=k)
                 self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\
                 od.get_predictionv3(class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
-                                         nms_threshold=nms_threshold,
                                          limits=limits,
                                          candiate_nr=k,
                                          classes_wise=True,
-                                         classes_wise_nms=classes_wise_nms)
+                                         nms=nms
+                                         )
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob
 
     def getRCNBBoxesPredictQuality(self,gbboxes,glabels,glens):
