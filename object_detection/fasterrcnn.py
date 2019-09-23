@@ -631,7 +631,6 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
                                          limits=limits,
-                                         candiate_nr=k,
                                          classes_wise=True,
                                          nms=nms
                                          )
