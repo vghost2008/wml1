@@ -188,24 +188,24 @@ class ODLoss:
             if scores is None:
                 if bboxes_remove_indices is not None:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask = \
-                    tf.map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3],x[4]),elems=(gregs,glabels,classes_logits,bboxes_regs,
-                     bboxes_remove_indices),dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
+                    wml.static_or_dynamic_map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3],x[4]),elems=[gregs,glabels,classes_logits,bboxes_regs,
+                     bboxes_remove_indices],dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
                 else:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask= \
-                        tf.map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3]),
-                                  elems=(gregs,glabels,classes_logits,bboxes_regs),
+                        wml.static_or_dynamic_map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3]),
+                                  elems=[gregs,glabels,classes_logits,bboxes_regs],
                                   dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
             else:
                 print("Use loss with scores.")
                 if bboxes_remove_indices is not None:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask= \
-                        tf.map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],x[4],scores=x[5]),
-                                  elems=(gregs,glabels,classes_logits,bboxes_regs,bboxes_remove_indices,scores),
+                        wml.static_or_dynamic_map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],x[4],scores=x[5]),
+                                  elems=[gregs,glabels,classes_logits,bboxes_regs,bboxes_remove_indices,scores],
                                   dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
                 else:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask= \
-                        tf.map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],scores=x[4]),
-                                  elems=(gregs,glabels,classes_logits,bboxes_regs,scores),
+                        wml.static_or_dynamic_map_fn(lambda x:self.lossv2(x[0],x[1],x[2],x[3],scores=x[4]),
+                                  elems=[gregs,glabels,classes_logits,bboxes_regs,scores],
                                   dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
             if call_back is not None:
                 call_back(pmask,nmask)
@@ -241,7 +241,7 @@ class ODLoss:
         loss2:负样本分类损失
         psize / (nsize + psize + 1E-8):正样本占的比重
         '''
-        return loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32) + 1E-8),pmask,nmask
+        return [loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32) + 1E-8),pmask,nmask]
     
     
     '''
@@ -276,7 +276,7 @@ class ODLoss:
         loss2:负样本分类损失
         psize / (nsize + psize + 1E-8):正样本占的比重
         '''
-        return loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32)+ 1E-8),pmask,nmask
+        return [loss0, loss1, loss2, nsize+psize,tf.cast(psize,tf.float32) / (tf.cast(nsize + psize,tf.float32)+ 1E-8),pmask,nmask]
 '''
 alpha:每个类别的权重，一般为样本中类别数的逆频率
 '''

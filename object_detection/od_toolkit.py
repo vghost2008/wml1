@@ -68,6 +68,7 @@ def get_prediction(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wml.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -162,6 +163,7 @@ def __get_predictionv2(class_prediction,
     if classes_wise:
         nb_labels = tf.reshape(nb_labels,[-1])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -316,6 +318,7 @@ def get_predictionv3(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wml.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -393,6 +396,7 @@ def __get_predictionv4(class_prediction,
     if classes_wise:
         nb_labels = tf.reshape(nb_labels,[-1])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
 
     if limits is not None:
         limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
@@ -514,6 +518,7 @@ def __get_predictionv5(class_prediction,
             lbboxes_regs = bboxes_regs[:,i,:]
         else:
             lbboxes_regs = tf.identity(bboxes_regs)
+        proposal_bboxes.get_shape().assert_is_compatible_with(lbboxes_regs.get_shape())
         '''
         NMS前数据必须已经排好序
         通过top_k+gather排序
@@ -686,6 +691,7 @@ def get_predictionv6(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wml.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -771,6 +777,7 @@ def get_predictionv7(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wml.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
 
     if limits is not None:
         limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
@@ -836,6 +843,7 @@ def get_proposal_boxes(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = tf.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -890,7 +898,6 @@ def get_proposal_boxesv2(class_prediction,
                    prio_scaling=[0.1,0.1,0.2,0.2],
                    candiate_nr = 1500,
                    classes_wise=False):
-
     if not bboxes_regs.get_shape().is_fully_defined():
         shape = bboxes_regs.get_shape().as_list()
         d_shape = tf.shape(bboxes_regs)
@@ -918,6 +925,7 @@ def get_proposal_boxesv2(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wmlt.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
 
     '''
     通过top_k+gather排序
@@ -1010,6 +1018,7 @@ def get_proposal_boxesv3(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wmlt.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
 
     '''
     通过top_k+gather排序
@@ -1063,6 +1072,7 @@ def get_prediction_no_background(class_prediction,
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,labels)
         bboxes_regs = tf.reshape(bboxes_regs,[old_bboxes_regs_shape[0],-1,old_bboxes_regs_shape[3]])
         labels = tf.reshape(labels,[old_labels_shape[0],-1])
+    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序

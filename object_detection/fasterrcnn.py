@@ -636,6 +636,7 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          classes_wise=True,
                                          nms=nms
                                          )
+        self.rcn_bboxes_lens = tf.ones(tf.shape(self.finally_boxes_label)[0],dtype=tf.int32)*tf.shape(self.finally_boxes_label)[1]
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob
 
     def getRCNBBoxesPredictQuality(self,gbboxes,glabels,glens):
