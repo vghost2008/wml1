@@ -303,6 +303,8 @@ def get_predictionv3(class_prediction,
     ndims = class_prediction.get_shape().ndims
     probability = tf.squeeze(probability, axis=ndims - 1)
     labels = tf.squeeze(labels, axis=ndims - 1)
+    res_indices = tf.expand_dims(tf.range(tf.shape(labels)[1]),axis=0)
+    res_indices = res_indices*tf.ones_like(labels)
 
     if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
         proposal_bboxes = tf.expand_dims(proposal_bboxes,axis=0)
@@ -322,10 +324,12 @@ def get_predictionv3(class_prediction,
     shape_2d = labels.get_shape().as_list()
     shape_box = bboxes_regs.get_shape().as_list()
     labels = wml.gather_in_axis(labels,indices,axis=1)
+    res_indices = wml.gather_in_axis(res_indices,indices,axis=1)
     bboxes_regs = wml.gather_in_axis(bboxes_regs,indices,axis=1)
     proposal_bboxes = wml.gather_in_axis(proposal_bboxes,indices,axis=1)
 
     labels = wml.reshape(labels,shape_2d)
+    res_indices = wml.reshape(res_indices,shape_2d)
     bboxes_regs = wml.reshape(bboxes_regs,shape_box)
     proposal_bboxes = wml.reshape(proposal_bboxes,shape_box)
 
@@ -339,15 +343,16 @@ def get_predictionv3(class_prediction,
         bboxes_regs = tf.stack([cy,cx,h,w],axis=0)
         bboxes_regs = tf.transpose(bboxes_regs)
 
-    def fn(proposal_bboxes,bboxes_regs,labels,probability):
+    def fn(proposal_bboxes,bboxes_regs,labels,probability,r_indices):
         boxes = decode_boxes1(proposal_bboxes,bboxes_regs)
         boxes, labels, indices = nms(boxes,labels,confidence=probability)
         probability = tf.gather(probability, indices)
-        return boxes,labels,probability
+        r_indices = tf.gather(r_indices, indices)
+        return boxes,labels,probability,r_indices
 
-    boxes,labels,probability = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),elems=(proposal_bboxes,bboxes_regs,labels,probability),
-                                         dtype=(tf.float32,tf.int32,tf.float32),back_prop=False)
-    return boxes,labels,probability
+    boxes,labels,probability,res_indices = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3],x[4]),elems=(proposal_bboxes,bboxes_regs,labels,probability,res_indices),
+                                         dtype=(tf.float32,tf.int32,tf.float32,tf.int32),back_prop=False)
+    return boxes,labels,probability,res_indices
 
 '''
 this version of get_prediction have no batch dim.

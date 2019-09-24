@@ -249,6 +249,8 @@ class FasterRCNN(object):
             self.anchor_remove_indices = remove_indices
             return rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices
     '''
+    ***** 执行后self.proposal_boxes会变成pos_threashold+neg_threshold个*****
+    需要在buildRCNNet前调用
     gbboxes:[batch_size,X,4]
     glabels:[batch_size,X]
     lens:[batch_size]
@@ -626,7 +628,7 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                     probs = wnnl.probability_adjust(probs=probs,classes=adjust_probability)
                 if nms is None:
                     nms = functools.partial(wop.boxes_nms_nr2, classes_wise=True, threshold=0.4, k=k)
-                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob =\
+                self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.finally_indices =\
                 od.get_predictionv3(class_prediction=probs,
                                          bboxes_regs=self.rcn_regs,
                                          proposal_bboxes=proposal_boxes,
