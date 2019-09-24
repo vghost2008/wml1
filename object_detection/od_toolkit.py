@@ -642,13 +642,13 @@ def get_predictionv5(class_prediction,
 '''
 与get_predictionv3相同，但NMS作为参数输入同时会返回indices
 class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
-shape为[batch_size,X,num_classes]
+shape为[X,num_classes]
 
 bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
-shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
+shape为[X,4](classes_wise=Flase)或者(X,num_classes,4](classes_wise=True)
 
 proposal_bboxes:候选box
-shape为[batch_size,X,4]
+shape为[X,4]
 
 threshold:选择class_prediction的阀值
 
@@ -660,11 +660,11 @@ limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h
 prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
 
 返回:
-boxes:[batch_size,candiate_nr,4]
-labels:[batch_size,candiate_nr]
-probability:[batch_size,candiate_nr]
+boxes:[candiate_nr,4]
+labels:[candiate_nr]
+probability:[candiate_nr]
 '''
-def get_predictionv6(class_prediction,
+def __get_predictionv6(class_prediction,
                    bboxes_regs,
                    proposal_bboxes,
                    nms,
@@ -672,17 +672,15 @@ def get_predictionv6(class_prediction,
                    prio_scaling=[0.1,0.1,0.2,0.2],
                    classes_wise=False):
     #删除背景
-    class_prediction = class_prediction[:,:,1:]
+    class_prediction = class_prediction[:,1:]
     probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
+    #probability's shape is [X]
     #背景的类别为0，前面已经删除了背景，需要重新加上
     labels = nb_labels+1
     ndims = class_prediction.get_shape().ndims
     probability = tf.squeeze(probability, axis=ndims - 1)
     labels = tf.squeeze(labels, axis=ndims - 1)
-    res_indices = tf.reshape(tf.range(tf.shape(labels)[1]),[1,-1])*tf.ones_like(labels,dtype=tf.int32)
-
-    if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
-        proposal_bboxes = tf.expand_dims(proposal_bboxes,axis=0)
+    res_indices = tf.reshape(tf.range(tf.shape(labels)[0]),[-1])
 
     #按类别在bboxes_regs选择相应类的回归参数
     if classes_wise:
@@ -696,18 +694,11 @@ def get_predictionv6(class_prediction,
     NMS前数据必须已经排好序
     通过top_k+gather排序
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.shape(probability)[1])
-    shape_2d = labels.get_shape().as_list()
-    shape_box = bboxes_regs.get_shape().as_list()
-    labels = wml.gather_in_axis(labels,indices,axis=1)
-    bboxes_regs = wml.gather_in_axis(bboxes_regs,indices,axis=1)
-    proposal_bboxes = wml.gather_in_axis(proposal_bboxes,indices,axis=1)
-    res_indices= wml.gather_in_axis(res_indices,indices,axis=1)
-
-    labels = wml.reshape(labels,shape_2d)
-    bboxes_regs = wml.reshape(bboxes_regs,shape_box)
-    proposal_bboxes = wml.reshape(proposal_bboxes,shape_box)
-    res_indices = wml.reshape(res_indices,shape_2d)
+    probability,indices = tf.nn.top_k(probability,k=tf.shape(probability)[0])
+    labels = tf.gather(labels,indices)
+    bboxes_regs = tf.gather(bboxes_regs,indices)
+    proposal_bboxes = tf.gather(proposal_bboxes,indices)
+    res_indices= tf.gather(res_indices,indices)
 
     if limits is not None:
         limits = np.array(limits)/np.array(zip(prio_scaling,prio_scaling))
@@ -719,14 +710,32 @@ def get_predictionv6(class_prediction,
         bboxes_regs = tf.stack([cy,cx,h,w],axis=0)
         bboxes_regs = tf.transpose(bboxes_regs)
 
-    def fn(proposal_bboxes,bboxes_regs,labels,probability):
-        boxes = decode_boxes1(proposal_bboxes,bboxes_regs)
-        boxes,labels,indices = nms(bboxes=boxes,classes=labels,confidence=probability)
-        return boxes,labels,tf.gather(probability,indices),indices
+    boxes = decode_boxes1(proposal_bboxes,bboxes_regs)
+    boxes,labels,indices = nms(bboxes=boxes,classes=labels,confidence=probability)
+    probability = tf.gather(probability,indices)
+    res_indices = tf.gather(res_indices,indices)
+    return boxes,labels,probability,res_indices
 
-    boxes,labels,probability,indices = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),elems=(proposal_bboxes,bboxes_regs,labels,probability),
-                                         dtype=(tf.float32,tf.int32,tf.float32,tf.int32),back_prop=False)
-    res_indices = wmlt.batch_gather(res_indices,indices)
+def get_predictionv6(class_prediction,
+                   bboxes_regs,
+                   proposal_bboxes,
+                   nms,
+                   limits=None,
+                   prio_scaling=[0.1,0.1,0.2,0.2],
+                   classes_wise=False):
+    if proposal_bboxes.get_shape().as_list()[0] == 1:
+        '''
+        In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
+        '''
+        proposal_bboxes = tf.squeeze(proposal_bboxes,axis=0)
+        boxes,labels,probability,res_indices= tf.map_fn(lambda x:__get_predictionv6(x[0],x[1],proposal_bboxes,nms,limits,prio_scaling,
+                                                                                          classes_wise=classes_wise),
+                                                              elems=(class_prediction,bboxes_regs),dtype=(tf.float32,tf.int32,tf.float32,tf.int32)
+                                                              )
+    else:
+        boxes,labels,probability,res_indices = tf.map_fn(lambda x:__get_predictionv6(x[0],x[1],x[2],nms,limits,prio_scaling,
+                                                                                          classes_wise=classes_wise),
+                                                              elems=(class_prediction,bboxes_regs,proposal_bboxes),dtype=(tf.float32,tf.int32,tf.float32,tf.int32))
     return boxes,labels,probability,res_indices
 
 '''
