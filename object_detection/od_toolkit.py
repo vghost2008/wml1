@@ -1040,9 +1040,8 @@ def get_proposal_boxesv3(class_prediction,
 
     def fn(proposal_bboxes,bboxes_regs,labels,probability):
         boxes = decode_boxes1(proposal_bboxes,bboxes_regs)
-        boxes,labels,indices = boxes_nms_nr2(boxes,labels,k=candiate_nr,threshold=nms_threshold)
-        #boxes,labels,probability = wlayers.boxes_nms_nr(bboxes=boxes,labels=labels,probs=probability,threshold=nms_threshold,k=candiate_nr)
-        #probability = tf.gather(probability,indices)
+        boxes,labels,indices = boxes_nms_nr2(boxes,labels,k=candiate_nr,threshold=nms_threshold,confidence=probability)
+        probability = tf.gather(probability,indices)
         return boxes,labels,probability
 
     boxes,labels,probability = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),elems=(proposal_bboxes,bboxes_regs,labels,probability),
