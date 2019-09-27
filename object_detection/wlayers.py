@@ -3,6 +3,7 @@ import tensorflow as tf
 from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
 from wtfop.wtfop_ops import boxes_relative_to_absolute
 import object_detection.bboxes as odb
+import wml_tfutils as wmlt
 
 slim=tf.contrib.slim
 
@@ -144,3 +145,26 @@ def boxes_nms_nr(bboxes,labels,probs,threshold=0.5,k=1000,classes_wise=True):
     probs = tf.reshape(probs,[k])
 
     return bboxes,labels,probs
+
+def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=False):
+    with tf.name_scope("batch_nms_wrapper"):
+        if confidence is None:
+            confidence = tf.ones_like(classes,dtype=tf.float32)
+        def do_nms(sboxes,sclasses,sconfidence,lens):
+            if sort:
+                r_index = tf.range(lens)
+                sconfidence,t_index = tf.nn.top_k(sconfidence[:lens],k=lens)
+                sboxes = tf.gather(sboxes,t_index)
+                sclasses = tf.gather(sclasses,t_index)
+                r_index = tf.gather(r_index,t_index)
+            boxes,labels,nms_indexs = nms(bboxes=sboxes[:lens],classes=sclasses[:lens],confidence=sconfidence[:lens])
+            r_len = tf.shape(nms_indexs)[0]
+            boxes = tf.pad(boxes,[[0,k-lens],[0,0]])
+            labels = tf.pad(labels,[[0,k-lens]])
+            if sort:
+                nms_indexs = tf.gather(r_index,nms_indexs)
+            nms_indexs = tf.pad(nms_indexs,[[0,k-lens]])
+            return [boxes,labels,nms_indexs,r_len]
+        boxes,labels,nms_indexs,lens = wmlt.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
+                                                                     dtype=(tf.float32,tf.int32,tf.int32,tf.int32))
+        return boxes,labels,nms_indexs,lens
