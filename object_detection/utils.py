@@ -409,15 +409,23 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
 '''
-def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False):
-    if image_sub_dir is not None:
-        jpeg_dir = os.path.join(dir_path,image_sub_dir)
+def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False):
+    if auto_sub_dir:
+        jpeg_dir = os.path.join(dir_path,"JPEGImages")
+        if not os.path.exists(jpeg_dir):
+            jpeg_dir = dir_path
+        xml_dir = os.path.join(dir_path,"Annotations")
+        if not os.path.exists(xml_dir):
+            xml_dir = dir_path
     else:
-        jpeg_dir = dir_path
-    if xml_sub_dir is not None:
-        xml_dir = os.path.join(dir_path,xml_sub_dir)
-    else:
-        xml_dir = dir_path
+        if image_sub_dir is not None:
+            jpeg_dir = os.path.join(dir_path,image_sub_dir)
+        else:
+            jpeg_dir = dir_path
+        if xml_sub_dir is not None:
+            xml_dir = os.path.join(dir_path,xml_sub_dir)
+        else:
+            xml_dir = dir_path
     inputfilenames = wml_utils.recurse_get_filepath_in_dir(jpeg_dir,suffix=img_suffix)
 
     img_file_paths = []
