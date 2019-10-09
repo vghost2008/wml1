@@ -38,10 +38,11 @@ def str2optimizer(name="Adam",learning_rate=None):
     return opt
 
 def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
-                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None):
+                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None,num_epochs_per_decay=None):
     with tf.name_scope(name=scope,default_name="train_op"):
         num_batches_per_epoch=float(FLAGS.example_size)/batch_size
-        num_epochs_per_decay=FLAGS.num_epochs_per_decay
+        if num_epochs_per_decay is None:
+            num_epochs_per_decay=FLAGS.num_epochs_per_decay
         learn_rate_decay_factor=FLAGS.learn_rate_decay_factor
         min_learn_rate = FLAGS.min_learn_rate
 
