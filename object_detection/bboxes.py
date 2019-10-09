@@ -343,6 +343,21 @@ def to_cxysa(data):
         res_data[i][3] = ratio
 
     return res_data
+
+'''
+data:[X,4] (ymin,xmin,ymax,xmax)
+return:
+[X,4] (cy,cx,h,w)
+'''
+def npto_cyxhw(data):
+    data = np.transpose(data)
+    ymin,xmin,ymax,xmax = data[0],data[1],data[2],data[3]
+    cy = (ymin+ymax)/2
+    cx = (xmin+xmax)/2
+    h = (ymax-ymin)/2
+    w = (xmax-xmin)/2
+    data = np.stack([cy,cx,h,w],axis=1)
+    return data
 '''
 将以ymin,xmin,ymax,xmax表示的box转换为以cy,cx,h,w表示的box
 对data的shape没有限制

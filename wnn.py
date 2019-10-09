@@ -401,7 +401,7 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         exclude = exclude_var
     file_path = wmlt.get_ckpt_file_path(path)
     if file_path is None:
-        return
+        return False
     print(f"resotre from {file_path}.")
     for v in tf.global_variables():
         if "moving_mean" in v.name or "moving_variance" in v.name:
@@ -443,6 +443,7 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
     unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
     show_values(unrestored_variables, "Unrestored variables")
     show_values(unrestored_variables0, "Unrestored variables0")
+    return True
 
 def accuracy_ratio(logits,labels):
     with tf.name_scope("accuracy_ratio"):
