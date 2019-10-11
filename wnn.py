@@ -244,7 +244,7 @@ def apply_gradientsv3(grads,global_step,optimizer,clip_norm=None):
             op = optimizer.apply_gradients(grads,global_step=global_step)
         return op
 
-def average_grads(tower_grads):
+def average_grads(tower_grads,clip_norm=None):
     with tf.name_scope("average_grads"):
         average_grads = []
         for grad_and_vars in zip(*tower_grads):
@@ -258,7 +258,11 @@ def average_grads(tower_grads):
             v = grad_and_vars[0][1]
             grad_and_var = (grad,v)
             average_grads.append(grad_and_var)
-
+        if clip_norm is not None:
+            grads,vars = zip(*average_grads)
+            grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
+            tf.summary.scalar("global_norm", global_norm)
+            average_grads = list(zip(grads,vars))
         return average_grads
 
 def average_npgrads(grads_list):

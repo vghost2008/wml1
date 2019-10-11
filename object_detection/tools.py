@@ -172,8 +172,8 @@ def show_anchor_box(img_file,boxes):
 
 if __name__ == "__main__":
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
-    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatasvx2/train",nr=20)
-    #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatavx3_1",nr=20)
+    #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatasvx2/train",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatavx3",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)
