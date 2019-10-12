@@ -400,7 +400,7 @@ def restore_variables_by_var_list(sess,file_path,vars):
         return file_path,vars
     return []
 
-def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None):
+def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
     if exclude is None and exclude_var is not None:
@@ -430,6 +430,16 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         else:
             for v in variables1[1]:
                 variables.append(v)
+
+    if global_scopes is not None:
+        variables2 = restore_variables_by_key(sess,file_path,None,global_scopes,key=tf.GraphKeys.GLOBAL_VARIABLES,name='global_variables',silent=silent,value_key=value_key)
+        if len(variables2)>1:
+            if isinstance(variables2[1],list):
+                for v in variables2[1]:
+                    variables.append(v.name)
+            else:
+                for v in variables2[1]:
+                    variables.append(v)
 
     if extend_vars is not None:
         variables2 = restore_variables_by_var_list(sess,file_path,extend_vars)
