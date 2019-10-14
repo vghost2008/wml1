@@ -1005,6 +1005,80 @@ def static_or_dynamic_map_fn(fn, elems, dtype=None,
         return [tf.stack(output_tuple) for output_tuple in zip(*outputs)]
   raise ValueError('`fn` should return a Tensor or a list of Tensors.')
 
+def combined_static_and_dynamic_shape(tensor):
+  """Returns a list containing static and dynamic values for the dimensions.
 
+  Returns a list of static and dynamic values for shape dimensions. This is
+  useful to preserve static shapes when available in reshape operation.
+
+  Args:
+    tensor: A tensor of any type.
+
+  Returns:
+    A list of size tensor.shape.ndims containing integers or a scalar tensor.
+  """
+  static_tensor_shape = tensor.shape.as_list()
+  dynamic_tensor_shape = tf.shape(tensor)
+  combined_shape = []
+  for index, dim in enumerate(static_tensor_shape):
+    if dim is not None:
+      combined_shape.append(dim)
+    else:
+      combined_shape.append(dynamic_tensor_shape[index])
+  return combined_shape
+
+def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
+                                width_scale=None):
+  """Nearest neighbor upsampling implementation.
+
+  Nearest neighbor upsampling function that maps input tensor with shape
+  [batch_size, height, width, channels] to [batch_size, height * scale
+  , width * scale, channels]. This implementation only uses reshape and
+  broadcasting to make it TPU compatible.
+
+  Args:
+    input_tensor: A float32 tensor of size [batch, height_in, width_in,
+      channels].
+    scale: An integer multiple to scale resolution of input data in both height
+      and width dimensions.
+    height_scale: An integer multiple to scale the height of input image. This
+      option when provided overrides `scale` option.
+    width_scale: An integer multiple to scale the width of input image. This
+      option when provided overrides `scale` option.
+  Returns:
+    data_up: A float32 tensor of size
+      [batch, height_in*scale, width_in*scale, channels].
+
+  Raises:
+    ValueError: If both scale and height_scale or if both scale and width_scale
+      are None.
+  """
+  if not scale and (height_scale is None or width_scale is None):
+    raise ValueError('Provide either `scale` or `height_scale` and'
+                     ' `width_scale`.')
+  with tf.name_scope('nearest_neighbor_upsampling'):
+    h_scale = scale if height_scale is None else height_scale
+    w_scale = scale if width_scale is None else width_scale
+    (batch_size, height, width,
+     channels) = combined_static_and_dynamic_shape(input_tensor)
+    output_tensor = tf.reshape(
+        input_tensor, [batch_size, height, 1, width, 1, channels]) * tf.ones(
+            [1, 1, h_scale, 1, w_scale, 1], dtype=input_tensor.dtype)
+    return tf.reshape(output_tensor,
+                      [batch_size, height * h_scale, width * w_scale, channels])
+
+def nearest_neighbor_downsampling(input_tensor, scale=None, height_scale=None,
+                                width_scale=None):
+    if not scale and (height_scale is None or width_scale is None):
+        raise ValueError('Provide either `scale` or `height_scale` and'
+                         ' `width_scale`.')
+    with tf.name_scope('nearest_neighbor_downsampling'):
+        h_scale = scale if height_scale is None else height_scale
+        w_scale = scale if width_scale is None else width_scale
+        (batch_size, height, width,
+         channels) = combined_static_and_dynamic_shape(input_tensor)
+        output_tensor = tf.reshape(
+            input_tensor, [batch_size, height//h_scale, h_scale, width//w_scale, w_scale, channels])
+        return output_tensor[:,:,0,:,0,:]
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

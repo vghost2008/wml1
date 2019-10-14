@@ -454,6 +454,32 @@ def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
     output = cnn_self_hattenation(net,channel,n_head,keep_prob,is_training=is_training)
     return tf.transpose(output,perm=[0,2,1,3],name="transpose_1")
 
+'''
+GCNet: Non-local Networks Meet Squeeze-Excitation Networks and Beyond
+'''
+def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=None,scope=None):
+    with tf.variable_scope(scope=scope,default_name="gc_block"):
+        (batch_size,height,width,channel) = wmlt.combined_static_and_dynamic_shape(net)
+        input_x = tf.reshape(net,[batch_size,height*width,channel])
+        input_x = tf.transpose(input_x,perm=(0,2,1))
+        #input_x:[B,C,WH]
+        context_x = slim.conv2d(net,1,[1,1],activation_fn=None,normalizer_fn=None)
+        context_x = tf.reshape(context_x,[batch_size,height*width,1])
+        #context_x:[B,WH,1]
+        context_mask = tf.nn.softmax(context_x,axis=1)
+        #context_x:[B,WH,1]
+        context = tf.matmul(input_x,context_mask)
+        #context:[B,C,1]
+        context = tf.transpose(context,perm=(0,2,1))
+        #context:[B,1,C]
+        context = tf.expand_dims(context,axis=1)
+        #context:[B,1,1,C]
+        context = slim.conv2d(context,channel//r,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        #context:[B,1,1,C//r]
+        context = slim.conv2d(context,channel,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        #context:[B,1,1,C]
+        return context+net
+
 def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=int(time.time()),all_channel=False):
     with tf.variable_scope(scope,default_name="dropblock"):
         if not is_training:
