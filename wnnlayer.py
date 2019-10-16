@@ -206,7 +206,7 @@ def spectral_norm(w, iteration=1):
        u_hat = tf.stop_gradient(u_hat)
        v_hat = tf.stop_gradient(v_hat)
 
-       sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))+1e-10
+       sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))+1e-11
 
        with tf.control_dependencies([u.assign(u_hat)]):
            w_norm = w / sigma
@@ -247,6 +247,8 @@ def conv2d_with_sn(inputs,
 
         outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w), strides=[1, stride, stride, 1],padding=padding) + b
         if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
             outputs = normalizer_fn(outputs,**normalizer_params)
         if activation_fn is not None:
             outputs = activation_fn(outputs)
@@ -457,13 +459,13 @@ def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
 '''
 GCNet: Non-local Networks Meet Squeeze-Excitation Networks and Beyond
 '''
-def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=None,scope=None):
-    with tf.variable_scope(scope=scope,default_name="gc_block"):
+def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=None,scope=None,conv_op=slim.conv2d):
+    with tf.variable_scope(scope,default_name="gc_block"):
         (batch_size,height,width,channel) = wmlt.combined_static_and_dynamic_shape(net)
         input_x = tf.reshape(net,[batch_size,height*width,channel])
         input_x = tf.transpose(input_x,perm=(0,2,1))
         #input_x:[B,C,WH]
-        context_x = slim.conv2d(net,1,[1,1],activation_fn=None,normalizer_fn=None)
+        context_x = conv_op(net,1,[1,1],activation_fn=None,normalizer_fn=None)
         context_x = tf.reshape(context_x,[batch_size,height*width,1])
         #context_x:[B,WH,1]
         context_mask = tf.nn.softmax(context_x,axis=1)
@@ -474,9 +476,9 @@ def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=Non
         #context:[B,1,C]
         context = tf.expand_dims(context,axis=1)
         #context:[B,1,1,C]
-        context = slim.conv2d(context,channel//r,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        context = conv_op(context,channel//r,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
         #context:[B,1,1,C//r]
-        context = slim.conv2d(context,channel,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        context = conv_op(context,channel,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
         #context:[B,1,1,C]
         return context+net
 
@@ -503,3 +505,27 @@ def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=int(time
 
 def min_pool2d(inputs,*args,**kwargs):
     return -slim.max_pool2d(-inputs,*args,**kwargs)
+
+def orthogonal_regularizer(scale) :
+    """ Defining the Orthogonal regularizer and return the function at last to be used in Conv layer as kernel regularizer"""
+
+    def ortho_reg(w) :
+        """ Reshaping the matrxi in to 2D tensor for enforcing orthogonality"""
+        _, _, _, c = w.get_shape().as_list()
+
+        w = tf.reshape(w, [-1, c])
+
+        """ Declaring a Identity Tensor of appropriate size"""
+        identity = tf.eye(c)
+
+        """ Regularizer Wt*W - I """
+        w_transpose = tf.transpose(w)
+        w_mul = tf.matmul(w_transpose, w)
+        reg = tf.subtract(w_mul, identity)
+
+        """Calculating the Loss Obtained"""
+        ortho_loss = tf.nn.l2_loss(reg)
+
+        return scale * ortho_loss
+
+    return ortho_reg
