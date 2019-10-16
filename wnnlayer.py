@@ -7,6 +7,7 @@ from tensorflow.contrib.framework.python.ops import add_arg_scope
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import nn
 from tensorflow.contrib.layers.python.layers import initializers
+from tensorflow.contrib.layers.python.layers import utils
 import nlp.wlayers as nlpl
 import numpy as np
 import time
@@ -228,6 +229,7 @@ def conv2d_with_sn(inputs,
                    biases_regularizer=None,
                    normalizer_fn=None,
                    normalizer_params=None,
+                   outputs_collections=None,
                    rate=1,
                    reuse=None,
                    scope=None):
@@ -252,8 +254,7 @@ def conv2d_with_sn(inputs,
             outputs = normalizer_fn(outputs,**normalizer_params)
         if activation_fn is not None:
             outputs = activation_fn(outputs)
-
-        return outputs
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
 
 def orthogonal_initializer(shape, dtype=tf.float32, *args, **kwargs):
   """Generates orthonormal matrices with random values.
