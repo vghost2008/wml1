@@ -466,9 +466,10 @@ def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=Non
         input_x = tf.transpose(input_x,perm=(0,2,1))
         #input_x:[B,C,WH]
         context_x = conv_op(net,1,[1,1],activation_fn=None,normalizer_fn=None)
-        context_x = tf.reshape(context_x,[batch_size,height*width,1])
-        #context_x:[B,WH,1]
-        context_mask = tf.nn.softmax(context_x,axis=1)
+        context_x = tf.reshape(context_x,[batch_size,height*width])
+        #context_x:[B,WH]
+        context_mask = tf.nn.softmax(context_x)
+        context_mask = tf.expand_dims(context_mask,axis=-1)
         #context_x:[B,WH,1]
         context = tf.matmul(input_x,context_mask)
         #context:[B,C,1]
