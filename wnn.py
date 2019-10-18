@@ -151,12 +151,18 @@ def get_train_opv2(global_step,batch_size=32,learning_rate=1E-3,scopes=None,clip
         apply_grad_op,grads_holder = apply_gradients(grads,global_step,opt,clip_norm=clip_norm)
         return train_op,apply_grad_op,grads,grads_holder,total_loss,variables_to_train
 
-def get_optimizer(global_step,learning_rate=1E-3,batch_size=32,optimizer="Adam",num_epochs_per_decay=None):
-    num_batches_per_epoch=float(FLAGS.example_size)/batch_size
+def get_optimizer(global_step,learning_rate=1E-3,batch_size=32,optimizer="Adam",num_epochs_per_decay=None,
+                  example_size=None,
+                  learn_rate_decay_factor=None,min_learn_rate=None):
+    if example_size is None:
+        example_size = FLAGS.example_size
     if num_epochs_per_decay is None:
-        num_epochs_per_decay=FLAGS.num_epochs_per_decay
-    learn_rate_decay_factor=FLAGS.learn_rate_decay_factor
-    min_learn_rate = FLAGS.min_learn_rate
+        num_epochs_per_decay = FLAGS.num_epochs_per_decay
+    if learn_rate_decay_factor is None:
+        learn_rate_decay_factor =FLAGS.learn_rate_decay_factor
+    if min_learn_rate is None:
+        min_learn_rate = FLAGS.min_learn_rate
+    num_batches_per_epoch=float(example_size)/batch_size
 
     decay_step = int(num_batches_per_epoch*num_epochs_per_decay)
     lr = tf.train.exponential_decay(learning_rate,global_step,decay_step,learn_rate_decay_factor,staircase=True)
