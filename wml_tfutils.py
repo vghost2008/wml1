@@ -251,6 +251,8 @@ def variable_summaries(var,name):
     tf.summary.histogram(name+'/hisogram', var)
 
 def variable_summaries_v2(var, name):
+    if var is None or name is None:
+        return
     if var.dtype != tf.float32:
         var = tf.cast(var, tf.float32)
     if isSingleValueTensor(var):
