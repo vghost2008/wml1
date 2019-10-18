@@ -478,9 +478,9 @@ def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=Non
         #context:[B,1,C]
         context = tf.expand_dims(context,axis=1)
         #context:[B,1,1,C]
-        context = conv_op(context,channel//r,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        context = conv_op(context,channel//r,[1,1],activation_fn=tf.nn.relu,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
         #context:[B,1,1,C//r]
-        context = conv_op(context,channel,[1,1],activation_fn=None,normalizer_fn=normalizer_fn,normalizer_params=normalizer_params)
+        context = conv_op(context,channel,[1,1],activation_fn=None,normalizer_fn=None)
         #context:[B,1,1,C]
         return context+net
 
