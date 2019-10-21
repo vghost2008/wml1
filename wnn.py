@@ -406,7 +406,7 @@ def restore_variables_by_var_list(sess,file_path,vars):
         return file_path,vars
     return []
 
-def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None):
+def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None,verbose=False):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
     if exclude is None and exclude_var is not None:
@@ -463,8 +463,13 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
             variables[i] = variables[i][:index]
     unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
     unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
-    show_values(unrestored_variables, "Unrestored variables")
-    show_values(unrestored_variables0, "Unrestored variables0")
+    if not verbose:
+        def v_filter(x:str):
+            return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u")) and
+        unrestored_variables = filter(v_filter,unrestored_variables)
+        unrestored_variables0 = filter(v_filter,unrestored_variables0)
+    show_values(unrestored_variables, "Unrestored variables in ckpt")
+    show_values(unrestored_variables0, "Unrestored variables of global variables")
     return True
 
 def accuracy_ratio(logits,labels):
