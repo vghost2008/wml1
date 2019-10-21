@@ -13,6 +13,7 @@ import numpy as np
 import time
 from tensorflow.contrib.framework.python.ops import add_arg_scope
 
+DATA_FORMAT_NHWC = 'NHWC'
 slim = tf.contrib.slim
 
 class ConvGRUCell(tf.nn.rnn_cell.RNNCell):
@@ -255,6 +256,53 @@ def conv2d_with_sn(inputs,
         if activation_fn is not None:
             outputs = activation_fn(outputs)
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
+def fully_connected_with_sn(inputs,
+                    num_outputs,
+                    activation_fn=nn.relu,
+                    normalizer_fn=None,
+                    normalizer_params=None,
+                    weights_initializer=initializers.xavier_initializer(),
+                    weights_regularizer=None,
+                    biases_initializer=init_ops.zeros_initializer(),
+                    biases_regularizer=None,
+                    reuse=None,
+                    variables_collections=None,
+                    outputs_collections=None,
+                    trainable=True,
+                    scope=None):
+  with tf.variable_scope(scope,
+      'fully_connected', [inputs], reuse=reuse) as sc:
+      shape = inputs.get_shape().as_list()
+      channels = shape[-1]
+      w = tf.get_variable("weights", [channels, num_outputs], tf.float32, initializer=weights_initializer,
+                          regularizer=weights_regularizer,trainable=trainable,
+                          collections=variables_collections)
+      if weights_regularizer is not None:
+          tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+      if biases_initializer is not None:
+          b = tf.get_variable("biases", [num_outputs], tf.float32, initializer=biases_initializer,
+                          regularizer=biases_regularizer,trainable=trainable,
+                              collections=variables_collections)
+          if biases_regularizer is not None:
+              tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+          outputs = tf.matmul(inputs,spectral_norm(w))+b
+      else:
+          outputs = tf.matmul(inputs,spectral_norm(w))
+      # Apply normalizer function / layer.
+      if normalizer_fn is not None:
+          if not normalizer_params:
+              normalizer_params = {}
+          outputs = normalizer_fn(outputs, **normalizer_params)
+
+      if activation_fn is not None:
+          outputs = activation_fn(outputs)
+
+      return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+
+
 
 def orthogonal_initializer(shape, dtype=tf.float32, *args, **kwargs):
   """Generates orthonormal matrices with random values.
@@ -513,7 +561,7 @@ def orthogonal_regularizer(scale) :
 
     def ortho_reg(w) :
         """ Reshaping the matrxi in to 2D tensor for enforcing orthogonality"""
-        _, _, _, c = w.get_shape().as_list()
+        c = w.get_shape().as_list()[-1]
 
         w = tf.reshape(w, [-1, c])
 
@@ -531,3 +579,4 @@ def orthogonal_regularizer(scale) :
         return scale * ortho_loss
 
     return ortho_reg
+
