@@ -465,7 +465,7 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
     unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
     if not verbose:
         def v_filter(x:str):
-            return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u")) and
+            return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
         unrestored_variables = filter(v_filter,unrestored_variables)
         unrestored_variables0 = filter(v_filter,unrestored_variables0)
     show_values(unrestored_variables, "Unrestored variables in ckpt")
