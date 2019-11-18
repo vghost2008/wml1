@@ -76,7 +76,7 @@ class WMLTest(tf.test.TestCase):
             resdata.sort()
             self.assertAllEqual(resdata,target_data)'''
 
-    def testSparseSoftmaxCrossEntropyWithLogitsFL(self):
+    '''def testSparseSoftmaxCrossEntropyWithLogitsFL(self):
         with self.test_session() as sess:
             shape = [2,3,4,5]
             tf.set_random_seed(int(time.time()))
@@ -86,7 +86,7 @@ class WMLTest(tf.test.TestCase):
             loss2= wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.,alpha=None)
             t_loss1,t_loss2,t_labels = sess.run([loss1,loss2,labels])
             print(t_labels)
-            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
+            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)'''
 
     def testSparseSoftmaxCrossEntropyWithLogitsAlphaBalanced(self):
         with self.test_session() as sess:
@@ -100,17 +100,17 @@ class WMLTest(tf.test.TestCase):
             print(t_labels)
             self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
 
-    def testSparseSoftmaxCrossEntropyWithLogitsAlphaBalancedFL(self):
+    '''def testSparseSoftmaxCrossEntropyWithLogitsAlphaBalancedFL(self):
         with self.test_session() as sess:
             shape = [2,3,4,5]
             tf.set_random_seed(int(time.time()))
             logits = tf.random_uniform(shape=shape,minval=-9.,maxval=9.,dtype=tf.float32)
             labels = tf.random_uniform(shape=shape[:-1],minval=0,maxval=shape[-1],dtype=tf.int32)
-            loss1 = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.,alpha="auto")
-            loss2= wnn.sparse_softmax_cross_entropy_with_logits_alpha_balanced(labels=labels,logits=logits,alpha="auto")
+            loss1 = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=labels,logits=logits,gamma=0.,alpha=None)
+            loss2= wnn.sparse_softmax_cross_entropy_with_logits_alpha_balanced(labels=labels,logits=logits,alpha=None)
             t_loss1,t_loss2,t_labels = sess.run([loss1,loss2,labels])
             print(t_labels)
-            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)
+            self.assertAllClose(a=t_loss1,b=t_loss2,atol=0.01,rtol=0)'''
 
     def testHierarchicalSparseSoftmaxCrossEntropy(self):
         with self.test_session() as sess:
@@ -282,6 +282,27 @@ class WMLTest(tf.test.TestCase):
         print(c)
         c[-1].append(0)
         self.assertAllEqual(c,b)
+
+    def test_orthogonal_regularizerv2(self):
+        with self.test_session() as sess:
+            print("test_orthogonal_regularizerv2")
+            fn = wnnl.orthogonal_regularizerv2(1)
+            weight = np.array(list(range(3)),np.float32)
+            wmlu.show_list(weight)
+            v = fn(weight)
+            v = sess.run(v)
+            self.assertAllClose(v,4.0,atol=1e-4)
+
+    def test_orthogonal_regularizerv1(self):
+        with self.test_session() as sess:
+            print("test_orthogonal_regularizerv1")
+            fn = wnnl.orthogonal_regularizer(1)
+            weight = np.array(list(range(3)),np.float32)
+            wmlu.show_list(weight)
+            v = fn(weight)
+            v = sess.run(v)
+            self.assertAllClose(v,9,atol=1e-4)
+
 
 
 

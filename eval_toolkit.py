@@ -17,6 +17,8 @@ def get_file_name_in_ckp(name):
     name = names[-1]
     name = name.strip()
     name = name.replace("\"", "")
+    if name.startswith("/"):
+        name = os.path.basename(name)
     return name
 
 '''

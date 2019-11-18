@@ -12,6 +12,8 @@ import copy
 import random
 import itertools
 import functools
+import wml_tfutils as wmlt
+import time
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -428,6 +430,8 @@ def random_perm_channel(img,seed=None):
         channel_nr = img.get_shape().as_list()[-1]
         index = list(range(channel_nr))
         indexs = list(itertools.permutations(index,channel_nr))
+        assert np.alltrue(np.array(indexs[0]) == np.array(index)), "error"
+        indexs = indexs[1:]
         x = tf.random_shuffle(indexs,seed=seed)
         x = x[0,:]
         if len(img.get_shape()) == 3:
@@ -452,3 +456,64 @@ def nppsnr(labels,predictions,max_v = 2):
     if loss1<1e-6:
         return 100.0
     return 10*np.log(max_v**2/loss1)/np.log(10)
+
+
+def rot90(image,clockwise=True):
+    if clockwise:
+        k = 1
+    else:
+        k = 3
+    if isinstance(image,list):
+        image = [tf.cond(tf.reduce_min(tf.shape(img))>0,lambda:tf.image.rot90(img,k),lambda:img) for img in image]
+    else:
+        image = tf.image.rot90(image,k)
+    return image
+
+
+def random_rot90(image,clockwise=None):
+    if clockwise is None:
+        return wmlt.probability_case([(0.34,lambda: image),(0.33,lambda: rot90(image,True)),(0.33,lambda:rot90(image,False))])
+    else:
+        return wmlt.probability_case([(0.5,lambda: image),(0.5,lambda: rot90(image,clockwise))])
+
+def random_saturation(image,gray_image=None,minval=0.0,maxval=1.0,scope=None):
+    with tf.name_scope(scope, 'random_saturation', [image]):
+        if gray_image is None:
+            gray_image = rgb_to_grayscale(image,keep_channels=True)
+        ratio = tf.random_uniform(shape=(),
+                                  minval=minval,
+                                  maxval=maxval,
+                                  dtype=tf.float32,
+                                  seed=int(time.time()))
+        return gray_image*ratio + image*(1.0-ratio)
+
+class ImagePatch(object):
+    def __init__(self,patch_size):
+        self.patch_size = patch_size
+        self.patchs = None
+        self.batch_size = None
+        self.height = None
+        self.width = None
+        self.channel = None
+
+    def to_patch(self,images,scope=None):
+        with tf.name_scope(scope,"to_patch"):
+            patch_size = self.patch_size
+            batch_size, height, width, channel = wmlt.combined_static_and_dynamic_shape(images)
+            self.batch_size, self.height, self.width, self.channel = batch_size, height, width, channel
+            net = tf.reshape(images, [batch_size, height // patch_size, patch_size, width // patch_size, patch_size,
+                                   channel])
+            net = tf.transpose(net, [0, 1, 3, 2, 4, 5])
+            self.patchs = tf.reshape(net, [-1, patch_size, patch_size, channel])
+            return self.patchs
+
+    def from_patch(self,scope=None):
+        assert self.patchs is not None,"Must call to_path first."
+        with tf.name_scope(scope,"from_patch"):
+            batch_size, height, width, channel = self.batch_size, self.height, self.width, self.channel
+            patch_size = self.patch_size
+            net = tf.reshape(self.patchs, [batch_size, height // patch_size, width // patch_size, patch_size, patch_size,
+                                   channel])
+            net = tf.transpose(net, [0, 1, 3, 2, 4, 5])
+            net = tf.reshape(net, [batch_size, height, width, channel])
+            return net

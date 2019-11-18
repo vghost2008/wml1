@@ -255,7 +255,9 @@ def average_grads(tower_grads,clip_norm=None):
         average_grads = []
         for grad_and_vars in zip(*tower_grads):
             grads = []
-            for g,_ in grad_and_vars:
+            for g,_v in grad_and_vars:
+                if g is None:
+                    print(_v,"have no grads.")
                 expanded_g = tf.expand_dims(g,0)
                 grads.append(expanded_g)
             grad = tf.concat(values=grads,axis=0)
@@ -461,15 +463,16 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         index = v.find(':')
         if index>0:
             variables[i] = variables[i][:index]
-    unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
-    unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
-    if not verbose:
-        def v_filter(x:str):
-            return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
-        unrestored_variables = filter(v_filter,unrestored_variables)
-        unrestored_variables0 = filter(v_filter,unrestored_variables0)
-    show_values(unrestored_variables, "Unrestored variables in ckpt")
-    show_values(unrestored_variables0, "Unrestored variables of global variables")
+    if not silent:
+        unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
+        unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
+        if not verbose:
+            def v_filter(x:str):
+                return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
+            unrestored_variables = filter(v_filter,unrestored_variables)
+            unrestored_variables0 = filter(v_filter,unrestored_variables0)
+        show_values(unrestored_variables, "Unrestored variables in ckpt")
+        show_values(unrestored_variables0, "Unrestored variables of global variables")
     return True
 
 def accuracy_ratio(logits,labels):

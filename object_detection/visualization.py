@@ -68,10 +68,17 @@ def bboxes_draw_on_img(img, classes, scores, bboxes,
             s = '%d %.1f' % (classes[i], scores[i])
             p = (p1[0]-5, p1[1])
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(255.,255.,255.), thickness=1)
+def get_text_pos_fn(pmin,pmax,bbox,label):
+    if bbox[0]<0.1:
+        p1 = (pmax[0],pmin[1])
+    else:
+        p1 = pmin
+    return (p1[0]-5,p1[1])
 
 def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
                         color_fn=None,
-                         text_fn=None,
+                        text_fn=None,
+                         get_text_pos_fn=get_text_pos_fn,
                        thickness=4,show_text=False,fontScale=1.2):
     shape = img.shape
     if scores is None:
@@ -84,16 +91,11 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
         else:
             color = (random.random()*255, random.random()*255, random.random()*255)
         p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
-        p11 = (int(bbox[2] * shape[0]), int(bbox[1] * shape[1]))
-        if bbox[0]<0.1:
-            p1 = p11
-        else:
-            p1 = p10
         p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
         cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
         if show_text and text_fn is not None:
             s = text_fn(classes[i], scores[i])
-            p = (p1[0]-5, p1[1])
+            p = get_text_pos_fn(p10,p2,bbox,classes[i])
             cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(0.,255.,0.), thickness=1)
 
     return img
@@ -118,7 +120,7 @@ def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=N
         mask = np.expand_dims(mask,axis=-1)
         img[y:y+h,x:x+w,:] = (img[y:y+h,x:x+w,:]*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
 
-    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
+    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness=thickness,show_text=show_text,fontScale=fontScale)
     return img
 
 '''

@@ -8,7 +8,6 @@ import wml_utils as wmlu
 import os
 import numpy as np
 import math
-import img_utils as wmli
 import time
 import logging
 import cv2
@@ -136,20 +135,14 @@ def apply_with_random_selector(x, func, num_cases):
             func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
             for case in range(num_cases)])[0]
 
-def random_saturation(image,gray_image=None,minval=0.0,maxval=1.0,scope=None):
-    with tf.name_scope(scope, 'random_saturation', [image]):
-        if gray_image is None:
-            gray_image = wmli.rgb_to_grayscale(image,keep_channels=True)
-        ratio = tf.random_uniform(shape=(),
-                                  minval=minval,
-                                  maxval=maxval,
-                                  dtype=tf.float32,
-                                  seed=int(time.time()))
-        return gray_image*ratio + image*(1.0-ratio)
-
-
-def distort_color(image, color_ordering=0, fast_mode=False, scope=None):
-
+def distort_color(image, color_ordering=6, fast_mode=False,
+            b_max_delta=0.1,
+            c_lower = 0.8,
+            c_upper = 1.2,
+            s_lower = 0.5,
+            s_upper = 1.5,
+            h_max_delta = 0.1,
+            scope=None,seed=None):
     with tf.name_scope(scope, 'distort_color', [image]):
         if fast_mode:
             if color_ordering == 0:
@@ -159,12 +152,7 @@ def distort_color(image, color_ordering=0, fast_mode=False, scope=None):
                 image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
                 image = tf.image.random_brightness(image, max_delta=32. / 255.)
         else:
-            b_max_delta = 32./255
-            c_lower = 0.5
-            c_upper = 1.5
-            s_lower = 0.5
-            s_upper = 1.5
-            h_max_delta = 0.2
+
             if color_ordering == 0:
                 image = tf.image.random_brightness(image, b_max_delta)
                 image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
@@ -190,15 +178,14 @@ def distort_color(image, color_ordering=0, fast_mode=False, scope=None):
                 image = tf.image.random_brightness(image, b_max_delta)
                 image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
             elif color_ordering == 6:
-                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
-                image = tf.image.random_hue(image, max_delta=h_max_delta)
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
+                image = tf.image.random_hue(image, max_delta=h_max_delta,seed=seed)
+                image = tf.image.random_brightness(image, b_max_delta,seed=seed)
+                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper,seed=seed)
             elif color_ordering == 7:
                 return image
             else:
                 raise ValueError('color_ordering must be in [0, 3]')
-        return tf.clip_by_value(image, 0.0, 1.0)
+        return image
 
 
 def _ImageDimensions(image):
@@ -283,11 +270,12 @@ def image_summaries(var,name,max_outputs=3):
         var = tf.expand_dims(var,dim=0)
     tf.summary.image(name,var,max_outputs=max_outputs)
 
-def _draw_text_on_image(img,text,font_scale=1.2):
-    p = (0,img.shape[0]//2)
+def _draw_text_on_image(img,text,font_scale=1.2,color=(0.,255.,0.),pos=None):
+    if pos is None:
+        pos = (0,img.shape[0]//2)
     if not isinstance(text,str):
         text = str(text)
-    cv2.putText(img, text, p, cv2.FONT_HERSHEY_DUPLEX, fontScale=font_scale, color=(0., 255., 0.), thickness=1)
+    cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=2)
     return img
 
 def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
@@ -751,16 +739,16 @@ def split(datas,num):
             res.append(tf.split(data,num_or_size_splits=num))
         return res
 
-def probability_case(prob_fn_pairs,scope=None):
+def probability_case(prob_fn_pairs,scope=None,seed=int(time.time())):
     '''
     :param prob_fn_pairs:[(probs0,fn0),(probs1,fn1),...]
     :param scope:
     :return:
     '''
-    with tf.variable_scope(name_or_scope=scope,default_name="probability_cond"):
+    with tf.variable_scope(name_or_scope=scope,default_name=f"probability_cond{len(prob_fn_pairs)}"):
         pred_fn_pairs={}
         last_prob = 0.
-        p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32)
+        p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32,seed=seed)
         for pf in prob_fn_pairs:
             fn = pf[1]
             cur_prob = last_prob+pf[0]
