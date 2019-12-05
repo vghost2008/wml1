@@ -243,14 +243,14 @@ def mish(x):
 @add_arg_scope
 def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
     with tf.variable_scope("spectral_norm"):
-       w_shape = w.shape.as_list()
-       w = tf.reshape(w, [-1, w_shape[-1]])
        if debug:
            s,_,_ = tf.linalg.svd(w)
            w = tf.Print(w,[s[0]],"Singular0")
 
        s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False)
        if is_training:
+           w_shape = w.shape.as_list()
+           w = tf.reshape(w, [-1, w_shape[-1]])
            u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
            u_hat = u
            v_hat = None
@@ -283,7 +283,6 @@ def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
            else:
                #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
                w_norm = w/(s_sigma/max_sigma)
-           w_norm = tf.reshape(w_norm, w_shape)
        #w_norm = tf.Print(w_norm,[tf.reduce_mean(w_norm),tf.reduce_mean(sigma)],"w_norm")
        if debug:
            s,_,_ = tf.linalg.svd(w_norm)
