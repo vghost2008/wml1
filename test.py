@@ -303,6 +303,23 @@ class WMLTest(tf.test.TestCase):
             v = sess.run(v)
             self.assertAllClose(v,9,atol=1e-4)
 
+    def test_channel_upsampling(self):
+        with self.test_session() as sess:
+            print("Test channel upsample")
+            data_in = list(range(16))
+            data_in = np.array(data_in)
+            data_in = np.reshape(data_in,[1,2,2,4])
+            expected_data = np.array([[0,1,4,5],[2,3,6,7],[8,9,12,13],[10,11,14,15]])
+            wmlu.show_list(data_in)
+            data_in = tf.constant(data_in,dtype=tf.float32)
+            data_in = wmlt.channel_upsample(data_in,scale=2)
+            data_in = tf.squeeze(data_in,axis=-1)
+            data_in = tf.squeeze(data_in,axis=0)
+            data_out = sess.run(data_in)
+            wmlu.show_list(data_out)
+            self.assertAllClose(expected_data,data_out,atol=1e-4)
+
+
 
 
 

@@ -48,6 +48,8 @@ filepath: check point file name like data.ckpt-1401.data-00000-of-00001
 return the file index like 1401
 '''
 def file_index_of_check_file(path):
+    if path is None:
+        return -1
     index = path.rfind("-")
     if index == -1:
         return -1

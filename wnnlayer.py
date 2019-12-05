@@ -120,14 +120,14 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
     return output
 
 @add_arg_scope
-def group_norm(x, G=32, epsilon=1e-5,scope="group_norm"):
+def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
     if x.get_shape().ndims == 4:
-        return group_norm_4d(x,G,epsilon,scope=scope)
+        return group_norm_4d(x,G,epsilon,weights_regularizer=weights_regularizer,scope=scope)
     elif x.get_shape().ndims == 2:
-        return group_norm_2d(x,G,epsilon,scope=scope)
+        return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,scope=scope)
 
 @add_arg_scope
-def group_norm_4d(x, G=32, epsilon=1e-5,scope="group_norm"):
+def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope(scope):
@@ -145,6 +145,8 @@ def group_norm_4d(x, G=32, epsilon=1e-5,scope="group_norm"):
                 N,H,W,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
         beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
         x = (x - mean) / tf.sqrt(var + epsilon)
@@ -152,11 +154,13 @@ def group_norm_4d(x, G=32, epsilon=1e-5,scope="group_norm"):
         return x*gamma + beta
 
 @add_arg_scope
-def group_norm_2d(x, G=32, epsilon=1e-5,scope="group_norm"):
+def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
         beta = tf.get_variable(name="beta",shape=[1,C],initializer=tf.zeros_initializer())
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N,G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
         x = (x - mean) / tf.sqrt(var + epsilon)
@@ -237,7 +241,7 @@ def mish(x):
         return x*tf.tanh(tf.nn.softplus(x))
 
 @add_arg_scope
-def spectral_norm(w, iteration=1,max_sigma=None,debug=False):
+def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
     with tf.variable_scope("spectral_norm"):
        w_shape = w.shape.as_list()
        w = tf.reshape(w, [-1, w_shape[-1]])
@@ -245,31 +249,40 @@ def spectral_norm(w, iteration=1,max_sigma=None,debug=False):
            s,_,_ = tf.linalg.svd(w)
            w = tf.Print(w,[s[0]],"Singular0")
 
+       s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False)
+       if is_training:
+           u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+           u_hat = u
+           v_hat = None
+           for i in range(iteration):
+               """
+               power iteration
+               Usually iteration = 1 will be enough
+               """
+               v_ = tf.matmul(u_hat, tf.transpose(w))
+               v_hat = tf.nn.l2_normalize(v_)
 
-       u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
-       u_hat = u
-       v_hat = None
-       for i in range(iteration):
-           """
-           power iteration
-           Usually iteration = 1 will be enough
-           """
-           v_ = tf.matmul(u_hat, tf.transpose(w))
-           v_hat = tf.nn.l2_normalize(v_)
+               u_ = tf.matmul(v_hat, w)
+               u_hat = tf.nn.l2_normalize(u_)
 
-           u_ = tf.matmul(v_hat, w)
-           u_hat = tf.nn.l2_normalize(u_)
+           u_hat = tf.stop_gradient(u_hat)
+           v_hat = tf.stop_gradient(v_hat)
 
-       u_hat = tf.stop_gradient(u_hat)
-       v_hat = tf.stop_gradient(v_hat)
+           sigma = tf.reshape(tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat)),())
 
-       sigma = tf.reshape(tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat)),())
-
-       with tf.control_dependencies([u.assign(u_hat)]):
+           with tf.control_dependencies([u.assign(u_hat),s_sigma.assign(sigma)]):
+               if max_sigma is None:
+                   w_norm = w / sigma
+               else:
+                   #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
+                   w_norm = w/(sigma/max_sigma)
+               w_norm = tf.reshape(w_norm, w_shape)
+       else:
            if max_sigma is None:
-               w_norm = w / sigma
+               w_norm = w / s_sigma
            else:
-               w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
+               #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
+               w_norm = w/(s_sigma/max_sigma)
            w_norm = tf.reshape(w_norm, w_shape)
        #w_norm = tf.Print(w_norm,[tf.reduce_mean(w_norm),tf.reduce_mean(sigma)],"w_norm")
        if debug:
@@ -309,6 +322,46 @@ def conv2d_with_sn(inputs,
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
         outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration), strides=[1, stride, stride, 1],padding=padding) + b
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+        if activation_fn is not None:
+            outputs = activation_fn(outputs)
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
+def depthwise_conv2d_with_sn(inputs,
+                   kernel_size,
+                   stride=1,
+                   padding='SAME',
+                   activation_fn=nn.relu,
+                   weights_initializer=initializers.xavier_initializer(),
+                   weights_regularizer=None,
+                   biases_initializer=init_ops.zeros_initializer(),
+                   biases_regularizer=None,
+                   normalizer_fn=None,
+                   normalizer_params=None,
+                   outputs_collections=None,
+                   rate=1,
+                   reuse=None,
+                   scope=None,sn_iteration=1):
+    del rate
+    with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
+        num_inputs = inputs.get_shape().as_list()[-1]
+        if isinstance(kernel_size,list):
+            shape = kernel_size+[num_inputs,1]
+        else:
+            shape = [kernel_size,kernel_size,num_inputs,1]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        b = tf.get_variable("bias", [num_inputs], initializer=biases_initializer)
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+        if biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        outputs = tf.nn.depthwise_conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration), strides=[1, stride, stride, 1],padding=padding) + b
         if normalizer_fn is not None:
             if normalizer_params is None:
                 normalizer_params = {}
@@ -430,12 +483,12 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       gamma_initializer=tf.constant_initializer(0.0)):
     def reshape_net(net):
-        shape = net.get_shape().as_list()
-        new_shape = [-1,shape[1]*shape[2],shape[3]]
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
         net = tf.reshape(net,new_shape)
         return net
     def restore_shape(net,shape,channel):
-        out_shape = [-1,shape[1],shape[2],channel]
+        out_shape = [shape[0],shape[1],shape[2],channel]
         net = tf.reshape(net,out_shape)
         return net
 
@@ -445,7 +498,7 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
         inner_dims_multiplier = inner_dims_multiplier*3
 
     with tf.variable_scope(scope,default_name="non_local"):
-        shape = net.get_shape().as_list()
+        shape = wmlt.combined_static_and_dynamic_shape(net)
         channel = shape[-1]
         m_channelq = channel//inner_dims_multiplier[0]
         m_channelk = channel//inner_dims_multiplier[1]
@@ -610,14 +663,18 @@ def gc_block(net,r=16,normalizer_fn=slim.layers.layer_norm,normalizer_params=Non
 '''
 Squeeze-and-Excitation Networks
 '''
-def se_block(net,r=16,scope=None):
+def se_block(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=None,summary_fn=None):
     with tf.variable_scope(scope,"SEBlock"):
         channel = net.get_shape().as_list()[-1]
         mid_channel = channel//r
         org_net = net
-        net = tf.reduce_mean(net,axis=[1,2],keepdims=True)
-        net = slim.fully_connected(net,mid_channel,activation_fn=tf.nn.relu,normalization_fn=None)
-        net = slim.fully_connected(net,channel,activation_fn=tf.nn.sigmoid,normalization_fn=None)
+        net = tf.reduce_mean(net,axis=[1,2],keepdims=False)
+        net = fc_op(net,mid_channel,activation_fn=activation_fn,normalizer_fn=None)
+        net = fc_op(net,channel,activation_fn=tf.nn.sigmoid,normalizer_fn=None)
+        if summary_fn is not None:
+            summary_fn("se_sigmoid_value",net)
+        net = tf.expand_dims(net,axis=1)
+        net = tf.expand_dims(net,axis=1)
         return net*org_net
 
 def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=int(time.time()),all_channel=False):

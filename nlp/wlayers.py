@@ -81,12 +81,9 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
         #如果使用mask,O的第i行为V的第0到第i行的线性加权组合, 否则为所有的加权
         #now O is  [batch_size,nb_head,n,size_per_head1]
         O = tf.transpose(O, [0, 2, 1, 3])
-        #now O is  [batch_size,n,nb_head,size_per_head1]
-        o_shape = O.get_shape().as_list()
-        if o_shape[0] is not None:
-            O = tf.reshape(O, [o_shape[0], -1,np.prod(o_shape[-2:])])
-        else:
-            O = tf.reshape(O, [-1, o_shape[1],np.prod(o_shape[-2:])])
+        #now O is  [batch_size, n, nb_head, size_per_head1]
+        o_shape = wmlt.combined_static_and_dynamic_shape(O)
+        O = tf.reshape(O, [o_shape[0], o_shape[1],np.prod(o_shape[-2:])])
         if Q_len is not None:
             O = mask_attn_of_length(O, Q_len, 'mul')
         return O
@@ -164,7 +161,7 @@ def split_states(x, n):
     :param n:  分割数
     :return: [batch_size,M,n,D//n]
     '''
-    x_shape = x.get_shape().as_list()
+    x_shape = wmlt.combined_static_and_dynamic_shape(x)
     m = x_shape[-1]
     new_x_shape = x_shape[:-1]+[n, m//n]
     return wmlt.reshape(x, new_x_shape)

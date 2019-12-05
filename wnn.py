@@ -37,6 +37,38 @@ def str2optimizer(name="Adam",learning_rate=None):
 
     return opt
 
+def build_learning_rate(initial_lr,
+                        global_step,
+                        steps_per_epoch=None,
+                        lr_decay_type='exponential',
+                        decay_factor=0.97,
+                        decay_epochs=2.4,
+                        total_steps=None,
+                        warmup_epochs=1):
+  if lr_decay_type == 'exponential':
+    assert steps_per_epoch is not None
+    decay_steps = steps_per_epoch * decay_epochs
+    lr = tf.train.exponential_decay(
+        initial_lr, global_step, decay_steps, decay_factor, staircase=True)
+  elif lr_decay_type == 'cosine':
+    assert total_steps is not None
+    lr = 0.5 * initial_lr * (
+        1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
+  elif lr_decay_type == 'constant':
+    lr = initial_lr
+  else:
+    assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
+
+  if warmup_epochs:
+    logging.info('Learning rate warmup_epochs: %d', warmup_epochs)
+    warmup_steps = int(warmup_epochs * steps_per_epoch)
+    warmup_lr = (
+        initial_lr * tf.cast(global_step, tf.float32) / tf.cast(
+            warmup_steps, tf.float32))
+    lr = tf.cond(global_step < warmup_steps, lambda: warmup_lr, lambda: lr)
+
+  return lr
+
 def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
                  colocate_gradients_with_ops=False,optimizer="Adam",scope=None,num_epochs_per_decay=None):
     with tf.name_scope(name=scope,default_name="train_op"):
@@ -170,6 +202,11 @@ def get_optimizer(global_step,learning_rate=1E-3,batch_size=32,optimizer="Adam",
     tf.summary.scalar("lr",lr)
     opt = str2optimizer(optimizer,lr)
 
+    return opt
+
+def get_optimizerv2(lr=1E-3,optimizer="Adam"):
+    tf.summary.scalar("lr",lr)
+    opt = str2optimizer(optimizer,lr)
     return opt
 
 '''
@@ -468,7 +505,8 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
         if not verbose:
             def v_filter(x:str):
-                return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
+                #return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
+                return (not x.endswith("ExponentialMovingAverage"))
             unrestored_variables = filter(v_filter,unrestored_variables)
             unrestored_variables0 = filter(v_filter,unrestored_variables0)
         show_values(unrestored_variables, "Unrestored variables in ckpt")

@@ -108,6 +108,13 @@ def nprgb_to_gray(img):
     img_gray = R * 299. / 1000 + G * 587. / 1000 + B * 114. / 1000
     return img_gray
 
+def npbatch_rgb_to_gray(img):
+    R = img[:,:, :, 0]
+    G = img[:,:, :, 1]
+    B = img[:,:, :, 2]
+    img_gray = R * 299. / 1000 + G * 587. / 1000 + B * 114. / 1000
+    return img_gray
+
 '''
 images:[batch_size,h,w,3] or [h,w,3]
 '''
@@ -495,7 +502,9 @@ class ImagePatch(object):
         self.height = None
         self.width = None
         self.channel = None
-
+    '''
+    将图像[batch_size,height,width,channel]变换为[X,patch_size,patch_size,channel]
+    '''
     def to_patch(self,images,scope=None):
         with tf.name_scope(scope,"to_patch"):
             patch_size = self.patch_size
@@ -517,3 +526,34 @@ class ImagePatch(object):
             net = tf.transpose(net, [0, 1, 3, 2, 4, 5])
             net = tf.reshape(net, [batch_size, height, width, channel])
             return net
+
+class NPImagePatch(object):
+    def __init__(self,patch_size):
+        self.patch_size = patch_size
+        self.patchs = None
+        self.batch_size = None
+        self.height = None
+        self.width = None
+        self.channel = None
+    '''
+    将图像[batch_size,height,width,channel]变换为[X,patch_size,patch_size,channel]
+    '''
+    def to_patch(self,images):
+        patch_size = self.patch_size
+        batch_size, height, width, channel = images.shape
+        self.batch_size, self.height, self.width, self.channel = batch_size, height, width, channel
+        net = np.reshape(images, [batch_size, height // patch_size, patch_size, width // patch_size, patch_size,
+                                  channel])
+        net = np.transpose(net, [0, 1, 3, 2, 4, 5])
+        self.patchs = np.reshape(net, [-1, patch_size, patch_size, channel])
+        return self.patchs
+
+    def from_patch(self):
+        assert self.patchs is not None,"Must call to_path first."
+        batch_size, height, width, channel = self.batch_size, self.height, self.width, self.channel
+        patch_size = self.patch_size
+        net = np.reshape(self.patchs, [batch_size, height // patch_size, width // patch_size, patch_size, patch_size,
+                                       channel])
+        net = np.transpose(net, [0, 1, 3, 2, 4, 5])
+        net = np.reshape(net, [batch_size, height, width, channel])
+        return net

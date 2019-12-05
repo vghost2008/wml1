@@ -447,6 +447,8 @@ def get_variables_dict_in_ckpt(file_path):
 
 def get_variables_dict_in_ckpt_in_dir(dir_path):
     file_path = get_ckpt_file_path(dir_path)
+    if file_path is None:
+        return None
     return get_variables_dict_in_ckpt(file_path)
 
 def get_variables_unrestored(restored_values,file_path,exclude_var=None):
@@ -1018,7 +1020,7 @@ def combined_static_and_dynamic_shape(tensor):
   return combined_shape
 
 def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
-                                width_scale=None):
+                                width_scale=None,scope=None):
   """Nearest neighbor upsampling implementation.
 
   Nearest neighbor upsampling function that maps input tensor with shape
@@ -1046,7 +1048,7 @@ def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
   if not scale and (height_scale is None or width_scale is None):
     raise ValueError('Provide either `scale` or `height_scale` and'
                      ' `width_scale`.')
-  with tf.name_scope('nearest_neighbor_upsampling'):
+  with tf.name_scope(scope,'nearest_neighbor_upsampling'):
     h_scale = scale if height_scale is None else height_scale
     w_scale = scale if width_scale is None else width_scale
     (batch_size, height, width,
@@ -1070,5 +1072,21 @@ def nearest_neighbor_downsampling(input_tensor, scale=None, height_scale=None,
         output_tensor = tf.reshape(
             input_tensor, [batch_size, height//h_scale, h_scale, width//w_scale, w_scale, channels])
         return output_tensor[:,:,0,:,0,:]
+def channel_upsample(input_tensor,scale=None,height_scale=None,width_scale=None):
+    if not scale and (height_scale is None or width_scale is None):
+        raise ValueError('Provide either `scale` or `height_scale` and'
+                         ' `width_scale`.')
+    with tf.name_scope('channel_upsampling'):
+        h_scale = scale if height_scale is None else height_scale
+        w_scale = scale if width_scale is None else width_scale
+        (batch_size, height, width,
+         channels) = combined_static_and_dynamic_shape(input_tensor)
+        out_channels = channels//(h_scale*w_scale)
+        output_tensor = tf.reshape(
+            input_tensor, [batch_size, height, width, h_scale,w_scale,out_channels])
+        output_tensor = tf.transpose(output_tensor,[0,1,3,2,4,5])
+        output_tensor = tf.reshape(output_tensor,[batch_size,height*h_scale,width*w_scale,out_channels])
+        return output_tensor
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

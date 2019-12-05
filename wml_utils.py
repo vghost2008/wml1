@@ -432,7 +432,9 @@ class MDict(dict):
 
     def __delattr__(self, key):
         del self[key]
-
+'''
+将list data分为多个组，每个组size个元素
+'''
 def list_to_2dlist(data,size):
     data_nr = len(data)
     if data_nr<size:
@@ -444,6 +446,13 @@ def list_to_2dlist(data,size):
        res.append(data[index:end_index])
        index = end_index
     return res
+
+'''
+将list data分nr个组，每个组的元素数量基本相等
+'''
+def list_to_2dlistv2(data,nr):
+    size = (len(data)+nr-1)//nr
+    return list_to_2dlist(data,size)
 
 def random_uniform(minmaxs):
     res = []

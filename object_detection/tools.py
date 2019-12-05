@@ -45,7 +45,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
     def get_datas():
         if not os.path.exists(dir_path):
             print("path {} not exists.".format(dir_path))
-        files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")[:2000]
+        files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")
         print("\ntotal file size {}.".format(len(files)))
         for file in files:
             shape, bboxes, labels_text, difficult, truncated = odu.read_voc_xml(file,aspect_range=aspect_range)
@@ -103,12 +103,13 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
             org_labels_counter[_l] = 1
     example_nrs = np.array(example_nrs)
     print(f"Max element size {np.max(example_nrs)}, element min {np.min(example_nrs)}, element mean {np.mean(example_nrs)}, element var {np.var(example_nrs)}.")
-    print("\n--->BBoxes count:")
     labels_counter = list(labels_counter.items())
     labels_counter.sort(key=lambda x:x[1],reverse=True)
     total_nr = 0
     for k,v in labels_counter:
         total_nr += v
+    print(f"Total bboxes count {total_nr}")
+    print("\n--->BBoxes count:")
     for k,v in labels_counter:
         print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
     print("\n--->File count:")
@@ -173,7 +174,7 @@ def show_anchor_box(img_file,boxes):
 if __name__ == "__main__":
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatasvx2/train",nr=20)
-    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatavx3",nr=20)
+    statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/ocrdatav1/rdatasvx4/train",nr=20)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod",nr=10)
     #statics = statistics_boxes_in_dir("../../../mldata/dentalfilm/diseasedod_jpgdatav1/Annotations",nr=10)
     show_boxes_statistics(statics)

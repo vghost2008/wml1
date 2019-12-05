@@ -340,3 +340,56 @@ def pooling_pyramid_feature_maps(base_feature_map_depth, num_layers,
         feature_maps.append(feature_map)
   return collections.OrderedDict(
       [(x, y) for (x, y) in zip(feature_map_keys, feature_maps)])
+
+def fusion(feature_maps,conv_op=slim.conv2d,depth=None,scope=None):
+    with tf.variable_scope(scope,"fusion"):
+        if depth is None:
+            depth = feature_maps[-1].get_shape().as_list()[-1]
+        out_feature_maps = []
+        ws = []
+        for i,net in enumerate(feature_maps):
+            wi = tf.get_variable(f"w{i}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
+            wi = tf.nn.relu(wi)
+            ws.append(wi)
+        sum_w = tf.add_n(ws)+1e-4
+        for i,net in enumerate(feature_maps):
+            if net.get_shape().as_list()[-1] != depth:
+                net = conv_op(net,depth,1,activation_fn=None,normalizer_fn=None,scope=f"conv2d_{i}")
+            out_feature_maps.append(net*ws[i]/sum_w)
+        return tf.add_n(out_feature_maps)
+'''
+与第三方的BiFPN实现不同的地方为：
+1、每层输出的通道数不一样（原文及第三方每层输出的通道数都相同，因此fusion时没有conv操作)
+'''
+def BiFPN(feature_maps,conv_op=slim.conv2d,upsample_op=nearest_neighbor_upsampling,depths=None,scope=None):
+    mid_feature_maps = []
+    out_feature_maps = []
+    if depths is None:
+        depths = [None]*len(feature_maps)
+    elif isinstance(depths,int):
+        depths = [depths]*len(feature_maps)
+    with tf.variable_scope(scope,"fpn_top_down_bottom_up"):
+        last = tf.identity(feature_maps[0])
+        mid_feature_maps.append(last)
+        for i in range(1,len(feature_maps)):
+            last = upsample_op(last,scale=2,scope=f"upsample{i}")
+            net = fusion([last,feature_maps[i]],conv_op=conv_op,depth=depths[i],scope=f"td_fusion{i}")
+            net = conv_op(net,net.get_shape().as_list()[-1],kernel_size=3,scope=f"td_smooth{i}")
+            last = net
+            mid_feature_maps.append(net)
+
+        last = tf.identity(mid_feature_maps[-1])
+        out_feature_maps.append(last)
+        for i in reversed(range(len(mid_feature_maps)-1)):
+            net = mid_feature_maps[i]
+            last = slim.max_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"max_pool{i}")
+            if i>0:
+                net = fusion([feature_maps[i],last,net],conv_op=conv_op,depth=depths[i],scope=f"bu_fusion{i}")
+            else:
+                net = fusion([last,net],conv_op=conv_op,depth=depths[i],scope=f"bu_fusion{i}")
+            net = conv_op(net,net.get_shape().as_list()[-1],kernel_size=3,scope=f"bu_smooth{i}")
+            last = net
+            out_feature_maps.append(net)
+        out_feature_maps.reverse()
+
+    return out_feature_maps
