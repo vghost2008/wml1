@@ -83,6 +83,8 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
     shape = img.shape
     if scores is None:
         scores = np.ones_like(classes,dtype=np.float32)
+    if not isinstance(bboxes,np.ndarray):
+        bboxes = np.array(bboxes)
     for i in range(bboxes.shape[0]):
         bbox = bboxes[i]
         #print(bbox,classes[i],scores[i])

@@ -127,7 +127,7 @@ class ODLoss:
             max_nsize = sample_size-psize
             if self.sample_type == self.SAMPLE_TYPE_BY_BAD_ORDER:
                 fnmask = tf.cast(nmask, tf.int32)
-                print("score_converter:",self.score_converter)
+                logging.info(f"score_converter:{self.score_converter}.")
                 class_prediction = self.score_converter(classes_logits)
                 # 负样本的概率为模型预测为负样本的概率，正样本的地方设置为1
                 nclass_prediction = tf.where(nmask, class_prediction[:, 0], 1.0 - tf.cast(fnmask,tf.float32))
@@ -305,6 +305,7 @@ class ODLossWithSigmoid(ODLoss):
     def __init__(self,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.score_converter = tf.nn.sigmoid
 
     def sparse_softmax_cross_entropy_with_logits(self,
                                                  _sentinel=None,  # pylint: disable=invalid-name
@@ -326,6 +327,7 @@ class ODLossWithSigmoidFL(ODLoss):
         self.gamma = gamma
         self.alpha = alpha
         super().__init__(*args, **kwargs)
+        self.score_converter = tf.nn.sigmoid
 
     def sparse_softmax_cross_entropy_with_logits(self,
                                                  _sentinel=None,  # pylint: disable=invalid-name

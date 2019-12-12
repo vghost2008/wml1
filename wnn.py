@@ -77,9 +77,15 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             num_epochs_per_decay=FLAGS.num_epochs_per_decay
         learn_rate_decay_factor=FLAGS.learn_rate_decay_factor
         min_learn_rate = FLAGS.min_learn_rate
-
-        decay_step = int(num_batches_per_epoch*num_epochs_per_decay)
-        lr = tf.train.exponential_decay(learning_rate,global_step,decay_step,learn_rate_decay_factor,staircase=True)
+        steps_per_epoch = num_batches_per_epoch
+        lr = build_learning_rate(learning_rate,
+                        global_step,
+                        steps_per_epoch=steps_per_epoch,
+                        lr_decay_type='exponential',
+                        decay_factor=learn_rate_decay_factor,
+                        decay_epochs=num_epochs_per_decay,
+                        total_steps=None,
+                        warmup_epochs=1)
         lr = tf.maximum(min_learn_rate,lr)
         tf.summary.scalar("lr",lr)
         #opt = tf.train.GradientDescentOptimizer(lr)
@@ -541,6 +547,8 @@ def get_regularization_losses(scopes=None,re_pattern=None):
     with tf.name_scope("regularization_losses"):
         col = get_variables_of_collection(tf.GraphKeys.REGULARIZATION_LOSSES,scopes=scopes,re_pattern=re_pattern)
         if len(col)>0:
+            print("wr_loss")
+            wmlu.show_list(col)
             return tf.reduce_mean(col)
         else:
             return None

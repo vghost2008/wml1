@@ -243,12 +243,14 @@ def mish(x):
 @add_arg_scope
 def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
     with tf.variable_scope("spectral_norm"):
+       w_shape = w.shape.as_list()
        if debug:
-           s,_,_ = tf.linalg.svd(w)
-           w = tf.Print(w,[s[0]],"Singular0")
+           w = tf.reshape(w, [-1, w_shape[-1]])
+           s0,_,_ = tf.linalg.svd(w)
 
-       s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False)
+       s_w = tf.get_variable("sn_weight",w_shape,initializer=tf.zeros_initializer,trainable=False)
        if is_training:
+           s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False)
            w_shape = w.shape.as_list()
            w = tf.reshape(w, [-1, w_shape[-1]])
            u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
@@ -277,16 +279,21 @@ def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
                    #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
                    w_norm = w/(sigma/max_sigma)
                w_norm = tf.reshape(w_norm, w_shape)
+           with tf.control_dependencies([s_w.assign(w_norm)]):
+               w_norm = tf.identity(w_norm)
        else:
-           if max_sigma is None:
+           '''if max_sigma is None:
                w_norm = w / s_sigma
            else:
                #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
-               w_norm = w/(s_sigma/max_sigma)
+               w_norm = w/(s_sigma/max_sigma)'''
+           w_norm = s_w
        #w_norm = tf.Print(w_norm,[tf.reduce_mean(w_norm),tf.reduce_mean(sigma)],"w_norm")
        if debug:
+           w_norm = tf.reshape(w_norm, [-1, w_shape[-1]])
            s,_,_ = tf.linalg.svd(w_norm)
-           w_norm = tf.Print(w_norm,[s[0]],"Singular1")
+           w_norm = tf.Print(w_norm,[s0[0],s[0]],"Singular1")
+           w_norm = tf.reshape(w_norm, w_shape)
        return w_norm
 
 @add_arg_scope

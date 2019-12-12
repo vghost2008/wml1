@@ -16,6 +16,8 @@ import shutil
 from object_detection.metrics import coco_evaluation
 from object_detection.metrics import standard_fields
 import wml_utils as wmlu
+import img_utils as wmli
+import copy
 
 '''
 image:[h,w,c], value range(0,255) if scale is True else (0,1)
@@ -407,6 +409,29 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
     write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated,probs=probs)
 
 '''
+file_path:图像文件路径
+bboxes:相对坐标
+'''
+def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated=None,probs=None,img_shape=None):
+    if isinstance(bboxes,np.ndarray):
+        bboxes = bboxes.tolist()
+    if isinstance(labels,np.ndarray):
+        labels = labels.tolist()
+    if isinstance(difficult,np.ndarray):
+        difficult = difficult.tolist()
+    if isinstance(truncated, np.ndarray):
+        truncated = truncated.tolist()
+
+    img_shape = img.shape
+
+    dir_path  = os.path.dirname(img_save_path)
+    base_name = os.path.basename(img_save_path)
+    base_name = base_name[:-4]+".xml"
+    save_path = os.path.join(dir_path,base_name)
+    wmli.imwrite(img_save_path,img)
+    write_voc_xml(save_path,img_save_path,img_shape,bboxes,labels,difficult,truncated,probs=probs)
+
+'''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
 '''
 def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False):
@@ -444,6 +469,15 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
         res.append(list(x))
     if shuffe:
         random.shuffle(res)
+    return res
+
+def getVOCFilesV2(dir_path):
+    img_files = wmlu.recurse_get_filepath_in_dir(dir_path,".jpg")
+    res = []
+    for f in img_files:
+        xml_path = wmlu.change_suffix(f,"xml")
+        if os.path.exists(xml_path) and os.path.exists(f):
+            res.append([f,xml_path])
     return res
 
 def filterVOCFilesByName(voc_files,file_names):
@@ -540,7 +574,12 @@ def getmAP(gtboxes,gtlabels,boxes,labels,probability=None,threshold=0.5):
         boxes = np.array(boxes)
     if not isinstance(labels,np.ndarray):
         labels = np.array(labels)
+    gtboxes = copy.deepcopy(np.array(gtboxes))
+    gtlabels = copy.deepcopy(np.array(gtlabels))
+    boxes = copy.deepcopy(boxes)
+    labels = copy.deepcopy(labels)
     if probability is not None:
+        probability = copy.deepcopy(probability)
         index = np.argsort(probability)
         boxes = boxes[index]
         labels = labels[index]
@@ -630,7 +669,7 @@ def getRecall(gtboxes,gtlabels,boxes,labels,threshold=0.5):
 
     return 100.*correct_num/total_num
 
-def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5):
+def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshold=True,ext_info=False):
     '''
     :param gtboxes: [N,4]
     :param gtlabels: [N]
@@ -651,16 +690,25 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5):
     boxes_mask = np.zeros(boxes_shape[0],dtype=np.int32)
     gt_size = gtlabels.shape[0]
     boxes_size = labels.shape[0]
+    MIN_VOL = 0.005
+    #print(">>>>",gtboxes,gtlabels)
     for i in range(gt_size):
         max_index = -1
         max_jaccard = 0.0
+
+        t_threshold = threshold
+        if auto_scale_threshold:
+            #print(i,gtboxes,gtlabels)
+            vol = npod.box_vol(gtboxes[i])
+            if vol < MIN_VOL:
+                t_threshold = vol*threshold/MIN_VOL
         #iterator on all boxes to find one have the most maximum jacard value with current ground-truth box
         for j in range(boxes_size):
             if gtlabels[i] != labels[j] or boxes_mask[j] != 0:
                 continue
 
             jaccard = npod.box_jaccard(gtboxes[i],boxes[j])
-            if jaccard>threshold and jaccard > max_jaccard:
+            if jaccard>t_threshold and jaccard > max_jaccard:
                 max_jaccard = jaccard
                 max_index = j
 
@@ -675,8 +723,18 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5):
     recall = __safe_persent(correct_num,gt_size)
     precision = __safe_persent(correct_num,boxes_size)
 
-
-    return precision,recall
+    if ext_info:
+        gt_label_list = []
+        for i in range(gt_mask.shape[0]):
+            if gt_mask[i] != 1:
+                gt_label_list.append(gtlabels[i])
+        pred_label_list = []
+        for i in range(boxes_size):
+            if boxes_mask[i] != 1:
+                pred_label_list.append(labels[i])
+        return precision,recall,gt_label_list,pred_label_list
+    else:
+        return precision,recall
 
 class ModelPerformance:
     def __init__(self,threshold,no_mAP=False,no_F1=False):
@@ -690,10 +748,12 @@ class ModelPerformance:
         self.no_F1 = no_F1
 
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
-        if not isinstance(gtboxes,np.ndarray):
-            gtboxes = np.array(gtboxes)
-        if not isinstance(gtlabels,np.ndarray):
-            gtlabels = np.array(gtlabels)
+        gtboxes = copy.deepcopy(np.array(gtboxes))
+        gtlabels = copy.deepcopy(np.array(gtlabels))
+        boxes = copy.deepcopy(boxes)
+        labels = copy.deepcopy(labels)
+        if probability is not None:
+            probability = copy.deepcopy(probability)
 
         if self.no_mAP:
             ap = 0.

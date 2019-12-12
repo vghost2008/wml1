@@ -14,6 +14,7 @@ import wtfop.wtfop_ops as wop
 import wml_utils as wmlu
 import wnnlayer as wnnl
 import wml_tfutils as wmlt
+import logging
 
 slim = tf.contrib.slim
 
@@ -286,7 +287,7 @@ class SSD(object):
         if nms is None:
             nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
         with tf.variable_scope("GetBoxesV1"):
-            print("score_converter:",self.score_converter)
+            logging.info(f"score_converter:{self.score_converter}.")
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
                 od.get_predictionv2(
@@ -316,7 +317,7 @@ class SSD(object):
         if nms is None:
             nms = functools.partial(wop.boxes_nms,threshold=0.4,classes_wise=True)
         with tf.variable_scope("GetBoxesV2"):
-            print("score_converter:",self.score_converter)
+            logging.info(f"score_converter:{self.score_converter}.")
             probs = self.score_converter(self.logits)
             self.boxes,self.labels,self.probs,self.indices,self.boxes_lens = \
                 od.get_predictionv5(
@@ -337,6 +338,7 @@ class SSD(object):
                   adjust_probability=None):
         with tf.device("/cpu:0"):
             with tf.variable_scope("GetBoxesV3"):
+                logging.info(f"score_converter:{self.score_converter}.")
                 self.raw_probs = self.score_converter(self.logits)
                 probs = self.raw_probs
                 if adjust_probability is not None:

@@ -166,11 +166,24 @@ def merge_hotgraph_image(src,dst,alpha):
         return scipy.ndimage.zoom(img, [h_scale, w_scale])
     else:
         return scipy.ndimage.zoom(img, [h_scale, w_scale,1])'''
-def resize_img(img,size):
+'''
+size:(w,h)
+'''
+def resize_img(img,size,keep_aspect_ratio=False):
 
-    image_shape = img.shape
-
-    if size[0]==image_shape[0] and size[1]==image_shape[1]:
+    img_shape = img.shape
+    if keep_aspect_ratio:
+        if size[1]*img_shape[1] != size[0]*img_shape[0]:
+            if size[1]*img_shape[1]>size[0]*img_shape[0]:
+                ratio = size[0]/img_shape[1]
+            else:
+                ratio = size[1]/img_shape[0]
+            size = list(copy.deepcopy(size))
+            size[0] = int(img_shape[1]*ratio)
+            size[1] = int(img_shape[0]*ratio)
+    if not isinstance(size,tuple):
+        size = tuple(size)
+    if size[0]==img_shape[0] and size[1]==img_shape[1]:
         return img
     return cv2.resize(img,dsize=size)
 
@@ -557,3 +570,11 @@ class NPImagePatch(object):
         net = np.transpose(net, [0, 1, 3, 2, 4, 5])
         net = np.reshape(net, [batch_size, height, width, channel])
         return net
+
+'''
+bboxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def remove_boxes_of_img(img,bboxes,default_value=[127,127,127]):
+    for box in bboxes:
+        img[box[0]:box[2], box[1]:box[3]] = default_value
+    return img

@@ -259,6 +259,10 @@ def bboxes_jaccard(bbox_ref, bboxes, name=None):
         jaccard = wmath.safe_divide(inter_vol, union_vol, 'jaccard')
         return jaccard
 
+'''
+bbox_ref:[1,4], [[ymin,xmin,ymax,xmax]]
+bboxes:[N,4],[[ymin,xmin,ymax,xmax],...]
+'''
 def npbboxes_jaccard(bbox_ref, bboxes, name=None):
 
     bboxes = np.transpose(bboxes)
@@ -680,3 +684,47 @@ def expand_bbox(bboxes,scale=2):
         res_bboxes.append((min_x,min_y,new_width,new_height))
 
     return res_bboxes
+
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+return:[ymin,xmin,ymax,xmax]
+'''
+def bbox_of_boxes(boxes):
+    if not isinstance(boxes,np.ndarray):
+        boxes = np.array(boxes)
+    boxes = np.transpose(boxes)
+    ymin = np.min(boxes[0])
+    xmin = np.min(boxes[1])
+    ymax = np.max(boxes[2])
+    xmax = np.max(boxes[3])
+    return [ymin,xmin,ymax,xmax]
+
+
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def absolutely_boxes_to_relative_boxes(boxes,width,height):
+    boxes = np.transpose(boxes)
+    ymin = boxes[0]/height
+    xmin = boxes[1]/width
+    ymax = boxes[2]/height
+    xmax = boxes[3]/width
+    
+    return np.stack([ymin,xmin,ymax,xmax],axis=1)
+
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def relative_boxes_to_absolutely_boxes(boxes,width,height):
+    boxes = np.transpose(boxes)
+    ymin = boxes[0]*height
+    xmin = boxes[1]*width
+    ymax = boxes[2]*height
+    xmax = boxes[3]*width
+
+    return np.stack([ymin,xmin,ymax,xmax],axis=1)
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def relative_boxes_to_absolutely_boxesi(boxes,width,height):
+    return relative_boxes_to_absolutely_boxes(boxes=boxes,width=width,height=height).astype(np.int32)
