@@ -268,7 +268,8 @@ class FasterRCNN(object):
                                                                                   glabels=glabels,
                                                                                  length=lens,
                                                                                   pos_threshold=pos_threshold,
-                                                                                  neg_threshold=neg_threshold)
+                                                                                  neg_threshold=neg_threshold,
+                                                                                   max_overlap_as_pos=False)
             keep_indices = tf.stop_gradient(tf.logical_not(remove_indices))
             self.rcn_gtlabels,self.rcn_indices = \
                 tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),
@@ -537,7 +538,7 @@ class FasterRCNN(object):
     output:proposal_boxes:[batch_size,k,4]
     output:proposal_prob:[batch_size,k]
     '''
-    def getProposalBoxesV4(self,k=1000,nms_threshold=0.8):
+    def getProposalBoxesV4(self,k=1000,nms_threshold=0.7):
         with tf.variable_scope("RPNProposalBoxes"):
             self.proposal_boxes,labels,self.proposal_boxes_prob = \
                 od.get_proposal_boxesv3(class_prediction=tf.nn.softmax(self.rpn_logits),
@@ -576,7 +577,7 @@ class FasterRCNN(object):
                                          candiate_nr=k,
                                          classes_wise=True,
                                          classes_wise_nms=classes_wise_nms)
-        return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob
+        return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,tf.shape(self.finally_boxes_label)
 
     '''
     process the situation of batch_size greater than one, target boxes number of each imag is very different, so the 

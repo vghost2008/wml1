@@ -272,7 +272,9 @@ def image_summaries(var,name,max_outputs=3):
 
 def _draw_text_on_image(img,text,font_scale=1.2,color=(0.,255.,0.),pos=None):
     if pos is None:
-        pos = (0,img.shape[0]//2)
+        pos = (0,img.shape[0]//2-int(font_scale*5))
+    if isinstance(text,bytes):
+        text = str(text,encoding="utf-8")
     if not isinstance(text,str):
         text = str(text)
     cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=2)

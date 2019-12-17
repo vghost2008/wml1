@@ -140,6 +140,22 @@ def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None):
     res.sort()
     return res
 
+def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
+    res=[]
+    for dir in os.listdir(dir_path):
+        path = os.path.join(dir_path,dir)
+        if os.path.isdir(path):
+            if predicte_fn is not None:
+                if not predicte_fn(path):
+                    continue
+            res.append(dir)
+            sub_res = recurse_get_subdir_in_dir(path,predicte_fn)
+            if len(sub_res) > 0:
+                sub_res = [os.path.join(dir,x) for x in sub_res]
+            res.extend(sub_res)
+    res.sort()
+    return res
+
 def recurse_get_filepath_in_dirs(dirs_path,suffix=None,prefix=None):
     files = []
     for dir in dirs_path:

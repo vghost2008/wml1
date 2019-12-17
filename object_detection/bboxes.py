@@ -280,6 +280,11 @@ def npbboxes_jaccard(bbox_ref, bboxes, name=None):
     jaccard = wmath.npsafe_divide(inter_vol, union_vol, 'jaccard')
     return jaccard
 
+'''
+box0:[N,4], or [1,4],[ymin,xmin,ymax,xmax],...
+box1:[N,4]
+返回box0,box1交叉面积占box0的百分比
+'''
 def npbboxes_intersection_of_box0(box0,box1):
 
     bbox_ref= np.transpose(box0)
@@ -728,3 +733,17 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 '''
 def relative_boxes_to_absolutely_boxesi(boxes,width,height):
     return relative_boxes_to_absolutely_boxes(boxes=boxes,width=width,height=height).astype(np.int32)
+
+
+def bboxes_and_labels_filter(bboxes,labels,lens,filter):
+    with tf.name_scope("bboxes_and_labels_filter"):
+        batch_size,nr,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
+        def fn(boxes,label,len):
+           boxes = boxes[:len,:]
+           label = label[:len]
+           boxes,label = filter(boxes,label)
+           len = tf.shape(label)[0]
+           boxes = tf.pad(boxes,[[0,nr-len],[0,0]])
+           label = tf.pad(label,[[0,nr-len]])
+           return [boxes,label,len]
+        return wmlt.static_or_dynamic_map_fn(lambda x:fn(x[0],x[1],x[2]),[bboxes,labels,lens],back_prop=False)

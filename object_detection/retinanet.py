@@ -45,7 +45,9 @@ class RetinaNet(SSD):
                                                       scales_per_octave=2,size=bimage.get_shape().as_list()[1:3])
             self.buildPredictor(feature_maps=feature_maps)
         return feature_maps'''
-
+    '''
+    feature_maps:shape=[[h,w,c0],h/2,w/2,c1],....]
+    '''
     def buildPredictor(self, feature_maps,num_layers_before_predictor=4,activation_fn=tf.nn.relu6):
         logits_list = []
         boxes_regs_list = []

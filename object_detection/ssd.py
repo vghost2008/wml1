@@ -212,6 +212,9 @@ class SSD(object):
     def _buildNet(self,inputs,reuse=False):
         pass
 
+    '''
+    feature_maps:shape=[[h,w,c0],h/2,w/2,c1],....]
+    '''
     def buildPredictor(self,feature_maps,kernel_size=[1,1]):
         logits_list = []
         boxes_regs_list = []

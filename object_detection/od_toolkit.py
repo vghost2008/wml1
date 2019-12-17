@@ -1027,7 +1027,8 @@ def get_proposal_boxesv3(class_prediction,
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wmlt.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
-    proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
+    proposal_bboxes = proposal_bboxes*tf.ones_like(bboxes_regs)
+    #proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
 
     '''
     通过top_k+gather排序

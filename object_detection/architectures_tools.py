@@ -360,6 +360,7 @@ def fusion(feature_maps,conv_op=slim.conv2d,depth=None,scope=None):
 '''
 与第三方的BiFPN实现不同的地方为：
 1、每层输出的通道数不一样（原文及第三方每层输出的通道数都相同，因此fusion时没有conv操作)
+feature_maps:shape=[[h,w,c0],[2*h,2*w,c1],[4*h,4*w,c2],...]
 '''
 def BiFPN(feature_maps,conv_op=slim.conv2d,upsample_op=nearest_neighbor_upsampling,depths=None,scope=None):
     mid_feature_maps = []
