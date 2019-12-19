@@ -11,10 +11,22 @@ import math
 import time
 import logging
 import cv2
+import wsummary
+import basic_tftools as btf
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
 
+isSingleValueTensor = btf.isSingleValueTensor
+static_or_dynamic_map_fn = btf.static_or_dynamic_map_fn
+variable_summaries = wsummary.variable_summaries
+variable_summaries_v2 = wsummary.variable_summaries_v2
+histogram = wsummary.histogram
+histogram_or_scalar = wsummary.histogram_or_scalar
+image_summaries = wsummary.image_summaries
+_draw_text_on_image = wsummary._draw_text_on_image
+image_summaries_with_label = wsummary.image_summaries_with_label
+row_image_summaries = wsummary.row_image_summaries
 
 def add_to_hash_table_collection(value):
     tf.add_to_collection(_HASH_TABLE_COLLECTION,value)
@@ -35,17 +47,6 @@ def parameterNum(argus):
             dim *= v
         num += dim
     return num
-
-
-def isSingleValueTensor(var):
-    if not var.get_shape().is_fully_defined():
-        return False
-    dim = 1
-    shape = var.get_shape().as_list()
-    for v in shape:
-        dim *= v
-    return dim==1
-
 
 def show_values(values,name=None,fn=print):
     string = ""
@@ -226,83 +227,6 @@ def reshape_list(l, shape=None):
             i += s
     return r
 
-def variable_summaries(var,name):
-    if var.dtype != tf.float32:
-        var = tf.cast(var, tf.float32)
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar(name+'/max', tf.reduce_max(var))
-    tf.summary.scalar(name+'/min', tf.reduce_min(var))
-    tf.summary.scalar(name+'/mean', mean)
-    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar(name+'/stddev', stddev)
-    tf.summary.histogram(name+'/hisogram', var)
-
-def variable_summaries_v2(var, name):
-    if var is None or name is None:
-        return
-    if var.dtype != tf.float32:
-        var = tf.cast(var, tf.float32)
-    if isSingleValueTensor(var):
-        var = tf.reshape(var,())
-        tf.summary.scalar(name, var)
-        return
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar(name+'/max', tf.reduce_max(var))
-    tf.summary.scalar(name+'/min', tf.reduce_min(var))
-    tf.summary.scalar(name+'/mean', mean)
-    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar(name+'/stddev', stddev)
-    tf.summary.histogram(name+'/hisogram', var)
-
-def histogram(var,name):
-    if not isSingleValueTensor(var):
-        tf.summary.histogram(name, var)
-
-def histogram_or_scalar(var,name):
-    if not isSingleValueTensor(var):
-        tf.summary.histogram(name, var)
-    else:
-        var = tf.reshape(var,())
-        tf.summary.scalar(name, var)
-
-def image_summaries(var,name,max_outputs=3):
-    if var.get_shape().ndims==3:
-        var = tf.expand_dims(var,dim=0)
-    tf.summary.image(name,var,max_outputs=max_outputs)
-
-def _draw_text_on_image(img,text,font_scale=1.2,color=(0.,255.,0.),pos=None):
-    if pos is None:
-        pos = (0,img.shape[0]//2-int(font_scale*5))
-    if isinstance(text,bytes):
-        text = str(text,encoding="utf-8")
-    if not isinstance(text,str):
-        text = str(text)
-    cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=2)
-    return img
-
-def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
-    shape = img.get_shape().as_list()
-    if shape[0] is not None:
-        img = img[:max_outputs,:,:,:]
-        label = label[:max_outputs]
-    if scale:
-        img = (img+1.0)*127.5
-
-    def draw_func(var,l):
-        return tf.py_func(_draw_text_on_image,[var,l],var.dtype)
-
-    img = static_or_dynamic_map_fn(lambda x:draw_func(x[0],x[1]),elems=[img,label],dtype=img.dtype)
-    tf.summary.image(name,img,max_outputs=max_outputs)
-
-def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hsv=False):
-    with tf.name_scope(name):
-        log_image = tf.identity(imgs[0][:max_outputs])
-        for i in range(1,len(imgs)):
-            log_image = tf.pad(log_image, paddings=[[0, 0], [0, 0], [0, margin], [0, 0]])
-            log_image = tf.concat([log_image, imgs[i][:max_outputs]], axis=2)
-        if is_hsv:
-            log_image = tf.image.hsv_to_rgb(log_image)*2.0-1.0
-        image_summaries(log_image, "image_contrast")
 
 '''
 将var作为图像记录
@@ -927,77 +851,6 @@ def subsample_indicator(indicator, num_samples):
 
     return tf.equal(selected_indicator, 1)
 
-def static_or_dynamic_map_fn(fn, elems, dtype=None,
-                             parallel_iterations=32, back_prop=True):
-  """Runs map_fn as a (static) for loop when possible.
-
-  This function rewrites the map_fn as an explicit unstack input -> for loop
-  over function calls -> stack result combination.  This allows our graphs to
-  be acyclic when the batch size is static.
-  For comparison, see https://www.tensorflow.org/api_docs/python/tf/map_fn.
-
-  Note that `static_or_dynamic_map_fn` currently is not *fully* interchangeable
-  with the default tf.map_fn function as it does not accept nested inputs (only
-  Tensors or lists of Tensors).  Likewise, the output of `fn` can only be a
-  Tensor or list of Tensors.
-
-  TODO(jonathanhuang): make this function fully interchangeable with tf.map_fn.
-
-  Args:
-    fn: The callable to be performed. It accepts one argument, which will have
-      the same structure as elems. Its output must have the
-      same structure as elems.
-    elems: A tensor or list of tensors, each of which will
-      be unpacked along their first dimension. The sequence of the
-      resulting slices will be applied to fn.
-    dtype:  (optional) The output type(s) of fn. If fn returns a structure of
-      Tensors differing from the structure of elems, then dtype is not optional
-      and must have the same structure as the output of fn.
-    parallel_iterations: (optional) number of batch items to process in
-      parallel.  This flag is only used if the native tf.map_fn is used
-      and defaults to 32 instead of 10 (unlike the standard tf.map_fn default).
-    back_prop: (optional) True enables support for back propagation.
-      This flag is only used if the native tf.map_fn is used.
-
-  Returns:
-    A tensor or sequence of tensors. Each tensor packs the
-    results of applying fn to tensors unpacked from elems along the first
-    dimension, from first to last.
-  Raises:
-    ValueError: if `elems` a Tensor or a list of Tensors.
-    ValueError: if `fn` does not return a Tensor or list of Tensors
-  """
-  if isinstance(elems, list):
-    for elem in elems:
-      if not isinstance(elem, tf.Tensor):
-        raise ValueError('`elems` must be a Tensor or list of Tensors.')
-
-    elem_shapes = [elem.shape.as_list() for elem in elems]
-    # Fall back on tf.map_fn if shapes of each entry of `elems` are None or fail
-    # to all be the same size along the batch dimension.
-    for elem_shape in elem_shapes:
-      if (not elem_shape or not elem_shape[0]
-          or elem_shape[0] != elem_shapes[0][0]):
-        return tf.map_fn(fn, elems, dtype, parallel_iterations, back_prop)
-    arg_tuples = zip(*[tf.unstack(elem) for elem in elems])
-    outputs = [fn(arg_tuple) for arg_tuple in arg_tuples]
-  else:
-    if not isinstance(elems, tf.Tensor):
-      raise ValueError('`elems` must be a Tensor or list of Tensors.')
-    elems_shape = elems.shape.as_list()
-    if not elems_shape or not elems_shape[0]:
-      return tf.map_fn(fn, elems, dtype, parallel_iterations, back_prop)
-    outputs = [fn(arg) for arg in tf.unstack(elems)]
-  # Stack `outputs`, which is a list of Tensors or list of lists of Tensors
-  if all([isinstance(output, tf.Tensor) for output in outputs]):
-    return tf.stack(outputs)
-  else:
-    if all([isinstance(output, list) for output in outputs]):
-      if all([all(
-          [isinstance(entry, tf.Tensor) for entry in output_list])
-              for output_list in outputs]):
-        return [tf.stack(output_tuple) for output_tuple in zip(*outputs)]
-  raise ValueError('`fn` should return a Tensor or a list of Tensors.')
 
 def combined_static_and_dynamic_shape(tensor):
   """Returns a list containing static and dynamic values for the dimensions.

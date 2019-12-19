@@ -621,8 +621,8 @@ def cnn_self_hattenation(net,channel=None,n_head=1,keep_prob=None,is_training=Fa
     old_channel = net.get_shape().as_list()[-1]
     if channel is not None:
         net = slim.conv2d(net,channel,[1,1],scope="projection_0")
-    shape = net.get_shape().as_list()
-    new_shape = [-1,shape[2],shape[3]]
+    shape = wmlt.combined_static_and_dynamic_shape(net)
+    new_shape = [shape[0]*shape[1],shape[2],shape[3]]
     net = tf.reshape(net,new_shape)
     net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
     if channel is not None:

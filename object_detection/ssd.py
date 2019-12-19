@@ -29,6 +29,7 @@ class SSD(object):
         self.batch_size = batch_size
         '''
         list of [h,w]
+        shape from large to min, for example [[h,w],[h//2,w//2],...]
         '''
         self.feature_maps_shape = []
         self.num_classes = num_classes
@@ -44,7 +45,9 @@ class SSD(object):
         self.score_converter = tf.nn.softmax
         self.raw_probs = None
         self.logits_nr_list = []
-
+    '''
+    scales use relative unit
+    '''
     def getAnchorBoxes(self):
         np_anchors=[]
         offset = 0
@@ -60,7 +63,10 @@ class SSD(object):
         self.anchors = tf.expand_dims(anchors,axis=0)
         self.logits_nr_list = [len(self.scales[i])*len(self.ratios[i]) for i in range(len(self.scales))]
         return self.anchors
-    
+
+    '''
+    scales in this version is pixel unit, it's different from getAnchorBoxes
+    '''
     def getAnchorBoxesV2(self):
         tf_anchors=[]
         for i,shape in enumerate(self.feature_maps_shape):
@@ -76,7 +82,7 @@ class SSD(object):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
 
         self.feature_maps_shape = shapes
-        return self.getAnchorBoxesV2()
+        return SSD.getAnchorBoxesV2(self)
 
     '''
     default generator for SSD
@@ -121,6 +127,7 @@ class SSD(object):
                                                   scales_per_octave=scales_per_octave)
         self.logits_nr_list = [scales_per_octave*len(aspect_ratios)]*(max_level-min_level+1)
         self.anchors = generator(feature_map_shape_list=self.feature_maps_shape, size=size)
+
     def getAnchorBoxesByFreaturesV4(self,features_map,min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave=2,size=[640,640]):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
         self.feature_maps_shape = shapes
@@ -176,12 +183,9 @@ class SSD(object):
             num_classes = self.num_classes
         logits_list = []
         for lg in logits:
-            shape = lg.get_shape().as_list()
-            if shape[0] is None:
-                x_size = shape[1]*shape[2]*shape[3]//num_classes
-                lg = tf.reshape(lg,[-1,x_size,num_classes])
-            else:
-                lg = tf.reshape(lg,[shape[0],-1,num_classes])
+            shape = wmlt.combined_static_and_dynamic_shape(lg)
+            x_size = shape[1]*shape[2]*shape[3]//num_classes
+            lg = tf.reshape(lg,[shape[0],x_size,num_classes])
             logits_list.append(lg)
         return tf.concat(logits_list,axis=1)
 
@@ -195,12 +199,9 @@ class SSD(object):
         '''
         regs_list = []
         for rg in regs:
-            shape = rg.get_shape().as_list()
-            if shape[0] is None:
-                x_size = shape[1]*shape[2]*shape[3]//4
-                rg = tf.reshape(rg,[-1,x_size,4])
-            else:
-                rg = tf.reshape(rg,[shape[0],-1,4])
+            shape = wmlt.combined_static_and_dynamic_shape(rg)
+            x_size = shape[1]*shape[2]*shape[3]//4
+            rg = tf.reshape(rg,[shape[0],x_size,4])
             regs_list.append(rg)
         return tf.concat(regs_list,axis=1)
 

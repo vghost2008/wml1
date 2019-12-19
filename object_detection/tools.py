@@ -161,7 +161,7 @@ def ticks(minv,maxv,order,nr):
     t_delta = (max(scale,((maxv-minv)/nr))//scale)*scale
     return np.arange(minv,maxv,t_delta).tolist()
 
-def show_anchor_box(img_file,boxes):
+def show_anchor_box(img_file,boxes,size=None):
     nr = boxes.shape[0]
     classes = []
     scores = []
@@ -169,7 +169,14 @@ def show_anchor_box(img_file,boxes):
         classes.append(0)
         scores.append(1)
     img = wmli.imread(img_file)
-    odv.plt_bboxes(img,classes,scores,boxes,show_text=False)
+    if size is not None:
+        img = wmli.resize_img(img,(size[1],size[0]))
+
+    odv.bboxes_draw_on_img(img, classes, scores, boxes)
+    plt.figure(figsize=(10,10))
+    plt.imshow(img)
+    plt.show()
+    return img
 
 if __name__ == "__main__":
     #statics = statistics_boxes_in_dir("/home/vghost/ai/mldata/udacity/voc/VOC2012",nr=20)

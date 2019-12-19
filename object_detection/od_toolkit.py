@@ -739,7 +739,7 @@ def get_predictionv6(class_prediction,
     return boxes,labels,probability,res_indices
 
 '''
-与get_predictionv6, 但每一个bboxes都会decode并且最终bboxes的顺序不变
+与get_predictionv6, 但每一个bboxes都会decode并且最终bboxes的顺序不变, 没有NMS操作
 class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
 shape为[batch_size,X,num_classes]
 
@@ -766,12 +766,12 @@ def get_predictionv7(class_prediction,
                    proposal_bboxes,
                    limits=None,
                    prio_scaling=[0.1,0.1,0.2,0.2],
-                   classes_wise=False):
-    #删除背景
-    class_prediction = class_prediction[:,:,1:]
-    probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
-    #背景的类别为0，前面已经删除了背景，需要重新加上
-    labels = nb_labels+1
+                   classes_wise=False,no_background=True):
+    if no_background:
+        class_prediction = class_prediction[:,:,1:]
+    probability,labels = tf.nn.top_k(class_prediction,k=1)
+    if no_background:
+        labels = labels +1
     ndims = class_prediction.get_shape().ndims
     probability = tf.squeeze(probability, axis=ndims - 1)
     labels = tf.squeeze(labels, axis=ndims - 1)
@@ -782,7 +782,7 @@ def get_predictionv7(class_prediction,
     #按类别在bboxes_regs选择相应类的回归参数
     if classes_wise:
         old_bboxes_regs_shape = bboxes_regs.get_shape().as_list()
-        nb_labels = tf.reshape(nb_labels,[-1])
+        nb_labels = tf.reshape(labels,[-1])
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)
         bboxes_regs = wml.reshape(bboxes_regs,[old_bboxes_regs_shape[0],old_bboxes_regs_shape[1],old_bboxes_regs_shape[3]])
@@ -1331,9 +1331,9 @@ def distorted_bounding_box_crop(image,
         distort_bbox的shape一定为[1, 1, 4],表示需要裁剪的裁剪框，与bbox_begin,bbox_size表达的内容重复
         '''
         distort_bbox = distort_bbox[0, 0]
-
+        image_channel = image.get_shape().as_list()[-1]
         cropped_image = tf.slice(image, bbox_begin, bbox_size)
-        cropped_image.set_shape([None, None, 3])
+        cropped_image.set_shape([None, None, image_channel])
 
         '''
         将在原图中的bboxes转换为在distort_bbox定义的子图中的bboxes

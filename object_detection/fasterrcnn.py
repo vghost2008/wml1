@@ -13,6 +13,7 @@ import sys
 import logging
 import wnnlayer as wnnl
 import functools
+import wsummary
 slim = tf.contrib.slim
 
 
@@ -92,7 +93,8 @@ class FasterRCNN(object):
         anchor_size用于表示每个地方的anchor_boxes数量，为len(ratios)*len(scales)
         '''
         self.anchor_size=None
-        self.pred_bboxes_classwise = True
+        self.pred_bboxes_classwise = False
+        self.pred_rcn_bboxes_classwise = True
         self.train_bn = True
 
     def train_base_net_bn(self):
@@ -224,6 +226,8 @@ class FasterRCNN(object):
             proposal_boxes = self.proposal_boxes
         self.rcnFeatureExtractor(base_net,proposal_boxes,roipooling,bin_size,reuse)
         self.rcn_regs,self.rcn_logits = self.rcnBoxPredictor(self.rcn_batch_size,self.rcn_box_nr,reuse)
+        assert len(self.rcn_regs.get_shape().as_list())==4,"FasterRCNN: rcn regs should be a 4 dims tensor."
+        assert len(self.rcn_logits.get_shape().as_list())==3,"FasterRCNN: rcn logits should be a 3 dims tensor."
         return self.rcn_regs,self.rcn_logits
 
     #在训练RPN时生成RCN网络参数
@@ -231,7 +235,7 @@ class FasterRCNN(object):
         self.proposal_boxes = tf.placeholder(dtype=tf.float32,shape=[self.batch_size,8,4])
         return self.buildRCNNet(roipooling=roipooling)
 
-    def encodeRPNBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
+    def encodeRPNBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3,max_labels_value=1):
         with tf.name_scope("EncodeRPNBoxes"):
             rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices,_ = boxes_encode(bboxes=self.anchors,
                                                                    gboxes=gbboxes,
@@ -239,10 +243,11 @@ class FasterRCNN(object):
                                                                    length=lens,
                                                                    pos_threshold=pos_threshold,
                                                                    neg_threshold=neg_threshold)
-            '''
-            rpn网络中分类只分背景与目标，类别号为0背景，1目标
-            '''
-            rpn_gtlabels = tf.clip_by_value(rpn_gtlabels,0,1)
+            if max_labels_value is not None:
+                '''
+                rpn网络中分类只分背景与目标，类别号为0背景，1目标
+                '''
+                rpn_gtlabels = tf.clip_by_value(rpn_gtlabels,0,max_labels_value)
             self.rpn_gtregs = rpn_gtregs
             self.rpn_gtlabels = rpn_gtlabels
             self.rpn_gtscores = rpn_gtscores
@@ -470,7 +475,7 @@ class FasterRCNN(object):
         if scores is not None:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
-                                     scope=scope,classes_wise=True,do_sample=False)
+                                     scope=scope,classes_wise=self.pred_rcn_bboxes_classwise,do_sample=False)
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        scores=scores,
@@ -479,7 +484,7 @@ class FasterRCNN(object):
         else:
             if loss is None:
                 loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
-                                     scope=scope,classes_wise=self.pred_bboxes_classwise)
+                                     scope=scope,classes_wise=self.pred_rcn_bboxes_classwise)
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
                        classes_logits=self.rcn_logits,
@@ -639,6 +644,21 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          )
         self.rcn_bboxes_lens = tf.ones(tf.shape(self.finally_boxes_label)[0],dtype=tf.int32)*tf.shape(self.finally_boxes_label)[1]
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob
+    '''
+    对所有的boxes解码，并且最终boxes的顺序不改变，数量不变
+    '''
+    def getBoxesV4(self,no_background=True):
+        proposal_boxes = self.proposal_boxes
+        with tf.device("/cpu:0"):
+            with tf.variable_scope("RCNGetBoxes"):
+                self.rcn_raw_probs = tf.nn.softmax(self.rcn_logits)
+                probs = self.rcn_raw_probs
+                bboxes,labels,probs = \
+                    od.get_predictionv7(class_prediction=probs,
+                                        bboxes_regs=self.rcn_regs,
+                                        proposal_bboxes=proposal_boxes,
+                                        classes_wise=True,no_background=no_background)
+                return bboxes,labels,probs
 
     def getRCNBBoxesPredictQuality(self,gbboxes,glabels,glens):
         proposal_boxes = self.proposal_boxes
@@ -737,6 +757,25 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
         shape = net.get_shape().as_list()[2:]
         return wmlt.reshape(net,[-1]+shape)
 
+    def lop_rpn_anchors_loss_call_back(self,pmask, nmask,data_labels=None):
+        raw_pmask = pmask
+        if data_labels is None:
+            data_labels = self.rpn_gtlabels
+        ###
+        pmask = raw_pmask[0]
+        labels = data_labels[0]
+        boxes = self.anchors[0]
+        labels = tf.expand_dims(tf.boolean_mask(labels, pmask), axis=0)
+        boxes = tf.expand_dims(tf.boolean_mask(boxes, pmask), axis=0)
+        wsummary.detection_image_summary(self.input_img[:1], boxes=boxes, classes=labels, name="RPN_POS_ANCHORS")
+        ###
+        nmask = nmask[0]
+        labels = data_labels[0]
+        boxes = self.anchors[0]
+        labels = tf.expand_dims(tf.boolean_mask(labels, nmask), axis=0)
+        boxes = tf.expand_dims(tf.boolean_mask(boxes, nmask), axis=0)
+        wsummary.detection_image_summary(self.input_img[:1], boxes=boxes, classes=labels, name="RPN_NEG_ANCHORS")
+        ###
 
 
 
