@@ -41,6 +41,9 @@ def __draw_detection_image_summary(images,
     images = tf.clip_by_value(images,0,255)
     images = tf.cast(images,tf.uint8)
 
+  if images.get_shape().as_list()[-1] == 1:
+      images = tf.tile(images,[1,1,1,3])
+
   if category_index is None:
     category_index = {}
     for i in range(100):

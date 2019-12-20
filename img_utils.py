@@ -575,6 +575,17 @@ class NPImagePatch(object):
 bboxes:[N,4],[ymin,xmin,ymax,xmax]
 '''
 def remove_boxes_of_img(img,bboxes,default_value=[127,127,127]):
+    if not isinstance(bboxes,np.ndarray):
+        bboxes = np.array(bboxes)
+    if bboxes.shape[0] == 0:
+        return img
+    ymin,xmin,ymax,xmax = np.transpose(bboxes)
+    ymin = np.maximum(ymin,0)
+    xmin = np.maximum(xmin,0)
+    ymax = np.minimum(ymax,img.shape[0])
+    xmax = np.minimum(xmax,img.shape[1])
+    bboxes = np.stack([ymin,xmin,ymax,xmax],axis=1)
+
     for box in bboxes:
         img[box[0]:box[2], box[1]:box[3]] = default_value
     return img

@@ -105,13 +105,15 @@ def image_summaries(var,name,max_outputs=3):
     tf.summary.image(name,var,max_outputs=max_outputs)
 
 def _draw_text_on_image(img,text,font_scale=1.2,color=(0.,255.,0.),pos=None):
-    if pos is None:
-        pos = (0,img.shape[0]//2-int(font_scale*5))
     if isinstance(text,bytes):
         text = str(text,encoding="utf-8")
     if not isinstance(text,str):
         text = str(text)
-    cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=2)
+    thickness = 2
+    size = cv2.getTextSize(text,fontFace=cv2.FONT_HERSHEY_COMPLEX,fontScale=font_scale,thickness=thickness)
+    if pos is None:
+        pos = (0,(img.shape[0]+size[0][1])//2)
+    cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=thickness)
     return img
 
 def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):

@@ -508,6 +508,33 @@ def restore_sub_area(bboxes,sub_box):
     return bboxes
 
 '''
+获取bboxes在box中的相对坐标
+如:box=[5,5,10,10,]
+bboxes=[[7,7,8,9]]
+return:
+[[2,2,3,4]]
+'''
+def get_boxes_relative_to_box(box,bboxes,remove_zero_size_box=False):
+    if not isinstance(bboxes,np.ndarray):
+        bboxes = np.array(bboxes)
+    if bboxes.shape[0] == 0:
+        return bboxes
+    ymin,xmin,ymax,xmax = np.transpose(bboxes,[1,0])
+    ymin = ymin-box[0]
+    xmin = xmin-box[1]
+    ymax = ymax-box[0]
+    xmax = xmax-box[1]
+    if remove_zero_size_box:
+        mask = np.logical_and((ymax-ymin)>0,(xmax-xmin)>0)
+        ymin = ymin[mask]
+        xmin = xmin[mask]
+        ymax = ymax[mask]
+        xmax = xmax[mask]
+    bboxes = np.stack([ymin,xmin,ymax,xmax],axis=1)
+    return bboxes
+
+
+'''
 boxes:[N,4],ymin,xmin,ymax,xmax
 regs:[N,4]
 '''
@@ -689,6 +716,20 @@ def expand_bbox(bboxes,scale=2):
         res_bboxes.append((min_x,min_y,new_width,new_height))
 
     return res_bboxes
+'''
+bboxes:[N,4]
+'''
+def shrink_box(bboxes,shrink_value=[0,0,0,0]):
+    if not isinstance(bboxes,np.ndarray):
+        bboxes = np.array(bboxes)
+    if not isinstance(shrink_value,list):
+        shrink_value = [shrink_value]*4
+    ymin,xmin,ymax,xmax = np.transpose(bboxes)
+    ymin = ymin+shrink_value[0]
+    xmin = xmin+shrink_value[1]
+    ymax = ymax-shrink_value[2]
+    xmax = xmax-shrink_value[3]
+    return np.stack([ymin,xmin,ymax,xmax],axis=1)
 
 '''
 boxes:[N,4],[ymin,xmin,ymax,xmax]
@@ -747,3 +788,18 @@ def bboxes_and_labels_filter(bboxes,labels,lens,filter):
            label = tf.pad(label,[[0,nr-len]])
            return [boxes,label,len]
         return wmlt.static_or_dynamic_map_fn(lambda x:fn(x[0],x[1],x[2]),[bboxes,labels,lens],back_prop=False)
+'''
+box0:[ymin,xmin,ymax,xmax]
+box1:[N,4],[ymin,xmin,ymax,xmax]
+用box0裁box1,也就是说box1仅取与box0有重叠的部分
+'''
+def cut_boxes_by_box0(box0,box1):
+    if not isinstance(box1,np.ndarray):
+        box1 = np.array(box1)
+    ymin,xmin,ymax,xmax = np.transpose(box1)
+    ymin = np.minimum(np.maximum(box0[0],ymin),box0[2])
+    xmin = np.minimum(np.maximum(box0[1],xmin),box0[3])
+    ymax = np.maximum(np.minimum(box0[2],ymax),box0[0])
+    xmax = np.maximum(np.minimum(box0[3],xmax),box0[1])
+    box1 = np.stack([ymin,xmin,ymax,xmax],axis=0)
+    return np.transpose(box1)

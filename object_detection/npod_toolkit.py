@@ -67,6 +67,8 @@ bboxes_ref:[4] ymin,xmin,ymax,xmax, relative coordinate
 bboxes2:[X,4], ymin,xmin,ymax,xmax, relative coordinate
 '''
 def bboxes_intersection_r(bboxes_ref, bboxes):
+    if bboxes.shape[0] == 0 or bboxes_ref.shape[0] == 0:
+        return np.array([],dtype=np.float32)
 
     bboxes = np.transpose(bboxes)
     # Intersection bbox and volume.

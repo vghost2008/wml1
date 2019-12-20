@@ -503,3 +503,23 @@ def isChildOf(obj, cls):
     except AttributeError:
         return isChildOf(obj.__class__, cls)
     return False
+
+def safe_remove_dirs(dir_path):
+    if not os.path.exists(dir_path):
+        return True
+    ans = input(f"Remove dirs in {dir_path} [y/N]?")
+    if ans.lower() == "y":
+        print(f"Remove dirs {dir_path}")
+        shutil.rmtree(dir_path)
+        return True
+    else:
+        return False
+
+def create_empty_dir(dir_path,remove_if_exists=True):
+    if remove_if_exists:
+        if not safe_remove_dirs(dir_path):
+            return False
+    os.makedirs(dir_path)
+
+    return True
+

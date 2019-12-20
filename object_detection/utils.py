@@ -457,7 +457,10 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
     xml_file_paths = []
     for file in inputfilenames:
         base_name = os.path.basename(file)[:-4]+".xml"
-        xml_path = os.path.join(xml_dir,base_name)
+        if xml_sub_dir is not None:
+            xml_path = os.path.join(xml_dir,base_name)
+        else:
+            xml_path = os.path.join(os.path.dirname(file),base_name)
         if os.path.exists(xml_path):
             img_file_paths .append(file)
             xml_file_paths.append(xml_path)

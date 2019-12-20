@@ -781,7 +781,7 @@ def get_predictionv7(class_prediction,
 
     #按类别在bboxes_regs选择相应类的回归参数
     if classes_wise:
-        old_bboxes_regs_shape = bboxes_regs.get_shape().as_list()
+        old_bboxes_regs_shape = wml.combined_static_and_dynamic_shape(bboxes_regs)
         nb_labels = tf.reshape(labels,[-1])
         bboxes_regs = tf.reshape(bboxes_regs,[-1,old_bboxes_regs_shape[-2],old_bboxes_regs_shape[-1]])
         bboxes_regs = wml.select_2thdata_by_index(bboxes_regs,nb_labels)

@@ -15,7 +15,7 @@ from wml_utils import *
 import object_detection.bboxes as bboxes
 import img_utils as wmli
 import walgorithm as wlg
-
+# print(f"{a:05}x")
 
 class WMLTest(tf.test.TestCase):
     def test_list_to_2dlist(self):

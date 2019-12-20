@@ -226,7 +226,10 @@ class FasterRCNN(object):
             proposal_boxes = self.proposal_boxes
         self.rcnFeatureExtractor(base_net,proposal_boxes,roipooling,bin_size,reuse)
         self.rcn_regs,self.rcn_logits = self.rcnBoxPredictor(self.rcn_batch_size,self.rcn_box_nr,reuse)
-        assert len(self.rcn_regs.get_shape().as_list())==4,"FasterRCNN: rcn regs should be a 4 dims tensor."
+        if self.pred_rcn_bboxes_classwise:
+            assert len(self.rcn_regs.get_shape().as_list())==4,"FasterRCNN: rcn regs should be a 4 dims tensor."
+        else:
+            assert len(self.rcn_regs.get_shape().as_list())==3,"FasterRCNN: rcn regs should be a 3 dims tensor."
         assert len(self.rcn_logits.get_shape().as_list())==3,"FasterRCNN: rcn logits should be a 3 dims tensor."
         return self.rcn_regs,self.rcn_logits
 
@@ -613,7 +616,7 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                                          threshold=threshold,
                                          limits=limits,
                                          candiate_nr=k,
-                                         classes_wise=True,
+                                         classes_wise=self.pred_rcn_bboxes_classwise,
                                          nms=nms)
         return self.finally_boxes,self.finally_boxes_label,self.finally_boxes_prob,self.rcn_bboxes_lens
 
@@ -657,7 +660,8 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
                     od.get_predictionv7(class_prediction=probs,
                                         bboxes_regs=self.rcn_regs,
                                         proposal_bboxes=proposal_boxes,
-                                        classes_wise=True,no_background=no_background)
+                                        classes_wise=self.pred_rcn_bboxes_classwise,
+                                        no_background=no_background)
                 return bboxes,labels,probs
 
     def getRCNBBoxesPredictQuality(self,gbboxes,glabels,glens):
