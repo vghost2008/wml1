@@ -10,6 +10,8 @@ from tensorflow.contrib.slim.python.slim.data import parallel_reader
 import time
 from functools import wraps
 import random
+import sys
+import socket
 
 slim = tf.contrib.slim
 
@@ -142,6 +144,22 @@ def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None):
 
 def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
     res=[]
+    for root,dirs,_ in os.walk(dir_path):
+        for dir in dirs:
+            path = os.path.join(root,dir)
+            if predicte_fn is not None:
+                if not predicte_fn(path):
+                    continue
+            dir = path.replace(dir_path,"")
+            if dir.startswith("/"):
+                dir = dir[1:]
+            res.append(dir)
+    res.sort()
+    res.append("")
+    return res
+
+'''def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
+    res=[]
     for dir in os.listdir(dir_path):
         path = os.path.join(dir_path,dir)
         if os.path.isdir(path):
@@ -154,7 +172,8 @@ def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
                 sub_res = [os.path.join(dir,x) for x in sub_res]
             res.extend(sub_res)
     res.sort()
-    return res
+    res.append("")
+    return res'''
 
 def recurse_get_filepath_in_dirs(dirs_path,suffix=None,prefix=None):
     files = []
@@ -504,10 +523,13 @@ def isChildOf(obj, cls):
         return isChildOf(obj.__class__, cls)
     return False
 
-def safe_remove_dirs(dir_path):
+def safe_remove_dirs(dir_path,yes_to_all=False):
     if not os.path.exists(dir_path):
         return True
-    ans = input(f"Remove dirs in {dir_path} [y/N]?")
+    if not yes_to_all:
+        ans = input(f"Remove dirs in {dir_path} [y/N]?")
+    else:
+        ans = "y"
     if ans.lower() == "y":
         print(f"Remove dirs {dir_path}")
         shutil.rmtree(dir_path)
@@ -515,11 +537,32 @@ def safe_remove_dirs(dir_path):
     else:
         return False
 
-def create_empty_dir(dir_path,remove_if_exists=True):
+def create_empty_dir(dir_path,remove_if_exists=True,yes_to_all=False):
     if remove_if_exists:
-        if not safe_remove_dirs(dir_path):
+        if not safe_remove_dirs(dir_path,yes_to_all=yes_to_all):
             return False
-    os.makedirs(dir_path)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
 
     return True
 
+def sync_data_dir(src_dir,dst_dir):
+    if "vghost" in socket.gethostname():
+        print("Skip sync data for vghost.")
+        return
+    print(f"Sync {src_dir} --> {dst_dir}")
+    if not os.path.exists(src_dir):
+        print(f"Error src dir {src_dir} dosen't exists.")
+        return
+    if not os.path.exists(dst_dir):
+        print(f"Dst dir {dst_dir} dosen't exists, make dirs")
+        os.makedirs(dst_dir)
+    if not src_dir.endswith("/"):
+        src_dir += "/"
+    if not dst_dir.endswith("/"):
+        dst_dir += "/"
+    src_dir += "*"
+    cmd = f"cp -vu {src_dir} {dst_dir}"
+    print(cmd)
+    os.system(cmd)
+    sys.stdout.flush()

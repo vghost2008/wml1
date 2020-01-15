@@ -13,6 +13,7 @@ import logging
 import cv2
 import wsummary
 import basic_tftools as btf
+from tensorflow.python.framework import graph_util
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]

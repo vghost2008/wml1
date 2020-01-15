@@ -319,11 +319,6 @@ class WMLTest(tf.test.TestCase):
             wmlu.show_list(data_out)
             self.assertAllClose(expected_data,data_out,atol=1e-4)
 
-
-
-
-
-
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',

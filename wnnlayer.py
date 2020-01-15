@@ -120,14 +120,21 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
     return output
 
 @add_arg_scope
-def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
+def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+    assert scale==True or offset==True
     if x.get_shape().ndims == 4:
-        return group_norm_4d(x,G,epsilon,weights_regularizer=weights_regularizer,scope=scope)
+        return group_norm_4d(x,G,epsilon,weights_regularizer=weights_regularizer,
+                             scale=scale,
+                             offset=offset,
+                             scope=scope)
     elif x.get_shape().ndims == 2:
-        return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,scope=scope)
+        return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,
+                             scale=scale,
+                             offset=offset,
+                             scope=scope)
 
 @add_arg_scope
-def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
+def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope(scope):
@@ -149,12 +156,15 @@ def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_no
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
-        x = (x - mean) / tf.sqrt(var + epsilon)
+        if offset:
+            x = x-mean
+        if scale:
+            x = x/ tf.sqrt(var + epsilon)
         x = wmlt.reshape(x, [N,H,W,C])
         return x*gamma + beta
 
 @add_arg_scope
-def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_norm"):
+def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
@@ -163,7 +173,10 @@ def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scope="group_no
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N,G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
-        x = (x - mean) / tf.sqrt(var + epsilon)
+        if offset:
+            x = x-mean
+        if scale:
+            x = x/tf.sqrt(var + epsilon)
         x = wmlt.reshape(x, [N,C])
         return x*gamma + beta
 
@@ -333,6 +346,7 @@ def conv2d_with_sn(inputs,
                 normalizer_params = {}
             outputs = normalizer_fn(outputs,**normalizer_params)
         if activation_fn is not None:
+            outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
             outputs = activation_fn(outputs)
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
 

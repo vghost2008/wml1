@@ -127,7 +127,8 @@ def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
     def draw_func(var,l):
         return tf.py_func(_draw_text_on_image,[var,l],var.dtype)
 
-    img = btf.static_or_dynamic_map_fn(lambda x:draw_func(x[0],x[1]),elems=[img,label],dtype=img.dtype)
+    img = tf.cond(tf.greater(tf.shape(label)[0],0),lambda:btf.static_or_dynamic_map_fn(lambda x:draw_func(x[0],x[1]),elems=[img,label],dtype=img.dtype),
+                  lambda:img)
     tf.summary.image(name,img,max_outputs=max_outputs)
 
 def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hsv=False):

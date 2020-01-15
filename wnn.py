@@ -854,3 +854,12 @@ def sparse_softmax_cross_entropy_with_logits_alpha_balanced(
         alpha_t = tf.squeeze(alpha_t,axis=-1)
         loss = -alpha_t*tf.math.log(r_probability)
         return loss
+
+def save_pbfile(sess,pb_path,output_names):
+    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def, output_names)
+    dirpath = os.path.dirname(pb_path)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+    with tf.gfile.FastGFile(pb_path, mode='wb') as f:
+        f.write(constant_graph.SerializeToString())
+    print(f"Save pb file {pb_path}.")

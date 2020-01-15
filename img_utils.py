@@ -311,6 +311,9 @@ def imsave(filename,img):
     imwrite(filename,img)
 
 def imwrite(filename, img):
+    dir_path = os.path.dirname(filename)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
     if len(img.shape)==3 and img.shape[2]==3:
         img = copy.deepcopy(img)
         cv2.cvtColor(img, cv2.COLOR_RGB2BGR,img)
@@ -561,8 +564,10 @@ class NPImagePatch(object):
         self.patchs = np.reshape(net, [-1, patch_size, patch_size, channel])
         return self.patchs
 
-    def from_patch(self):
+    def from_patch(self,patchs=None):
         assert self.patchs is not None,"Must call to_path first."
+        if patchs is not None:
+            self.patchs = patchs
         batch_size, height, width, channel = self.batch_size, self.height, self.width, self.channel
         patch_size = self.patch_size
         net = np.reshape(self.patchs, [batch_size, height // patch_size, width // patch_size, patch_size, patch_size,
@@ -589,3 +594,14 @@ def remove_boxes_of_img(img,bboxes,default_value=[127,127,127]):
     for box in bboxes:
         img[box[0]:box[2], box[1]:box[3]] = default_value
     return img
+
+def img_info(img):
+    img = nprgb_to_gray(img)
+    return np.std(img)
+
+def tf_img_info(img):
+    img = tf.image.rgb_to_grayscale(img)
+    if img.dtype != tf.float32:
+        img = tf.cast(img,tf.float32)
+    mean,variance = tf.nn.moments(img,list(range(len(img.get_shape()))))
+    return variance
