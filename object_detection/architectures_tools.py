@@ -331,6 +331,66 @@ def fpn_top_down_feature_mapsv2(image_features,
                 output_feature_map_keys.append('top_down_%s' % image_features[level][0])
             return collections.OrderedDict(reversed(
                 list(zip(output_feature_map_keys, output_feature_maps_list))))
+        
+def fpn_top_down_feature_mapsv3(image_features,
+                                depth=256,
+                                use_depthwise=False,
+                                interpolate_op=tf.image.resize_nearest_neighbor,
+                                scope=None):
+    """Generates `top-down` feature maps for Feature Pyramid Networks.
+
+    See https://arxiv.org/abs/1612.03144 for details.
+    参考Detectron2 FPN结构实现 
+    Detectron2中所有的conv都没有使用norm和activation, 这里lateral_conv没有使用，output_conv由外部决定
+    Args:
+      image_features: list of tuples of (tensor_name, image_feature_tensor).
+        Spatial resolutions of succesive tensors must reduce exactly by a factor
+        of 2.
+      depth: depth of output feature maps.
+      use_depthwise: whether to use depthwise separable conv instead of regular
+        conv.
+      scope: A scope name to wrap this op under.
+
+    Returns:
+      feature_maps: an OrderedDict mapping keys (feature map names) to
+        tensors where each tensor has shape [batch, height_i, width_i, depth_i].
+    """
+    with tf.name_scope(scope, 'top_down'):
+        num_levels = len(image_features)
+        output_feature_maps_list = []
+        output_feature_map_keys = []
+        padding = 'SAME'
+        kernel_size = 3
+        if use_depthwise:
+            conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1)
+        else:
+            conv_op = slim.conv2d
+        with slim.arg_scope(
+                [slim.conv2d], padding=padding, stride=1):
+            prev_features = slim.conv2d(
+                image_features[-1][1],
+                depth, [1, 1], activation_fn=None, normalizer_fn=None,
+                scope='projection_%d' % num_levels)
+            output = conv_op(prev_features,[kernel_size,kernel_size],scope=f"output{num_levels-1}")
+            output_feature_maps_list.append(output)
+            output_feature_map_keys.append(
+                'top_down_%s' % image_features[-1][0])
+
+            for level in reversed(range(num_levels - 1)):
+                top_down = interpolate_op(prev_features, shape)
+                lateral_features = slim.conv2d(
+                    image_features[level][1], depth, [1, 1],
+                    activation_fn=None, normalizer_fn=None,
+                    scope='projection_%d' % (level + 1))
+                shape = tf.shape(lateral_features)[1:3]
+                prev_features = top_down + lateral_features
+                output_feature_maps_list.append(conv_op(
+                        prev_features,
+                        depth, [kernel_size, kernel_size],
+                        scope=f'output_{level + 1}'))
+                output_feature_map_keys.append('top_down_%s' % image_features[level][0])
+            return collections.OrderedDict(reversed(
+                list(zip(output_feature_map_keys, output_feature_maps_list))))
 
 def pooling_pyramid_feature_maps(base_feature_map_depth, num_layers,
                                  image_features, replace_pool_with_conv=False):

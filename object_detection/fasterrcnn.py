@@ -16,7 +16,10 @@ import functools
 import wsummary
 slim = tf.contrib.slim
 
-
+'''
+注: Detectron2中在proposal boxes进入RCN时会将gt boxes加入proposal boxes中，（训练初期RPN产生的proposal boxes)中可能没有正样本
+注:RPN时与gt bboxes IOU最大的anchor box会作为正样本，但在RCN中不需要这样做
+'''
 class FasterRCNN(object):
     __metaclass__ = ABCMeta
     '''
@@ -238,6 +241,9 @@ class FasterRCNN(object):
         self.proposal_boxes = tf.placeholder(dtype=tf.float32,shape=[self.batch_size,8,4])
         return self.buildRCNNet(roipooling=roipooling)
 
+    '''
+    Detectron2中，neg_threshold=0.3, pos_threshold=0.7
+    '''
     def encodeRPNBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3,max_labels_value=1):
         with tf.name_scope("EncodeRPNBoxes"):
             rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices,_ = boxes_encode(bboxes=self.anchors,
@@ -258,6 +264,7 @@ class FasterRCNN(object):
             return rpn_gtregs, rpn_gtlabels, rpn_gtscores,remove_indices
     '''
     ***** 执行后self.proposal_boxes会变成pos_threashold+neg_threshold个*****
+    注：Faster-RCNN原文中pos_threshold=0.5, neg_threshold=0.5, Detectron2中也是使用的这一设定
     需要在buildRCNNet前调用
     gbboxes:[batch_size,X,4]
     glabels:[batch_size,X]
@@ -295,6 +302,7 @@ class FasterRCNN(object):
     随机在输入中选择指定数量的box
     要求必须结果包含neg_nr+pos_nr个结果，如果总数小于这么大优先使用背影替代，然后使用随机替代
     注:Fast-RCNN原文中随机取25% IOU>0.5的目标, 75%IOU<=0.5的目标, 一个批次总共取128个目标，也就是每张图取128/batch_size个目标
+    注:Detectron2中每个图像都会取512个目标，远远大于Faster-RCNN原文的数量, 比例与原文一样(25%的正样本)
     labels:[X]
     keep_indices:[X],tf.bool
     返回:
@@ -460,9 +468,13 @@ class FasterRCNN(object):
     '''
     def getRPNLoss(self,loss=None,scope="RPNLoss"):
         if loss is None:
+            '''
+            Detectron2中，RPN在每个图像中随机取256个样本，其中正样本50%(如果正样本没取够用负样本填充)
+            '''
             loss = losses.ODLoss(num_classes=2,reg_loss_weight=self.reg_loss_weight,
                                  scope=scope,
                                  classes_wise=False,do_sample=True,
+                                 sample_type=losses.ODLoss.SAMPLE_TYPE_UNIFORM,
                                  sample_size=256)
         return loss(gregs=self.rpn_gtregs,
                    glabels=self.rpn_gtlabels,
@@ -492,7 +504,9 @@ class FasterRCNN(object):
                        glabels=labels,
                        classes_logits=self.rcn_logits,
                        bboxes_regs=self.rcn_regs,call_back=call_back)
-
+    '''
+    Detectron2在实现时先从每个图选12000个得分最高的box再使用threshold=0.7的nms处理，再取前2000个，数量都多于Faster-RCNN原文的1000个
+    '''
     def getProposalBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1):
         with tf.variable_scope("RPNProposalBoxes"):
             self.proposal_boxes,labels,self.proposal_boxes_prob,_ =\
