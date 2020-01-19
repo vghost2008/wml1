@@ -10,7 +10,16 @@ import object_detection.utils as odu
 from wtfop.wtfop_ops import wpad
 import img_utils as wmli
 
+slim = tf.contrib.slim
+
+'''
+Detectron2的默认实现中使用了与RCNN共享大部分特征提供参数，生成的mask 为14 x 14 (原文中使用的是不共享参数，输出28 x 28)
+也就是说Mask分支使用的box为rpn输出的正样本
+'''
 class MaskRCNN(fasterrcnn.FasterRCNN):
+    '''
+    Detectron2实现中默认使用SIGMOID loss
+    '''
     LT_SIGMOID=0
     LT_FOCAL_LOSS=1
     LT_USER_DEFINED=2
@@ -23,6 +32,12 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.finally_mask = None
         self.mask_loss_scale = loss_scale
         self.debug = True
+        '''
+        Mask分支Feature Map的输入
+        Mask-RCNN原文及Detectron2的实现中Mask分支与RCN分支共享提取特征部分，仅在最后一步有所不同
+        RCN的Box分支只有一个avg pool + FC
+        Mask分支只有一个ConvTranspose2d(channels=2048) + Conv2d
+        '''
         self.mask_branch_input = None
         self.mask_loss_type = self.LT_SIGMOID
         '''
@@ -35,11 +50,19 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def train_mask_bn(self):
         return self.train_mask and self.train_bn
     '''
-    labels:[batch_size*box_nr]
-    pmask:[batch_size*box_nr]
-    output:[batch_size*pbox_nr,M,N]
+    注:这里实现是与Detectron2中基本相同
+    注:Detectron2中使用的原文Fig 4 left中的Head Architecture, 而原文使用的是Fig 4 Right的Head Architecture
+    (Left: Mask与RCN共享大部分特征提取参数，仅最好输出部分不共享, Right不共享任何特征提取参数)
+    这里的实现可以通过改变mask_branch_input的输入值来实现left/right head architecture的切换
+    inputs:
+    labels:[batch_size*box_nr], normal use None
+    pmask:[batch_size*box_nr], normal use None
+    size:[h,w], normal use None, _maskFeatureExtractor do the upsampling stuff
+    net: replace the default input of mask branch
+    outputs:
+    mask_logits:[batch_size*pbox_nr,M,N]
     '''
-    def buildMaskBranch(self,pmask=None,labels=None,size=(33,33),reuse=False,net=None):
+    def buildMaskBranch(self,pmask=None,labels=None,size=None,reuse=False,net=None):
         if self.mask_branch_input is None:
             self.mask_branch_input = self.ssbp_net
         if net is None:
@@ -57,7 +80,8 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
             net = tf.boolean_mask(net,pmask)
             labels = tf.boolean_mask(labels,pmask)
 
-        net = tf.image.resize_bilinear(net,size)
+        if size is not None:
+            net = tf.image.resize_bilinear(net,size)
         net = self._maskFeatureExtractor(net,reuse=reuse)
         net = tf.transpose(net,perm=(0,3,1,2))
         assert net.get_shape().as_list()[1]==self.num_classes-1,"Error dim size."
@@ -95,10 +119,15 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.mask_logits = wmlt.batch_gather(net,labels-1)
         return self.mask_logits
     '''
+    use the gtbboxes as the proposal box for mask branch (some third implement use this config)
     labels:[batch_size*box_nr]
     pmask:[batch_size*box_nr]
     net_process: process base net feature map (before rpn and rcn) 
-    output:[batch_size*pbox_nr,M,N]
+    outputs:
+    mask_logits:[batch_size*pbox_nr,M,N]
+    gtlabels: selected gtlabels, [batch_size,pbox]
+    gtboxes: selected gtboxes, [batch_size,pbox,4]
+    indices: gtboxes's index in input gtbboxes, which means return gtboxes = batch_gather(input_gtboxes,indices)
     '''
     def buildMaskBranchV3(self,gtbboxes,gtlabels,gtlens,bboxes_nr,net=None,net_process=None,bin_size=11,size=(33,33),reuse=False,roipooling=odl.DFROI()):
         def random_select(labels,data_nr):
@@ -178,51 +207,28 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     '''
     @abstractmethod
     def _maskFeatureExtractor(self,net,reuse=False):
-        pass
-
+        with tf.variable_scope("MaskBranch",reuse=reuse):
+            num_channels = net.get_shape().as_list()[-1]
+            net = slim.convolution2d_transpose(net,num_channels,kernel_size=[2,2],
+                                               stride=2,
+                                               padding="SAME",
+                                               normalizer_fn=None)
+            net = slim.conv2d(net,self.num_classes,kernel_size=[3,3],stride=1,
+                              activation_fn=None,
+                              normalizer_fn=None)
+            return net
 
     '''
-    gtmasks:[batch_size,X,H,W]
-    gtbboxes:[batch_size,X,4]
+    This implement is the same as Detectron2 
     '''
-    def getMaskLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None):
-        max_boxes_nr = gtbboxes.get_shape().as_list()[1]
-        shape = self.mask_logits.get_shape().as_list()
-        pmask = tf.greater(self.rcn_gtlabels,0)
-        #pmask = wmlt.assert_shape_equal(pmask,[pmask,self.rcn_anchor_to_gt_indices])
-        gtmasks = tf.expand_dims(gtmasks,axis=-1)
-        wmlt.image_summaries(gtmasks[0][:gtlens[0],:,:,:],"mask0_1")
-        gtmasks = wmlt.tf_crop_and_resize(gtmasks,gtbboxes,shape[1:3])
-
-        wmlt.image_summaries(gtmasks[0][:gtlens[0],:,:,:],"mask0")
-        gtmasks = tf.squeeze(gtmasks,axis=-1)
-        rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
-        rcn_anchor_to_gt_indices = tf.clip_by_value(rcn_anchor_to_gt_indices,0,max_boxes_nr)
-        gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
-
-        gtmasks = tf.reshape(gtmasks,[-1]+gtmasks.get_shape().as_list()[2:])
-        pmask = tf.reshape(pmask,[-1])
-        if gtlabels is not None:
-            gtlabels = wmlt.batch_gather(gtlabels,rcn_anchor_to_gt_indices)
-            gtlabels = tf.cast(tf.reshape(gtlabels,[-1]),tf.int32)
-            cgtlabels = tf.cast(tf.reshape(self.rcn_gtlabels,[-1]),tf.int32)
-            gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(cgtlabels,pmask)],"ASSERT_GTLABELS_EQUAL")
-        gtmasks = tf.boolean_mask(gtmasks,pmask)
-        log_mask  = tf.expand_dims(gtmasks,axis=-1)
-        wmlt.image_summaries(log_mask,"mask")
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=gtmasks,logits=self.mask_logits)
-        loss = tf.reduce_mean(loss)
-        tf.losses.add_loss(loss*self.loss_scale)
-        return loss
-
-    def getMaskLossV1(self,gtmasks,gtlabels=None):
+    def getMaskLoss(self,gtmasks,gtlabels=None):
         shape = self.mask_logits.get_shape().as_list()
         pmask = tf.greater(self.rcn_gtlabels,0)
 
         rcn_anchor_to_gt_indices = self.rcn_anchor_to_gt_indices
         rcn_anchor_to_gt_indices = tf.maximum(rcn_anchor_to_gt_indices,0)
         gtmasks = wmlt.batch_gather(gtmasks,rcn_anchor_to_gt_indices)
-        bboxes = self.getRCNBoxes()
+        bboxes = self.rcn_proposal_boxes
         gtmasks = tf.expand_dims(gtmasks,axis=-1)
         if self.debug:
             org_mask = tf.identity(gtmasks)
@@ -238,7 +244,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
             cgtlabels = tf.cast(tf.reshape(self.rcn_gtlabels,[-1]),tf.int32)
             gtmasks = wmlt.assert_equal(gtmasks,[tf.boolean_mask(gtlabels,pmask),tf.boolean_mask(cgtlabels,pmask)],"ASSERT_GTLABELS_EQUAL")
         gtmasks = tf.boolean_mask(gtmasks,pmask)
-        log_mask  = tf.expand_dims(gtmasks,axis=-1)
+        log_mask = tf.expand_dims(gtmasks,axis=-1)
         if self.debug:
             log_boxes = tf.expand_dims(tf.reshape(bboxes,[-1,4]),axis=1)
             log_mask1 = odu.tf_draw_image_with_box(org_mask,log_boxes,scale=False)
@@ -250,6 +256,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         tf.losses.add_loss(loss*self.loss_scale)
         return loss
 
+    '''
+    gtmasks:[batch_size,img_h,img_w,c] is the same size as the input images
+    '''
     def getMaskLossV2(self,gtbboxes,gtmasks,indices,scope="Loss"):
         with tf.variable_scope(scope,default_name="MaskLoss"):
             shape = self.mask_logits.get_shape().as_list()
@@ -290,14 +299,9 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
                                         proposal_bboxes=self.proposal_boxes,classes_wise=self.pred_bboxes_classwise)
         return tf.stop_gradient(boxes)
 
-    def getLoss(self,gtbboxes,gtmasks,gtlens,gtlabels=None,use_scores=False):
+    def getLoss(self,gtmasks,gtlabels=None,use_scores=False):
         pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
-        mask_loss = self.getMaskLoss(gtbboxes=gtbboxes, gtmasks=gtmasks,gtlens=gtlens,gtlabels=gtlabels)
-        return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
-
-    def getLossV1(self,gtmasks,gtlabels=None,use_scores=False):
-        pc_loss, pr_loss, nc_loss, psize_div_all = self.getRCNLoss(use_scores=use_scores)
-        mask_loss = self.getMaskLossV1(gtmasks=gtmasks,gtlabels=gtlabels)
+        mask_loss = self.getMaskLoss(gtmasks=gtmasks,gtlabels=gtlabels)
         return mask_loss,pc_loss, pr_loss, nc_loss, psize_div_all
 
     '''

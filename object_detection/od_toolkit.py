@@ -884,7 +884,7 @@ def get_proposal_boxes(class_prediction,
 
 '''
 this function get exactly candiate_nr boxes by the probability
-class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
+class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率或者与概率正相关的值(如logits)
 shape为[batch_size,X,num_classes]
 bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
 shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
@@ -924,7 +924,8 @@ def get_proposal_boxesv2(class_prediction,
     probability = tf.squeeze(probability, axis=ndims - 1)
     labels = tf.squeeze(labels, axis=ndims - 1)
 
-    if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
+    if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or \
+            (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
         proposal_bboxes = tf.expand_dims(proposal_bboxes,axis=0)
 
     #按类别在bboxes_regs选择相应类的回归参数
@@ -975,7 +976,7 @@ def get_proposal_boxesv2(class_prediction,
 this function get exactly candiate_nr boxes by the heristic method
 firt remove boxes by nums, and then get the top candiate_nr boxes, if there not enough boxes after nms,
 the boxes in the front will be add to result.
-class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
+class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率或与概率正相关的指标(如logits)
 shape为[batch_size,X,num_classes]
 bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
 shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
@@ -1017,7 +1018,8 @@ def get_proposal_boxesv3(class_prediction,
     probability = tf.squeeze(probability, axis=ndims - 1)
     labels = tf.squeeze(labels, axis=ndims - 1)
 
-    if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
+    if (isinstance(proposal_bboxes,tf.Tensor) and proposal_bboxes.shape.ndims<3) or\
+            (isinstance(proposal_bboxes,np.ndarray) and len(proposal_bboxes.shape)<3):
         proposal_bboxes = tf.expand_dims(proposal_bboxes,axis=0)
 
     #按类别在bboxes_regs选择相应类的回归参数
@@ -1032,8 +1034,9 @@ def get_proposal_boxesv3(class_prediction,
 
     '''
     通过top_k+gather排序
+    In Detectron2, they chosen the top candiate_nr*6 boxes
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr*3,tf.shape(probability)[1]))
+    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr*6,tf.shape(probability)[1]))
     labels = wml.batch_gather(labels,indices)
     bboxes_regs = wml.batch_gather(bboxes_regs,indices)
     proposal_bboxes = wml.batch_gather(proposal_bboxes,indices)

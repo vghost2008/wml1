@@ -7,7 +7,6 @@ import logging
 
 slim = tf.contrib.slim
 
-
 class ODLoss:
     SAMPLE_TYPE_BY_BAD_ORDER=0
     SAMPLE_TYPE_UNIFORM=1
@@ -28,6 +27,11 @@ class ODLoss:
         self.do_sample = do_sample
         self.sample_type = sample_type
         self.sample_size = sample_size
+        '''
+        RetinaNet中使用了sigmoid, 在非互斥的标签类型检测中也需要sigmoid
+        Detectron2中Faster-RCNN等模型还是主要使用softmax
+        大多数任务中使用softmax还是sigmoid并没有多大的区别
+        '''
         self.score_converter = tf.nn.softmax
         print("do_sample:", do_sample)
         print("sample_type:", sample_type)

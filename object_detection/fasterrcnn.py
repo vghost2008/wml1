@@ -72,6 +72,13 @@ class FasterRCNN(object):
         '''
         self.rcn_anchor_to_gt_indices = None
         self.rcn_bboxes_lens = None
+        '''
+        the output of rpn is called proposal_boxes, after call encodeRCNBoxes, most of the proposal_boxes are removed, 
+        the left boxes is also called proposal_boxes, in order to distinguish these two different proposal boxes set, we 
+        now call the later as rcn_proposal_boxes, but the old name is also kept for compatibility.
+        [batch_size,pos_nr+neg_nr,4]
+        '''
+        self.rcn_proposal_boxes=None
         self.finally_boxes=None
         self.finally_boxes_prob=None
         self.finally_boxes_label=None
@@ -293,7 +300,8 @@ class FasterRCNN(object):
                           back_prop=False,
                           parallel_iterations=self.batch_size)
             self.rcn_anchor_to_gt_indices = tf.stop_gradient(wmlt.batch_gather(indices,self.rcn_indices))
-            self.proposal_boxes = tf.stop_gradient(wmlt.batch_gather(proposal_boxes,self.rcn_indices))
+            self.rcn_proposal_boxes = tf.stop_gradient(wmlt.batch_gather(proposal_boxes,self.rcn_indices))
+            self.proposal_boxes = self.rcn_proposal_boxes #for compatibility
             self.rcn_gtregs = wmlt.batch_gather(rcn_gtregs,self.rcn_indices)
             self.rcn_gtscores = wmlt.batch_gather(rcn_gtscores,self.rcn_indices)
 
@@ -504,10 +512,14 @@ class FasterRCNN(object):
                        glabels=labels,
                        classes_logits=self.rcn_logits,
                        bboxes_regs=self.rcn_regs,call_back=call_back)
+
     '''
-    Detectron2在实现时先从每个图选12000个得分最高的box再使用threshold=0.7的nms处理，再取前2000个，数量都多于Faster-RCNN原文的1000个
+    Default use getProposalBoxesV4, which use the same strategy as Detectron2
     '''
-    def getProposalBoxes(self,k=1000,threshold=0.5,nms_threshold=0.1):
+    def getProposalBoxes(self,k=1000,nms_threshold=0.7):
+        return self.getProposalBoxesV4(k=k,nms_threshold=nms_threshold)
+
+    def getProposalBoxesV0(self,k=1000,threshold=0.5,nms_threshold=0.1):
         with tf.variable_scope("RPNProposalBoxes"):
             self.proposal_boxes,labels,self.proposal_boxes_prob,_ =\
                 od.get_prediction(class_prediction=tf.nn.softmax(self.rpn_logits),
@@ -554,6 +566,9 @@ class FasterRCNN(object):
         return self.proposal_boxes,self.proposal_boxes_prob
 
     '''
+    Detectron2在实现时先从每个图选12000个得分最高的box再使用threshold=0.7的nms处理，再取前2000个，数量都多于Faster-RCNN原文的1000个
+    在预测时数量则减为6000与1000
+    This implement is compitable with Detectron2
     get exactly k proposal boxes, the excess boxes was remove by heristic method.
     k: output boxes number
     nms_threshold: NMS operation threshold.
@@ -563,7 +578,7 @@ class FasterRCNN(object):
     def getProposalBoxesV4(self,k=1000,nms_threshold=0.7):
         with tf.variable_scope("RPNProposalBoxes"):
             self.proposal_boxes,labels,self.proposal_boxes_prob = \
-                od.get_proposal_boxesv3(class_prediction=tf.nn.softmax(self.rpn_logits),
+                od.get_proposal_boxesv3(class_prediction=self.rpn_logits,
                                      bboxes_regs=self.rpn_regs,
                                      proposal_bboxes=self.anchors,
                                      candiate_nr=k,
@@ -795,5 +810,17 @@ IOU小于nms_threshold的两个bbox为不同目标，使用soft nms时，nms_thr
         wsummary.detection_image_summary(self.input_img[:1], boxes=boxes, classes=labels, name="RPN_NEG_ANCHORS")
         ###
 
-
+    '''
+    At the begining of training, most of the output bboxes (proposal_boxes) of rpn is negative, so there is no positive
+    bboxes for rcn, in order to process this situation, we add the distored gtboxes to proposal_boxes, so this function 
+    should be called between getProposalBoxes and encodeRCNBoxes
+    Note that: Detectron2 also use the same strategy, but they juse simple add the gtboxes to the proposal_boxes
+    '''
+    def add_ground_truth_boxes_to_proposal_boxes(self,gtboxes,boxes_lens,nr=16,limits=[0.1,0.1,0.1,0.1]):
+        with tf.name_scope("add_ground_truth_boxes_to_proposal_boxes"):
+            boxes = od.random_select_boxes(gtboxes,boxes_lens,nr)
+            if limits is not None:
+                boxes = bboxes.random_distored_boxes(boxes,limits=limits,size=1,keep_org=True)
+            self.proposal_boxes = tf.concat([self.proposal_boxes,boxes],axis=1)
+        return self.proposal_boxes
 
