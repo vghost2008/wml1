@@ -10,6 +10,8 @@ import img_utils
 import wml_tfutils as wmlt
 import object_detection.wlayers as wlayers
 import time
+import iotoolkit.transform as trans
+from object_detection.bboxes import bboxes_rot90,bboxes_flip_left_right,bboxes_rot90_ktimes,bboxes_flip_up_down
 slim = tf.contrib.slim
 
 '''
@@ -1113,8 +1115,6 @@ def get_prediction_boxes(boxes,labels,probability,
                    nms_threshold=0.1,
                    candiate_nr = 1500,
                    classes_wise=True):
-
-
     '''
     NMS前数据必须已经排好序
     通过top_k+gather排序
@@ -1142,14 +1142,6 @@ def flip_left_right(image,bboxes):
         image = tf.image.flip_left_right(image)
     return image,bboxes_flip_left_right(bboxes)
 
-def bboxes_flip_left_right(bboxes):
-    bboxes = tf.transpose(bboxes)
-    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
-    nxmax = 1.0-xmin
-    nxmin = 1.0-xmax
-    bboxes = tf.stack([ymin,nxmin,ymax,nxmax],axis=0)
-    bboxes = tf.transpose(bboxes)
-    return bboxes
 
 def random_flip_left_right(image,bboxes):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
@@ -1166,14 +1158,6 @@ def flip_up_down(image,bboxes):
         image = tf.image.flip_up_down(image)
     return image,bboxes_flip_up_down(bboxes)
 
-def bboxes_flip_up_down(bboxes):
-    bboxes = tf.transpose(bboxes)
-    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
-    nymax = 1.0-ymin
-    nymin = 1.0- ymax
-    bboxes = tf.stack([nymin,xmin,nymax,xmax],axis=0)
-    bboxes = tf.transpose(bboxes)
-    return bboxes
 
 def random_flip_up_down(image,bboxes):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
@@ -1190,27 +1174,6 @@ def rot90(image,bboxes,clockwise=True):
     else:
         image = tf.image.rot90(image,k)
     return image,bboxes_rot90(bboxes,clockwise)
-
-def bboxes_rot90(bboxes,clockwise=True):
-    bboxes = tf.transpose(bboxes)
-    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
-    if clockwise:
-        nxmax = 1.0-xmin
-        nxmin = 1.0-xmax
-        bboxes = tf.stack([nxmin,ymin,nxmax,ymax],axis=0)
-    else:
-        nymax = 1.0-ymin
-        nymin = 1.0-ymax
-        bboxes = tf.stack([xmin,nymin,xmax,nymax],axis=0)
-    bboxes = tf.transpose(bboxes)
-    return bboxes
-
-def bboxes_rot90_ktimes(bboxes,clockwise=True,k=1):
-    i = tf.constant(0)
-    c = lambda i,box:tf.less(i,k)
-    b = lambda i,box:(i+1,bboxes_rot90(box,clockwise))
-    _,box = tf.while_loop(c,b,loop_vars=[i,bboxes])
-    return box
 
 def random_rot90(image,bboxes,clockwise=True):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
@@ -1242,6 +1205,7 @@ def merge_mask_in_box(src,dst,box):
     src[y_beg:y_beg+d2s_h,x_beg:x_beg+d2s_w] = dst
 
     return src
+
 def distored_boxes(boxes,scale=[],xoffset=[],yoffset=[]):
     if boxes.get_shape().ndims == 3:
         return tf.map_fn(lambda x:wop.distored_boxes(x,scale=scale, xoffset=xoffset, yoffset=yoffset),elems=boxes)
@@ -1288,94 +1252,5 @@ def select_boxes_by_probs(bboxes,labels,probs,threshold=0.5):
     probs = tf.boolean_mask(probs,mask)
     return bboxes,labels,probs
 
-def distorted_bounding_box_crop(image,
-                                labels,
-                                bboxes,
-                                min_object_covered=0.3,
-                                aspect_ratio_range=(0.9, 1.1),
-                                area_range=(0.1, 1.0),
-                                max_attempts=200,
-                                filter_threshold=0.3,
-                                scope=None):
-    '''
-    data argument for object detection
-    :param image: [height,width,channels], input image
-    :param labels: [num_boxes]
-    :param bboxes: [num_boxes,4] (ymin,xmin,ymax,xmax), relative coordinates
-    :param min_object_covered: the croped object bbox and the orignal object bbox's IOU must greater than
-    min_object_covered to be keep in the result, else thre object will be removed.
-    :param aspect_ratio_range: random crop aspect ratio range
-    :param area_range:
-    :param max_attempts:
-    :param scope:
-    :return:
-    croped_image:[h,w,C]
-    labels:[n]
-    bboxes[n,4]
-    mask:[num_boxes]
-    bbox_begin:[3]
-    bbox_size:[3]
-    '''
-    with tf.name_scope(scope, 'distorted_bounding_box_crop', [image, bboxes]):
-        '''
-        在满足一定要求的前提下对图片进行随机的裁剪
-        '''
-        bbox_begin, bbox_size, distort_bbox = tf.image.sample_distorted_bounding_box(
-                tf.shape(image),
-                bounding_boxes=tf.expand_dims(bboxes, 0),
-                min_object_covered=min_object_covered,
-                aspect_ratio_range=aspect_ratio_range,
-                area_range=area_range,
-                max_attempts=max_attempts,
-                use_image_if_no_bounding_boxes=True,
-                seed=int(time.time()),
-                seed2=int(10*time.time()))
-        '''
-        distort_bbox的shape一定为[1, 1, 4],表示需要裁剪的裁剪框，与bbox_begin,bbox_size表达的内容重复
-        '''
-        distort_bbox = distort_bbox[0, 0]
-        image_channel = image.get_shape().as_list()[-1]
-        cropped_image = tf.slice(image, bbox_begin, bbox_size)
-        cropped_image.set_shape([None, None, image_channel])
-
-        '''
-        将在原图中的bboxes转换为在distort_bbox定义的子图中的bboxes
-        保留了distort_bbox界外的部分
-        '''
-        bboxes = wml_bboxes.bboxes_resize(distort_bbox, bboxes)
-        '''
-        仅保留交叉面积大于threshold的bbox
-        '''
-        labels, bboxes,mask = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
-                                                   threshold=filter_threshold,
-                                                   assign_negative=False)
-        return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
-
-'''
-mask:[N,H,W]
-'''
-def distorted_bounding_box_and_mask_crop(image,
-                                mask,
-                                labels,
-                                bboxes,
-                                min_object_covered=0.3,
-                                aspect_ratio_range=(0.9, 1.1),
-                                area_range=(0.1, 1.0),
-                                max_attempts=200,
-                                filter_threshold=0.3,
-                                scope=None):
-    dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
-            distorted_bounding_box_crop(image, labels, bboxes,
-                                        area_range=area_range,
-                                        min_object_covered=min_object_covered,
-                                        aspect_ratio_range=aspect_ratio_range,
-                                        max_attempts=max_attempts,
-                                        filter_threshold=filter_threshold,
-                                        scope=scope)
-    mask = tf.boolean_mask(mask,bboxes_mask)
-    mask = tf.transpose(mask,perm=[1,2,0])
-    mask = tf.slice(mask,bbox_begin,bbox_size)
-    dst_mask = tf.transpose(mask,perm=[2,0,1])
-    return dst_image,dst_mask,labels, bboxes, bbox_begin,bbox_size,bboxes_mask
-
-
+distorted_bounding_box_crop = trans.distorted_bounding_box_crop
+distorted_bounding_box_and_mask_crop = trans.distorted_bounding_box_and_mask_crop

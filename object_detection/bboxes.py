@@ -775,6 +775,33 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 def relative_boxes_to_absolutely_boxesi(boxes,width,height):
     return relative_boxes_to_absolutely_boxes(boxes=boxes,width=width,height=height).astype(np.int32)
 
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
+    with tf.name_scope("relative_boxes_to_absolutely_boxes"):
+        boxes = tf.transpose(boxes)
+        ymin = boxes[0]*height
+        xmin = boxes[1]*width
+        ymax = boxes[2]*height
+        xmax = boxes[3]*width
+
+        return tf.stack([ymin,xmin,ymax,xmax],axis=1)
+
+
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+'''
+def tfabsolutely_boxes_to_relative_boxes(boxes, width, height):
+    with tf.name_scope("absolutely_boxes_to_relative_boxes"):
+        boxes = tf.transpose(boxes)
+        ymin = boxes[0] / height
+        xmin = boxes[1] / width
+        ymax = boxes[2] / height
+        xmax = boxes[3] / width
+
+        return tf.stack([ymin, xmin, ymax, xmax], axis=1)
+
 
 def bboxes_and_labels_filter(bboxes,labels,lens,filter):
     with tf.name_scope("bboxes_and_labels_filter"):
@@ -803,3 +830,54 @@ def cut_boxes_by_box0(box0,box1):
     xmax = np.maximum(np.minimum(box0[3],xmax),box0[1])
     box1 = np.stack([ymin,xmin,ymax,xmax],axis=0)
     return np.transpose(box1)
+
+'''
+bboxes:[N,4]
+'''
+def bboxes_rot90(bboxes,clockwise=True):
+    bboxes = tf.transpose(bboxes)
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
+    if clockwise:
+        nxmax = 1.0-xmin
+        nxmin = 1.0-xmax
+        bboxes = tf.stack([nxmin,ymin,nxmax,ymax],axis=0)
+    else:
+        nymax = 1.0-ymin
+        nymin = 1.0-ymax
+        bboxes = tf.stack([xmin,nymin,xmax,nymax],axis=0)
+    bboxes = tf.transpose(bboxes)
+    return bboxes
+
+'''
+bboxes:[N,4]
+'''
+def bboxes_rot90_ktimes(bboxes,clockwise=True,k=1):
+    i = tf.constant(0)
+    c = lambda i,box:tf.less(i,k)
+    b = lambda i,box:(i+1,bboxes_rot90(box,clockwise))
+    _,box = tf.while_loop(c,b,loop_vars=[i,bboxes])
+    return box
+
+'''
+bboxes:[N,4]
+'''
+def bboxes_flip_up_down(bboxes):
+    bboxes = tf.transpose(bboxes)
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
+    nymax = 1.0-ymin
+    nymin = 1.0- ymax
+    bboxes = tf.stack([nymin,xmin,nymax,xmax],axis=0)
+    bboxes = tf.transpose(bboxes)
+    return bboxes
+
+'''
+bboxes:[N,4]
+'''
+def bboxes_flip_left_right(bboxes):
+    bboxes = tf.transpose(bboxes)
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
+    nxmax = 1.0-xmin
+    nxmin = 1.0-xmax
+    bboxes = tf.stack([ymin,nxmin,ymax,nxmax],axis=0)
+    bboxes = tf.transpose(bboxes)
+    return bboxes

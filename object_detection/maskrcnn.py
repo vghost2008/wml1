@@ -34,7 +34,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
         self.debug = True
         '''
         Mask分支Feature Map的输入
-        Mask-RCNN原文及Detectron2的实现中Mask分支与RCN分支共享提取特征部分，仅在最后一步有所不同
+        Detectron2的实现中Mask分支与RCN分支共享提取特征部分，仅在最后一步有所不同
         RCN的Box分支只有一个avg pool + FC
         Mask分支只有一个ConvTranspose2d(channels=2048) + Conv2d
         '''
@@ -50,7 +50,7 @@ class MaskRCNN(fasterrcnn.FasterRCNN):
     def train_mask_bn(self):
         return self.train_mask and self.train_bn
     '''
-    注:这里实现是与Detectron2中基本相同
+    注:这里实现与Detectron2中基本相同
     注:Detectron2中使用的原文Fig 4 left中的Head Architecture, 而原文使用的是Fig 4 Right的Head Architecture
     (Left: Mask与RCN共享大部分特征提取参数，仅最好输出部分不共享, Right不共享任何特征提取参数)
     这里的实现可以通过改变mask_branch_input的输入值来实现left/right head architecture的切换

@@ -280,7 +280,7 @@ class FasterRCNN(object):
     pos_nr: number of postive box in every example
     '''
     def encodeRCNBoxes(self, gbboxes, glabels,lens,
-                       pos_threshold=0.7, neg_threshold=0.3,
+                       pos_threshold=0.5, neg_threshold=0.5,
                        proposal_boxes=None,neg_nr=64,pos_nr=64):
         with tf.name_scope("EncodeRCNBoxes"):
             if proposal_boxes is None:
@@ -288,10 +288,10 @@ class FasterRCNN(object):
             rcn_gtregs, rcn_gtlabels, rcn_gtscores,remove_indices,indices = boxes_encode(bboxes=proposal_boxes,
                                                                                   gboxes=gbboxes,
                                                                                   glabels=glabels,
-                                                                                 length=lens,
+                                                                                  length=lens,
                                                                                   pos_threshold=pos_threshold,
                                                                                   neg_threshold=neg_threshold,
-                                                                                   max_overlap_as_pos=False)
+                                                                                  max_overlap_as_pos=False)
             keep_indices = tf.stop_gradient(tf.logical_not(remove_indices))
             self.rcn_gtlabels,self.rcn_indices = \
                 tf.map_fn(lambda x:self.selectRCNBoxes(x[0],x[1],neg_nr=neg_nr,pos_nr=pos_nr),

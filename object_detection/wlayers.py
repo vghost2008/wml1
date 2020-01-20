@@ -43,8 +43,13 @@ class WROIAlign:
     '''
     def __call__(self, fmap,bboxes,batch_index,pool_height,pool_width):
         with tf.variable_scope("WROIAlign"):
+            if not isinstance(batch_index,tf.Tensor):
+                batch_index = tf.convert_to_tensor(batch_index)
+            if not isinstance(bboxes,tf.Tensor):
+                bboxes = tf.convert_to_tensor(bboxes,dtype=tf.float32)
             if batch_index.dtype is not tf.int32:
                 batch_index = tf.cast(batch_index,tf.int32)
+            assert bboxes.get_shape().ndims==2,"Error bboxes dims"
             width = pool_width*self.bin_size[1]
             height = pool_height*self.bin_size[0]
             boxes_shape = bboxes.get_shape().as_list()
@@ -70,7 +75,8 @@ class WROIAlign:
             if self.multiplier is not None and len(self.multiplier)>=2:
                 bboxes = tf.stop_gradient(odb.scale_bboxes(bboxes, scale=self.multiplier))
             net = tf.image.crop_and_resize(image=fmap, boxes=bboxes, box_ind=batch_index, crop_size=[height, width])
-            net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
+            if self.bin_size[0]>1 and self.bin_size[1]>1:
+                net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
                                  padding="SAME")
             return net
 

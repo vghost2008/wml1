@@ -14,6 +14,8 @@ import cv2
 import wsummary
 import basic_tftools as btf
 from tensorflow.python.framework import graph_util
+from functools import wraps
+from collections import Iterable
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
@@ -136,59 +138,6 @@ def apply_with_random_selector(x, func, num_cases):
     return control_flow_ops.merge([
             func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
             for case in range(num_cases)])[0]
-
-def distort_color(image, color_ordering=6, fast_mode=False,
-            b_max_delta=0.1,
-            c_lower = 0.8,
-            c_upper = 1.2,
-            s_lower = 0.5,
-            s_upper = 1.5,
-            h_max_delta = 0.1,
-            scope=None,seed=None):
-    with tf.name_scope(scope, 'distort_color', [image]):
-        if fast_mode:
-            if color_ordering == 0:
-                image = tf.image.random_brightness(image, max_delta=32. / 255.)
-                image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
-            else:
-                image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
-                image = tf.image.random_brightness(image, max_delta=32. / 255.)
-        else:
-
-            if color_ordering == 0:
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-            elif color_ordering == 1:
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-                image = tf.image.random_brightness(image, b_max_delta)
-            elif color_ordering == 2:
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
-            elif color_ordering == 3:
-                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-            elif color_ordering == 4:
-                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-                image = tf.image.random_hue(image, max_delta=h_max_delta)
-            elif color_ordering == 5:
-                image = tf.image.random_hue(image, max_delta=h_max_delta)
-                image = tf.image.random_saturation(image, lower=s_lower, upper=s_upper)
-                image = tf.image.random_brightness(image, b_max_delta)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper)
-            elif color_ordering == 6:
-                image = tf.image.random_hue(image, max_delta=h_max_delta,seed=seed)
-                image = tf.image.random_brightness(image, b_max_delta,seed=seed)
-                image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper,seed=seed)
-            elif color_ordering == 7:
-                return image
-            else:
-                raise ValueError('color_ordering must be in [0, 3]')
-        return image
-
 
 def _ImageDimensions(image):
     if image.get_shape().is_fully_defined():
@@ -944,5 +893,38 @@ def channel_upsample(input_tensor,scale=None,height_scale=None,width_scale=None)
         output_tensor = tf.reshape(output_tensor,[batch_size,height*h_scale,width*w_scale,out_channels])
         return output_tensor
 
+def show_return_shape(func,message=None):
+    @wraps(func)
+    def wraps_func(*args,**kwargs):
+        res = func(*args,**kwargs)
+        if isinstance(res,dict):
+            datas = []
+            key = None
+            for k, d in res.items():
+                if not isinstance(d, tf.Tensor):
+                    datas.append(tf.constant("N.A", dtype=tf.string))
+                else:
+                    datas.append(tf.shape(d))
+                    if key is None:
+                        key = k
+            res[key] = tf.Print(res[key], datas, summarize=100,message=message)
+        elif not isinstance(res,Iterable):
+            res = tf.Print(res,[tf.shape(res)],summarize=100)
+        else:
+            datas = []
+            index = -1
+            for i,d in enumerate(res):
+                if not isinstance(d,tf.Tensor):
+                    datas.append(tf.constant("N.A",dtype=tf.string))
+                else:
+                    datas.append(tf.shape(d))
+                    if index<0:
+                        index = i
+            res = list(res)
+            res[index] = tf.Print(res[index],datas,summarize=100,message=message)
+        return res
+    return wraps_func
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
+
