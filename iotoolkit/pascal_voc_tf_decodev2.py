@@ -13,6 +13,7 @@ from iotoolkit.coco_toolkit import *
 import wml_utils as wmlu
 import logging
 import glob
+from collections import Iterable
 
 slim = tf.contrib.slim
 slim_example_decoder = tf.contrib.slim.tfexample_decoder
@@ -50,9 +51,9 @@ def __parse_func(example_proto):
         'image':image,
         'height':'image/height',
         'width':'image/width',
-        'object/bbox':boxes,
-        'object/label':'image/object/bbox/label',
-        'object/difficult':'image/object/bbox/difficult',
+        'gt_boxes':boxes,
+        'gt_labels':'image/object/bbox/label',
+        'gt_difficult':'image/object/bbox/difficult',
     }
     res = {}
     for k,v in keys_to_res.items():
@@ -100,11 +101,14 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
     '''
     dataset = get_database(dataset_dir=data_dir,num_parallel=num_parallel,file_pattern=file_pattern)
     if transforms is not None:
-        for tran in transforms:
-            dataset = dataset.map(tran)
+        if isinstance(transforms,Iterable):
+            for tran in transforms:
+                dataset = dataset.map(tran)
+        else:
+            dataset = dataset.map(transforms)
     with tf.name_scope('data_provider'):
-        provider = dataset.make_one_shot_iterator()
-        provider = provider.get_next()
+        pass
+    '''
         [image, glabels, bboxes] = get_from_dataset(provider,["image", "object/label", "object/bbox"])
         if log_summary:
             odu.tf_summary_image_with_box(image, bboxes, "input_data")
@@ -120,4 +124,5 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
     glabels = table.lookup(glabels)
     wmlt.add_to_hash_table_collection(table.init)
     image = tf.Print(image,[tf.shape(image),tf.shape(glabels),tf.shape(bboxes)])
-    return image, glabels, bboxes
+    return image, glabels, bboxes'''
+    return dataset

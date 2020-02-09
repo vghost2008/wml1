@@ -45,31 +45,32 @@ def find_top_rpn_proposals(
             post_nms_topk,
     ):
     #删除背景
-    class_prediction = pred_objectness_logits[:,:,1:]
-    probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
+    #class_prediction = pred_objectness_logits[:,:,1:]
+    class_prediction = pred_objectness_logits
+    #probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
     #背景的类别为0，前面已经删除了背景，需要重新加上
-    labels = nb_labels+1
-    ndims = class_prediction.get_shape().ndims
-    probability = tf.squeeze(probability, axis=ndims - 1)
-    labels = tf.squeeze(labels, axis=ndims - 1)
+    #labels = nb_labels+1
+    probability = class_prediction
+    #ndims = class_prediction.get_shape().ndims
+    #probability = tf.squeeze(probability, axis=ndims - 1)
 
     '''
     通过top_k+gather排序
     In Detectron2, they chosen the top candiate_nr*6 boxes
     '''
     probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
-    labels = wmlt.batch_gather(labels,indices)
     proposals = wmlt.batch_gather(proposals,indices)
 
 
-    def fn(bboxes,labels,probability):
+    def fn(bboxes,probability):
+        labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
         boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
         probability = tf.gather(probability,indices)
-        return boxes,labels,probability
+        return boxes,probability
 
-    boxes,labels,probability = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=(proposals,labels,probability),
-                                         dtype=(tf.float32,tf.int32,tf.float32),back_prop=False)
-    return tf.stop_gradient(boxes),tf.stop_gradient(labels),tf.stop_gradient(probability)
+    boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
+                                         dtype=(tf.float32,tf.float32),back_prop=False)
+    return tf.stop_gradient(boxes),tf.stop_gradient(probability)
 
 
 def rpn_losses(
@@ -78,18 +79,16 @@ def rpn_losses(
     pred_objectness_logits,
     pred_anchor_deltas,
 ):
-    pos_masks = tf.equal(gt_objectness_logits,1)
     localization_loss = tf.losses.huber_loss(
-        tf.boolean_mask(pred_anchor_deltas,pos_masks),
-        tf.boolean_mask(gt_anchor_deltas,pos_masks),
+        pred_anchor_deltas,
+        gt_anchor_deltas,
         reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
         loss_collection=None
     )
 
-    valid_masks = tf.greater_equal(gt_objectness_logits,0)
     objectness_loss = tf.losses.sigmoid_cross_entropy(
-        logits=tf.boolean_mask(pred_objectness_logits,valid_masks),
-        labels=tf.cast(tf.boolean_mask(gt_objectness_logits,valid_masks),tf.float32),
+        logits=tf.expand_dims(pred_objectness_logits,1),
+        multi_class_labels=tf.cast(tf.expand_dims(gt_objectness_logits,axis=1),tf.float32),
         reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
         loss_collection=None
     )
@@ -156,24 +155,22 @@ class RPNOutputs(object):
                 in {-1, 0, 1}, with meanings: -1 = ignore; 0 = negative class; 1 = positive class.
             gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), 4).
         """
-        gt_objectness_logits = []
-
         res = self.anchor_matcher(self.anchors,self.gt_boxes,tf.ones(tf.shape(self.gt_boxes)[:2]),self.gt_length)
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
 
         gt_anchor_deltas = self.box2box_transform.get_deltas(self.anchors,self.gt_boxes,gt_objectness_logits_i,indices)
         #gt_objectness_logits_i为相应anchor box的标签
-        return gt_objectness_logits, gt_anchor_deltas
+        return gt_objectness_logits_i, gt_anchor_deltas
 
     def losses(self):
         gt_objectness_logits, gt_anchor_deltas = self._get_ground_truth()
         pos_idx, neg_idx = subsample_labels(gt_objectness_logits,
                                             self.batch_size_per_image, self.positive_fraction)
 
-        batch_size = self.pred_objectness_logits[0].shape().as_list()[0]
-        num_cell_anchors = self.pred_objectness_logits[0].shape().as_list()[-1]
-        box_dim = self.pred_anchor_deltas[0].shape().as_list()[-1]//num_cell_anchors
+        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
+        num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
+        box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
         pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
         pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
         pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
@@ -182,8 +179,10 @@ class RPNOutputs(object):
         pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
 
         valid_mask = tf.logical_or(pos_idx,neg_idx)
+        gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])
         gt_objectness_logits = tf.boolean_mask(gt_objectness_logits,valid_mask)
         pred_objectness_logits = tf.boolean_mask(pred_objectness_logits,valid_mask)
+        gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
         gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
         pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
 
@@ -208,12 +207,11 @@ class RPNOutputs(object):
             proposals (list[Tensor]): A list of L tensors. Tensor i has shape
                 (N, Hi*Wi*A, B), where B is box dimension (4 or 5).
         """
-        batch_size = self.pred_objectness_logits[0].shape().as_list()[0]
-        num_cell_anchors = self.pred_objectness_logits[0].shape().as_list()[-1]
-        box_dim = self.pred_anchor_deltas[0].shape().as_list()[-1]//num_cell_anchors
+        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
+        num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
+        box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
         pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
         pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
-        pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
         proposals = self.box2box_transform.apply_deltas(deltas=pred_anchor_deltas,boxes=self.anchors)
         return proposals
 
@@ -226,7 +224,7 @@ class RPNOutputs(object):
             pred_objectness_logits (list[Tensor]): A list of L tensors. Tensor i has shape
                 (N, Hi*Wi*A).
         """
-        batch_size = self.pred_objectness_logits[0].shape().as_list()[0]
+        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
         pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
         pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
         return pred_objectness_logits

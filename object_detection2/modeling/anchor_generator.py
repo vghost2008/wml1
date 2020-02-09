@@ -11,7 +11,7 @@ def build_anchor_generator(cfg, *args,**kwargs):
     Built an anchor generator from `cfg.MODEL.ANCHOR_GENERATOR.NAME`.
     """
     anchor_generator = cfg.MODEL.ANCHOR_GENERATOR.NAME
-    return ANCHOR_GENERATOR_REGISTRY.get(anchor_generator)(*args,**kwargs)
+    return ANCHOR_GENERATOR_REGISTRY.get(anchor_generator)(*args,cfg=cfg,**kwargs)
 
 @ANCHOR_GENERATOR_REGISTRY.register()
 class DefaultAnchorGenerator(wmodule.WChildModule):
@@ -28,6 +28,9 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
         self.sizes         = cfg.MODEL.ANCHOR_GENERATOR.SIZES
         #aspect_ratios = [[1/2,1:1,2/1],...]
         self.aspect_ratios = cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS
+        if len(self.aspect_ratios) == 1 and len(self.sizes)>1:
+            self.aspect_ratios = self.aspect_ratios*len(self.sizes)
+
 
     @property
     def box_dim(self):

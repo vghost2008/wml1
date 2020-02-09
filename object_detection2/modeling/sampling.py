@@ -16,8 +16,8 @@ def subsample_labels(labels, num_samples, positive_fraction):
 
         pmask = tf.greater(labels,0)
         nmask = tf.equal(labels,0)
-        psize = num_samples*positive_fraction
-        nsize = num_samples*(1-positive_fraction)
+        psize = int(num_samples*positive_fraction)
+        nsize = int(num_samples*(1-positive_fraction))
         select_pmask = wmlt.subsample_indicator(pmask,psize)
         select_nmask = wmlt.subsample_indicator(nmask,nsize)
 

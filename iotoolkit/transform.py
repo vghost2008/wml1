@@ -311,3 +311,29 @@ class BBoxesRelativeToAbsolute(WTransform):
             size = tf.shape(data_item[self.img_key])
             func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
             return self.apply_to_bbox(func,data_item)
+
+class ResizeToFixedSize(WTransform):
+    def __init__(self,size=[224,224],resize_method=tf.image.ResizeMethod.BILINEAR,channels=3):
+        self.resize_method = resize_method
+        self.size = size
+        self.channels = channels
+
+    def __call__(self, data_item):
+        with tf.name_scope("resize_image"):
+            func = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
+            items = self.apply_to_images_and_masks(func,data_item)
+            if self.channels is not None:
+                func = partial(tf.reshape,shape=self.size+[self.channels])
+                items = self.apply_to_images(func,items)
+            return items
+
+class AddBoxLens(WTransform):
+    def __init__(self,box_key="gt_boxes",gt_len_key="gt_length"):
+        self.box_key = box_key
+        self.gt_len_key = gt_len_key
+
+    def __call__(self, data_item):
+        gt_len = tf.shape(data_item[self.box_key])[0]
+        data_item[self.gt_len_key] = gt_len
+        return data_item
+

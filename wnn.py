@@ -123,6 +123,44 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             tf.summary.scalar("global_norm", global_norm)
         return train_op,total_loss,variables_to_train
 
+def nget_train_op(global_step,lr=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
+                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None):
+    with tf.name_scope(name=scope,default_name="train_op"):
+        tf.summary.scalar("lr",lr)
+        variables_to_train = get_variables_to_train(scopes,scopes_pattern)
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
+        variables_not_to_train = get_variables_not_to_train(variables_to_train)
+        show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
+        logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
+        opt = str2optimizer(optimizer,lr)
+
+        if loss is not None:
+            total_loss = loss
+        else:
+            loss_wr = get_regularization_losses(scopes=scopes,re_pattern=scopes_pattern)
+            if loss_wr is not None:
+                tf.losses.add_loss(loss_wr)
+                wmlt.variable_summaries_v2(loss_wr,"wr_loss")
+            losses = tf.losses.get_losses()
+            show_values(losses,"Losses")
+            total_loss = tf.add_n(losses, "total_loss")
+            total_loss = tf.reduce_sum(total_loss)
+
+        if clip_norm is not None:
+            grads, global_norm = tf.clip_by_global_norm(tf.gradients(total_loss, variables_to_train,colocate_gradients_with_ops=colocate_gradients_with_ops),
+                                                        clip_norm)
+            apply_gradient_op = opt.apply_gradients(zip(grads, variables_to_train), global_step=global_step)
+        else:
+            grads = opt.compute_gradients(total_loss, variables_to_train,colocate_gradients_with_ops=colocate_gradients_with_ops)
+            apply_gradient_op = opt.apply_gradients(grads,global_step=global_step)
+
+        slim_batch_norm_ops = get_batch_norm_ops(scopes=scopes,re_pattern=scopes_pattern)
+        train_op = tf.group(apply_gradient_op,slim_batch_norm_ops)
+        if clip_norm:
+            tf.summary.scalar("global_norm", global_norm)
+        return train_op,total_loss,variables_to_train
+
 def get_batch_norm_ops(scopes=None,re_pattern=None):
     bn_ops = get_variables_of_collection(key=tf.GraphKeys.UPDATE_OPS,scopes=scopes,re_pattern=re_pattern)
     show_values_name(bn_ops,"batch_norm_ops",fn=logging.info)

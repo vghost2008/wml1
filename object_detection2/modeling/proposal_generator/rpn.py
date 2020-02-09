@@ -34,7 +34,7 @@ class StandardRPNHead(wmodule.WChildModule):
 
         for x in features:
             channel = x.get_shape()[-1]
-            t = slim.conv(x,channel,[3,3],normalizer_fn=None,
+            t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
                           activation_fn=tf.nn.relu,
                           padding="SAME")
             t0 = slim.conv2d(t,self.num_cell_anchors,[1,1],activation_fn=None,
@@ -52,23 +52,33 @@ class RPN(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
         self.rpn_head = build_rpn_head(cfg,parent=self,*args,**kwargs)
-        self.anchor_matcher = Matcher(thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,same_pos_label=1,allow_low_quality_matches=True)
+        self.anchor_matcher = Matcher(thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,same_pos_label=1,allow_low_quality_matches=True,cfg=cfg,
+                                      parent=self)
         self.box2box_transform = Box2BoxTransform()
         self.in_features             = cfg.MODEL.RPN.IN_FEATURES
         self.nms_thresh              = cfg.MODEL.RPN.NMS_THRESH
         self.batch_size_per_image    = cfg.MODEL.RPN.BATCH_SIZE_PER_IMAGE
         self.positive_fraction       = cfg.MODEL.RPN.POSITIVE_FRACTION
         self.loss_weight             = cfg.MODEL.RPN.LOSS_WEIGHT
+        # Map from self.training state to train/test settings
+        self.pre_nms_topk = {
+            True: cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN,
+            False: cfg.MODEL.RPN.PRE_NMS_TOPK_TEST,
+        }
+        self.post_nms_topk = {
+            True: cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN,
+            False: cfg.MODEL.RPN.POST_NMS_TOPK_TEST,
+        }
 
     def forward(self,inputs,features):
 
         features = [features[f] for f in self.in_features]
 
-        gt_boxes = inputs.gt_boxes
+        gt_boxes = inputs['gt_boxes']
         #gt_labels = inputs.gt_labels
-        gt_length = inputs.gt_length
+        gt_length = inputs['gt_length']
 
-        pred_objectness_logits, pred_anchor_deltas = self.rpn_head(features)
+        pred_objectness_logits, pred_anchor_deltas = self.rpn_head(inputs,features)
         anchors = self.rpn_head.anchor_generator(inputs,features)
 
         outputs = RPNOutputs(
@@ -83,7 +93,7 @@ class RPN(wmodule.WChildModule):
             gt_length=gt_length
         )
 
-        if self.training:
+        if self.is_training:
             losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
         else:
             losses = {}
@@ -93,13 +103,14 @@ class RPN(wmodule.WChildModule):
         # joint training with roi heads. This approach ignores the derivative
         # w.r.t. the proposal boxes’ coordinates that are also network
         # responses, so is approximate.
-        proposals,labels,logits = find_top_rpn_proposals(
+        proposals,logits = find_top_rpn_proposals(
             outputs.predict_proposals(),
             outputs.predict_objectness_logits(),
             self.nms_thresh,
-            self.pre_nms_topk[self.training],
-            self.post_nms_topk[self.training],
+            self.pre_nms_topk[self.is_training],
+            self.post_nms_topk[self.is_training],
         )
+        outdata = {"proposal_boxes":proposals,"proposal_logits":logits}
 
-        return proposals, losses
+        return outdata,losses
 
