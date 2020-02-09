@@ -179,7 +179,8 @@ def get_train_opv2(global_step,batch_size=32,learning_rate=1E-3,scopes=None,clip
             total_loss = loss
         else:
             loss_wr = get_regularization_losses(scopes=scopes)
-            tf.losses.add_loss(loss_wr)
+            if loss_wr is not None and len(loss_wr)>0:
+                tf.losses.add_loss(loss_wr)
             total_loss = tf.add_n(tf.losses.get_losses(), "total_loss")
             total_loss = tf.reduce_sum(total_loss)
 

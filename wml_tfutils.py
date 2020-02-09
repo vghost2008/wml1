@@ -786,6 +786,8 @@ def Print(data,*inputs,**kwargs):
 
 '''
 indicator:[X],tf.bool
+return:
+[x]:tf.bool
 '''
 def subsample_indicator(indicator, num_samples):
     indices = tf.where(indicator)
