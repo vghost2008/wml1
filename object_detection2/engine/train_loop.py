@@ -1,0 +1,271 @@
+# -*- coding: utf-8 -*-
+import tensorflow as tf
+import logging
+import wml_utils as wmlu
+import numpy as np
+from object_detection2.meta_arch.build import build_model
+from object_detection2.data.dataloader import DataLoader
+import time
+import weakref
+import wnn
+import sys
+import os
+import wml_tfutils as wmlt
+import wsummary
+
+FLAGS = tf.app.flags.FLAGS
+CHECK_POINT_FILE_NAME = "data.ckpt"
+
+class HookBase:
+    """
+    Base class for hooks that can be registered with :class:`TrainerBase`.
+
+    Each hook can implement 4 methods. The way they are called is demonstrated
+    in the following snippet:
+
+    .. code-block:: python
+
+        hook.before_train()
+        for iter in range(start_iter, max_iter):
+            hook.before_step()
+            trainer.run_step()
+            hook.after_step()
+        hook.after_train()
+
+    Notes:
+        1. In the hook method, users can access `self.trainer` to access more
+           properties about the context (e.g., current iteration).
+
+        2. A hook that does something in :meth:`before_step` can often be
+           implemented equivalently in :meth:`after_step`.
+           If the hook takes non-trivial time, it is strongly recommended to
+           implement the hook in :meth:`after_step` instead of :meth:`before_step`.
+           The convention is that :meth:`before_step` should only take negligible time.
+
+           Following this convention will allow hooks that do care about the difference
+           between :meth:`before_step` and :meth:`after_step` (e.g., timer) to
+           function properly.
+
+    Attributes:
+        trainer: A weak reference to the trainer object. Set by the trainer when the hook is
+            registered.
+    """
+
+    def before_train(self):
+        """
+        Called before the first iteration.
+        """
+        pass
+
+    def after_train(self):
+        """
+        Called after the last iteration.
+        """
+        pass
+
+    def before_step(self):
+        """
+        Called before each iteration.
+        """
+        pass
+
+    def after_step(self):
+        """
+        Called after each iteration.
+        """
+        pass
+
+
+class TrainerBase:
+    """
+    Base class for iterative trainer with hooks.
+
+    The only assumption we made here is: the training runs in a loop.
+    A subclass can implement what the loop is.
+    We made no assumptions about the existence of dataloader, optimizer, model, etc.
+
+    Attributes:
+        iter(int): the current iteration.
+
+        start_iter(int): The iteration to start with.
+            By convention the minimum possible value is 0.
+
+        max_iter(int): The iteration to end training.
+
+        storage(EventStorage): An EventStorage that's opened during the course of training.
+    """
+
+    def __init__(self,cfg):
+        self._hooks = []
+        self.cfg = cfg
+
+    def register_hooks(self, hooks):
+        """
+        Register hooks to the trainer. The hooks are executed in the order
+        they are registered.
+
+        Args:
+            hooks (list[Optional[HookBase]]): list of hooks
+        """
+        hooks = [h for h in hooks if h is not None]
+        for h in hooks:
+            assert isinstance(h, HookBase)
+            # To avoid circular reference, hooks and trainer cannot own each other.
+            # This normally does not matter, but will cause memory leak if the
+            # involved objects contain __del__:
+            # See http://engineering.hearsaysocial.com/2013/06/16/circular-references-in-python/
+            h.trainer = weakref.proxy(self)
+        self._hooks.extend(hooks)
+
+    def train(self, start_iter: int=0, max_iter: int=sys.maxsize):
+        """
+        Args:
+            start_iter, max_iter (int): See docs above
+        """
+        logger = logging.getLogger(__name__)
+        logger.info("Starting training from iteration {}".format(start_iter))
+
+        self.iter = self.start_iter = start_iter
+        self.max_iter = max_iter
+
+        try:
+            self.before_train()
+            for self.iter in range(start_iter, max_iter):
+                self.before_step()
+                self.run_step()
+                self.after_step()
+        except Exception:
+            logger.exception("Exception during training:")
+        finally:
+            self.after_train()
+
+    def before_train(self):
+        for h in self._hooks:
+            h.before_train()
+
+    def after_train(self):
+        for h in self._hooks:
+            h.after_train()
+
+    def before_step(self):
+        for h in self._hooks:
+            h.before_step()
+
+    def after_step(self):
+        for h in self._hooks:
+            h.after_step()
+
+    def run_step(self):
+        raise NotImplementedError
+
+
+class SimpleTrainer(TrainerBase):
+    """
+    A simple trainer for the most common type of task:
+    single-cost single-optimizer single-data-source iterative optimization.
+    It assumes that every step, you:
+
+    1. Compute the loss with a data from the data_loader.
+    2. Compute the gradients with the above loss.
+    3. Update the model with the optimizer.
+
+    If you want to do anything fancier than this,
+    either subclass TrainerBase and implement your own `run_step`,
+    or write your own training loop.
+    """
+
+    def __init__(self, cfg,model, data):
+        """
+        Args:
+            model: a torch Module. Takes a data from data_loader and returns a
+                dict of losses.
+            data_loader: an iterable. Contains data to be used to call model.
+            optimizer: a torch optimizer.
+        """
+        super().__init__(cfg=cfg)
+        self.model = model
+        self.data = data
+        self.loss_dict = None
+        self.sess = None
+        self.global_step = tf.train.get_or_create_global_step()
+        self.log_step = 1
+        self.save_step = 100
+        self.step = 1
+        self.total_loss = None
+        self.variables_to_train = None
+        self.summary = None
+        self.summary_writer = None
+        self.name = "Trainer"
+        self.saver = None
+        self.build_net()
+        self.res_data = None
+
+    def __del__(self):
+        self.saver.save(self.sess, os.path.join(self.cfg.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
+        self.sess.close()
+        self.summary_writer.close()
+
+    def build_net(self):
+        if not os.path.exists(self.cfg.log_dir):
+            wmlu.create_empty_dir(self.cfg.log_dir)
+        if not os.path.exists(self.cfg.ckpt_dir):
+            wmlu.create_empty_dir(self.cfg.ckpt_dir)
+        data = self.data.get_next()
+        data['image'] = tf.Print(data['image'],[tf.shape(data['gt_boxes'])],summarize=100)
+        DataLoader.detection_image_summary(data)
+        self.res_data,loss_dict = self.model.forward(data)
+        losses = tf.add_n(list(loss_dict.values()))
+        tf.losses.add_loss(losses)
+
+        self.loss_dict = loss_dict
+        self.sess = tf.Session()
+        self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step)
+        self.summary = tf.summary.merge_all()
+        self.saver = tf.train.Saver()
+        self.summary_writer = tf.summary.FileWriter(self.cfg.log_dir, self.sess.graph)
+
+        init = tf.global_variables_initializer()
+        self.sess.run(init)
+
+    def run_step(self):
+        """
+        Implement the standard training logic described above.
+        """
+        assert self.model.is_training, "[SimpleTrainer] model was changed to eval mode!"
+        start = time.perf_counter()
+        """
+        If your want to do something with the data, you can wrap the dataloader.
+        """
+
+        """
+        If your want to do something with the losses, you can wrap the model.
+        """
+        if self.step%self.log_step == 0:
+            _,total_loss,self.step,summary = self.sess.run([self.train_op,self.total_loss,self.global_step,self.summary])
+            self.summary_writer.add_summary(summary, self.step)
+            sys.stdout.flush()
+        else:
+            _,total_loss,self.step = self.sess.run([self.train_op,self.total_loss,self.global_step])
+
+        t_cost = time.perf_counter() - start
+        print(f"{self.name} step={self.step}, loss={total_loss}, time_cost={t_cost}")
+
+        if self.step%self.save_step == 0:
+            print("save check point file.")
+            self.saver.save(self.sess, os.path.join(self.cfg["ckpt_dir"],CHECK_POINT_FILE_NAME),global_step=self.step)
+            sys.stdout.flush()
+            if FLAGS.max_train_step>0 and self.step>FLAGS.max_train_step:
+                raise Exception("Train Finish")
+
+    @classmethod
+    def build_model(cls, cfg,**kwargs):
+        """
+        Returns:
+
+        It now calls :func:`detectron2.modeling.build_model`.
+        Overwrite it if you'd like a different model.
+        """
+        model = build_model(cfg,**kwargs)
+        logger = logging.getLogger(__name__)
+        logger.info("Model:\n{}".format(model))
+        return model
