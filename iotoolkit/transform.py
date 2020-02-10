@@ -66,7 +66,6 @@ align: 参考wop.get_image_resize_size
 def resize_img(img,limit,align,resize_method=tf.image.ResizeMethod.BILINEAR):
     with tf.name_scope("resize_img"):
         new_size = wop.get_image_resize_size(size=tf.shape(img)[0:2], limit=limit, align=align)
-        new_size = tf.Print(new_size,[new_size,tf.shape(img)],name="XXX",message="XX")
         return tf.image.resize_images(img, new_size,method=resize_method)
 
 def distort_color(image, color_ordering=6, fast_mode=False,

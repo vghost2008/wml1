@@ -483,11 +483,7 @@ def mean_pixel(model_variant=None):
 
 def num_elements(input):
     if input.get_shape().is_fully_defined():
-        shape = input.get_shape().as_list()
-        num = 1
-        for s in shape:
-            num *= s
-        return num
+        return input.get_shape().num_elements()
     else:
         return tf.reduce_prod(tf.shape(input))
 '''

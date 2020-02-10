@@ -7,6 +7,7 @@ from object_detection2.modeling.anchor_generator import *
 from object_detection2.modeling.matcher import *
 from object_detection2.modeling.box_regression import *
 from .rpn_outputs import RPNOutputs,find_top_rpn_proposals
+from object_detection2.datadef import *
 
 slim = tf.contrib.slim
 
@@ -110,7 +111,8 @@ class RPN(wmodule.WChildModule):
             self.pre_nms_topk[self.is_training],
             self.post_nms_topk[self.is_training],
         )
-        outdata = {"proposal_boxes":proposals,"proposal_logits":logits}
+
+        outdata = ProposalsData(proposals,logits)
 
         return outdata,losses
 

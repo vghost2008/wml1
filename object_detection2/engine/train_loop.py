@@ -211,7 +211,6 @@ class SimpleTrainer(TrainerBase):
         if not os.path.exists(self.cfg.ckpt_dir):
             wmlu.create_empty_dir(self.cfg.ckpt_dir)
         data = self.data.get_next()
-        data['image'] = tf.Print(data['image'],[tf.shape(data['gt_boxes'])],summarize=100)
         DataLoader.detection_image_summary(data)
         self.res_data,loss_dict = self.model.forward(data)
         losses = tf.add_n(list(loss_dict.values()))

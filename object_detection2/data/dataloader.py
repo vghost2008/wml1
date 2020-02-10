@@ -19,6 +19,7 @@ class DataLoader(wmodule.WModule):
     def load_data(self,path,func):
         data = func(path,transforms=[trans.ResizeToFixedSize(),trans.AddBoxLens()])
         data = data.repeat()
+        data = data.shuffle(32)
         #data = data.batch(self.cfg.SOLVER.IMS_PER_BATCH,drop_remainder=True)
         data = data.padded_batch(self.cfg.SOLVER.IMS_PER_BATCH,self.get_pad_shapes(data),drop_remainder=True)
         return data.make_one_shot_iterator()
@@ -28,7 +29,6 @@ class DataLoader(wmodule.WModule):
                            category_index=None,
                            max_boxes_to_draw=20,
                            min_score_thresh=0.2,name="detection_image_summary",max_outputs=3):
-        return
         image = inputs.get('image',None)
         boxes = inputs.get('gt_boxes',None)
         classes = inputs.get('gt_labels',None)

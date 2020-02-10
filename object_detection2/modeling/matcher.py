@@ -6,6 +6,8 @@ import tensorflow as tf
 class Matcher(wmodule.WChildModule):
     def __init__(self,thresholds,allow_low_quality_matches=False,same_pos_label=None,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        if len(thresholds) == 1:
+            thresholds = [thresholds[0],thresholds[0]]
         self.thresholds = thresholds
         self.allow_low_quality_matches = allow_low_quality_matches
         self.same_pos_label = same_pos_label

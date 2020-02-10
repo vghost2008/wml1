@@ -97,7 +97,7 @@ def draw_detection_image_summary(images,
         elif classes is not None and scores is None  and instance_masks is None and keypoints is None:
             def fn(image,boxes,classes,len):
                 boxes = boxes[:len]
-                classes = classes[:len]
+                classes = tf.expand_dims(classes[:len],axis=0)
                 image = tf.expand_dims(image,axis=0)
                 boxes = tf.expand_dims(boxes,axis=0)
                 image = __draw_detection_image_summary(image,boxes,classes,scores,

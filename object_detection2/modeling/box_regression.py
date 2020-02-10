@@ -3,6 +3,7 @@ import tensorflow as tf
 import math
 import wtfop.wtfop_ops as wop
 import wml_tfutils as wmlt
+from object_detection2.datadef import EncodedData
 
 _DEFAULT_SCALE_CLAMP = math.log(1000.0 / 16)
 
@@ -19,7 +20,26 @@ class Box2BoxTransform(object):
         gboxes:[batch_size,M,4]
         labels:[batch_size,N]
         indices:[batch_size,N]
+        output:
+        [batch_size,N,4]
         """
+        return wop.get_boxes_deltas(boxes=boxes,gboxes=gboxes,labels=labels,indices=indices,
+                                    scale_weights=self.weights)
+
+    def get_deltas_by_proposals_data(self,proposals:EncodedData):
+        """
+        the labels,indices is the output of matcher
+        boxes:[batch_size,N,4]
+        gboxes:[batch_size,M,4]
+        labels:[batch_size,N]
+        indices:[batch_size,N]
+        output:
+        [batch_size,N,4]
+        """
+        boxes = proposals.boxes
+        gboxes = proposals.gt_boxes
+        indices = proposals.indices
+        labels = proposals.gt_object_logits
         return wop.get_boxes_deltas(boxes=boxes,gboxes=gboxes,labels=labels,indices=indices,
                                     scale_weights=self.weights)
 

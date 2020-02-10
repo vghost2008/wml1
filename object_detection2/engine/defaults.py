@@ -19,7 +19,8 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/detectron2/configs/Misc/cascade_mask_rcnn_R_50_FPN_1x.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/detectron2/configs/Base-RCNN-C4.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/detectron2/configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/Base-RCNN-C4.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",
