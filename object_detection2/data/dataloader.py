@@ -16,13 +16,13 @@ class DataLoader(wmodule.WModule):
             res[k] = shape
         return res
 
-    def load_data(self,path,func):
-        data = func(path,transforms=[trans.ResizeToFixedSize(),trans.AddBoxLens()])
+    def load_data(self,path,func,num_classes):
+        data = func(path,transforms=[trans.MaskNHW2HWN(),trans.ResizeToFixedSize(),trans.MaskHWN2NHW(),trans.AddBoxLens()])
         data = data.repeat()
         data = data.shuffle(32)
         #data = data.batch(self.cfg.SOLVER.IMS_PER_BATCH,drop_remainder=True)
         data = data.padded_batch(self.cfg.SOLVER.IMS_PER_BATCH,self.get_pad_shapes(data),drop_remainder=True)
-        return data.make_one_shot_iterator()
+        return data.make_one_shot_iterator(),num_classes
 
     @staticmethod
     def detection_image_summary(inputs,

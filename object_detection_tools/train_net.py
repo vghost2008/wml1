@@ -21,7 +21,6 @@ def setup(args):
     cfg.merge_from_list(args.opts)
     cfg.log_dir = args.log_dir
     cfg.ckpt_dir = args.ckpt_dir
-    cfg.freeze()
     return cfg
 
 
@@ -50,7 +49,10 @@ def main(_):
     """
     data_loader = DataLoader(cfg=cfg)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
-    data = data_loader.load_data(*data_args)
+    data,num_classes = data_loader.load_data(*data_args)
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
+    cfg.freeze()
+    config.set_global_cfg(cfg)
 
     model = SimpleTrainer.build_model(cfg,is_training=True)
 

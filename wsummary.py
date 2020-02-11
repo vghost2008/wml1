@@ -153,3 +153,8 @@ def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hs
         if is_hsv:
             log_image = tf.image.hsv_to_rgb(log_image)*2.0-1.0
         image_summaries(log_image, "image_contrast")
+
+def positive_box_on_images_summary(image,boxes,pmasks,name="positive_box_on_images_summary"):
+    image = imv.draw_positive_box_on_images(image,boxes,pmasks)
+    image_summaries(image,name)
+

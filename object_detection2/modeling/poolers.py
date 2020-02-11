@@ -2,6 +2,7 @@
 import math
 import sys
 import wmodule
+import object_detection2.bboxes as odbox
 
 from object_detection2.wlayers import *
 
@@ -24,24 +25,24 @@ def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, can
             should be placed.
 
     Returns:
+        [batch_size,box_nr]
         A tensor of length M, where M is the total number of boxes aggregated over all
             N batch images. The memory layout corresponds to the concatenation of boxes
             from all images. Each element is the feature map index, as an offset from
             `self.min_level`, for the corresponding box (so value i means the box is at
             `self.min_level + i`).
     """
-    '''
     eps = 1e-6
-    box_sizes = torch.sqrt(cat([boxes.area() for boxes in box_lists]))
+    box_sizes = odbox.box_area(bboxes)
     # Eqn.(1) in FPN paper
-    level_assignments = torch.floor(
-        canonical_level + torch.log2(box_sizes / canonical_box_size + eps)
+    level_assignments = tf.floor(
+        canonical_level + tf.math.log(box_sizes / canonical_box_size + eps)/math.log(2)
     )
     # clamp level to (min, max), in case the box size is too large or too small
     # for the available feature maps
-    level_assignments = torch.clamp(level_assignments, min=min_level, max=max_level)
-    return level_assignments.to(torch.int64) - min_level
-    '''
+    level_assignments = tf.cast(level_assignments,tf.int32)
+    level_assignments = tf.clip_by_value(level_assignments, min_level, max_level)
+    return level_assignments - min_level
 
 
 
@@ -122,8 +123,16 @@ class ROIPooler(wmodule.WChildModule):
         if self.level_num == 1:
             return self.level_pooler(x[0], bboxes)
 
-        '''level_assignments = assign_boxes_to_levels(
+        level_assignments = assign_boxes_to_levels(
             bboxes, self.min_level, self.max_level, self.canonical_box_size, self.canonical_level
         )
+        features = []
+        for net in x:
+            features.append(self.level_pooler(net,bboxes))
 
-        return output'''
+        features = tf.stack(features,axis=0)
+        level_assignments = tf.reshape(level_assignments,[-1])
+        output = tf.gather(features,level_assignments)
+
+
+        return output

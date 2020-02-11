@@ -2,6 +2,13 @@
 from thirdparty.registry import Registry
 import wmodule
 import tensorflow as tf
+import wml_tfutils as wmlt
+from object_detection2.datadef import *
+import object_detection2.config.config as config
+import image_visualization as ivis
+import wsummary
+import img_utils as wmli
+
 slim = tf.contrib.slim
 
 ROI_MASK_HEAD_REGISTRY = Registry("ROI_MASK_HEAD")
@@ -13,79 +20,58 @@ The registered object will be called with `obj(cfg, input_shape)`.
 """
 
 
-def mask_rcnn_loss(pred_mask_logits, instances):
-    """
-    Compute the mask prediction loss defined in the Mask R-CNN paper.
+def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_mask):
+    '''
 
-    Args:
-        pred_mask_logits (Tensor): A tensor of shape (B, Hmask, Wmask,C) or (B, Hmask, Wmask,C)
-            for class-specific or class-agnostic, where B is the total number of predicted masks
-            in all images, C is the number of foreground classes, and Hmask, Wmask are the height
-            and width of the mask predictions. The values are logits.
-        instances (list[Instances]): A list of N Instances, where N is the number of images
-            in the batch. These instances are in 1:1
-            correspondence with the pred_mask_logits. The ground-truth labels (class, box, mask,
-            ...) associated with each instance are stored in fields.
+    :param inputs:
+    :param pred_mask_logits: [X,H,W,C] C==1 if cls_anostic_mask else num_classes
+    :param proposals:
+    :param fg_selection_mask: [X]
+    :return:
+    '''
+    cls_agnostic_mask = pred_mask_logits.get_shape().as_list()[-1] == 1
+    total_num_masks,mask_H,mask_W,C  = wmlt.combined_static_and_dynamic_shape(pred_mask_logits)
+    assert mask_H==mask_W, "Mask prediction must be square!"
 
-    Returns:
-        mask_loss (Tensor): A scalar tensor containing the loss.
-    """
-    '''cls_agnostic_mask = pred_mask_logits.size(1) == 1
-    total_num_masks = pred_mask_logits.size(0)
-    mask_side_len = pred_mask_logits.size(2)
-    assert pred_mask_logits.size(2) == pred_mask_logits.size(3), "Mask prediction must be square!"
+    gt_masks = inputs[GT_MASKS] #[batch_size,X,H,W]
+    batch_size,X,H,W = wmlt.combined_static_and_dynamic_shape(gt_masks)
+    gt_masks = wmlt.batch_gather(gt_masks,proposals.indices)
+    gt_masks = tf.reshape(gt_masks,[-1,H,W])
+    gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
+    boxes = proposals.boxes
+    batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
+    gt_boxes = tf.reshape(boxes,[batch_size*box_nr,box_dim])
+    gt_boxes = tf.boolean_mask(gt_boxes,fg_selection_mask)
+    gt_masks = tf.expand_dims(gt_masks,axis=-1)
+    croped_masks_gt_masks = wmlt.tf_crop_and_resize(gt_masks,gt_boxes,[mask_H,mask_W])
 
-    gt_classes = []
-    gt_masks = []
-    for instances_per_image in instances:
-        if len(instances_per_image) == 0:
-            continue
-        if not cls_agnostic_mask:
-            gt_classes_per_image = instances_per_image.gt_classes.to(dtype=torch.int64)
-            gt_classes.append(gt_classes_per_image)
+    if not cls_agnostic_mask:
+        gt_classes = proposals.gt_object_logits
+        gt_classes = tf.reshape(gt_classes,[-1])
+        gt_classes = tf.boolean_mask(gt_classes,fg_selection_mask)
+        pred_mask_logits = tf.transpose(pred_mask_logits,[0,3,1,2])
+        pred_mask_logits = wmlt.batch_gather(pred_mask_logits,gt_classes-1) #预测中不包含背景
+        pred_mask_logits = tf.expand_dims(pred_mask_logits,axis=-1)
 
-        gt_masks_per_image = instances_per_image.gt_masks.crop_and_resize(
-            instances_per_image.proposal_boxes.tensor, mask_side_len
-        ).to(device=pred_mask_logits.device)
-        # A tensor of shape (N, M, M), N=#instances in the image; M=mask_side_len
-        gt_masks.append(gt_masks_per_image)
 
-    if len(gt_masks) == 0:
-        return pred_mask_logits.sum() * 0
+    if config.global_cfg.GLOBAL.DEBUG:
+        pmasks_2d = tf.reshape(fg_selection_mask,[batch_size,box_nr])
+        gt_boxes_3d = tf.expand_dims(gt_boxes,axis=1)
+        wsummary.positive_box_on_images_summary(inputs[IMAGE],proposals.boxes,
+                                                pmasks=pmasks_2d)
+        image = wmlt.select_image_by_mask(inputs[IMAGE],pmasks_2d)
+        t_gt_masks = tf.expand_dims(tf.squeeze(gt_masks,axis=-1),axis=1)
+        wsummary.detection_image_summary(images=image,boxes=gt_boxes_3d,instance_masks=t_gt_masks,
+                                         name="mask_and_boxes_in_mask_loss")
+        log_mask = gt_masks
+        log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(gt_boxes,axis=1))
+        log_mask = wmli.concat_images([log_mask, croped_masks_gt_masks])
+        wmlt.image_summaries(log_mask,"mask",max_outputs=32)
 
-    gt_masks = cat(gt_masks, dim=0)
+    mask_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=croped_masks_gt_masks,logits=pred_mask_logits)
+    mask_loss = tf.reduce_mean(mask_loss)
 
-    if cls_agnostic_mask:
-        pred_mask_logits = pred_mask_logits[:, 0]
-    else:
-        indices = torch.arange(total_num_masks)
-        gt_classes = cat(gt_classes, dim=0)
-        pred_mask_logits = pred_mask_logits[indices, gt_classes]
-
-    if gt_masks.dtype == torch.bool:
-        gt_masks_bool = gt_masks
-    else:
-        # Here we allow gt_masks to be float as well (depend on the implementation of rasterize())
-        gt_masks_bool = gt_masks > 0.5
-
-    # Log the training accuracy (using gt classes and 0.5 threshold)
-    mask_incorrect = (pred_mask_logits > 0.0) != gt_masks_bool
-    mask_accuracy = 1 - (mask_incorrect.sum().item() / max(mask_incorrect.numel(), 1.0))
-    num_positive = gt_masks_bool.sum().item()
-    false_positive = (mask_incorrect & ~gt_masks_bool).sum().item() / max(
-        gt_masks_bool.numel() - num_positive, 1.0
-    )
-    false_negative = (mask_incorrect & gt_masks_bool).sum().item() / max(num_positive, 1.0)
-
-    storage = get_event_storage()
-    storage.put_scalar("mask_rcnn/accuracy", mask_accuracy)
-    storage.put_scalar("mask_rcnn/false_positive", false_positive)
-    storage.put_scalar("mask_rcnn/false_negative", false_negative)
-
-    mask_loss = F.binary_cross_entropy_with_logits(
-        pred_mask_logits, gt_masks.to(dtype=torch.float32), reduction="mean"
-    )
-    return mask_loss'''
+    return mask_loss
     pass
 
 

@@ -4,9 +4,14 @@ INDICES = "indices"
 BOXES = "boxes"
 LABELS = "labels"
 IMAGE = 'image'
+HEIGHT = "height"
+WIDTH = "width"
+IS_CROWD = 'is_crowd'
 GT_BOXES = 'gt_boxes'
 GT_LENGTH = 'gt_length'
 GT_LABELS = 'gt_labels'
+GT_MASKS = 'gt_masks'
+FILEINDEX = "fileindex"
 GT_OBJECT_LOGITS = "gt_object_logits"
 
 ED_GT_OBJECT_LOGITS = "gt_object_logits"

@@ -345,9 +345,9 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
         if len(x.get_shape()) > 2:
             shape = wmlt.combined_static_and_dynamic_shape(x)
             x = tf.reshape(x,[shape[0],-1])
-        scores = slim.fully_connected(x,self.num_classes,activation_fn=None,
+        scores = slim.fully_connected(x,self.num_classes+1,activation_fn=None,
                                       normalizer_fn=None,scope="cls_score")
-        foreground_num_classes = self.num_classes-1
+        foreground_num_classes = self.num_classes
         num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
         proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
                                       normalizer_fn=None,scope="bbox_pred")

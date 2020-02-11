@@ -36,33 +36,15 @@ def build_roi_heads(cfg, *args,**kwargs):
     return ROI_HEADS_REGISTRY.get(name)(cfg, *args,**kwargs)
 
 
-def select_foreground_proposals(proposals, bg_label):
+def select_foreground_proposals(proposals:EncodedData):
     """
-    Given a list of N Instances (for N images), each containing a `gt_classes` field,
-    return a list of Instances that contain only instances with `gt_classes != -1 &&
-    gt_classes != bg_label`.
-
-    Args:
-        proposals (list[Instances]): A list of N Instances, where N is the number of
-            images in the batch.
-        bg_label: label index of background class.
-
-    Returns:
-        list[Instances]: N Instances, each contains only the selected foreground instances.
-        list[Tensor]: N boolean vector, correspond to the selection mask of
-            each Instances object. True for selected instances.
+    data in proposals's shape is like [batch_size,box_nr,...]
+    return:
+    [batch_size,box_nr]
     """
-    assert isinstance(proposals, (list, tuple))
-    assert proposals[0].has("gt_classes")
-    fg_proposals = []
-    fg_selection_masks = []
-    for proposals_per_image in proposals:
-        gt_classes = proposals_per_image.gt_classes
-        fg_selection_mask = (gt_classes != -1) & (gt_classes != bg_label)
-        fg_idxs = fg_selection_mask.nonzero().squeeze(1)
-        fg_proposals.append(proposals_per_image[fg_idxs])
-        fg_selection_masks.append(fg_selection_mask)
-    return fg_proposals, fg_selection_masks
+    gt_labels = proposals.gt_object_logits
+    fg_selection_mask = tf.greater(gt_labels,0)
+    return fg_selection_mask
 
 
 
@@ -87,7 +69,7 @@ class ROIHeads(wmodule.WChildModule):
         self.test_nms_thresh          = cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST
         self.test_detections_per_img  = cfg.TEST.DETECTIONS_PER_IMAGE
         self.in_features              = cfg.MODEL.ROI_HEADS.IN_FEATURES
-        self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES
+        self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES     #不包含背景
         self.proposal_append_gt       = cfg.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT
         self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
         # fmt: on
@@ -396,17 +378,19 @@ class Res5ROIHeads(ROIHeads):
             del features
             losses = outputs.losses()
             if self.mask_on:
-                proposals, fg_selection_masks = select_foreground_proposals(
-                    proposals, self.num_classes
-                )
+                fg_selection_mask = select_foreground_proposals(proposals)
                 # Since the ROI feature transform is shared between boxes and masks,
                 # we don't need to recompute features. The mask loss is only defined
                 # on foreground proposals, so we need to select out the foreground
                 # features.
-                mask_features = box_features[torch.cat(fg_selection_masks, dim=0)]
+                '''
+                feature in box_features's shape is [batch_size*box_nr,H,W,C]
+                '''
+                fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
+                mask_features = tf.boolean_mask(box_features,fg_selection_mask)
                 del box_features
                 mask_logits = self.mask_head(mask_features)
-                losses["loss_mask"] = mask_rcnn_loss(mask_logits, proposals)
+                losses["loss_mask"] = mask_rcnn_loss(inputs,mask_logits, proposals,fg_selection_mask)
             return [], losses
         else:
             pred_instances, _ = outputs.inference(

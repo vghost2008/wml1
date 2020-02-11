@@ -311,6 +311,9 @@ class BBoxesRelativeToAbsolute(WTransform):
             func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
             return self.apply_to_bbox(func,data_item)
 
+'''
+如果有Mask分支，Mask必须先转换为HWN的模式
+'''
 class ResizeToFixedSize(WTransform):
     def __init__(self,size=[224,224],resize_method=tf.image.ResizeMethod.BILINEAR,channels=3):
         self.resize_method = resize_method
