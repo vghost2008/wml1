@@ -3,6 +3,7 @@ SCORES = "scores"
 INDICES = "indices"
 BOXES = "boxes"
 LABELS = "labels"
+PROBABILITY = "probability"
 IMAGE = 'image'
 HEIGHT = "height"
 WIDTH = "width"
@@ -22,6 +23,14 @@ ED_GT_BOXES = GT_BOXES
 ED_GT_LABELS = GT_LABELS
 ED_GT_DELTAS = "deltas"
 ED_GT_DELTAS = "deltas"
+
+RD_BOXES = BOXES
+RD_LABELS = LABELS
+RD_PROBABILITY = PROBABILITY
+RD_INDICES = INDICES
+RD_LENGTH = "length"
+RD_MASKS = "masks"
+RD_KEYPOINT = "keypoint"
 
 PD_BOXES = "boxes"
 PD_LOGITS = "logits"

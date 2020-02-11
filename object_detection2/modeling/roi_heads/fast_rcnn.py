@@ -5,6 +5,7 @@ import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
 import wtfop.wtfop_ops as wop
 import functools
+from object_detection2.datadef import *
 import numpy as np
 
 slim = tf.contrib.slim
@@ -50,9 +51,6 @@ class FastRCNNOutputs(wmodule.WChildModule):
         gt_logits_i's shape is [batch_size,box_nr]
         '''
         self.gt_classes = tf.reshape(gt_logits_i,[-1])
-        self.threshold = 0.05
-        self.nms = None
-        self.topk_per_image = -1
 
     def _log_accuracy(self):
         """
@@ -163,44 +161,24 @@ class FastRCNNOutputs(wmodule.WChildModule):
         return boxes
 
     def predict_boxes_for_gt_classes(self):
-        '''def get_predictionv2(class_prediction,
-                             bboxes_regs,
-                             proposal_bboxes,
-                             limits=None,
-                             prio_scaling=[0.1, 0.1, 0.2, 0.2],
-                             threshold=0.5,
-                             candiate_nr=1500,
-                             classes_wise=False,
-                             nms=None):'''
-        proposal_bboxes = self.proposals.box
-        gt_proposal_deltas = self.proposals.box.get_shape()[-1]
-        batch_size,bor_nr,box_dim = gt_proposal_deltas.get_shape().as_list()
-        classes_wise = (self.pred_proposal_deltas.get_shape().as_list()[-1] != box_dim)
-        if proposal_bboxes.get_shape().as_list()[0] == 1:
-            '''
-            In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
-            '''
-            proposal_bboxes = tf.squeeze(proposal_bboxes, axis=0)
-            boxes, labels, probability, res_indices, lens = tf.map_fn(
-                lambda x: self.__get_prediction(x[0], x[1], proposal_bboxes,
-                                             self.threshold,
-                                             classes_wise=classes_wise,
-                                             nms=self.nms),
-                elems=(self.pred_class_logits, self.pred_proposal_deltas), dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-                )
-        else:
-            boxes, labels, probability, res_indices, lens = tf.map_fn(
-                lambda x: self.__get_prediction(x[0], x[1], x[2],
-                                             self.threshold,
-                                             classes_wise=classes_wise,
-                                             nms=self.nms),
-                elems=(self.pred_class_logits, self.pred_proposal_deltas, self.proposals.box),
-                dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-                )
-
-        results = {"boxes":boxes,"labels":labels,"probability":probability,"indices":res_indices,"len":lens}
-
-        return results
+        '''
+        当后继还有mask或keypoint之类分支，它们可以在与RCNN相同的输入(即RPN的输出上处理), 也可以在RCNN的输出上处理，
+        这个函数用于辅助完成在RCNN的输出结果上进行处理的功能，现在的输入的proposal box已经是[batch_size,N,4], 经过处理后
+		还是这个形状
+		Detectron2所有的配置都没有使用这一功能，但理论上来说这样更好（但训练的效率更低）
+		为了防止前期不能生成好的结果，这里实现相对于Detectron2来说加入了gt_boxes
+        :return:[batch_size,box_nr,box_dim]
+        '''
+        predicted_boxes = self._predict_boxes()
+        B = self.proposals.boxes.get_shape().as_list()[-1]
+        # If the box head is class-agnostic, then the method is equivalent to `predicted_boxes`.
+        if predicted_boxes.boxes.get_shape().as_list()[-1] > B:
+            gt_classes = tf.reshape(self.proposals.gt_object_logits,[-1])
+            batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
+            predicted_boxes = tf.reshape(predicted_boxes,[batch_size*box_nr,-1,box_dim])
+            predicted_boxes = wmlt.batch_gather(predicted_boxes,gt_classes)
+            predicted_boxes = tf.reshape(predicted_boxes,[batch_size,box_nr,box_dim])
+        return predicted_boxes
 
     '''
     this version of get_prediction have no batch dim.
@@ -238,6 +216,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                            proposal_bboxes,
                            threshold=0.5,
                            classes_wise=False,
+                           topk_per_image=-1,
                            nms=None):
         # 删除背景
         class_prediction = class_prediction[:, 1:]
@@ -273,17 +252,17 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
         boxes = self.box2box_transform.apply_deltas(deltas=boxes_regs,boxes=proposal_bboxes)
 
-        candiate_nr = tf.shape(probability)[0] if self.topk_per_image<0 else self.topk_per_image#最多可返回candiate_nr个box
+        candiate_nr = tf.shape(probability)[0] if topk_per_image<0 else topk_per_image#最多可返回candiate_nr个box
 
         boxes, labels, indices = nms(boxes, labels, confidence=probability)
         probability = tf.gather(probability, indices)
         res_indices = tf.gather(res_indices, indices)
 
-        probability = probability[:self.topk_per_image]
-        boxes = boxes[:self.topk_per_image]
-        labels = labels[:self.topk_per_image]
-        probability = probability[:self.topk_per_image]
-        res_indices = res_indices[:self.topk_per_image]
+        probability = probability[:topk_per_image]
+        boxes = boxes[:topk_per_image]
+        labels = labels[:topk_per_image]
+        probability = probability[:topk_per_image]
+        res_indices = res_indices[:topk_per_image]
         len = tf.shape(probability)[0]
         boxes = tf.pad(boxes, paddings=[[0, candiate_nr - len], [0, 0]])
         labels = tf.pad(labels, paddings=[[0, candiate_nr - len]])
@@ -315,10 +294,39 @@ class FastRCNNOutputs(wmodule.WChildModule):
             list[Instances]: same as fast_rcnn_inference.
             list[Tensor]: same as fast_rcnn_inference.
         """
-        self.topk_per_image = topk_per_image
-        self.threshold = score_thresh
-        self.nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
-        return self.predict_boxes_for_gt_classes()
+        nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
+
+        proposal_bboxes = self.proposals.boxes
+        gt_proposal_deltas = self.proposals.boxes.get_shape()[-1]
+        batch_size,bor_nr,box_dim = gt_proposal_deltas.get_shape().as_list()
+        classes_wise = (self.pred_proposal_deltas.get_shape().as_list()[-1] != box_dim)
+        if proposal_bboxes.get_shape().as_list()[0] == 1:
+            '''
+            In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
+            '''
+            proposal_bboxes = tf.squeeze(proposal_bboxes, axis=0)
+            boxes, labels, probability, res_indices, lens = tf.map_fn(
+                lambda x: self.__get_prediction(x[0], x[1], proposal_bboxes,
+                                                score_thresh,
+                                                classes_wise=classes_wise,
+                                                topk_per_image=topk_per_image,
+                                                nms=nms),
+                elems=(self.pred_class_logits, self.pred_proposal_deltas), dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+            )
+        else:
+            boxes, labels, probability, res_indices, lens = tf.map_fn(
+                lambda x: self.__get_prediction(x[0], x[1], x[2],
+                                                score_thresh,
+                                                classes_wise=classes_wise,
+                                                topk_per_image=topk_per_image,
+                                                nms=nms),
+                elems=(self.pred_class_logits, self.pred_proposal_deltas, self.proposals.box),
+                dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+            )
+
+        results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
+
+        return results
 
 class FastRCNNOutputLayers(wmodule.WChildModule):
     """

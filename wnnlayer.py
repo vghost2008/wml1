@@ -771,3 +771,15 @@ def orthogonal_regularizerv2(scale=1e-4) :
 
     return ortho_reg
 
+
+scale_gradient_value = 0.5
+def scale_gradient(x,scale):
+    global scale_gradient_value
+    scale_gradient_value = scale
+    return _scale_gradient(x)
+
+@tf.custom_gradient
+def _scale_gradient(x):
+    def grad(x):
+        return tf.ones_like(x)*scale_gradient_value
+    return tf.identity(x),grad
