@@ -31,8 +31,8 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
         super().__init__(cfg,*args,**kwargs)
 
 
-    def forward(self, x):
-        with tf.variable_scope("FastRCNNConvFCHead"):
+    def forward(self, x,scope=None):
+        with tf.variable_scope(scope,"FastRCNNConvFCHead"):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
             num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV

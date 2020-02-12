@@ -5,6 +5,7 @@ import functools
 from .backbone import Backbone
 from .build import BACKBONE_REGISTRY
 from .resnet import build_resnet_backbone
+from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
 
 slim = tf.contrib.slim
@@ -119,7 +120,7 @@ class FPN(Backbone):
         output_feature_maps_list.reverse()
         if self.top_block is not None:
             top_block_in_feature = bottom_up_features.get(self.in_features[-1], None)
-            if top_block_in_feature is None:
+            if top_block_in_feature is not None:
                 res = self.top_block(top_block_in_feature)
                 output_feature_maps_list.extend(res)
                 for i in range(len(res)):
@@ -153,7 +154,7 @@ class LastLevelP6P7(wmodule.WChildModule):
     def forward(self, c5):
         p6 = slim.conv2d(c5,self.out_channels,[3,3],stride=2,activation_fn=None,
                          normalizer_fn=None)
-        p7 = self.p7(tf.nn.relu(p6))
+        p7 = slim.conv2d(tf.nn.relu(p6),self.out_channels,[3,3],stride=2,activation_fn=None,normalizer_fn=None)
         return [p6, p7]
 
 
@@ -200,6 +201,54 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
         out_channels=out_channels,
         norm=cfg.MODEL.FPN.NORM,
         top_block=LastLevelP6P7(out_channels,cfg,*args,**kwargs),
+        fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
+def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
+    """
+    Args:
+        cfg: a detectron2 CfgNode
+
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_shufflenetv2_backbone(cfg, *args,**kwargs)
+    in_features = cfg.MODEL.FPN.IN_FEATURES
+    out_channels = cfg.MODEL.FPN.OUT_CHANNELS
+    backbone = FPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        top_block=LastLevelP6P7(out_channels,cfg,*args,**kwargs),
+        fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
+def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
+    """
+    Args:
+        cfg: a detectron2 CfgNode
+
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_shufflenetv2_backbone(cfg,*args,**kwargs)
+    in_features = cfg.MODEL.FPN.IN_FEATURES
+    out_channels = cfg.MODEL.FPN.OUT_CHANNELS
+    backbone = FPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        top_block=LastLevelMaxPool(cfg,*args,**kwargs),
         fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
         cfg=cfg,
         *args,

@@ -1,1 +1,1 @@
-from . import resnet,fpn
+from . import resnet,fpn,shufflenetv2

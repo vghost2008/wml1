@@ -3,7 +3,7 @@ import tensorflow as tf
 import logging
 import wml_utils as wmlu
 import numpy as np
-from object_detection2.meta_arch.build import build_model
+from object_detection2.modeling.meta_arch.build import build_model
 from object_detection2.data.dataloader import DataLoader
 import time
 import weakref

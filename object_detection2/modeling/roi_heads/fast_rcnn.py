@@ -157,7 +157,9 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 for each image. Element i has shape (Ri, K * B) or (Ri, B), where Ri is
                 the number of predicted objects for image i and B is the box dimension (4 or 5)
         """
-        boxes = self.box2box_transform.apply_deltas(deltas=self.pred_proposal_deltas,boxes=self.proposals.box)
+        batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
+        pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,box_nr,box_dim])
+        boxes = self.box2box_transform.apply_deltas(deltas=pred_proposal_deltas,boxes=self.proposals.boxes)
         return boxes
 
     def predict_boxes_for_gt_classes(self):
@@ -169,10 +171,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
 		为了防止前期不能生成好的结果，这里实现相对于Detectron2来说加入了gt_boxes
         :return:[batch_size,box_nr,box_dim]
         '''
-        predicted_boxes = self._predict_boxes()
+        predicted_boxes = self.predict_boxes()
         B = self.proposals.boxes.get_shape().as_list()[-1]
         # If the box head is class-agnostic, then the method is equivalent to `predicted_boxes`.
-        if predicted_boxes.boxes.get_shape().as_list()[-1] > B:
+        if predicted_boxes.get_shape().as_list()[-1] > B:
             gt_classes = tf.reshape(self.proposals.gt_object_logits,[-1])
             batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
             predicted_boxes = tf.reshape(predicted_boxes,[batch_size*box_nr,-1,box_dim])
@@ -349,14 +351,15 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
         self.cls_agnostic_bbox_reg = cls_agnostic_bbox_reg
         self.box_dim = box_dim
 
-    def forward(self, x):
-        if len(x.get_shape()) > 2:
-            shape = wmlt.combined_static_and_dynamic_shape(x)
-            x = tf.reshape(x,[shape[0],-1])
-        scores = slim.fully_connected(x,self.num_classes+1,activation_fn=None,
-                                      normalizer_fn=None,scope="cls_score")
-        foreground_num_classes = self.num_classes
-        num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
-        proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
-                                      normalizer_fn=None,scope="bbox_pred")
-        return scores, proposal_deltas
+    def forward(self, x,scope=None):
+        with tf.variable_scope(scope,"BoxPredictor"):
+            if len(x.get_shape()) > 2:
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                x = tf.reshape(x,[shape[0],-1])
+            scores = slim.fully_connected(x,self.num_classes+1,activation_fn=None,
+                                          normalizer_fn=None,scope="cls_score")
+            foreground_num_classes = self.num_classes
+            num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
+            proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
+                                          normalizer_fn=None,scope="bbox_pred")
+            return scores, proposal_deltas

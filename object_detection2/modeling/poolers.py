@@ -60,10 +60,6 @@ class ROIPooler(wmodule.WChildModule):
         output_size=[7,7],
         bin_size=[2,2],
         pooler_type="ROIAlign",
-        canonical_box_size=224,
-        canonical_level=4,
-        min_level=0,
-        max_level=0,
         **kwargs,
     ):
         """
@@ -88,18 +84,18 @@ class ROIPooler(wmodule.WChildModule):
         """
         super().__init__(cfg=cfg,parent=parent,**kwargs)
 
+        canonical_box_size=cfg.canonical_box_size,
+        canonical_level=cfg.canonical_level,
+
         if isinstance(output_size, int):
             output_size = (output_size, output_size)
         assert len(output_size) == 2
         assert isinstance(output_size[0], int) and isinstance(output_size[1], int)
         self.output_size = output_size
-        self.min_level = min_level
-        self.max_level = max_level
-        self.level_num = max_level-min_level+1
         self.canonical_box_size = canonical_box_size
         self.canonical_level = canonical_level
 
-        if pooler_type == "ROIAlign":
+        if pooler_type == "ROIAlign" or pooler_type == "ROIAlignV2":
             self.level_pooler = WROIAlign(bin_size=bin_size,output_size=output_size)
         elif pooler_type == "ROIPool":
             self.level_pooler = WROIPool(bin_size=bin_size,output_size=output_size)
@@ -118,21 +114,21 @@ class ROIPooler(wmodule.WChildModule):
                 boxes aggregated over all N batch images and C is the number of channels in `x`.
         """
         assert isinstance(x, list),"Arguments to pooler must be lists"
-        assert self.level_num == len(x), "Error input feature map size"
+        level_num = len(x)
 
-        if self.level_num == 1:
+        if level_num == 1:
             return self.level_pooler(x[0], bboxes)
 
         level_assignments = assign_boxes_to_levels(
-            bboxes, self.min_level, self.max_level, self.canonical_box_size, self.canonical_level
+            bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level
         )
         features = []
         for net in x:
             features.append(self.level_pooler(net,bboxes))
 
-        features = tf.stack(features,axis=0)
+        features = tf.stack(features,axis=1)
         level_assignments = tf.reshape(level_assignments,[-1])
-        output = tf.gather(features,level_assignments)
+        output = wmlt.batch_gather(features,level_assignments)
 
 
         return output

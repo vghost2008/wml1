@@ -231,9 +231,6 @@ class ROIHeads(wmodule.WChildModule):
         res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
         gt_logits_i, scores, indices = res
 
-        gt_anchor_deltas = self.box2box_transform.get_deltas(proposals, gt_boxes, gt_logits_i,
-                                                             indices)
-
         if do_sample:
             pos_nr = int(self.batch_size_per_image*self.positive_sample_fraction)
             neg_nr = self.batch_size_per_image-pos_nr
@@ -249,10 +246,9 @@ class ROIHeads(wmodule.WChildModule):
 
             indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
             proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
-            gt_anchor_deltas = wmlt.batch_gather(gt_anchor_deltas, rcn_indices)
             scores = wmlt.batch_gather(scores, rcn_indices)
 
-        res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels,gt_anchor_deltas)
+        res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
 
         return res
 
@@ -310,7 +306,7 @@ class Res5ROIHeads(ROIHeads):
         assert not cfg.MODEL.KEYPOINT_ON
 
         self.pooler = ROIPooler(
-            cfg=cfg,
+            cfg=cfg.MODEL.ROI_BOX_HEAD,
             parent=self,
             output_size=pooler_resolution,
             bin_size=bin_size,
@@ -449,7 +445,6 @@ class StandardROIHeads(ROIHeads):
     def _init_box_head(self, cfg,*args,**kwargs):
         # fmt: off
         pooler_resolution        = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
-        pooler_scales            = tuple(1.0 / self.feature_strides[k] for k in self.in_features)
         pooler_type              = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
         bin_size = cfg.MODEL.ROI_BOX_HEAD.bin_size
         '''
@@ -461,9 +456,8 @@ class StandardROIHeads(ROIHeads):
         # If StandardROIHeads is applied on multiple feature maps (as in FPN),
         # then we share the same predictors and therefore the channel counts must be the same
 
-        self.box_pooler = ROIPooler(cfg=cfg,parent=self,
+        self.box_pooler = ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
             output_size=pooler_resolution,
-            scales=pooler_scales,
             bin_size=bin_size,
             pooler_type=pooler_type,
         )
@@ -483,16 +477,12 @@ class StandardROIHeads(ROIHeads):
         if not self.mask_on:
             return
         pooler_resolution = cfg.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION
-        pooler_scales     = tuple(1.0 / self.feature_strides[k] for k in self.in_features)
         pooler_type       = cfg.MODEL.ROI_MASK_HEAD.POOLER_TYPE
         bin_size = cfg.MODEL.ROI_MASK_HEAD.bin_size
         # fmt: on
 
-        in_channels = [self.feature_channels[f] for f in self.in_features][0]
-
-        self.mask_pooler = ROIPooler(cfg=cfg,parent=self,
+        self.mask_pooler = ROIPooler(cfg=cfg.MODEL.ROI_MASK_HEAD,parent=self,
             output_size=pooler_resolution,
-            scales=pooler_scales,
             bin_size=bin_size,
             pooler_type=pooler_type,
         )
@@ -508,7 +498,6 @@ class StandardROIHeads(ROIHeads):
         if not self.keypoint_on:
             return
         pooler_resolution                        = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION
-        pooler_scales                            = tuple(1.0 / self.feature_strides[k] for k in self.in_features)  # noqa
         pooler_type                              = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE
         bin_size = cfg.MODEL.ROI_KEYPOINT_HEAD.bin_size
         self.normalize_loss_by_visible_keypoints = cfg.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS  # noqa
@@ -517,9 +506,8 @@ class StandardROIHeads(ROIHeads):
 
         in_channels = [self.feature_channels[f] for f in self.in_features][0]
 
-        self.keypoint_pooler = ROIPooler(cfg=cfg,parent=self,
+        self.keypoint_pooler = ROIPooler(cfg=cfg.MODEL.ROI_KEYPOINT_HEAD,parent=self,
                                      output_size=pooler_resolution,
-                                     scales=pooler_scales,
                                      bin_size=bin_size,
                                      pooler_type=pooler_type,
                                      )
@@ -532,12 +520,12 @@ class StandardROIHeads(ROIHeads):
         See :class:`ROIHeads.forward`.
         """
         proposals_boxes = proposals.boxes
-        if self.training:
+        if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
 
         features_list = [features[f] for f in self.in_features]
 
-        if self.training:
+        if self.is_training:
             losses = self._forward_box(features_list, proposals)
             # Usually the original proposals used by the box head are used by the mask, keypoint
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
@@ -545,17 +533,17 @@ class StandardROIHeads(ROIHeads):
             if self.train_on_pred_boxes:
                 #proposals里面的box已经是采样的结果,无需再进行采样操作
                 proposals = self.label_and_sample_proposals(inputs,proposals.boxes,do_sample=False)
-            losses.update(self._forward_mask(features_list, proposals))
+            losses.update(self._forward_mask(inputs,features_list, proposals))
             losses.update(self._forward_keypoint(features_list, proposals))
             return proposals, losses
         else:
             pred_instances = self._forward_box(features_list, proposals)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
             return pred_instances, {}
 
-    def forward_with_given_boxes(self, features, instances):
+    def forward_with_given_boxes(self, inputs,features, instances):
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
 
@@ -576,8 +564,8 @@ class StandardROIHeads(ROIHeads):
         assert not self.training
         features = [features[f] for f in self.in_features]
 
-        instances = self._forward_mask(features, instances)
-        instances = self._forward_keypoint(features, instances)
+        instances = self._forward_mask(inputs,features, instances)
+        instances = self._forward_keypoint(inputs,features, instances)
         return instances
 
     def _forward_box(self, features, proposals):
@@ -609,7 +597,7 @@ class StandardROIHeads(ROIHeads):
             pred_proposal_deltas=pred_proposal_deltas,
             proposals=proposals,
         )
-        if self.training:
+        if self.is_training:
             if self.train_on_pred_boxes:
                 pred_boxes = outputs.predict_boxes_for_gt_classes()
                 self.rcnn_outboxes = pred_boxes
@@ -620,7 +608,7 @@ class StandardROIHeads(ROIHeads):
             )
             return pred_instances
 
-    def _forward_mask(self, features, instances):
+    def _forward_mask(self, inputs,features, instances):
         """
         Forward logic of the mask prediction branch.
 
@@ -637,14 +625,16 @@ class StandardROIHeads(ROIHeads):
         if not self.mask_on:
             return {} if self.training else instances
 
-        if self.training:
+        if self.is_training:
             #when training, instance is EncodedData
             # The loss is only defined on positive proposals.
-            proposals, _ = select_foreground_proposals(instances, self.num_classes)
-            proposal_boxes = [x.proposal_boxes for x in proposals]
+            fg_selection_mask = select_foreground_proposals(instances)
+            proposal_boxes = instances.boxes
             mask_features = self.mask_pooler(features, proposal_boxes)
+            fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
+            mask_features = tf.boolean_mask(mask_features, fg_selection_mask)
             mask_logits = self.mask_head(mask_features)
-            return {"loss_mask": mask_rcnn_loss(mask_logits, proposals)}
+            return {"loss_mask": mask_rcnn_loss(inputs,mask_logits, instances,fg_selection_mask)}
         else:
             #when inference instances is RCNNResultsData
             pred_boxes = instances.boxes
@@ -653,7 +643,7 @@ class StandardROIHeads(ROIHeads):
             mask_rcnn_inference(mask_logits, instances)
             return instances
 
-    def _forward_keypoint(self, features, instances):
+    def _forward_keypoint(self, inputs,features, instances):
         """
         Forward logic of the keypoint prediction branch.
 
@@ -668,7 +658,7 @@ class StandardROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_keypoints" and return it.
         """
         if not self.keypoint_on:
-            return {} if self.training else instances
+            return {} if self.is_training else instances
 
         raise NotImplementedError()
 

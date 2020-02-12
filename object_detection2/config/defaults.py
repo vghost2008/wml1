@@ -270,6 +270,8 @@ _C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_BOX_HEAD.POOLER_TYPE = "ROIAlign"
+_C.MODEL.ROI_BOX_HEAD.canonical_box_size = 224
+_C.MODEL.ROI_BOX_HEAD.canonical_level = 0
 
 _C.MODEL.ROI_BOX_HEAD.NUM_FC = 0
 # Hidden layer dimension for FC layers in the RoI box head
@@ -307,6 +309,7 @@ _C.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_MASK_HEAD.POOLER_SAMPLING_RATIO = 0
 _C.MODEL.ROI_MASK_HEAD.NUM_CONV = 0  # The number of convs in the mask head
 _C.MODEL.ROI_MASK_HEAD.CONV_DIM = 256
+_C.MODEL.ROI_MASK_HEAD.bin_size = (2,2)
 # Normalization method for the convolution layers.
 # Options: "" (no norm), "GN", "SyncBN".
 _C.MODEL.ROI_MASK_HEAD.NORM = ""
@@ -314,6 +317,8 @@ _C.MODEL.ROI_MASK_HEAD.NORM = ""
 _C.MODEL.ROI_MASK_HEAD.CLS_AGNOSTIC_MASK = False
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_MASK_HEAD.POOLER_TYPE = "ROIAlignV2"
+_C.MODEL.ROI_MASK_HEAD.canonical_box_size = 224
+_C.MODEL.ROI_MASK_HEAD.canonical_level = 0
 
 
 # ---------------------------------------------------------------------------- #
@@ -325,6 +330,7 @@ _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
 _C.MODEL.ROI_KEYPOINT_HEAD.CONV_DIMS = tuple(512 for _ in range(8))
 _C.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 17  # 17 is the number of keypoints in COCO.
+_C.MODEL.ROI_KEYPOINT_HEAD.bin_size = (2,2)
 
 # Images with too few (or no) keypoints are excluded from training.
 _C.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE = 1
@@ -350,6 +356,8 @@ _C.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
 _C.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = 1.0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
+_C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 224
+_C.MODEL.ROI_KEYPOINT_HEAD.canonical_level = 0
 
 # ---------------------------------------------------------------------------- #
 # Semantic Segmentation Head
@@ -382,6 +390,23 @@ _C.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = 0.5
 
 
 # ---------------------------------------------------------------------------- #
+# SSD Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.SSD = CN()
+# This is the number of foreground classes.
+_C.MODEL.SSD.NUM_CLASSES = 90
+_C.MODEL.SSD.BATCH_SIZE_PER_IMAGE = 128  #RetinaNet的实验中说SSD 128时最好，256最反而变差了？？？
+_C.MODEL.SSD.POSITIVE_FRACTION = 0.25
+_C.MODEL.SSD.NUM_CONVS = 4
+_C.MODEL.SSD.PRIOR_PROB = 0.01
+_C.MODEL.SSD.IOU_THRESHOLDS = [0.4, 0.5]
+_C.MODEL.SSD.IOU_LABELS = [0, -1, 1]
+_C.MODEL.SSD.IN_FEATURES = ["P3", "P4", "P5", "P6"]
+_C.MODEL.SSD.SCORE_THRESH_TEST = 0.05
+_C.MODEL.SSD.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.SSD.NMS_THRESH_TEST = 0.5
+
+# ---------------------------------------------------------------------------- #
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.RETINANET = CN()
@@ -389,7 +414,7 @@ _C.MODEL.RETINANET = CN()
 # This is the number of foreground classes.
 _C.MODEL.RETINANET.NUM_CLASSES = 80
 
-_C.MODEL.RETINANET.IN_FEATURES = ["p3", "p4", "p5", "p6", "p7"]
+_C.MODEL.RETINANET.IN_FEATURES = ["P3", "P4", "P5", "P6"]
 
 # Convolutions to use in the cls and bbox tower
 # NOTE: this doesn't include the last conv for logits

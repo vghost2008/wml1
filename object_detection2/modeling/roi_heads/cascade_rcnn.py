@@ -12,30 +12,27 @@ import wnnlayer as wnnl
 
 @ROI_HEADS_REGISTRY.register()
 class CascadeROIHeads(StandardROIHeads):
-    def _init_box_head(self, cfg,parent,*args,**kwargs):
+    def _init_box_head(self, cfg,*args,**kwargs):
         # fmt: off
         pooler_resolution        = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
-        pooler_scales            = tuple(1.0 / self.feature_strides[k] for k in self.in_features)
         sampling_ratio           = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
         pooler_type              = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
+        bin_size = cfg.MODEL.ROI_BOX_HEAD.bin_size
         cascade_bbox_reg_weights = cfg.MODEL.ROI_BOX_CASCADE_HEAD.BBOX_REG_WEIGHTS
         cascade_ious             = cfg.MODEL.ROI_BOX_CASCADE_HEAD.IOUS
         self.num_cascade_stages  = len(cascade_ious)
+        self.train_on_pred_boxes = cfg.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES
+
         assert len(cascade_bbox_reg_weights) == self.num_cascade_stages
         assert cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG,  \
             "CascadeROIHeads only support class-agnostic regression now!"
         assert cascade_ious[0] == cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS[0]
         # fmt: on
 
-        in_channels = [self.feature_channels[f] for f in self.in_features]
-        # Check all channel counts are equal
-        assert len(set(in_channels)) == 1, in_channels
-
-        self.box_pooler = ROIPooler(cfg=cfg,parent=self,
+        self.box_pooler = ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
             output_size=pooler_resolution,
-            scales=pooler_scales,
-            sampling_ratio=sampling_ratio,
             pooler_type=pooler_type,
+            bin_size=bin_size,
             *args,**kwargs
         )
 
@@ -63,23 +60,23 @@ class CascadeROIHeads(StandardROIHeads):
 
     def forward(self, inputs, features, proposals: ProposalsData):
         proposals_boxes = proposals.boxes
-        if self.training:
+        if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
 
         features_list = [features[f] for f in self.in_features]
 
-        if self.training:
+        if self.is_training:
             # Need targets to box head
             losses = self._forward_box(inputs,features_list, proposals)
             if self.train_on_pred_boxes:
                 # proposals里面的box已经是采样的结果,无需再进行采样操作
                 proposals = self.label_and_sample_proposals(inputs, proposals.boxes, do_sample=False)
-            losses.update(self._forward_mask(features_list, proposals))
-            losses.update(self._forward_keypoint(features_list, proposals))
+            losses.update(self._forward_mask(inputs,features_list, proposals))
+            losses.update(self._forward_keypoint(inputs,features_list, proposals))
             return proposals, losses
         else:
-            pred_instances = self._forward_box(features_list, proposals)
-            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self._forward_box(inputs,features_list, proposals)
+            pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
             return pred_instances, {}
 
     def _forward_box(self, inputs,features, proposals):
@@ -88,10 +85,10 @@ class CascadeROIHeads(StandardROIHeads):
             if k > 0:
                 # The output boxes of the previous stage are the input proposals of the next stage
                 if self.is_training:
-                    proposals = self.label_and_sample_proposals(inputs,head_outputs[-1].predict_boxes_for_gt_classes())
+                    proposals = self.label_and_sample_proposals(inputs,head_outputs[-1].predict_boxes_for_gt_classes(),do_sample=False)
             head_outputs.append(self._run_stage(features, proposals, k))
 
-        if self.training:
+        if self.is_training:
             losses = {}
             for stage, output in enumerate(head_outputs):
                 stage_losses = output.losses()
@@ -127,15 +124,16 @@ class CascadeROIHeads(StandardROIHeads):
         # This is equivalent to adding the losses among heads,
         # but scale down the gradients on features.
         box_features = wnnl.scale_gradient(box_features, 1.0 / self.num_cascade_stages)
-        box_features = self.box_head[stage](box_features)
-        pred_class_logits, pred_proposal_deltas = self.box_predictor[stage](box_features)
+        box_features = self.box_head[stage](box_features,scope=f"BoxHead{stage}")
+        pred_class_logits, pred_proposal_deltas = self.box_predictor[stage](box_features,scope=f"BoxPredictor{stage}")
         del box_features
 
         outputs = FastRCNNOutputs(
-            self.box2box_transform[stage],
-            pred_class_logits,
-            pred_proposal_deltas,
-            proposals,
-            self.smooth_l1_beta,
+            cfg=self.cfg,
+            parent=self,
+            box2box_transform=self.box2box_transform[stage],
+            pred_class_logits=pred_class_logits,
+            pred_proposal_deltas=pred_proposal_deltas,
+            proposals=proposals,
         )
         return outputs

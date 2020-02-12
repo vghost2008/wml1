@@ -19,7 +19,7 @@ class GeneralizedRCNN(wmodule.WModule):
     def __init__(self, cfg,*args,parent=None,**kwargs):
         super().__init__(cfg,*args,parent=parent,**kwargs)
 
-        self.backbone = build_backbone(cfg)
+        self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
         self.proposal_generator = build_proposal_generator(cfg,parent=self,*args,**kwargs)
         self.roi_heads = build_roi_heads(cfg,parent=self,*args,**kwargs)
         self.vis_period = cfg.VIS_PERIOD

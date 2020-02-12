@@ -165,6 +165,7 @@ class RPNOutputs(object):
 
     def losses(self):
         gt_objectness_logits, gt_anchor_deltas = self._get_ground_truth()
+        #In a image, all anchors concated togather and sample, Detectron2 use the same strategy
         pos_idx, neg_idx = subsample_labels(gt_objectness_logits,
                                             self.batch_size_per_image, self.positive_fraction)
 
