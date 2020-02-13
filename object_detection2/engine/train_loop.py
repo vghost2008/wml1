@@ -188,8 +188,8 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = None
         self.sess = None
         self.global_step = tf.train.get_or_create_global_step()
-        self.log_step = 1
-        self.save_step = 100
+        self.log_step = 100
+        self.save_step = 200
         self.step = 1
         self.total_loss = None
         self.variables_to_train = None

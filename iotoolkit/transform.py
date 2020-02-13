@@ -323,6 +323,7 @@ class ResizeToFixedSize(WTransform):
     def __call__(self, data_item):
         with tf.name_scope("resize_image"):
             func = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
+            #data_item['gt_boxes'] = tf.Print(data_item['gt_boxes'],[tf.shape(data_item['gt_boxes']),data_item['fileindex']])
             items = self.apply_to_images_and_masks(func,data_item)
             if self.channels is not None:
                 func = partial(tf.reshape,shape=self.size+[self.channels])
