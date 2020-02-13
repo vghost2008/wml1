@@ -1,17 +1,20 @@
 MODEL:
   META_ARCHITECTURE: "ProposalNetwork"
   BACKBONE:
-    NAME: "build_resnet_fpn_backbone"
+    #NAME: "build_shufflenetv2_fpn_backbone"
+    NAME: "build_shufflenetv2_backbone"
   RESNETS:
     OUT_FEATURES: ["res2", "res3", "res4", "res5"]
     batch_norm_decay: 0.999
   FPN:
+    #IN_FEATURES: ["C2", "C3", "C4"]
     IN_FEATURES: ["C2", "C3", "C4"]
   ANCHOR_GENERATOR:
-    SIZES: [[32], [64], [128]]  # One size for each in feature map
+    SIZES: [[50], [100], [200]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
-    IN_FEATURES: ["P2", "P3", "P4"]
+    #IN_FEATURES: ["P2", "P3", "P4"]
+    IN_FEATURES: ["C4"]
     PRE_NMS_TOPK_TRAIN: 200  # Per FPN level
     PRE_NMS_TOPK_TEST: 100  # Per FPN level
     # Detectron1 uses 2000 proposals per-batch,
@@ -31,13 +34,15 @@ MODEL:
     NUM_CONV: 4
     POOLER_RESOLUTION: 14
 DATASETS:
-  TRAIN: "voc_2012_train"
-  TEST: "voc_2012_train"
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
 SOLVER:
-  IMS_PER_BATCH: 2
+  IMS_PER_BATCH: 16
   BASE_LR: 0.02
-  STEPS: (60000, 80000)
+  STEPS: (6000,8000,10000)
   MAX_ITER: 90000
 INPUT:
   MIN_SIZE_TRAIN: (512,512)
+GLOBAL:
+  PROJ_NAME: "RPNDemon"
 VERSION: 2

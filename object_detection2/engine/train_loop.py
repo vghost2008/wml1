@@ -197,19 +197,25 @@ class SimpleTrainer(TrainerBase):
         self.summary_writer = None
         self.name = "Trainer"
         self.saver = None
-        self.build_net()
         self.res_data = None
+        self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
+        self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
+        print("Log dir",self.log_dir)
+        print("ckpt dir",self.ckpt_dir)
+        if tf.gfile.Exists(self.log_dir):
+            tf.gfile.DeleteRecursively(self.log_dir)
+        self.build_net()
 
     def __del__(self):
-        self.saver.save(self.sess, os.path.join(self.cfg.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
+        self.saver.save(self.sess, os.path.join(self.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
         self.sess.close()
         self.summary_writer.close()
 
     def build_net(self):
-        if not os.path.exists(self.cfg.log_dir):
-            wmlu.create_empty_dir(self.cfg.log_dir)
-        if not os.path.exists(self.cfg.ckpt_dir):
-            wmlu.create_empty_dir(self.cfg.ckpt_dir)
+        if not os.path.exists(self.log_dir):
+            wmlu.create_empty_dir(self.log_dir)
+        if not os.path.exists(self.ckpt_dir):
+            wmlu.create_empty_dir(self.ckpt_dir)
         data = self.data.get_next()
         DataLoader.detection_image_summary(data)
         self.res_data,loss_dict = self.model.forward(data)
@@ -218,10 +224,14 @@ class SimpleTrainer(TrainerBase):
 
         self.loss_dict = loss_dict
         self.sess = tf.Session()
-        self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step)
+        steps = self.cfg.SOLVER.STEPS
+        lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
+        self.max_train_step = steps[-1]
+        self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,lr=lr)
         self.summary = tf.summary.merge_all()
         self.saver = tf.train.Saver()
-        self.summary_writer = tf.summary.FileWriter(self.cfg.log_dir, self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
 
         init = tf.global_variables_initializer()
         self.sess.run(init)
@@ -251,10 +261,12 @@ class SimpleTrainer(TrainerBase):
 
         if self.step%self.save_step == 0:
             print("save check point file.")
-            self.saver.save(self.sess, os.path.join(self.cfg["ckpt_dir"],CHECK_POINT_FILE_NAME),global_step=self.step)
+            self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()
-            if FLAGS.max_train_step>0 and self.step>FLAGS.max_train_step:
-                raise Exception("Train Finish")
+        if self.max_train_step>0 and self.step>self.max_train_step:
+            self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
+            sys.stdout.flush()
+            raise Exception("Train Finish")
 
     @classmethod
     def build_model(cls, cfg,**kwargs):

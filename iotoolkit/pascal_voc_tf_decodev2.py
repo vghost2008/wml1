@@ -83,6 +83,7 @@ def get_database(dataset_dir,num_parallel=1,file_pattern='*_train.record'):
     dataset = tf.data.TFRecordDataset(files,num_parallel_reads=num_parallel)
     dataset = dataset.map(__parse_func,num_parallel_calls=num_parallel)
     return dataset
+
 def get_from_dataset(data_item,keys):
     res = []
     for k in keys:

@@ -181,5 +181,5 @@ class ProposalNetwork(wmodule.WModule):
         """
         features = self.backbone(inputs)
         outdata,proposal_losses = self.proposal_generator(inputs, features)
-        wsummary.detection_image_summary(images=inputs['image'],boxes=outdata['proposal_boxes'],name="proposal_boxes")
+        wsummary.detection_image_summary(images=inputs['image'],boxes=outdata.boxes,name="proposal_boxes")
         return outdata,proposal_losses

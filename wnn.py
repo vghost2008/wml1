@@ -16,6 +16,7 @@ import re
 import eval_toolkit as evt
 import os
 import copy
+import functools
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -36,6 +37,19 @@ def str2optimizer(name="Adam",learning_rate=None):
         raise ValueError("error optimizer")
 
     return opt
+def piecewise_lr(initial_lr,step,steps,decay):
+    steps = list(steps)
+    begin_steps = [0]+steps[:-1]
+    steps_pair = list(zip(begin_steps,steps))
+    funs = {}
+    lr = initial_lr
+    def func(lr):
+        return lr
+    for i,(l,h) in enumerate(steps_pair):
+        funs[tf.logical_and(tf.greater_equal(step,l),tf.less(step,h))] = functools.partial(func,lr)
+        lr = lr*decay
+    return tf.case(funs,default=functools.partial(func,lr))
+
 
 def build_learning_rate(initial_lr,
                         global_step,
@@ -44,6 +58,7 @@ def build_learning_rate(initial_lr,
                         decay_factor=0.97,
                         decay_epochs=2.4,
                         total_steps=None,
+                        steps=None,
                         warmup_epochs=1):
   if lr_decay_type == 'exponential':
     assert steps_per_epoch is not None
@@ -56,6 +71,9 @@ def build_learning_rate(initial_lr,
         1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
   elif lr_decay_type == 'constant':
     lr = initial_lr
+  elif lr_decay_type == "piecewise":
+      assert steps is not None
+      lr = piecewise_lr(initial_lr=initial_lr,step=global_step,steps=steps,decay=decay_factor)
   else:
     assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
 

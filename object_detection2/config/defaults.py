@@ -587,5 +587,6 @@ _C.VIS_PERIOD = 0
 _C.GLOBAL = CN()
 _C.GLOBAL.HACK = 1.0
 _C.GLOBAL.DEBUG = True
+_C.GLOBAL.PROJ_NAME = "Demon"
 _C.log_dir = ""
 _C.ckpt_dir = ""

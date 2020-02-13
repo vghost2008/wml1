@@ -5,6 +5,9 @@ from object_detection2.engine.defaults import default_argument_parser
 from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
+import os
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 
 slim = tf.contrib.slim
 
@@ -26,8 +29,7 @@ def setup(args):
 
 def main(_):
     args = default_argument_parser().parse_args()
-    if tf.gfile.Exists(args.log_dir):
-        tf.gfile.DeleteRecursively(args.log_dir)
+
     cfg = setup(args)
 
     if args.eval_only:
@@ -51,6 +53,9 @@ def main(_):
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
     data,num_classes = data_loader.load_data(*data_args)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
+    cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
+    cfg.MODEL.SSD.NUM_CLASSES = num_classes
+    cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
     cfg.freeze()
     config.set_global_cfg(cfg)
 

@@ -138,7 +138,7 @@ class LastLevelMaxPool(wmodule.WChildModule):
         self.num_levels = 1
 
     def forward(self, x):
-        return [slim.max_pool2d(x, kernel_size=1, stride=2, padding=0)]
+        return [slim.max_pool2d(x, kernel_size=1, stride=2, padding="SAME")]
 
 
 class LastLevelP6P7(wmodule.WChildModule):

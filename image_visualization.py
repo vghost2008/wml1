@@ -34,6 +34,10 @@ def __draw_detection_image_summary(images,
     4D image tensor of type uint8, with boxes drawn on top.
   """
   if classes is None and scores is None  and instance_masks is None and keypoints is None:
+      if images.dtype == tf.float32 or images.dtype == tf.float64:
+          min = tf.reduce_min(images)
+          max = tf.reduce_max(images)
+          images = (images-min)/(max-min+1e-8)
       return tf.image.draw_bounding_boxes(images,boxes)
 
   if images.dtype == tf.float32 or images.dtype == tf.float64:
