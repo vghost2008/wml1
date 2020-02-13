@@ -15,7 +15,9 @@ MODEL:
   ROI_HEADS:
     NAME: "Res5ROIHeads"
     IN_FEATURES: ["C4"]
-    BATCH_SIZE_PER_IMAGE: 128
+    BATCH_SIZE_PER_IMAGE: 64
+  ROI_BOX_HEAD:
+    POOLER_RESOLUTION: 7
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"
