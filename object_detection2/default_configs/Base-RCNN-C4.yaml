@@ -4,7 +4,7 @@ MODEL:
     #NAME: "build_shufflenetv2_fpn_backbone"
     NAME: "build_shufflenetv2_backbone"
   RPN:
-    PRE_NMS_TOPK_TEST: 2000
+    PRE_NMS_TOPK_TEST: 1000
     POST_NMS_TOPK_TEST: 500
     PRE_NMS_TOPK_TRAIN: 1000  # Per FPN level
     POST_NMS_TOPK_TRAIN: 500

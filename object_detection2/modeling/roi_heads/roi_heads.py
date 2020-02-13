@@ -352,11 +352,11 @@ class Res5ROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
-        proposals = proposals[PD_BOXES]
+        proposal_boxes = proposals[PD_BOXES]
         if self.is_training:
-            proposals = self.label_and_sample_proposals(inputs,proposals)
+            proposals = self.label_and_sample_proposals(inputs,proposal_boxes)
+            proposal_boxes = proposals.boxes
 
-        proposal_boxes = proposals.boxes
         box_features = self._shared_roi_transform(
             [features[f] for f in self.in_features], proposal_boxes
         )
@@ -412,7 +412,7 @@ class Res5ROIHeads(ROIHeads):
                 the same `Instances` object, with extra
                 fields such as `pred_masks` or `pred_keypoints`.
         """
-        assert not self.training
+        assert not self.is_training
 
         if self.mask_on:
             features = [features[f] for f in self.in_features]

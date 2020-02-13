@@ -33,10 +33,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 B is the box dimension (4 or 5).
                 When B is 4, each row is [dx, dy, dw, dh (, ....)].
                 When B is 5, each row is [dx, dy, dw, dh, da (, ....)].
-            proposals (list[Instances]): A list of N Instances, where Instances i stores the
-                proposals for image i, in the field "proposal_boxes".
-                When training, each Instances must have ground-truth labels
-                stored in the field "gt_classes" and "gt_boxes".
+            proposals: When training it's EncodedData, when inference, it's ProposalsData
             smooth_l1_beta (float): The transition point between L1 and L2 loss in
                 the smooth L1 loss function. When set to 0, the loss becomes L1. When
                 set to +inf, the loss becomes constant 0.
@@ -48,11 +45,12 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
         # cat(..., dim=0) concatenates over all images in the batch
         self.proposals = proposals
-        gt_logits_i = proposals.gt_object_logits
-        '''
-        gt_logits_i's shape is [batch_size,box_nr]
-        '''
-        self.gt_classes = tf.reshape(gt_logits_i,[-1])
+        if self.is_training:
+            gt_logits_i = proposals.gt_object_logits
+            '''
+            gt_logits_i's shape is [batch_size,box_nr]
+            '''
+            self.gt_classes = tf.reshape(gt_logits_i,[-1])
 
     def _log_accuracy(self):
         """
@@ -83,47 +81,48 @@ class FastRCNNOutputs(wmodule.WChildModule):
             scalar Tensor
         """
         #gt_anchor_deltas = self.box2box_transform.get_deltas(self.anchors,self.gt_boxes,gt_objectness_logits_i,indices)
-        gt_proposal_deltas = self.box2box_transform.get_deltas_by_proposals_data(self.proposals)
-        batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
-        gt_proposal_deltas = tf.reshape(gt_proposal_deltas,[batch_size*box_nr,box_dim])
-        cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
-        num_classes = self.pred_class_logits.get_shape().as_list()[-1]
-        fg_num_classes = num_classes-1
+        with tf.name_scope("box_regression_loss"):
+            gt_proposal_deltas = self.box2box_transform.get_deltas_by_proposals_data(self.proposals)
+            batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
+            gt_proposal_deltas = tf.reshape(gt_proposal_deltas,[batch_size*box_nr,box_dim])
+            cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
+            num_classes = self.pred_class_logits.get_shape().as_list()[-1]
+            fg_num_classes = num_classes-1
 
-        # Box delta loss is only computed between the prediction for the gt class k
-        # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
-        # for non-gt classes and background.
-        # Empty fg_inds produces a valid loss of zero as long as the size_average
-        # arg to smooth_l1_loss is False (otherwise it uses torch.mean internally
-        # and would produce a nan loss).
-        fg_inds = tf.greater(self.gt_classes,0)
-        gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas,fg_inds)
-        pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas,fg_inds)
-        gt_logits_i = tf.boolean_mask(self.gt_classes,fg_inds)
-        if not cls_agnostic_bbox_reg:
-            pred_proposal_deltas = tf.reshape(pred_proposal_deltas,[-1,fg_num_classes,box_dim])
-            pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i- 1)
+            # Box delta loss is only computed between the prediction for the gt class k
+            # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
+            # for non-gt classes and background.
+            # Empty fg_inds produces a valid loss of zero as long as the size_average
+            # arg to smooth_l1_loss is False (otherwise it uses torch.mean internally
+            # and would produce a nan loss).
+            fg_inds = tf.greater(self.gt_classes,0)
+            gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas,fg_inds)
+            pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas,fg_inds)
+            gt_logits_i = tf.boolean_mask(self.gt_classes,fg_inds)
+            if not cls_agnostic_bbox_reg:
+                pred_proposal_deltas = tf.reshape(pred_proposal_deltas,[-1,fg_num_classes,box_dim])
+                pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i- 1)
 
-        loss_box_reg = tf.losses.huber_loss(
-            predictions=pred_proposal_deltas, labels=gt_proposal_deltas,
-            loss_collection=None,
-            reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
-        )
-        num_samples = wmlt.num_elements(self.gt_classes)
-        # The loss is normalized using the total number of regions (R), not the number
-        # of foreground regions even though the box regression loss is only defined on
-        # foreground regions. Why? Because doing so gives equal training influence to
-        # each foreground example. To see how, consider two different minibatches:
-        #  (1) Contains a single foreground region
-        #  (2) Contains 100 foreground regions
-        # If we normalize by the number of foreground regions, the single example in
-        # minibatch (1) will be given 100 times as much influence as each foreground
-        # example in minibatch (2). Normalizing by the total number of regions, R,
-        # means that the single example in minibatch (1) and each of the 100 examples
-        # in minibatch (2) are given equal influence.
-        loss_box_reg = loss_box_reg /num_samples
-        wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
-        return loss_box_reg
+            loss_box_reg = tf.losses.huber_loss(
+                predictions=pred_proposal_deltas, labels=gt_proposal_deltas,
+                loss_collection=None,
+                reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+            )
+            num_samples = wmlt.num_elements(self.gt_classes)
+            # The loss is normalized using the total number of regions (R), not the number
+            # of foreground regions even though the box regression loss is only defined on
+            # foreground regions. Why? Because doing so gives equal training influence to
+            # each foreground example. To see how, consider two different minibatches:
+            #  (1) Contains a single foreground region
+            #  (2) Contains 100 foreground regions
+            # If we normalize by the number of foreground regions, the single example in
+            # minibatch (1) will be given 100 times as much influence as each foreground
+            # example in minibatch (2). Normalizing by the total number of regions, R,
+            # means that the single example in minibatch (1) and each of the 100 examples
+            # in minibatch (2) are given equal influence.
+            loss_box_reg = loss_box_reg /num_samples
+            wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
+            return loss_box_reg
 
     def losses(self):
         """
@@ -159,16 +158,17 @@ class FastRCNNOutputs(wmodule.WChildModule):
 		为了防止前期不能生成好的结果，这里实现相对于Detectron2来说加入了gt_boxes
         :return:[batch_size,box_nr,box_dim]
         '''
-        predicted_boxes = self.predict_boxes()
-        B = self.proposals.boxes.get_shape().as_list()[-1]
-        # If the box head is class-agnostic, then the method is equivalent to `predicted_boxes`.
-        if predicted_boxes.get_shape().as_list()[-1] > B:
-            gt_classes = tf.reshape(self.proposals.gt_object_logits,[-1])
-            batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
-            predicted_boxes = tf.reshape(predicted_boxes,[batch_size*box_nr,-1,box_dim])
-            predicted_boxes = wmlt.batch_gather(predicted_boxes,gt_classes)
-            predicted_boxes = tf.reshape(predicted_boxes,[batch_size,box_nr,box_dim])
-        return predicted_boxes
+        with tf.name_scope("predict_boxes_for_gt_classes"):
+            predicted_boxes = self.predict_boxes()
+            B = self.proposals.boxes.get_shape().as_list()[-1]
+            # If the box head is class-agnostic, then the method is equivalent to `predicted_boxes`.
+            if predicted_boxes.get_shape().as_list()[-1] > B:
+                gt_classes = tf.reshape(self.proposals.gt_object_logits,[-1])
+                batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
+                predicted_boxes = tf.reshape(predicted_boxes,[batch_size*box_nr,-1,box_dim])
+                predicted_boxes = wmlt.batch_gather(predicted_boxes,gt_classes)
+                predicted_boxes = tf.reshape(predicted_boxes,[batch_size,box_nr,box_dim])
+            return predicted_boxes
 
     '''
     this version of get_prediction have no batch dim.
@@ -201,7 +201,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
     len: the available boxes number
     '''
 
-    def __get_predictionv2(self,class_prediction,
+    def __get_prediction(self,class_prediction,
                            bboxes_regs,
                            proposal_bboxes,
                            threshold=0.5,
@@ -210,6 +210,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                            nms=None):
         # 删除背景
         class_prediction = class_prediction[:, 1:]
+        num_classes = class_prediction.get_shape().as_list()[-1]
         probability, nb_labels = tf.nn.top_k(class_prediction, k=1)
         # 背景的类别为0，前面已经删除了背景，需要重新加上
         labels = nb_labels + 1
@@ -221,7 +222,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
         # 按类别在bboxes_regs选择相应类的回归参数
         if classes_wise:
             nb_labels = tf.reshape(nb_labels, [-1])
+            box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(proposal_bboxes)
+            bboxes_regs = tf.reshape(bboxes_regs,[box_nr,num_classes,box_dim])
             bboxes_regs = wmlt.select_2thdata_by_index(bboxes_regs, nb_labels)
+        del nb_labels
         proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
         '''
         NMS前数据必须已经排好序
@@ -286,33 +290,23 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
 
-        proposal_bboxes = self.proposals.boxes
-        gt_proposal_deltas = self.proposals.boxes.get_shape()[-1]
-        batch_size,bor_nr,box_dim = gt_proposal_deltas.get_shape().as_list()
-        classes_wise = (self.pred_proposal_deltas.get_shape().as_list()[-1] != box_dim)
-        if proposal_bboxes.get_shape().as_list()[0] == 1:
-            '''
-            In single stage model, the proposal box are anchor boxes(or default boxes) and for any batch the anchor boxes is the same.
-            '''
-            proposal_bboxes = tf.squeeze(proposal_bboxes, axis=0)
-            boxes, labels, probability, res_indices, lens = tf.map_fn(
-                lambda x: self.__get_prediction(x[0], x[1], proposal_bboxes,
-                                                score_thresh,
-                                                classes_wise=classes_wise,
-                                                topk_per_image=topk_per_image,
-                                                nms=nms),
-                elems=(self.pred_class_logits, self.pred_proposal_deltas), dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-            )
-        else:
-            boxes, labels, probability, res_indices, lens = tf.map_fn(
-                lambda x: self.__get_prediction(x[0], x[1], x[2],
-                                                score_thresh,
-                                                classes_wise=classes_wise,
-                                                topk_per_image=topk_per_image,
-                                                nms=nms),
-                elems=(self.pred_class_logits, self.pred_proposal_deltas, self.proposals.box),
-                dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-            )
+        proposal_boxes = self.proposals[PD_BOXES]
+        batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
+        total_box_nr,K = wmlt.combined_static_and_dynamic_shape(self.pred_class_logits)
+        _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)
+        pred_class_logits = tf.reshape(self.pred_class_logits,[batch_size,-1,K])
+        pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
+        classes_wise = (L != box_dim)
+
+        boxes, labels, probability, res_indices, lens = tf.map_fn(
+            lambda x: self.__get_prediction(x[0], x[1], x[2],
+                                            score_thresh,
+                                            classes_wise=classes_wise,
+                                            topk_per_image=topk_per_image,
+                                            nms=nms),
+            elems=(pred_class_logits, pred_proposal_deltas, proposal_boxes),
+            dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+        )
 
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
 
