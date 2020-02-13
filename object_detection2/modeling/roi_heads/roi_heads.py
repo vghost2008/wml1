@@ -326,15 +326,20 @@ class Res5ROIHeads(ROIHeads):
 
     def res5_block(self, net):
         batch_norm_decay = self.cfg.MODEL.RESNETS.batch_norm_decay #0.999
+        #nr = 3
+        #use_batch_norm = True
+        nr = 1
+        use_batch_norm = False
         blocks = [
             resnet_utils.Block('block4', bottleneck, [{
                 'depth': 2048,
                 'depth_bottleneck': 512,
                 'stride': 1
-            }] * 3)
+            }] * nr)
         ]
         with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
-                                             is_training=self.is_training)):
+                                             is_training=self.is_training,
+                                             use_batch_norm=use_batch_norm)):
             with tf.variable_scope("resnet_v1_101"):
                 net = resnet_utils.stack_blocks_dense(
                         net, blocks)
