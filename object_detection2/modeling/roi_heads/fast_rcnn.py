@@ -7,6 +7,8 @@ import wtfop.wtfop_ops as wop
 import functools
 from object_detection2.datadef import *
 import numpy as np
+import wnn
+import wsummary
 
 slim = tf.contrib.slim
 
@@ -56,25 +58,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         Log the accuracy metrics to EventStorage.
         """
-        '''num_instances = self.gt_classes.numel()
-        pred_classes = self.pred_class_logits.argmax(dim=1)
-        bg_class_ind = self.pred_class_logits.shape[1] - 1
-
-        fg_inds = (self.gt_classes >= 0) & (self.gt_classes < bg_class_ind)
-        num_fg = fg_inds.nonzero().numel()
-        fg_gt_classes = self.gt_classes[fg_inds]
-        fg_pred_classes = pred_classes[fg_inds]
-
-        num_false_negative = (fg_pred_classes == bg_class_ind).nonzero().numel()
-        num_accurate = (pred_classes == self.gt_classes).nonzero().numel()
-        fg_num_accurate = (fg_pred_classes == fg_gt_classes).nonzero().numel()
-
-        storage = get_event_storage()
-        storage.put_scalar("fast_rcnn/cls_accuracy", num_accurate / num_instances)
-        if num_fg > 0:
-            storage.put_scalar("fast_rcnn/fg_cls_accuracy", fg_num_accurate / num_fg)
-            storage.put_scalar("fast_rcnn/false_negative", num_false_negative / num_fg)'''
-        pass
+        accuracy = wnn.accuracy_ratio(logits=self.pred_class_logits,labels=self.gt_classes)
+        tf.summary.scalar("fast_rcnn/accuracy",accuracy)
 
     def softmax_cross_entropy_loss(self):
         """
@@ -84,9 +69,11 @@ class FastRCNNOutputs(wmodule.WChildModule):
             scalar Tensor
         """
         self._log_accuracy()
-        return tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
+        classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
                                                loss_collection=None,
                                                reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+        wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
+        return classes_loss
 
     def smooth_l1_loss(self):
         """
@@ -135,6 +122,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         # means that the single example in minibatch (1) and each of the 100 examples
         # in minibatch (2) are given equal influence.
         loss_box_reg = loss_box_reg /num_samples
+        wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
         return loss_box_reg
 
     def losses(self):

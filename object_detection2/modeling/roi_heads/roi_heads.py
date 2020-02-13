@@ -352,7 +352,7 @@ class Res5ROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
-        proposals = proposals.boxes
+        proposals = proposals[PD_BOXES]
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals)
 
@@ -390,7 +390,7 @@ class Res5ROIHeads(ROIHeads):
                 del box_features
                 mask_logits = self.mask_head(mask_features)
                 losses["loss_mask"] = mask_rcnn_loss(inputs,mask_logits, proposals,fg_selection_mask)
-            return [], losses
+            return {}, losses
         else:
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img

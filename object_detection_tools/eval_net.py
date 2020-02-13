@@ -33,7 +33,7 @@ def main(_):
     cfg = setup(args)
     data_loader = DataLoader(cfg=cfg)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TEST]
-    data,num_classes = data_loader.load_data(*data_args,batch_size=1)
+    data,num_classes = data_loader.load_data(*data_args,batch_size=1,is_training=False)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
