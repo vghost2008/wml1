@@ -16,10 +16,13 @@ import basic_tftools as btf
 from tensorflow.python.framework import graph_util
 from functools import wraps
 from collections import Iterable
+from iotoolkit.transform import  distort_color as _distort_color
+
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
 
+distort_color = _distort_color
 isSingleValueTensor = btf.isSingleValueTensor
 static_or_dynamic_map_fn = btf.static_or_dynamic_map_fn
 variable_summaries = wsummary.variable_summaries
