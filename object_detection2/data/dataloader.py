@@ -16,13 +16,14 @@ class DataLoader(wmodule.WModule):
             res[k] = shape
         return res
 
-    def load_data(self,path,func,num_classes,batch_size=None):
+    def load_data(self,path,func,num_classes,batch_size=None,is_training=True):
         data = func(path,transforms=[trans.MaskNHW2HWN(),trans.ResizeToFixedSize(),trans.MaskHWN2NHW(),trans.AddBoxLens()])
-        data = data.repeat()
-        data = data.shuffle(32)
-        #data = data.batch(self.cfg.SOLVER.IMS_PER_BATCH,drop_remainder=True)
-        if batch_size is None:
+        if is_training:
+            data = data.repeat()
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH
+            data = data.shuffle(batch_size*4)
+        else:
+            batch_size = 1 if batch_size is None else batch_size
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
         if batch_size>0:
             data = data.prefetch(2)
