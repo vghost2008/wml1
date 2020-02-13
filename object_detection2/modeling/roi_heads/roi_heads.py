@@ -376,6 +376,10 @@ class Res5ROIHeads(ROIHeads):
         if self.is_training:
             del features
             losses = outputs.losses()
+            pred_instances = outputs.inference(
+                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
+                proposal_boxes=proposals.boxes
+            )
             if self.mask_on:
                 fg_selection_mask = select_foreground_proposals(proposals)
                 # Since the ROI feature transform is shared between boxes and masks,
@@ -390,7 +394,8 @@ class Res5ROIHeads(ROIHeads):
                 del box_features
                 mask_logits = self.mask_head(mask_features)
                 losses["loss_mask"] = mask_rcnn_loss(inputs,mask_logits, proposals,fg_selection_mask)
-            return {}, losses
+            #return {}, losses
+            return pred_instances, losses
         else:
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
