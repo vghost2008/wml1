@@ -53,6 +53,7 @@ def create_tf_example(image,
     image_height = image['height']
     image_width = image['width']
     filename = image['file_name']
+    file_index = int(filename[filename.find("_")+1:])
 
     with tf.gfile.GFile(img_file, 'rb') as fid:
         encoded_jpg = fid.read()
@@ -92,6 +93,9 @@ def create_tf_example(image,
         pil_image.save(output_io, format='PNG')
         encoded_mask_png.append(output_io.getvalue())
 
+    if len(xmin) == 0:
+        return None,None
+
     feature_dict = {
       'image/height':
           dataset_util.int64_feature(image_height),
@@ -99,6 +103,7 @@ def create_tf_example(image,
           dataset_util.int64_feature(image_width),
       'image/filename':
           dataset_util.bytes_feature(filename.encode('utf8')),
+       'image/file_index':dataset_util.int64_feature(file_index),
       'image/encoded':
           dataset_util.bytes_feature(encoded_jpg),
       'image/format':
@@ -136,11 +141,13 @@ def _add_to_tfrecord(file,writer):
         return False
     if len(annotations_list)==0:
         print("No annotations.")
-        #return False
+        raise RuntimeError("No annotations.")
+        return False
     tf_example, num_annotations_skipped = create_tf_example(
         image_info, annotations_list,img_file)
     if tf_example is not None:
         writer.write(tf_example.SerializeToString())
+        writer.flush()
         return True
     return False
 
@@ -211,6 +218,8 @@ if __name__ == "__main__":
 
     dataset_dir = "/home/vghost/ai/mldata/mnistod/eval"
     output_dir = "/home/vghost/ai/mldata/mnistod/eval_tfrecord"
+    #dataset_dir = "/home/vghost/ai/mldata/mnistod/train"
+    #output_dir = "/home/vghost/ai/mldata/mnistod/train_tfrecord"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

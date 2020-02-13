@@ -40,6 +40,8 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
                 continue
             points = np.transpose(all_points[0])
             x,y = np.vsplit(points,2)
+            x = np.minimum(np.maximum(0,x),img_width-1)
+            y = np.minimum(np.maximum(0,y),img_height-1)
             xmin = np.min(x)
             xmax = np.max(x)
             ymin = np.min(y)

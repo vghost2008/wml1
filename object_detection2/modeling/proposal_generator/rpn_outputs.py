@@ -155,41 +155,42 @@ class RPNOutputs(object):
         return gt_objectness_logits_i, gt_anchor_deltas
 
     def losses(self):
-        gt_objectness_logits, gt_anchor_deltas = self._get_ground_truth()
-        #In a image, all anchors concated togather and sample, Detectron2 use the same strategy
-        pos_idx, neg_idx = subsample_labels(gt_objectness_logits,
-                                            self.batch_size_per_image, self.positive_fraction)
+        with tf.variable_scope("RPNLoss"):
+            gt_objectness_logits, gt_anchor_deltas = self._get_ground_truth()
+            #In a image, all anchors concated togather and sample, Detectron2 use the same strategy
+            pos_idx, neg_idx = subsample_labels(gt_objectness_logits,
+                                                self.batch_size_per_image, self.positive_fraction)
 
-        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
-        num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
-        box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
-        pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
-        pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
-        pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
-        pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
-        pred_objectness_logits = tf.reshape(pred_objectness_logits,[-1])
-        pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
+            batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
+            num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
+            box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
+            pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
+            pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
+            pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
+            pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
+            pred_objectness_logits = tf.reshape(pred_objectness_logits,[-1])
+            pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
 
-        valid_mask = tf.logical_or(pos_idx,neg_idx)
-        gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])
-        gt_objectness_logits = tf.boolean_mask(gt_objectness_logits,valid_mask)
-        pred_objectness_logits = tf.boolean_mask(pred_objectness_logits,valid_mask)
-        gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
-        gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
-        pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
+            valid_mask = tf.logical_or(pos_idx,neg_idx)
+            gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])
+            gt_objectness_logits = tf.boolean_mask(gt_objectness_logits,valid_mask)
+            pred_objectness_logits = tf.boolean_mask(pred_objectness_logits,valid_mask)
+            gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
+            gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
+            pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
 
-        objectness_loss, localization_loss = rpn_losses(
-            gt_objectness_logits,
-            gt_anchor_deltas,
-            pred_objectness_logits,
-            pred_anchor_deltas,
-        )
-        normalizer = 1.0 / (batch_size* self.batch_size_per_image)
-        loss_cls = objectness_loss * normalizer  # cls: classification loss
-        loss_loc = localization_loss * normalizer  # loc: localization loss
-        losses = {"loss_rpn_cls": loss_cls, "loss_rpn_loc": loss_loc}
+            objectness_loss, localization_loss = rpn_losses(
+                gt_objectness_logits,
+                gt_anchor_deltas,
+                pred_objectness_logits,
+                pred_anchor_deltas,
+            )
+            normalizer = 1.0 / (batch_size* self.batch_size_per_image)
+            loss_cls = objectness_loss * normalizer  # cls: classification loss
+            loss_loc = localization_loss * normalizer  # loc: localization loss
+            losses = {"loss_rpn_cls": loss_cls, "loss_rpn_loc": loss_loc}
 
-        return losses
+            return losses
 
     def predict_proposals(self):
         """
@@ -199,13 +200,14 @@ class RPNOutputs(object):
             proposals (list[Tensor]): A list of L tensors. Tensor i has shape
                 (N, Hi*Wi*A, B), where B is box dimension (4 or 5).
         """
-        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
-        num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
-        box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
-        pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
-        pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
-        proposals = self.box2box_transform.apply_deltas(deltas=pred_anchor_deltas,boxes=self.anchors)
-        return proposals
+        with tf.name_scope("Predict_proposals"):
+            batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
+            num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
+            box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
+            pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
+            pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
+            proposals = self.box2box_transform.apply_deltas(deltas=pred_anchor_deltas,boxes=self.anchors)
+            return proposals
 
     def predict_objectness_logits(self):
         """
@@ -216,7 +218,8 @@ class RPNOutputs(object):
             pred_objectness_logits (list[Tensor]): A list of L tensors. Tensor i has shape
                 (N, Hi*Wi*A).
         """
-        batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
-        pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
-        pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
-        return pred_objectness_logits
+        with tf.name_scope("predict_objectness_logits"):
+            batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
+            pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
+            pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
+            return pred_objectness_logits

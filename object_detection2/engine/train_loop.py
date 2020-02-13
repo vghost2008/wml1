@@ -12,6 +12,7 @@ import sys
 import os
 import wml_tfutils as wmlt
 import wsummary
+import object_detection2.metrics.toolkit as mt
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -139,6 +140,33 @@ class TrainerBase:
         finally:
             self.after_train()
 
+    def test(self, start_iter: int=0, max_iter: int=sys.maxsize):
+        """
+        Args:
+            start_iter, max_iter (int): See docs above
+        """
+        logger = logging.getLogger(__name__)
+        logger.info("Starting training from iteration {}".format(start_iter))
+
+        self.iter = self.start_iter = start_iter
+        self.max_iter = max_iter
+
+        evaler = mt.COCOEvaluation(num_classes=self.cfg.DATASETS.NUM_CLASSES)
+
+        try:
+            self.before_train()
+            while True:
+                self.before_step()
+                results = self.run_eval_step()
+                self.model.doeval(evaler,results)
+                if self.step %100 == 0:
+                    evaler.show()
+                self.after_step()
+        except Exception:
+            logger.exception("Exception during training:")
+        finally:
+            self.after_train()
+
     def before_train(self):
         for h in self._hooks:
             h.before_train()
@@ -200,14 +228,19 @@ class SimpleTrainer(TrainerBase):
         self.res_data = None
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
         self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
+        self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
         if tf.gfile.Exists(self.log_dir):
             tf.gfile.DeleteRecursively(self.log_dir)
         self.build_net()
 
+        self.res_data_for_eval = self.res_data
+        self.res_data_for_eval.update(self.input_data)
+
     def __del__(self):
-        self.saver.save(self.sess, os.path.join(self.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
+        if self.saver is not None:
+            self.saver.save(self.sess, os.path.join(self.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
         self.sess.close()
         self.summary_writer.close()
 
@@ -218,23 +251,38 @@ class SimpleTrainer(TrainerBase):
             wmlu.create_empty_dir(self.ckpt_dir)
         data = self.data.get_next()
         DataLoader.detection_image_summary(data)
+        self.input_data = data
         self.res_data,loss_dict = self.model.forward(data)
-        losses = tf.add_n(list(loss_dict.values()))
-        tf.losses.add_loss(losses)
+        if self.model.is_training:
+            losses = tf.add_n(list(loss_dict.values()))
+            tf.losses.add_loss(losses)
 
         self.loss_dict = loss_dict
         self.sess = tf.Session()
-        steps = self.cfg.SOLVER.STEPS
-        lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
-                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
-        self.max_train_step = steps[-1]
-        self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,lr=lr)
-        self.summary = tf.summary.merge_all()
-        self.saver = tf.train.Saver()
-        self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
 
+        if self.model.is_training:
+            steps = self.cfg.SOLVER.STEPS
+            lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
+            self.max_train_step = steps[-1]
+            self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,lr=lr)
+            print("variables to train:")
+            wmlu.show_list(self.variables_to_train)
+            for v in self.variables_to_train:
+                wsummary.histogram_or_scalar(v,v.name)
+
+            self.saver = tf.train.Saver()
+            tf.summary.scalar("total_loss",self.total_loss)
+
+        self.summary = tf.summary.merge_all()
+        self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
         init = tf.global_variables_initializer()
         self.sess.run(init)
+
+    def resume_or_load(self,ckpt_path=None,*args,**kwargs):
+        if ckpt_path is None:
+            ckpt_path = self.ckpt_dir
+        wnn.restore_variables(self.sess,ckpt_path)
 
     def run_step(self):
         """
@@ -267,6 +315,37 @@ class SimpleTrainer(TrainerBase):
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()
             raise Exception("Train Finish")
+
+    def run_eval_step(self):
+        """
+        Implement the standard training logic described above.
+        """
+        assert not self.model.is_training, "[SimpleTrainer] model was changed to eval mode!"
+        start = time.perf_counter()
+        """
+        If your want to do something with the data, you can wrap the dataloader.
+        """
+
+        """
+        If your want to do something with the losses, you can wrap the model.
+        """
+        if self.step%self.log_step == 0:
+            res_data = self.res_data_for_eval
+            summary_dict = {"summary":self.summary}
+            res_data.update(summary_dict)
+            res_data = self.sess.run(res_data)
+            self.summary_writer.add_summary(res_data['summary'], self.step)
+            sys.stdout.flush()
+        else:
+            res_data = self.res_data_for_eval
+            res_data = self.sess.run(res_data)
+        self.step += 1
+
+        t_cost = time.perf_counter() - start
+        print(f"{self.name} step={self.step}, time_cost={t_cost}")
+
+        return res_data
+
 
     @classmethod
     def build_model(cls, cfg,**kwargs):

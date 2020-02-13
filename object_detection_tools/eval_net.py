@@ -31,27 +31,9 @@ def main(_):
     args = default_argument_parser().parse_args()
 
     cfg = setup(args)
-
-    if args.eval_only:
-        '''model = SimpleTrainer.build_model(cfg)
-        DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=args.resume
-        )
-        res = Trainer.test(cfg, model)
-        if comm.is_main_process():
-            verify_results(cfg, res)
-        if cfg.TEST.AUG.ENABLED:
-            res.update(Trainer.test_with_TTA(cfg, model))
-        return res'''
-        pass
-
-    """
-    If you'd like to do anything fancier than the standard training logic,
-    consider writing your own training loop or subclassing the trainer.
-    """
     data_loader = DataLoader(cfg=cfg)
-    data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
-    data,num_classes = data_loader.load_data(*data_args)
+    data_args = DATASETS_REGISTRY[cfg.DATASETS.TEST]
+    data,num_classes = data_loader.load_data(*data_args,batch_size=1)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
@@ -60,11 +42,11 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
-    model = SimpleTrainer.build_model(cfg,is_training=True)
-
+    model = SimpleTrainer.build_model(cfg,is_training=False)
     trainer = SimpleTrainer(cfg,data=data,model=model)
-    #trainer.resume_or_load(resume=args.resume)
-    return trainer.train()
+    trainer.resume_or_load()
+    res = trainer.test(cfg, model)
+    return res
 
 
 

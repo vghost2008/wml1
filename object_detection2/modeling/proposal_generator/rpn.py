@@ -112,7 +112,7 @@ class RPN(wmodule.WChildModule):
             self.post_nms_topk[self.is_training],
         )
 
-        outdata = ProposalsData(proposals,logits)
+        outdata = {PD_BOXES:proposals,PD_PROBABILITY:tf.nn.sigmoid(logits)}
 
         return outdata,losses
 
