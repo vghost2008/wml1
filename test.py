@@ -319,6 +319,22 @@ class WMLTest(tf.test.TestCase):
             wmlu.show_list(data_out)
             self.assertAllClose(expected_data,data_out,atol=1e-4)
 
+    def test_sort_data(self):
+        with self.test_session() as sess:
+            scores = [0.4,0.9,0.1,0.2]
+            boxes = [[0.4,0.4,0.5,0.5],[0.9,0.9,1.0,1.0],[0.1,0.1,0.2,0.2],[0.2,0.2,0.3,0.3]]
+            t_boxes = [[0.9,0.9,1.0,1.0],[0.4,0.4,0.5,0.5],[0.2,0.2,0.3,0.3],[0.1,0.1,0.2,0.2]]
+            class_idxs = [4,9,1,2]
+            scores = tf.convert_to_tensor(scores,dtype=tf.float32)
+            boxes = tf.convert_to_tensor(boxes,dtype=tf.float32)
+            class_idxs = tf.convert_to_tensor(class_idxs,tf.int32)
+            x, y = wmlt.sort_data(key=scores, datas=[boxes, class_idxs])
+            boxes, class_idxs= y
+            scores,indices = x
+            boxes,class_idxs,scores,indices = sess.run([boxes,class_idxs,scores,indices])
+            self.assertAllEqual(indices,[1,0,3,2])
+            self.assertAllClose(boxes,t_boxes,atol=1e-3)
+
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',

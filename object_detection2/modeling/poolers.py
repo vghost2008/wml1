@@ -33,7 +33,7 @@ def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, can
             `self.min_level + i`).
     """
     eps = 1e-6
-    box_sizes = odbox.box_area(bboxes)
+    box_sizes = tf.math.sqrt(odbox.box_area(bboxes))
     # Eqn.(1) in FPN paper
     level_assignments = tf.floor(
         canonical_level + tf.math.log(box_sizes / canonical_box_size + eps)/math.log(2)
@@ -116,19 +116,20 @@ class ROIPooler(wmodule.WChildModule):
         assert isinstance(x, list),"Arguments to pooler must be lists"
         level_num = len(x)
 
-        if level_num == 1:
-            return self.level_pooler(x[0], bboxes)
+        with tf.name_scope("ROIPoolers"):
+            if level_num == 1:
+                return self.level_pooler(x[0], bboxes)
 
-        level_assignments = assign_boxes_to_levels(
-            bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level
-        )
-        features = []
-        for net in x:
-            features.append(self.level_pooler(net,bboxes))
+            level_assignments = assign_boxes_to_levels(
+                bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level
+            )
+            features = []
+            for net in x:
+                features.append(self.level_pooler(net,bboxes))
 
-        features = tf.stack(features,axis=1)
-        level_assignments = tf.reshape(level_assignments,[-1])
-        output = wmlt.batch_gather(features,level_assignments)
+            features = tf.stack(features,axis=1)
+            level_assignments = tf.reshape(level_assignments,[-1])
+            output = wmlt.batch_gather(features,level_assignments)
 
 
-        return output
+            return output

@@ -45,12 +45,17 @@ class Box2BoxTransform(object):
 
     def apply_deltas(self,deltas,boxes):
         '''
-        :param deltas: [batch_size,N,4]
-        :param boxes: [batch_size,4]
+        :param deltas: [batch_size,N,4]/[N,4]
+        :param boxes: [batch_size,N,4]/[N.4]
         :return:
         '''
         B0 = boxes.get_shape().as_list()[0]
         B1 = deltas.get_shape().as_list()[0]
+        assert len(deltas.get_shape()) == len(boxes.get_shape()), "deltas and boxes's dims must be equal."
+
+        if len(deltas.get_shape()) == 2:
+            return wop.decode_boxes1(boxes, deltas, prio_scaling=[1/x for x in self.weights])
+
         if B0==B1:
             return wmlt.static_or_dynamic_map_fn(lambda x:wop.decode_boxes1(x[0], x[1], prio_scaling=[1/x for x in self.weights]),
                                                  elems=[boxes,deltas],dtype=tf.float32,back_prop=False)

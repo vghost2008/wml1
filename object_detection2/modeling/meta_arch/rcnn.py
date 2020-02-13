@@ -7,6 +7,7 @@ from object_detection2.modeling.roi_heads.roi_heads import build_roi_heads
 import wsummary
 from object_detection2.standard_names import *
 import numpy as np
+import tensorflow as tf
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(wmodule.WModule):
@@ -128,27 +129,36 @@ class GeneralizedRCNN(wmodule.WModule):
         Returns:
             same as in :meth:`forward`.
         """
-        assert not self.training
+        assert not self.is_training
 
-        images = self.preprocess_image(batched_inputs)
-        features = self.backbone(images.tensor)
+        batched_inputs = self.preprocess_image(batched_inputs)
+        features = self.backbone(batched_inputs)
 
         if detected_instances is None:
             if self.proposal_generator:
-                proposals, _ = self.proposal_generator(images, features, None)
+                proposals, _ = self.proposal_generator(batched_inputs, features)
             else:
                 assert "proposals" in batched_inputs[0]
                 proposals = [x["proposals"].to(self.device) for x in batched_inputs]
 
-            results, _ = self.roi_heads(images, features, proposals, None)
+            results, _ = self.roi_heads(batched_inputs, features, proposals)
         else:
             detected_instances = [x.to(self.device) for x in detected_instances]
             results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
-
+        instance_masks = None if not self.cfg.MODEL.MASK_ON else results.get(RD_MASKS,None)
+        wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                         boxes=results[RD_BOXES],classes=results[RD_LABELS],
+                                         lengths=results[RD_LENGTH],
+                                         instance_masks=instance_masks,name="RCNN_result")
+        if instance_masks is not None:
+            wsummary.detection_image_summary(images=tf.zeros_like(batched_inputs[IMAGE]),
+                                             boxes=results[RD_BOXES],classes=results[RD_LABELS],
+                                             lengths=results[RD_LENGTH],
+                                             instance_masks=instance_masks,name="RCNN_Mask_result")
         if do_postprocess:
-            return GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
+            return GeneralizedRCNN._postprocess(results, batched_inputs, None),None
         else:
-            return results
+            return results,None
 
     def preprocess_image(self, batched_inputs):
         """
@@ -160,6 +170,19 @@ class GeneralizedRCNN(wmodule.WModule):
     @staticmethod
     def _postprocess(instances, batched_inputs, image_sizes):
         return instances
+
+    def doeval(self,evaler,datas):
+        assert datas[GT_BOXES].shape[0]==1,"Error batch size"
+        image = datas[IMAGE]
+        gt_boxes = datas[GT_BOXES][0]
+        gt_labels = np.ones_like(datas[GT_LABELS][0],dtype=np.int32)
+        len = datas[RD_LENGTH][0]
+        boxes = datas[RD_BOXES][0][:len]
+        probability = datas[PD_PROBABILITY][0][:len]
+        labels = datas[RD_LABELS][0][:len]
+        evaler(gtboxes=gt_boxes,gtlabels=gt_labels,boxes=boxes,labels = labels,
+               probability=probability,
+               img_size=image.shape[1:3])
 
 @META_ARCH_REGISTRY.register()
 class ProposalNetwork(wmodule.WModule):

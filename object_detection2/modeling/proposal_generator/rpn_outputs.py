@@ -5,6 +5,7 @@ import itertools
 import logging
 import numpy as np
 from ..sampling import subsample_labels
+import wsummary
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,8 @@ class RPNOutputs(object):
             loss_cls = objectness_loss * normalizer  # cls: classification loss
             loss_loc = localization_loss * normalizer  # loc: localization loss
             losses = {"loss_rpn_cls": loss_cls, "loss_rpn_loc": loss_loc}
+            wsummary.histogram_or_scalar(loss_cls,"rpn/cls_loss")
+            wsummary.histogram_or_scalar(loss_loc,"rpn/loc_loss")
 
             return losses
 
