@@ -6,6 +6,7 @@ from .build import META_ARCH_REGISTRY
 from object_detection2.modeling.roi_heads.roi_heads import build_roi_heads
 import wsummary
 from object_detection2.standard_names import *
+import numpy as np
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(wmodule.WModule):
@@ -181,5 +182,17 @@ class ProposalNetwork(wmodule.WModule):
         """
         features = self.backbone(inputs)
         outdata,proposal_losses = self.proposal_generator(inputs, features)
-        wsummary.detection_image_summary(images=inputs['image'],boxes=outdata.boxes,name="proposal_boxes")
+        wsummary.detection_image_summary(images=inputs['image'],boxes=outdata[PD_BOXES],name="proposal_boxes")
         return outdata,proposal_losses
+
+    def doeval(self,evaler,datas):
+        assert datas[GT_BOXES].shape[0]==1,"Error batch size"
+        image = datas[IMAGE]
+        gt_boxes = datas[GT_BOXES][0]
+        gt_labels = np.ones_like(datas[GT_LABELS][0],dtype=np.int32)
+        boxes = datas[PD_BOXES][0]
+        probability = datas[PD_PROBABILITY][0]
+        labels = np.ones_like(probability,dtype=np.int32)
+        evaler(gtboxes=gt_boxes,gtlabels=gt_labels,boxes=boxes,labels = labels,
+               probability=probability,
+               img_size=image.shape[1:3])

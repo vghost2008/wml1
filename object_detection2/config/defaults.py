@@ -83,6 +83,7 @@ _C.DATASETS.TEST = ""
 _C.DATASETS.PROPOSAL_FILES_TEST = ()
 # Number of top scoring precomputed proposals to keep for test
 _C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
+_C.DATASETS.NUM_CLASSES= 90
 
 # -----------------------------------------------------------------------------
 # DataLoader

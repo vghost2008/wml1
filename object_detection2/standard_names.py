@@ -13,6 +13,7 @@ GT_LENGTH = 'gt_length'
 GT_LABELS = 'gt_labels'
 GT_MASKS = 'gt_masks'
 FILEINDEX = "fileindex"
+FILENAME = "filename"
 GT_OBJECT_LOGITS = "gt_object_logits"
 
 ED_GT_OBJECT_LOGITS = "gt_object_logits"
@@ -33,5 +34,5 @@ RD_MASKS = "masks"
 RD_KEYPOINT = "keypoint"
 
 PD_BOXES = "boxes"
-PD_LOGITS = "logits"
+PD_PROBABILITY = PROBABILITY
 
