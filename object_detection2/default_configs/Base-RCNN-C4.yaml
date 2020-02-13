@@ -16,6 +16,7 @@ MODEL:
     NAME: "Res5ROIHeads"
     IN_FEATURES: ["C4"]
     BATCH_SIZE_PER_IMAGE: 128
+	SCORE_THRESH_TEST: 0.5
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"
