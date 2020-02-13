@@ -28,10 +28,10 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
         print(file_path)
         data_str = f.read()
         json_data = json.loads(data_str)
-        img_width = json_data["imageWidth"]
-        img_height = json_data["imageHeight"]
-        image["height"] = img_height
-        image["width"] = img_width
+        img_width = int(json_data["imageWidth"])
+        img_height = int(json_data["imageHeight"])
+        image["height"] = int(img_height)
+        image["width"] = int(img_width)
         image["file_name"] = wmlu.base_name(file_path)
         for shape in json_data["shapes"]:
             mask = np.zeros(shape=[img_height,img_width],dtype=np.uint8)

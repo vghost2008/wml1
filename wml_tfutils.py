@@ -33,6 +33,8 @@ image_summaries = wsummary.image_summaries
 _draw_text_on_image = wsummary._draw_text_on_image
 image_summaries_with_label = wsummary.image_summaries_with_label
 row_image_summaries = wsummary.row_image_summaries
+combined_static_and_dynamic_shape = btf.combined_static_and_dynamic_shape
+
 
 def add_to_hash_table_collection(value):
     tf.add_to_collection(_HASH_TABLE_COLLECTION,value)
@@ -486,11 +488,7 @@ def mean_pixel(model_variant=None):
 
 def num_elements(input):
     if input.get_shape().is_fully_defined():
-        shape = input.get_shape().as_list()
-        num = 1
-        for s in shape:
-            num *= s
-        return num
+        return input.get_shape().num_elements()
     else:
         return tf.reduce_prod(tf.shape(input))
 '''
@@ -704,6 +702,11 @@ def merge_mask(mask0,mask1):
     res = tf.sparse_to_dense(sparse_indices=indices,output_shape=tf.shape(mask0),sparse_values=True,default_value=False)
     return res
 
+'''
+params:[batch_size,X,...]
+indices:[batch_size,...]
+如果indices:[batch_size]那么返回[batch_size,...]
+'''
 def batch_gather(params,indices,name=None):
     if indices.get_shape().ndims <= 2:
         with tf.name_scope(name=name,default_name="batch_gather"):
@@ -723,24 +726,34 @@ def assert_shape_equal(v,values,name=None):
     return assert_equal(v,shapes,name=name)
 
 '''
-image:[batch_size,X,H,W,C]
-bboxes:[batch_size,X,4] (ymin,xmin,ymax,xmax) in [0,1]
+image:[batch_size,X,H,W,C]/[X,H,W,C]
+bboxes:[batch_size,X,4]/[X,4] (ymin,xmin,ymax,xmax) in [0,1]
 size:(H,W)
 output:
-[batch_size,box_nr,size[0],size[1],C]
+[batch_size,box_nr,size[0],size[1],C]/ [box_nr,size[0],size[1],C]
 '''
 def tf_crop_and_resize(image,bboxes,size):
-    img_shape = image.get_shape().as_list()
+    if len(image.get_shape()) == 4:
+        image = tf.expand_dims(image,axis=0)
+        bboxes = tf.expand_dims(bboxes,axis=0)
+        return tf.squeeze(batch_tf_crop_and_resize(image,bboxes,size),axis=0)
+    elif len(image.get_shape()) == 5:
+        return batch_tf_crop_and_resize(image,bboxes,size)
+    else:
+        raise Exception("Error image ndims.")
+
+def batch_tf_crop_and_resize(image,bboxes,size):
+    img_shape = btf.combined_static_and_dynamic_shape(image)
     batch_size = img_shape[0]
     box_nr = img_shape[1]
     new_img_shape = [img_shape[0]*img_shape[1]]+img_shape[2:]
-    bboxes_shape = bboxes.get_shape().as_list()
+    bboxes_shape = btf.combined_static_and_dynamic_shape(bboxes)
     new_bboxes_shape = [bboxes_shape[0]*bboxes_shape[1],4]
     image = reshape(image,new_img_shape)
     bboxes = reshape(bboxes,new_bboxes_shape)
     box_ind = tf.range(0,tf.reduce_prod(tf.shape(bboxes)[0]),dtype=tf.int32)
     images = tf.image.crop_and_resize(image,bboxes,box_ind,size)
-    shape = images.get_shape().as_list()
+    shape = btf.combined_static_and_dynamic_shape(images)
     images = reshape(images,[batch_size,box_nr]+shape[1:])
     return images
 '''
@@ -789,6 +802,8 @@ def Print(data,*inputs,**kwargs):
 
 '''
 indicator:[X],tf.bool
+return:
+[x]:tf.bool
 '''
 def subsample_indicator(indicator, num_samples):
     indices = tf.where(indicator)
@@ -803,29 +818,6 @@ def subsample_indicator(indicator, num_samples):
                                                      tf.shape(indicator)[0])
 
     return tf.equal(selected_indicator, 1)
-
-
-def combined_static_and_dynamic_shape(tensor):
-  """Returns a list containing static and dynamic values for the dimensions.
-
-  Returns a list of static and dynamic values for shape dimensions. This is
-  useful to preserve static shapes when available in reshape operation.
-
-  Args:
-    tensor: A tensor of any type.
-
-  Returns:
-    A list of size tensor.shape.ndims containing integers or a scalar tensor.
-  """
-  static_tensor_shape = tensor.shape.as_list()
-  dynamic_tensor_shape = tf.shape(tensor)
-  combined_shape = []
-  for index, dim in enumerate(static_tensor_shape):
-    if dim is not None:
-      combined_shape.append(dim)
-    else:
-      combined_shape.append(dynamic_tensor_shape[index])
-  return combined_shape
 
 def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
                                 width_scale=None,scope=None):
@@ -927,6 +919,25 @@ def show_return_shape(func,message=None):
             res[index] = tf.Print(res[index],datas,summarize=100,message=message)
         return res
     return wraps_func
+
+def select_image_by_mask(image,mask):
+    '''
+
+    :param image: [batch_size,H,W,C]
+    :param mask: [batch_size,N], tf.bool
+    :return:
+    [X,H,W,C], X = tf.reduce_sum(mask)
+    '''
+    with tf.name_scope("select_image_by_mask"):
+        batch_size,H,W,C = combined_static_and_dynamic_shape(image)
+        index = tf.reshape(tf.range(batch_size),[batch_size,1])*tf.ones_like(mask,dtype=tf.int32)
+        index = tf.boolean_mask(index,mask)
+        return tf.gather(image,index)
+def sort_data(key,datas):
+    size = tf.shape(key)[0]
+    values,indices = tf.nn.top_k(key,k=size)
+    datas = [tf.gather(x,indices) for x in datas]
+    return [values,indices],datas
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

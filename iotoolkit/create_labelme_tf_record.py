@@ -42,7 +42,8 @@ def category_id_filter(category_id):
     good_ids = [1,2,3]
     return category_id in good_ids
 
-text_to_id={"a":1,"b":2,"c":3,"d":4}
+#text_to_id={"a":1,"b":2,"c":3,"d":4}
+text_to_id={"0":1,"1":2,"2":3}
 def label_text_to_id(text):
     return text_to_id[text]
 
@@ -208,12 +209,12 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/qualitycontrol/rdatav4_preproc"
-    output_dir = "/home/vghost/ai/mldata/qualitycontrol/tfdatav4"
+    dataset_dir = "/home/vghost/ai/mldata/mnistod/eval"
+    output_dir = "/home/vghost/ai/mldata/mnistod/eval_tfrecord"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
     print('Output directory:',output_dir)
     random.seed(int(time.time()))
 
-    multithread_create_tf_record(dataset_dir, output_dir,fidx=330)
+    multithread_create_tf_record(dataset_dir, output_dir,fidx=0)

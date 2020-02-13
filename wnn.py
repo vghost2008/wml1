@@ -16,6 +16,7 @@ import re
 import eval_toolkit as evt
 import os
 import copy
+import functools
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -36,6 +37,19 @@ def str2optimizer(name="Adam",learning_rate=None):
         raise ValueError("error optimizer")
 
     return opt
+def piecewise_lr(initial_lr,step,steps,decay):
+    steps = list(steps)
+    begin_steps = [0]+steps[:-1]
+    steps_pair = list(zip(begin_steps,steps))
+    funs = {}
+    lr = initial_lr
+    def func(lr):
+        return lr
+    for i,(l,h) in enumerate(steps_pair):
+        funs[tf.logical_and(tf.greater_equal(step,l),tf.less(step,h))] = functools.partial(func,lr)
+        lr = lr*decay
+    return tf.case(funs,default=functools.partial(func,lr))
+
 
 def build_learning_rate(initial_lr,
                         global_step,
@@ -44,6 +58,7 @@ def build_learning_rate(initial_lr,
                         decay_factor=0.97,
                         decay_epochs=2.4,
                         total_steps=None,
+                        steps=None,
                         warmup_epochs=1):
   if lr_decay_type == 'exponential':
     assert steps_per_epoch is not None
@@ -56,6 +71,9 @@ def build_learning_rate(initial_lr,
         1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
   elif lr_decay_type == 'constant':
     lr = initial_lr
+  elif lr_decay_type == "piecewise":
+      assert steps is not None
+      lr = piecewise_lr(initial_lr=initial_lr,step=global_step,steps=steps,decay=decay_factor)
   else:
     assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
 
@@ -89,6 +107,44 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         lr = tf.maximum(min_learn_rate,lr)
         tf.summary.scalar("lr",lr)
         #opt = tf.train.GradientDescentOptimizer(lr)
+        variables_to_train = get_variables_to_train(scopes,scopes_pattern)
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
+        variables_not_to_train = get_variables_not_to_train(variables_to_train)
+        show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
+        logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
+        opt = str2optimizer(optimizer,lr)
+
+        if loss is not None:
+            total_loss = loss
+        else:
+            loss_wr = get_regularization_losses(scopes=scopes,re_pattern=scopes_pattern)
+            if loss_wr is not None:
+                tf.losses.add_loss(loss_wr)
+                wmlt.variable_summaries_v2(loss_wr,"wr_loss")
+            losses = tf.losses.get_losses()
+            show_values(losses,"Losses")
+            total_loss = tf.add_n(losses, "total_loss")
+            total_loss = tf.reduce_sum(total_loss)
+
+        if clip_norm is not None:
+            grads, global_norm = tf.clip_by_global_norm(tf.gradients(total_loss, variables_to_train,colocate_gradients_with_ops=colocate_gradients_with_ops),
+                                                        clip_norm)
+            apply_gradient_op = opt.apply_gradients(zip(grads, variables_to_train), global_step=global_step)
+        else:
+            grads = opt.compute_gradients(total_loss, variables_to_train,colocate_gradients_with_ops=colocate_gradients_with_ops)
+            apply_gradient_op = opt.apply_gradients(grads,global_step=global_step)
+
+        slim_batch_norm_ops = get_batch_norm_ops(scopes=scopes,re_pattern=scopes_pattern)
+        train_op = tf.group(apply_gradient_op,slim_batch_norm_ops)
+        if clip_norm:
+            tf.summary.scalar("global_norm", global_norm)
+        return train_op,total_loss,variables_to_train
+
+def nget_train_op(global_step,lr=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
+                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None):
+    with tf.name_scope(name=scope,default_name="train_op"):
+        tf.summary.scalar("lr",lr)
         variables_to_train = get_variables_to_train(scopes,scopes_pattern)
         show_values(variables_to_train,"variables_to_train",fn=logging.info)
         logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
@@ -179,7 +235,8 @@ def get_train_opv2(global_step,batch_size=32,learning_rate=1E-3,scopes=None,clip
             total_loss = loss
         else:
             loss_wr = get_regularization_losses(scopes=scopes)
-            tf.losses.add_loss(loss_wr)
+            if loss_wr is not None and len(loss_wr)>0:
+                tf.losses.add_loss(loss_wr)
             total_loss = tf.add_n(tf.losses.get_losses(), "total_loss")
             total_loss = tf.reduce_sum(total_loss)
 

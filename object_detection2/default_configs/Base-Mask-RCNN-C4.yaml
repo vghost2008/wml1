@@ -1,0 +1,27 @@
+MODEL:
+  META_ARCHITECTURE: "GeneralizedRCNN"
+  MASK_ON: True
+  RPN:
+    PRE_NMS_TOPK_TEST: 600
+    POST_NMS_TOPK_TEST: 100
+    PRE_NMS_TOPK_TRAIN: 200  # Per FPN level
+    POST_NMS_TOPK_TRAIN: 100
+    IN_FEATURES: ["C3"]
+  ANCHOR_GENERATOR:
+    SIZES: [[32, 64, 128]]  # One size for each in feature map
+    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+  ROI_HEADS:
+    NAME: "Res5ROIHeads"
+    IN_FEATURES: ["C4"]
+    BATCH_SIZE_PER_IMAGE: 16
+DATASETS:
+  TRAIN: "coco_2017_train"
+  TEST: "coco_2017_train"
+SOLVER:
+  IMS_PER_BATCH: 2
+  BASE_LR: 0.02
+  STEPS: (60000, 80000)
+  MAX_ITER: 90000
+INPUT:
+  MIN_SIZE_TRAIN: (512,512)
+VERSION: 2

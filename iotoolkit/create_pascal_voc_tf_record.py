@@ -193,13 +193,13 @@ class VOCMaker(object):
 
 if __name__ == "__main__":
 
-    #dataset_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012"
-    #output_dir = "/home/vghost/ai/mldata/VOCdevkit/VOC2012/tfdata"
-    dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/rdatav2"
-    output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata1"
+    dataset_dir = "/media/vghost/Linux/constantData/MachineLearning/mldata/PASCAL/VOCdevkit/VOC2012"
+    output_dir = "/home/vghost/ai/mldata/VOC2012_tfdata"
+    #dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/rdatav2"
+    #output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata1"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
     print('Output directory:',output_dir)
     m = VOCMaker()
-    m.to_tfrecords(dataset_dir, output_dir, output_name,repeat=65)
+    m.to_tfrecords(dataset_dir, output_dir, output_name)
