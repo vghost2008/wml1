@@ -46,6 +46,8 @@ def detection_image_summary(images,
       instance_masks = instance_masks[:max_outputs]
   if keypoints is not None:
       keypoints = keypoints[:max_outputs]
+  if lengths is not None:
+      lengths = lengths[:max_outputs]
 
   images = imv.draw_detection_image_summary(images,
                                          boxes,
