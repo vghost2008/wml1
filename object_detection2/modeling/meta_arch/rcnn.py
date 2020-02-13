@@ -105,12 +105,18 @@ class GeneralizedRCNN(wmodule.WModule):
             proposals = {"proposal_boxes":batched_inputs["proposals"]}
             proposal_losses = {}
 
-        outdata, detector_losses = self.roi_heads(batched_inputs, features, proposals)
+        results, detector_losses = self.roi_heads(batched_inputs, features, proposals)
+
+        if len(results)>0:
+            wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                         boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                         lengths=results[RD_LENGTH],
+                                         name="RCNN_result")
 
         losses = {}
         losses.update(detector_losses)
         losses.update(proposal_losses)
-        return outdata,losses
+        return results,losses
 
     def inference(self, batched_inputs, detected_instances=None, do_postprocess=True):
         """

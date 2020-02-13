@@ -278,7 +278,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         probs = tf.nn.softmax(self.pred_class_logits, dim=-1)
         return probs
 
-    def inference(self, score_thresh, nms_thresh, topk_per_image):
+    def inference(self, score_thresh, nms_thresh, topk_per_image,proposal_boxes=None):
         """
         Args:
             score_thresh (float): same as fast_rcnn_inference.
@@ -290,7 +290,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
 
-        proposal_boxes = self.proposals[PD_BOXES]
+        if proposal_boxes is None:
+            proposal_boxes = self.proposals[PD_BOXES]
         batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
         total_box_nr,K = wmlt.combined_static_and_dynamic_shape(self.pred_class_logits)
         _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)

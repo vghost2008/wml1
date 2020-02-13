@@ -253,7 +253,7 @@ class SimpleTrainer(TrainerBase):
         if not os.path.exists(self.ckpt_dir):
             wmlu.create_empty_dir(self.ckpt_dir)
         data = self.data.get_next()
-        DataLoader.detection_image_summary(data,"data_source")
+        DataLoader.detection_image_summary(data,name="data_source")
         self.input_data = data
         self.res_data,loss_dict = self.model.forward(data)
         if self.model.is_training:

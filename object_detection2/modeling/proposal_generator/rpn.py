@@ -8,6 +8,7 @@ from object_detection2.modeling.matcher import *
 from object_detection2.modeling.box_regression import *
 from .rpn_outputs import RPNOutputs,find_top_rpn_proposals
 from object_detection2.datadef import *
+import wsummary
 
 slim = tf.contrib.slim
 
@@ -113,6 +114,7 @@ class RPN(wmodule.WChildModule):
         )
 
         outdata = {PD_BOXES:proposals,PD_PROBABILITY:tf.nn.sigmoid(logits)}
+        wsummary.detection_image_summary(images=inputs[IMAGE],boxes=outdata[PD_BOXES])
 
         return outdata,losses
 
