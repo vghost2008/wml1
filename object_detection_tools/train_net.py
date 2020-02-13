@@ -63,7 +63,7 @@ def main(_):
     model = SimpleTrainer.build_model(cfg,is_training=True)
 
     trainer = SimpleTrainer(cfg,data=data,model=model)
-    #trainer.resume_or_load(resume=args.resume)
+    trainer.resume_or_load()
     return trainer.train()
 
 
