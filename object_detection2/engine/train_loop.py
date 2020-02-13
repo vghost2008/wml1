@@ -227,7 +227,10 @@ class SimpleTrainer(TrainerBase):
         self.saver = None
         self.res_data = None
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
-        self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
+        if model.is_training:
+            self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
+        else:
+            self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_eval_log")
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
@@ -250,12 +253,12 @@ class SimpleTrainer(TrainerBase):
         if not os.path.exists(self.ckpt_dir):
             wmlu.create_empty_dir(self.ckpt_dir)
         data = self.data.get_next()
-        DataLoader.detection_image_summary(data)
+        DataLoader.detection_image_summary(data,"data_source")
         self.input_data = data
         self.res_data,loss_dict = self.model.forward(data)
         if self.model.is_training:
-            losses = tf.add_n(list(loss_dict.values()))
-            tf.losses.add_loss(losses)
+            for v in loss_dict.values():
+                tf.losses.add_loss(v)
 
         self.loss_dict = loss_dict
         self.sess = tf.Session()
