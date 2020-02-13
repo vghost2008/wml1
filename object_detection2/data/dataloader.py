@@ -20,8 +20,8 @@ class DataLoader(wmodule.WModule):
         data = func(path,transforms=[trans.MaskNHW2HWN(),trans.ResizeToFixedSize(),trans.MaskHWN2NHW(),trans.AddBoxLens()])
         if is_training:
             data = data.repeat()
-            data = data.shuffle(32)
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH
+            data = data.shuffle(batch_size*4)
         else:
             batch_size = 1 if batch_size is None else batch_size
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
