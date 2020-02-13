@@ -333,7 +333,8 @@ class Res5ROIHeads(ROIHeads):
                 'stride': 1
             }] * 3)
         ]
-        with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay)):
+        with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
+                                             is_training=self.is_training)):
             with tf.variable_scope("resnet_v1_101"):
                 net = resnet_utils.stack_blocks_dense(
                         net, blocks)
