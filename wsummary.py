@@ -32,6 +32,8 @@ def detection_image_summary_by_logmask(images,
     '''
     with tf.name_scope("detection_image_summary_by_logmask"):
         indices,lengths = btf.batch_mask_to_indices(logmask)
+        #boxes = tf.Print(boxes, [tf.shape(boxes), tf.shape(images), lengths, logmask, indices], name="XXXXX",
+                         #summarize=1000)
         if boxes is not None:
             boxes = btf.batch_gather(boxes,indices)
         if classes is not None:

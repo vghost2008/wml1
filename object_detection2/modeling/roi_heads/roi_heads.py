@@ -93,16 +93,17 @@ class ROIHeads(wmodule.WChildModule):
     注:Fast-RCNN原文中随机取25% IOU>0.5的目标, 75%IOU<=0.5的目标, 一个批次总共取128个目标，也就是每张图取128/batch_size个目标
     注:Detectron2中每个图像都会取512个目标，远远大于Faster-RCNN原文的数量, 比例与原文一样(25%的正样本)
     注:不使用sampling.subsample_labels是因为subsample_labels返回的数量可能小于neg_nr+pos_nr
-    labels:[X]
+    labels:[X],0表示背景,-1表示忽略，>0表示正样本
     keep_indices:[X],tf.bool
     返回:
     r_labels:[nr]
     r_indices:[nr]
     '''
     @staticmethod
-    def sample_proposals(labels, keep_indices, neg_nr, pos_nr):
+    def sample_proposals(labels, neg_nr, pos_nr):
         nr = neg_nr + pos_nr
         r_indices = tf.range(0, tf.shape(labels)[0])
+        keep_indices = tf.greater_equal(labels,0)
         labels = tf.boolean_mask(labels, keep_indices)
         r_indices = tf.boolean_mask(r_indices, keep_indices)
         total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
@@ -232,19 +233,22 @@ class ROIHeads(wmodule.WChildModule):
                 proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,limits=None)
             res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
             gt_logits_i, scores, indices = res
+            #gt_logits_i = tf.Print(gt_logits_i,[scores],name="XXXXX_matcher_scores",summarize=10000)
+            #gt_logits_i = tf.Print(gt_logits_i,[gt_logits_i],name="XXXXX_matcher_scoresgtlogitsi",summarize=10000)
 
             if do_sample:
                 pos_nr = int(self.batch_size_per_image*self.positive_sample_fraction)
                 neg_nr = self.batch_size_per_image-pos_nr
-                keep_indices = tf.greater(gt_logits_i,0)
                 batch_size = gt_logits_i.get_shape().as_list()[0]
 
                 gt_logits_i, rcn_indices = \
-                    tf.map_fn(lambda x: self.sample_proposals(x[0], x[1], neg_nr=neg_nr, pos_nr=pos_nr),
-                              elems=(gt_logits_i, keep_indices),
+                    tf.map_fn(lambda x: self.sample_proposals(x,neg_nr=neg_nr, pos_nr=pos_nr),
+                              elems=(gt_logits_i),
                               dtype=(tf.int32, tf.int32),
                               back_prop=False,
                               parallel_iterations=batch_size)
+                #gt_logits_i = tf.Print(gt_logits_i,[scores],name="XXXXX_matcher_scores",summarize=10000)
+                #gt_logits_i = tf.Print(gt_logits_i,[gt_logits_i],name="XXXXX_matcher_scores",summarize=10000)
 
                 indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
                 proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
@@ -258,7 +262,7 @@ class ROIHeads(wmodule.WChildModule):
                                                                 scores=scores,
                                                                 logmask=logmask,
                                                                 name="label_and_sample_proposals_summary")
-                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],indices)
+                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
                     wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
                                                                 boxes=pgt_boxes,
                                                                 classes=gt_logits_i,

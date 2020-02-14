@@ -150,6 +150,8 @@ def draw_detection_image_summary(images,
                 scores = scores[:len]
                 image = tf.expand_dims(image,axis=0)
                 boxes = tf.expand_dims(boxes,axis=0)
+                classes = tf.expand_dims(classes,axis=0)
+                scores = tf.expand_dims(scores,axis=0)
                 image = __draw_detection_image_summary(image,boxes,classes,scores,
                                                        category_index,
                                                        instance_masks,
