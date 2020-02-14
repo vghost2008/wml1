@@ -114,7 +114,8 @@ class RPN(wmodule.WChildModule):
         )
 
         outdata = {PD_BOXES:proposals,PD_PROBABILITY:tf.nn.sigmoid(logits)}
-        wsummary.detection_image_summary(images=inputs[IMAGE],boxes=outdata[PD_BOXES])
+        wsummary.detection_image_summary(images=inputs[IMAGE],boxes=outdata[PD_BOXES],
+                                         name="rpn/proposals")
 
         return outdata,losses
 
