@@ -92,6 +92,7 @@ class ROIHeads(wmodule.WChildModule):
     要求必须结果包含neg_nr+pos_nr个结果，如果总数小于这么大优先使用背影替代，然后使用随机替代
     注:Fast-RCNN原文中随机取25% IOU>0.5的目标, 75%IOU<=0.5的目标, 一个批次总共取128个目标，也就是每张图取128/batch_size个目标
     注:Detectron2中每个图像都会取512个目标，远远大于Faster-RCNN原文的数量, 比例与原文一样(25%的正样本)
+    注:不使用sampling.subsample_labels是因为subsample_labels返回的数量可能小于neg_nr+pos_nr
     labels:[X]
     keep_indices:[X],tf.bool
     返回:
@@ -212,43 +213,61 @@ class ROIHeads(wmodule.WChildModule):
 
                 Other fields such as "gt_classes", "gt_masks", that's included in `targets`.
         """
-        gt_boxes = inputs[GT_BOXES]
-        gt_labels = inputs[GT_LABELS]
-        gt_length = inputs[GT_LENGTH]
-        # Augment proposals with ground-truth boxes.
-        # In the case of learned proposals (e.g., RPN), when training starts
-        # the proposals will be low quality due to random initialization.
-        # It's possible that none of these initial
-        # proposals have high enough overlap with the gt objects to be used
-        # as positive examples for the second stage components (box head,
-        # cls head, mask head). Adding the gt boxes to the set of proposals
-        # ensures that the second stage components will have some positive
-        # examples from the start of training. For RPN, this augmentation improves
-        # convergence and empirically improves box AP on COCO by about 0.5
-        # points (under one tested configuration).
-        if self.proposal_append_gt:
-            proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length)
-        res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
-        gt_logits_i, scores, indices = res
+        with tf.name_scope("label_and_sample_proposals"):
+            gt_boxes = inputs[GT_BOXES]
+            gt_labels = inputs[GT_LABELS]
+            gt_length = inputs[GT_LENGTH]
+            # Augment proposals with ground-truth boxes.
+            # In the case of learned proposals (e.g., RPN), when training starts
+            # the proposals will be low quality due to random initialization.
+            # It's possible that none of these initial
+            # proposals have high enough overlap with the gt objects to be used
+            # as positive examples for the second stage components (box head,
+            # cls head, mask head). Adding the gt boxes to the set of proposals
+            # ensures that the second stage components will have some positive
+            # examples from the start of training. For RPN, this augmentation improves
+            # convergence and empirically improves box AP on COCO by about 0.5
+            # points (under one tested configuration).
+            if self.proposal_append_gt:
+                proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,limits=None)
+            res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
+            gt_logits_i, scores, indices = res
 
-        if do_sample:
-            pos_nr = int(self.batch_size_per_image*self.positive_sample_fraction)
-            neg_nr = self.batch_size_per_image-pos_nr
-            keep_indices = tf.greater(gt_logits_i,0)
-            batch_size = gt_logits_i.get_shape().as_list()[0]
+            if do_sample:
+                pos_nr = int(self.batch_size_per_image*self.positive_sample_fraction)
+                neg_nr = self.batch_size_per_image-pos_nr
+                keep_indices = tf.greater(gt_logits_i,0)
+                batch_size = gt_logits_i.get_shape().as_list()[0]
 
-            gt_logits_i, rcn_indices = \
-                tf.map_fn(lambda x: self.sample_proposals(x[0], x[1], neg_nr=neg_nr, pos_nr=pos_nr),
-                          elems=(gt_logits_i, keep_indices),
-                          dtype=(tf.int32, tf.int32),
-                          back_prop=False,
-                          parallel_iterations=batch_size)
+                gt_logits_i, rcn_indices = \
+                    tf.map_fn(lambda x: self.sample_proposals(x[0], x[1], neg_nr=neg_nr, pos_nr=pos_nr),
+                              elems=(gt_logits_i, keep_indices),
+                              dtype=(tf.int32, tf.int32),
+                              back_prop=False,
+                              parallel_iterations=batch_size)
 
-            indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
-            proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
-            scores = wmlt.batch_gather(scores, rcn_indices)
+                indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
+                proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
+                scores = wmlt.batch_gather(scores, rcn_indices)
+            if self.cfg.GLOBAL.DEBUG:
+                with tf.name_scope("label_and_sample_proposals_summary"):
+                    logmask = tf.greater(gt_logits_i,0)
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=proposals,
+                                                                classes=gt_logits_i,
+                                                                scores=scores,
+                                                                logmask=logmask,
+                                                                name="label_and_sample_proposals_summary")
+                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],indices)
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=pgt_boxes,
+                                                                classes=gt_logits_i,
+                                                                scores=scores,
+                                                                logmask=logmask,
+                                                                name="label_and_sample_proposals_summary_by_gtboxes")
 
-        res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
+
+            res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
 
         return res
 

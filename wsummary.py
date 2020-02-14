@@ -6,6 +6,46 @@ import image_visualization as imv
 
 isSingleValueTensor = btf.isSingleValueTensor
 
+def detection_image_summary_by_logmask(images,
+                            boxes,
+                            classes=None,
+                            scores=None,
+                            category_index=None,
+                            instance_masks=None,
+                            keypoints=None,
+                            logmask=None,
+                            **kwargs):
+    '''
+    :param images:
+    :param boxes:
+    :param classes:
+    :param scores:
+    :param category_index:
+    :param instance_masks:
+    :param keypoints:
+    :param logmask: to indict weather need log
+    :param max_boxes_to_draw:
+    :param min_score_thresh:
+    :param name:
+    :param max_outputs:
+    :return:
+    '''
+    with tf.name_scope("detection_image_summary_by_logmask"):
+        indices,lengths = btf.batch_mask_to_indices(logmask)
+        if boxes is not None:
+            boxes = btf.batch_gather(boxes,indices)
+        if classes is not None:
+            classes = btf.batch_gather(classes,indices)
+        if scores is not None:
+            scores = btf.batch_gather(scores,indices)
+        if keypoints is not None:
+            keypoints = btf.batch_gather(keypoints,indices)
+        if instance_masks is not None:
+            instance_masks = btf.batch_gather(instance_masks,indices)
+        return detection_image_summary(images,boxes,classes,scores,category_index,instance_masks,keypoints,
+                                       lengths,**kwargs)
+
+
 def detection_image_summary(images,
                            boxes,
                            classes=None,

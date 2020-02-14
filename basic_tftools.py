@@ -103,3 +103,46 @@ def combined_static_and_dynamic_shape(tensor):
     else:
       combined_shape.append(dynamic_tensor_shape[index])
   return combined_shape
+
+
+'''
+mask:[N]
+output:
+indices:[X]
+example:
+input:[True,True,False,False,False,True]
+output:[0,1,5]
+'''
+def mask_to_indices(mask):
+    indices = tf.range(tf.reshape(tf.shape(mask),()),dtype=tf.int32)
+    return tf.boolean_mask(indices,mask)
+
+'''
+mask:[B,N]
+output:
+indices:[B,N]
+lengths:[B]
+'''
+def batch_mask_to_indices(mask):
+    with tf.name_scope("batch_mask_to_indices"):
+        batch_size,N = combined_static_and_dynamic_shape(mask)
+        def fn(mask):
+            indices = mask_to_indices(mask)
+            len = tf.shape(indices)[0]
+            indices = tf.pad(indices,paddings=[[0,N-len]])
+            return indices,len
+        indices,lens = tf.map_fn(fn,elems=mask,dtype=(tf.int32,tf.int32),back_prop=False)
+
+    return indices,lens
+
+'''
+params:[batch_size,X,...]
+indices:[batch_size,...]
+如果indices:[batch_size]那么返回[batch_size,...]
+'''
+def batch_gather(params,indices,name=None):
+    if indices.get_shape().ndims <= 2:
+        with tf.name_scope(name=name,default_name="batch_gather"):
+            return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
+    else:
+        return tf.batch_gather(params,indices,name)

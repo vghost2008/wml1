@@ -69,7 +69,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         self._log_accuracy()
         classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
                                                loss_collection=None,
-                                               reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
+                                               reduction=tf.losses.Reduction.MEAN)
         wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
         return classes_loss
 

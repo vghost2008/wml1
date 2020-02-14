@@ -33,6 +33,7 @@ _draw_text_on_image = wsummary._draw_text_on_image
 image_summaries_with_label = wsummary.image_summaries_with_label
 row_image_summaries = wsummary.row_image_summaries
 combined_static_and_dynamic_shape = btf.combined_static_and_dynamic_shape
+batch_gather = btf.batch_gather
 
 
 def add_to_hash_table_collection(value):
@@ -701,17 +702,6 @@ def merge_mask(mask0,mask1):
     res = tf.sparse_to_dense(sparse_indices=indices,output_shape=tf.shape(mask0),sparse_values=True,default_value=False)
     return res
 
-'''
-params:[batch_size,X,...]
-indices:[batch_size,...]
-如果indices:[batch_size]那么返回[batch_size,...]
-'''
-def batch_gather(params,indices,name=None):
-    if indices.get_shape().ndims <= 2:
-        with tf.name_scope(name=name,default_name="batch_gather"):
-            return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
-    else:
-        return tf.batch_gather(params,indices,name)
 
 def assert_equal(v,values,name=None):
     assert_ops = []
@@ -755,17 +745,7 @@ def batch_tf_crop_and_resize(image,bboxes,size):
     shape = btf.combined_static_and_dynamic_shape(images)
     images = reshape(images,[batch_size,box_nr]+shape[1:])
     return images
-'''
-mask:[N]
-output:
-indices:[X]
-example:
-input:[True,True,False,False,False,True]
-output:[0,1,5]
-'''
-def mask_to_indices(mask):
-    indices = tf.range(tf.reshape(tf.shape(mask),()),dtype=tf.int32)
-    return tf.boolean_mask(indices,mask)
+mask_to_indices = btf.mask_to_indices
 
 def indices_to_mask(indices,size):
     mask = tf.cast(indices_to_dense_vector(indices,size,1,default_value=0,dtype=tf.int32),tf.bool)
