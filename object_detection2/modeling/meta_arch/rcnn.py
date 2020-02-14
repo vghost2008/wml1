@@ -8,6 +8,7 @@ import wsummary
 from object_detection2.standard_names import *
 import numpy as np
 import tensorflow as tf
+from .meta_arch import MetaArch
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(wmodule.WModule):
@@ -191,7 +192,7 @@ class GeneralizedRCNN(wmodule.WModule):
                img_size=image.shape[1:3])
 
 @META_ARCH_REGISTRY.register()
-class ProposalNetwork(wmodule.WModule):
+class ProposalNetwork(MetaArch):
     def __init__(self, cfg,parent=None,*args,**kwargs):
         del parent
         super().__init__(cfg,*args,**kwargs)
@@ -209,6 +210,7 @@ class ProposalNetwork(wmodule.WModule):
                 The dict contains one key "proposals" whose value is a
                 :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
         """
+        inputs = self.preprocess_image(inputs)
         features = self.backbone(inputs)
         outdata,proposal_losses = self.proposal_generator(inputs, features)
         wsummary.detection_image_summary(images=inputs['image'],boxes=outdata[PD_BOXES],name="proposal_boxes")
