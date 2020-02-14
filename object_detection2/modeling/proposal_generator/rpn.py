@@ -104,6 +104,8 @@ class RPN(wmodule.WChildModule):
             gt_boxes,
             gt_length=gt_length
         )
+        if self.cfg.GLOBAL.DEBUG:
+            outputs.inputs = inputs
 
         if self.is_training:
             losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
