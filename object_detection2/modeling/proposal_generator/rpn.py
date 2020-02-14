@@ -36,7 +36,7 @@ class StandardRPNHead(wmodule.WChildModule):
 
         for x in features:
             channel = x.get_shape()[-1]
-            t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
+            '''t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
                           activation_fn=tf.nn.relu,
                           padding="SAME")
             t0 = slim.conv2d(t,self.num_cell_anchors,[1,1],activation_fn=None,
@@ -44,7 +44,17 @@ class StandardRPNHead(wmodule.WChildModule):
             t1 = slim.conv2d(t,self.num_cell_anchors*self.box_dim,[1,1],activation_fn=None,
                              normalizer_fn=None)
             pred_objectness_logits.append(t0)
-            pred_anchor_deltas.append(t1)
+            pred_anchor_deltas.append(t1)'''
+            with tf.variable_scope("RPN",reuse=tf.AUTO_REUSE):
+                t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
+                                activation_fn=tf.nn.relu,
+                                padding="SAME")
+                t0 = slim.conv2d(t,self.num_cell_anchors,[1,1],activation_fn=None,
+                                 normalizer_fn=None,scope="objectness_logits")
+                t1 = slim.conv2d(t,self.num_cell_anchors*self.box_dim,[1,1],activation_fn=None,
+                                 normalizer_fn=None,scope="anchor_deltas")
+                pred_objectness_logits.append(t0)
+                pred_anchor_deltas.append(t1)
 
         return pred_objectness_logits,pred_anchor_deltas
 

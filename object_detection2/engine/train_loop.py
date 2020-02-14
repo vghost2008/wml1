@@ -227,14 +227,15 @@ class SimpleTrainer(TrainerBase):
         self.variables_to_train = None
         self.summary = None
         self.summary_writer = None
-        self.name = "Trainer"
         self.saver = None
         self.res_data = None
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
         if model.is_training:
             self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
+            self.name = "Trainer"
         else:
             self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_eval_log")
+            self.name = "Evaler"
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
