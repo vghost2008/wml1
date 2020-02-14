@@ -33,10 +33,10 @@ def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, can
             `self.min_level + i`).
     """
     eps = 1e-6
-    box_sizes = tf.math.sqrt(odbox.box_area(bboxes))
+    box_sizes = tf.sqrt(odbox.box_area(bboxes))
     # Eqn.(1) in FPN paper
     level_assignments = tf.floor(
-        canonical_level + tf.math.log(box_sizes / canonical_box_size + eps)/math.log(2)
+        canonical_level + tf.log(box_sizes / canonical_box_size + eps)/math.log(2)
     )
     # clamp level to (min, max), in case the box size is too large or too small
     # for the available feature maps
