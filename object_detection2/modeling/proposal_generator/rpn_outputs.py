@@ -176,8 +176,8 @@ class RPNOutputs(object):
 
             if global_cfg.GLOBAL.DEBUG:
                 with tf.name_scope("rpn_sampled_box"):
-                    log_anchors = self.anchors*tf.ones([batch_size,4])
-                    logmask = tf.rehape(pos_idx,[batch_size,-1])
+                    log_anchors = self.anchors*tf.ones([batch_size,1,1])
+                    logmask = tf.reshape(pos_idx,[batch_size,-1])
                     wsummary.detection_image_summary_by_logmask(images=self.inputs[IMAGE],boxes=log_anchors,
                                                                 logmask=logmask)
 
