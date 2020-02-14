@@ -21,14 +21,14 @@ def ssd_losses(
     localization_loss = tf.losses.huber_loss(
         pred_anchor_deltas,
         gt_anchor_deltas,
-        reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+        reduction=tf.losses.Reduction.SUM,
         loss_collection=None
     )
 
     objectness_loss = tf.losses.sparse_softmax_cross_entropy(
         logits=pred_logits,
         labels=gt_logits,
-        reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+        reduction=tf.losses.Reduction.SUM,
         loss_collection=None
     )
     return objectness_loss, localization_loss

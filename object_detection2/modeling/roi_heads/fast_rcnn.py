@@ -106,7 +106,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             loss_box_reg = tf.losses.huber_loss(
                 predictions=pred_proposal_deltas, labels=gt_proposal_deltas,
                 loss_collection=None,
-                reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+                reduction=tf.losses.Reduction.SUM,
             )
             num_samples = wmlt.num_elements(self.gt_classes)
             # The loss is normalized using the total number of regions (R), not the number

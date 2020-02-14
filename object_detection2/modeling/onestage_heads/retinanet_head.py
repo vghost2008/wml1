@@ -128,7 +128,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
             pred_anchor_deltas,
             gt_anchors_deltas,
             loss_collection=None,
-            reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+            reduction=tf.losses.Reduction.SUM,
         ) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
 
         return {"loss_cls": loss_cls, "loss_box_reg": loss_box_reg}

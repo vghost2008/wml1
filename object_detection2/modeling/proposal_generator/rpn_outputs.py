@@ -74,14 +74,14 @@ def rpn_losses(
     localization_loss = tf.losses.huber_loss(
         pred_anchor_deltas,
         gt_anchor_deltas,
-        reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+        reduction=tf.losses.Reduction.SUM,
         loss_collection=None
     )
 
     objectness_loss = tf.losses.sigmoid_cross_entropy(
         logits=tf.expand_dims(pred_objectness_logits,1),
         multi_class_labels=tf.cast(tf.expand_dims(gt_objectness_logits,axis=1),tf.float32),
-        reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS,
+        reduction=tf.losses.Reduction.SUM,
         loss_collection=None
     )
     return objectness_loss, localization_loss
