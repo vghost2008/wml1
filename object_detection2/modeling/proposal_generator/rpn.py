@@ -45,7 +45,7 @@ class StandardRPNHead(wmodule.WChildModule):
                              normalizer_fn=None)
             pred_objectness_logits.append(t0)
             pred_anchor_deltas.append(t1)'''
-            with tf.variable_scope("RPN",reuse=tf.AUTO_REUSE):
+            with tf.variable_scope("StandardRPNHead",reuse=tf.AUTO_REUSE):
                 t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
                                 activation_fn=tf.nn.relu,
                                 padding="SAME")

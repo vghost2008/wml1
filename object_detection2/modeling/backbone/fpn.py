@@ -83,7 +83,7 @@ class FPN(Backbone):
         use_depthwise = self.use_depthwise
         depth = self.out_channels
 
-        with tf.name_scope(self.scope, 'top_down'):
+        with tf.variable_scope(self.scope, 'top_down'):
             num_levels = len(image_features)
             output_feature_maps_list = []
             output_feature_map_keys = []
