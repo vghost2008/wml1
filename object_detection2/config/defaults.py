@@ -271,8 +271,8 @@ _C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_BOX_HEAD.POOLER_TYPE = "ROIAlign"
-_C.MODEL.ROI_BOX_HEAD.canonical_box_size = 224
-_C.MODEL.ROI_BOX_HEAD.canonical_level = 0
+_C.MODEL.ROI_BOX_HEAD.canonical_box_size = 0.45
+_C.MODEL.ROI_BOX_HEAD.canonical_level = 2
 
 _C.MODEL.ROI_BOX_HEAD.NUM_FC = 0
 # Hidden layer dimension for FC layers in the RoI box head

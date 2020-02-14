@@ -480,7 +480,7 @@ class StandardROIHeads(ROIHeads):
         self.rcnn_outboxes = None
 
     def _init_box_head(self, cfg,*args,**kwargs):
-        # fmt: off
+
         pooler_resolution        = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         pooler_type              = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
         bin_size = cfg.MODEL.ROI_BOX_HEAD.bin_size
@@ -488,7 +488,6 @@ class StandardROIHeads(ROIHeads):
         是否将RCNN预测的结果放mask/keypoint 在分支输入的proposal box中，Detectron2所有的默认设置及配置文件中这一项都是False
         '''
         self.train_on_pred_boxes = cfg.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES
-        # fmt: on
 
         # If StandardROIHeads is applied on multiple feature maps (as in FPN),
         # then we share the same predictors and therefore the channel counts must be the same
@@ -577,7 +576,8 @@ class StandardROIHeads(ROIHeads):
             pred_instances,_ = self._forward_box(features_list, proposals)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
+            mk_pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
+            pred_instances.update(mk_pred_instances)
             return pred_instances, {}
 
     def forward_with_given_boxes(self, inputs,features, instances):
@@ -598,7 +598,7 @@ class StandardROIHeads(ROIHeads):
                 the same `Instances` object, with extra
                 fields such as `pred_masks` or `pred_keypoints`.
         """
-        assert not self.training
+        assert not self.is_training
         features = [features[f] for f in self.in_features]
 
         instances = self._forward_mask(inputs,features, instances)
@@ -621,7 +621,10 @@ class StandardROIHeads(ROIHeads):
             In training, a dict of losses.
             In inference, a list of `Instances`, the predicted instances.
         """
-        proposal_boxes = proposals.boxes
+        if self.is_training:
+            proposal_boxes = proposals.boxes #when training proposals's EncodedData
+        else:
+            proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
         box_features = self.box_pooler(features, proposal_boxes)
         box_features = self.box_head(box_features)
         pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)

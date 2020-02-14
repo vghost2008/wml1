@@ -175,7 +175,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
     '''
     this version of get_prediction have no batch dim.
 
-    class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率
+    class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率, 不能使用logits
+    因为涉及到使用阀值过滤
     shape为[X,num_classes]
 
     bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
@@ -303,13 +304,14 @@ class FastRCNNOutputs(wmodule.WChildModule):
             pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
             classes_wise = (L != box_dim)
 
+            probability = tf.nn.softmax(pred_class_logits)
             boxes, labels, probability, res_indices, lens = tf.map_fn(
                 lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
                                                 score_thresh,
                                                 classes_wise=classes_wise,
                                                 topk_per_image=topk_per_image,
                                                 nms=nms),
-                elems=(pred_class_logits, pred_proposal_deltas, proposal_boxes),
+                elems=(probability, pred_proposal_deltas, proposal_boxes),
                 dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
             )
 

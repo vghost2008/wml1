@@ -3,8 +3,9 @@ import math
 import sys
 import wmodule
 import object_detection2.bboxes as odbox
-
+from object_detection2.config.config import global_cfg
 from object_detection2.wlayers import *
+import wsummary
 
 __all__ = ["ROIPooler"]
 
@@ -106,7 +107,7 @@ class ROIPooler(wmodule.WChildModule):
     def forward(self, x, bboxes):
         """
         Args:
-            x (list[Tensor]): tensorshape is [batch_size,H,W,C]
+            x (list[Tensor]): tensorshape is [batch_size,H,W,C] resolution from high to low
             bboxes:[batch_size,box_nr,4]
 
         Returns:
@@ -130,6 +131,10 @@ class ROIPooler(wmodule.WChildModule):
 
             features = tf.stack(features,axis=1)
             level_assignments = tf.reshape(level_assignments,[-1])
+
+            if global_cfg.GLOBAL.DEBUG:
+                wsummary.histogram_or_scalar(level_assignments,"level_assignments")
+
             output = wmlt.batch_gather(features,level_assignments)
 
 
