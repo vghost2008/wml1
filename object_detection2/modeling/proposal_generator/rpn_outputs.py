@@ -203,7 +203,7 @@ class RPNOutputs(object):
             proposals (list[Tensor]): A list of L tensors. Tensor i has shape
                 (N, Hi*Wi*A, B), where B is box dimension (4 or 5).
         """
-        with tf.name_scope("Predict_proposals"):
+        with tf.name_scope("predict_proposals"):
             batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
             num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
             box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors

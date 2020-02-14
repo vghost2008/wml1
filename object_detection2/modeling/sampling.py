@@ -1,14 +1,16 @@
 #coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
+from object_detection2.config.config import global_cfg
 
 def subsample_labels(labels, num_samples, positive_fraction):
     '''
     大于0为正样本，等于零为背景，小于0为忽略
-    :param labels:
+    :param labels:[...]
     :param num_samples:
     :param positive_fraction:
     :return:
+    [N],[N] (N=num_elements(labels)
     '''
 
     with tf.variable_scope("subsample_labels"):
@@ -22,6 +24,9 @@ def subsample_labels(labels, num_samples, positive_fraction):
         psize = tf.reduce_sum(tf.cast(select_pmask, tf.int32))
         nsize = num_samples-psize
         select_nmask = wmlt.subsample_indicator(nmask,nsize)
+        if global_cfg.GLOBAL.DEBUG:
+            tf.summary.scalar("psize",psize)
+            tf.summary.scalar("nsize",nsize)
 
         return select_pmask,select_nmask
 
@@ -34,6 +39,7 @@ def subsample_labels_by_negative_loss(labels, num_samples, probability,num_class
     :param num_samples:
     :param positive_fraction:
     :return:
+    [N],[N] (N=num_elements(labels)
     '''
 
     with tf.variable_scope("subsample_labels_negative_loss"):
@@ -53,6 +59,10 @@ def subsample_labels_by_negative_loss(labels, num_samples, probability,num_class
         nclass_prediction = tf.where(nmask, probability[:, 0], 1.0 - fnmask)
         # 取预测的最不好的nsize个负样本
         selected_nmask = tf.logical_and(nmask, wmlt.bottom_k_mask(nclass_prediction, k=nsize))
+
+        if global_cfg.GLOBAL.DEBUG:
+            tf.summary.scalar("psize",psize)
+            tf.summary.scalar("nsize",nsize)
 
         return selected_pmask,selected_nmask
 
