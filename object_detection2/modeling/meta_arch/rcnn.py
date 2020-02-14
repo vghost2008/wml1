@@ -181,7 +181,7 @@ class GeneralizedRCNN(wmodule.WModule):
         assert datas[GT_BOXES].shape[0]==1,"Error batch size"
         image = datas[IMAGE]
         gt_boxes = datas[GT_BOXES][0]
-        gt_labels = np.ones_like(datas[GT_LABELS][0],dtype=np.int32)
+        gt_labels = datas[GT_LABELS][0]
         len = datas[RD_LENGTH][0]
         boxes = datas[RD_BOXES][0][:len]
         probability = datas[PD_PROBABILITY][0][:len]

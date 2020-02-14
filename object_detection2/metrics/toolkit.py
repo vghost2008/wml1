@@ -304,6 +304,7 @@ class COCOEvaluation(object):
     '''
     gtboxes:[N,4]
     gtlabels:[N]
+    img_size:[H,W]
     '''
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],is_crowd=None):
         if probability is None:

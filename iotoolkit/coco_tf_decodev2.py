@@ -70,6 +70,8 @@ def __parse_func(example_proto):
         GT_MASKS:masks,
         HEIGHT:'image/height',
         WIDTH:'image/width',
+        ORG_HEIGHT:'image/height',
+        ORG_WIDTH:'image/width',
         GT_BOXES:boxes,
         GT_LABELS:'image/object/class/label',
         IS_CROWD:'image/object/is_crowd',
