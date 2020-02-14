@@ -270,6 +270,7 @@ class SimpleTrainer(TrainerBase):
 
         if self.model.is_training:
             steps = self.cfg.SOLVER.STEPS
+            print("Train steps:",steps)
             lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
                                      lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
             self.max_train_step = steps[-1]

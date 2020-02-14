@@ -382,10 +382,13 @@ class Res5ROIHeads(ROIHeads):
         if self.is_training:
             del features
             losses = outputs.losses()
-            pred_instances = outputs.inference(
-                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
-                proposal_boxes=proposals.boxes
-            )
+            if self.cfg.GLOBAL.DEBUG:
+                pred_instances = outputs.inference(
+                    self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
+                    proposal_boxes=proposals.boxes
+                )
+            else:
+                pred_instances = {}
             if self.mask_on:
                 fg_selection_mask = select_foreground_proposals(proposals)
                 # Since the ROI feature transform is shared between boxes and masks,
@@ -530,14 +533,14 @@ class StandardROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
-        proposals_boxes = proposals.boxes
+        proposals_boxes = proposals[PD_BOXES]
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
 
         features_list = [features[f] for f in self.in_features]
 
         if self.is_training:
-            losses = self._forward_box(features_list, proposals)
+            pred_instances,losses = self._forward_box(features_list, proposals)
             # Usually the original proposals used by the box head are used by the mask, keypoint
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
             # predicted by the box head.
@@ -545,10 +548,10 @@ class StandardROIHeads(ROIHeads):
                 #proposals里面的box已经是采样的结果,无需再进行采样操作
                 proposals = self.label_and_sample_proposals(inputs,proposals.boxes,do_sample=False)
             losses.update(self._forward_mask(inputs,features_list, proposals))
-            losses.update(self._forward_keypoint(features_list, proposals))
-            return proposals, losses
+            losses.update(self._forward_keypoint(inputs,features_list, proposals))
+            return pred_instances, losses
         else:
-            pred_instances = self._forward_box(features_list, proposals)
+            pred_instances,_ = self._forward_box(features_list, proposals)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
             pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
@@ -612,12 +615,19 @@ class StandardROIHeads(ROIHeads):
             if self.train_on_pred_boxes:
                 pred_boxes = outputs.predict_boxes_for_gt_classes()
                 self.rcnn_outboxes = pred_boxes
-            return outputs.losses()
+            if self.cfg.GLOBAL.DEBUG:
+                pred_instances = outputs.inference(
+                    self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
+                    proposal_boxes=proposals.boxes
+                )
+            else:
+                pred_instances = {}
+            return pred_instances,outputs.losses()
         else:
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )
-            return pred_instances
+            return pred_instances,{}
 
     def _forward_mask(self, inputs,features, instances):
         """
@@ -634,7 +644,7 @@ class StandardROIHeads(ROIHeads):
             In inference, update `instances` with new fields "pred_masks" and return it.
         """
         if not self.mask_on:
-            return {} if self.training else instances
+            return {} if self.is_training else instances
 
         if self.is_training:
             #when training, instance is EncodedData

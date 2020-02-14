@@ -121,8 +121,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
             # means that the single example in minibatch (1) and each of the 100 examples
             # in minibatch (2) are given equal influence.
             loss_box_reg = loss_box_reg /num_samples
-            wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
-            return loss_box_reg
+
+        wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
+
+        return loss_box_reg
 
     def losses(self):
         """
@@ -201,72 +203,73 @@ class FastRCNNOutputs(wmodule.WChildModule):
     len: the available boxes number
     '''
 
-    def __get_prediction(self,class_prediction,
+    def prediction_on_single_image(self,class_prediction,
                            bboxes_regs,
                            proposal_bboxes,
                            threshold=0.5,
                            classes_wise=False,
                            topk_per_image=-1,
                            nms=None):
-        # 删除背景
-        class_prediction = class_prediction[:, 1:]
-        num_classes = class_prediction.get_shape().as_list()[-1]
-        probability, nb_labels = tf.nn.top_k(class_prediction, k=1)
-        # 背景的类别为0，前面已经删除了背景，需要重新加上
-        labels = nb_labels + 1
-        ndims = class_prediction.get_shape().ndims
-        probability = tf.squeeze(probability, axis=ndims - 1)
-        labels = tf.squeeze(labels, axis=ndims - 1)
-        res_indices = tf.range(tf.shape(labels)[0])
+        with tf.name_scope("prediction_on_single_image"):
+            # 删除背景
+            class_prediction = class_prediction[:, 1:]
+            num_classes = class_prediction.get_shape().as_list()[-1]
+            probability, nb_labels = tf.nn.top_k(class_prediction, k=1)
+            # 背景的类别为0，前面已经删除了背景，需要重新加上
+            labels = nb_labels + 1
+            ndims = class_prediction.get_shape().ndims
+            probability = tf.squeeze(probability, axis=ndims - 1)
+            labels = tf.squeeze(labels, axis=ndims - 1)
+            res_indices = tf.range(tf.shape(labels)[0])
 
-        # 按类别在bboxes_regs选择相应类的回归参数
-        if classes_wise:
-            nb_labels = tf.reshape(nb_labels, [-1])
-            box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(proposal_bboxes)
-            bboxes_regs = tf.reshape(bboxes_regs,[box_nr,num_classes,box_dim])
-            bboxes_regs = wmlt.select_2thdata_by_index(bboxes_regs, nb_labels)
-        del nb_labels
-        proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
-        '''
-        NMS前数据必须已经排好序
-        通过top_k+gather排序
-        '''
-        probability, indices = tf.nn.top_k(probability, k=tf.shape(probability)[0])
-        labels = wmlt.gather_in_axis(labels, indices, axis=0)
-        bboxes_regs = wmlt.gather_in_axis(bboxes_regs, indices, axis=0)
-        proposal_bboxes = wmlt.gather_in_axis(proposal_bboxes, indices, axis=0)
-        res_indices = wmlt.gather_in_axis(res_indices, indices, axis=0)
+            # 按类别在bboxes_regs选择相应类的回归参数
+            if classes_wise:
+                nb_labels = tf.reshape(nb_labels, [-1])
+                box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(proposal_bboxes)
+                bboxes_regs = tf.reshape(bboxes_regs,[box_nr,num_classes,box_dim])
+                bboxes_regs = wmlt.select_2thdata_by_index(bboxes_regs, nb_labels)
+            del nb_labels
+            proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
+            '''
+            NMS前数据必须已经排好序
+            通过top_k+gather排序
+            '''
+            probability, indices = tf.nn.top_k(probability, k=tf.shape(probability)[0])
+            labels = wmlt.gather_in_axis(labels, indices, axis=0)
+            bboxes_regs = wmlt.gather_in_axis(bboxes_regs, indices, axis=0)
+            proposal_bboxes = wmlt.gather_in_axis(proposal_bboxes, indices, axis=0)
+            res_indices = wmlt.gather_in_axis(res_indices, indices, axis=0)
 
-        pmask = tf.greater(probability, threshold)
-        probability = tf.boolean_mask(probability, pmask)
-        labels = tf.boolean_mask(labels, pmask)
-        proposal_bboxes = tf.boolean_mask(proposal_bboxes, pmask)
-        boxes_regs = tf.boolean_mask(bboxes_regs, pmask)
-        res_indices = tf.boolean_mask(res_indices, pmask)
+            pmask = tf.greater(probability, threshold)
+            probability = tf.boolean_mask(probability, pmask)
+            labels = tf.boolean_mask(labels, pmask)
+            proposal_bboxes = tf.boolean_mask(proposal_bboxes, pmask)
+            boxes_regs = tf.boolean_mask(bboxes_regs, pmask)
+            res_indices = tf.boolean_mask(res_indices, pmask)
 
-        boxes = self.box2box_transform.apply_deltas(deltas=boxes_regs,boxes=proposal_bboxes)
+            boxes = self.box2box_transform.apply_deltas(deltas=boxes_regs,boxes=proposal_bboxes)
 
-        candiate_nr = tf.shape(probability)[0] if topk_per_image<0 else topk_per_image#最多可返回candiate_nr个box
+            candiate_nr = tf.shape(probability)[0] if topk_per_image<0 else topk_per_image#最多可返回candiate_nr个box
 
-        boxes, labels, indices = nms(boxes, labels, confidence=probability)
-        probability = tf.gather(probability, indices)
-        res_indices = tf.gather(res_indices, indices)
+            boxes, labels, indices = nms(boxes, labels, confidence=probability)
+            probability = tf.gather(probability, indices)
+            res_indices = tf.gather(res_indices, indices)
 
-        probability = probability[:topk_per_image]
-        boxes = boxes[:topk_per_image]
-        labels = labels[:topk_per_image]
-        probability = probability[:topk_per_image]
-        res_indices = res_indices[:topk_per_image]
-        len = tf.shape(probability)[0]
-        boxes = tf.pad(boxes, paddings=[[0, candiate_nr - len], [0, 0]])
-        labels = tf.pad(labels, paddings=[[0, candiate_nr - len]])
-        probability = tf.pad(probability, paddings=[[0, candiate_nr - len]])
-        res_indices = tf.pad(res_indices, paddings=[[0, candiate_nr - len]])
-        boxes = tf.reshape(boxes, [candiate_nr, 4])
-        labels = tf.reshape(labels, [candiate_nr])
-        probability = tf.reshape(probability, [candiate_nr])
-        res_indices = tf.reshape(res_indices, [candiate_nr])
-        return boxes, labels, probability, res_indices, len
+            probability = probability[:topk_per_image]
+            boxes = boxes[:topk_per_image]
+            labels = labels[:topk_per_image]
+            probability = probability[:topk_per_image]
+            res_indices = res_indices[:topk_per_image]
+            len = tf.shape(probability)[0]
+            boxes = tf.pad(boxes, paddings=[[0, candiate_nr - len], [0, 0]])
+            labels = tf.pad(labels, paddings=[[0, candiate_nr - len]])
+            probability = tf.pad(probability, paddings=[[0, candiate_nr - len]])
+            res_indices = tf.pad(res_indices, paddings=[[0, candiate_nr - len]])
+            boxes = tf.reshape(boxes, [candiate_nr, 4])
+            labels = tf.reshape(labels, [candiate_nr])
+            probability = tf.reshape(probability, [candiate_nr])
+            res_indices = tf.reshape(res_indices, [candiate_nr])
+            return boxes, labels, probability, res_indices, len
 
     def predict_probs(self):
         """
@@ -288,26 +291,27 @@ class FastRCNNOutputs(wmodule.WChildModule):
             list[Instances]: same as fast_rcnn_inference.
             list[Tensor]: same as fast_rcnn_inference.
         """
-        nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
+        with tf.name_scope("fast_rcnn_outputs_inference"):
+            nms = functools.partial(wop.boxes_nms, threshold=nms_thresh, classes_wise=True)
 
-        if proposal_boxes is None:
-            proposal_boxes = self.proposals[PD_BOXES]
-        batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
-        total_box_nr,K = wmlt.combined_static_and_dynamic_shape(self.pred_class_logits)
-        _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)
-        pred_class_logits = tf.reshape(self.pred_class_logits,[batch_size,-1,K])
-        pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
-        classes_wise = (L != box_dim)
+            if proposal_boxes is None:
+                proposal_boxes = self.proposals[PD_BOXES]
+            batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
+            total_box_nr,K = wmlt.combined_static_and_dynamic_shape(self.pred_class_logits)
+            _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)
+            pred_class_logits = tf.reshape(self.pred_class_logits,[batch_size,-1,K])
+            pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
+            classes_wise = (L != box_dim)
 
-        boxes, labels, probability, res_indices, lens = tf.map_fn(
-            lambda x: self.__get_prediction(x[0], x[1], x[2],
-                                            score_thresh,
-                                            classes_wise=classes_wise,
-                                            topk_per_image=topk_per_image,
-                                            nms=nms),
-            elems=(pred_class_logits, pred_proposal_deltas, proposal_boxes),
-            dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-        )
+            boxes, labels, probability, res_indices, lens = tf.map_fn(
+                lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
+                                                score_thresh,
+                                                classes_wise=classes_wise,
+                                                topk_per_image=topk_per_image,
+                                                nms=nms),
+                elems=(pred_class_logits, pred_proposal_deltas, proposal_boxes),
+                dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+            )
 
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
 
