@@ -1,11 +1,13 @@
 import tensorflow as tf
 import wml_tfutils as wmlt
 import wtfop.wtfop_ops as wop
+from object_detection2.config.config import global_cfg
 import itertools
 import logging
 import numpy as np
 from ..sampling import subsample_labels
 import wsummary
+from object_detection2.standard_names import *
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +165,7 @@ class RPNOutputs(object):
                                                 self.batch_size_per_image, self.positive_fraction)
 
             batch_size = self.pred_objectness_logits[0].get_shape().as_list()[0]
-            num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1]
+            num_cell_anchors = self.pred_objectness_logits[0].get_shape().as_list()[-1] #RPN num classes==1
             box_dim = self.pred_anchor_deltas[0].get_shape().as_list()[-1]//num_cell_anchors
             pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
             pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
@@ -171,6 +173,13 @@ class RPNOutputs(object):
             pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
             pred_objectness_logits = tf.reshape(pred_objectness_logits,[-1])
             pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
+
+            if global_cfg.GLOBAL.DEBUG:
+                with tf.name_scope("rpn_sampled_box"):
+                    log_anchors = self.anchors*tf.ones([batch_size,4])
+                    logmask = tf.rehape(pos_idx,[batch_size,-1])
+                    wsummary.detection_image_summary_by_logmask(images=self.inputs[IMAGE],boxes=log_anchors,
+                                                                logmask=logmask)
 
             valid_mask = tf.logical_or(pos_idx,neg_idx)
             gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])

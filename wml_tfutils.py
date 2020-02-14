@@ -785,18 +785,21 @@ return:
 [x]:tf.bool
 '''
 def subsample_indicator(indicator, num_samples):
-    indices = tf.where(indicator)
-    indices = tf.random_shuffle(indices)
-    indices = tf.reshape(indices, [-1])
-    if isinstance(num_samples,tf.Tensor) and num_samples.dtype != tf.int32:
-        num_samples = tf.cast(num_samples,tf.int32)
-    num_samples = tf.minimum(tf.size(indices), num_samples)
-    selected_indices = tf.slice(indices, [0], tf.reshape(num_samples, [1]))
+    with tf.name_scope("sample_indicator"):
+        indicator_shape = btf.combined_static_and_dynamic_shape(indicator)
+        indices = tf.where(indicator)
+        indices = tf.random_shuffle(indices)
+        indices = tf.reshape(indices, [-1])
+        if isinstance(num_samples,tf.Tensor) and num_samples.dtype != tf.int32:
+            num_samples = tf.cast(num_samples,tf.int32)
+        num_samples = tf.minimum(tf.size(indices), num_samples)
+        selected_indices = tf.slice(indices, [0], tf.reshape(num_samples, [1]))
 
-    selected_indicator = indices_to_dense_vector(selected_indices,
-                                                     tf.shape(indicator)[0])
+        selected_indicator = indices_to_dense_vector(selected_indices,
+                                                         indicator_shape[0])
+        selected_indicator = tf.reshape(selected_indicator,indicator_shape)
 
-    return tf.equal(selected_indicator, 1)
+        return tf.equal(selected_indicator, 1)
 
 def nearest_neighbor_upsampling(input_tensor, scale=None, height_scale=None,
                                 width_scale=None,scope=None):
