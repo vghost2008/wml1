@@ -4,17 +4,17 @@ MODEL:
     #NAME: "build_shufflenetv2_fpn_backbone"
     NAME: "build_shufflenetv2_backbone"
   RPN:
-    PRE_NMS_TOPK_TEST: 1000
+    PRE_NMS_TOPK_TEST: 3000
     POST_NMS_TOPK_TEST: 500
-    PRE_NMS_TOPK_TRAIN: 1000  # Per FPN level
+    PRE_NMS_TOPK_TRAIN: 3000  # Per FPN level
     POST_NMS_TOPK_TRAIN: 500
-    IN_FEATURES: ["C4"]
+    IN_FEATURES: ["C3"]
   ANCHOR_GENERATOR:
     SIZES: [[50, 100, 200]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   ROI_HEADS:
     NAME: "Res5ROIHeads"
-    IN_FEATURES: ["C4"]
+    IN_FEATURES: ["C3"]
     BATCH_SIZE_PER_IMAGE: 64
   ROI_BOX_HEAD:
     POOLER_RESOLUTION: 7

@@ -211,6 +211,10 @@ class SimpleTrainer(TrainerBase):
             optimizer: a torch optimizer.
         """
         super().__init__(cfg=cfg)
+        logging.basicConfig(level=logging.INFO,
+                            format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',
+        datefmt = "%H:%M:%S")
+
         self.model = model
         self.data = data
         self.loss_dict = None
@@ -240,6 +244,7 @@ class SimpleTrainer(TrainerBase):
 
         self.res_data_for_eval = self.res_data
         self.res_data_for_eval.update(self.input_data)
+
 
     def __del__(self):
         if self.saver is not None:
@@ -281,6 +286,8 @@ class SimpleTrainer(TrainerBase):
         self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
         init = tf.global_variables_initializer()
         self.sess.run(init)
+        print("Update ops.")
+        wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
     def resume_or_load(self,ckpt_path=None,*args,**kwargs):
         if ckpt_path is None:
