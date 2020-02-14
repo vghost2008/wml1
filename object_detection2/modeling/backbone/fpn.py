@@ -99,7 +99,7 @@ class FPN(Backbone):
                     image_features[-1],
                     depth, [1, 1], activation_fn=None, normalizer_fn=None,
                     scope='projection_%d' % num_levels)
-                output = conv_op(prev_features, depth,[kernel_size, kernel_size], scope=f"output{num_levels-1}")
+                output = conv_op(prev_features, depth,[kernel_size, kernel_size], scope=f"output_{num_levels}")
                 output_feature_maps_list.append(output)
                 output_feature_map_keys.append(f"P{self.stage}")
 
