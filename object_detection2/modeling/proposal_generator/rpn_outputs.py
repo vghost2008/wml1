@@ -8,6 +8,8 @@ import numpy as np
 from ..sampling import subsample_labels
 import wsummary
 from object_detection2.standard_names import *
+from object_detection2.datadef import *
+import wnn
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,10 @@ class RPNOutputs(object):
                 pred_objectness_logits,
                 pred_anchor_deltas,
             )
+            if global_cfg.GLOBAL.SUMMARY_LEVEL>SummaryLevel.INFO:
+                with tf.name_scope("RPNCorrectRatio"):
+                    ratio = wnn.sigmoid_accuracy_ratio(logits=pred_objectness_logits,labels=gt_objectness_logits)
+                tf.summary.scalar("rpn_accuracy_ratio",ratio)
             normalizer = 1.0 / (batch_size* self.batch_size_per_image)
             loss_cls = objectness_loss * normalizer  # cls: classification loss
             loss_loc = localization_loss * normalizer  # loc: localization loss
