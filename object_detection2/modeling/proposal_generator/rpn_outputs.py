@@ -28,6 +28,10 @@ nms_threshold: nms阀值
 candiate_nr:选择proposal_bboxes中预测最好的candiate_nr个bboxes进行筛选
 limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h,w的回归参数，limits的值对应于prio_scaling=[1,1,1,1]是的设置
 prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
+anchors_num_per_level: anchors num per level
+In Detectron2, they separaty select proposals from each level, use the same pre_nms_topk and post_nams_topk, in order to
+simple arguments settin, we use the follow arguemnts[pre_nms_topk,pos_nms_topk] for level1, [pre_nms_topk//4,pos_nms_topk//4]
+for level2, and so on.
 返回:
 boxes:[Y,4]
 labels:[Y]
@@ -39,34 +43,73 @@ def find_top_rpn_proposals(
             nms_thresh,
             pre_nms_topk,
             post_nms_topk,
+            anchors_num_per_level,
     ):
-    #删除背景
-    #class_prediction = pred_objectness_logits[:,:,1:]
-    class_prediction = pred_objectness_logits
-    #probability,nb_labels = tf.nn.top_k(class_prediction,k=1)
-    #背景的类别为0，前面已经删除了背景，需要重新加上
-    #labels = nb_labels+1
-    probability = class_prediction
-    #ndims = class_prediction.get_shape().ndims
-    #probability = tf.squeeze(probability, axis=ndims - 1)
+    if len(anchors_num_per_level) == 1:
+        return find_top_rpn_proposals_for_single_level(proposals,pred_objectness_logits,nms_thresh,pre_nms_topk,
+                                                       post_nms_topk)
+    with tf.name_scope("find_top_rpn_proposals"):
+        proposals = tf.split(proposals,num_or_size_splits=anchors_num_per_level,axis=1)
+        pred_objectness_logits = tf.split(pred_objectness_logits,num_or_size_splits=anchors_num_per_level,axis=1)
+        boxes = []
+        probabilitys = []
+        for i in range(len(anchors_num_per_level)):
+            t_boxes,t_probability = find_top_rpn_proposals_for_single_level(proposals=proposals[i],
+                                                              pred_objectness_logits=pred_objectness_logits[i],
+                                                              nms_thresh=nms_thresh,
+                                                              pre_nms_topk=pre_nms_topk//(3**i),
+                                                              post_nms_topk=post_nms_topk//(3**i))
+            boxes.append(t_boxes)
+            probabilitys.append(t_probability)
+        return tf.concat(boxes,axis=1),tf.concat(probabilitys,axis=1)
+'''
+this function get exactly candiate_nr boxes by the heristic method
+firt remove boxes by nums, and then get the top candiate_nr boxes, if there not enough boxes after nms,
+the boxes in the front will be add to result.
+class_prediction:模型预测的每个proposal_bboxes/anchro boxes/default boxes所对应的类别的概率或与概率正相关的指标(如logits)
+shape为[batch_size,X,num_classes]
+bboxes_regs:模型预测的每个proposal_bboxes/anchro boxes/default boxes到目标真实bbox的回归参数
+shape为[batch_size,X,4](classes_wise=Flase)或者(batch_size,X,num_classes,4](classes_wise=True)
+proposal_bboxes:候选box
+shape为[batch_size,X,4]
+threshold:选择class_prediction的阀值
+nms_threshold: nms阀值
+candiate_nr:选择proposal_bboxes中预测最好的candiate_nr个bboxes进行筛选
+limits:[4,2],用于对回归参数的范围进行限制，分别对应于cy,cx,h,w的回归参数，limits的值对应于prio_scaling=[1,1,1,1]是的设置
+prio_scaling:在encode_boxes以及decode_boxes是使用的prio_scaling参数
+返回:
+boxes:[Y,4]
+labels:[Y]
+probability:[Y]
+'''
+def find_top_rpn_proposals_for_single_level(
+        proposals,
+        pred_objectness_logits,
+        nms_thresh,
+        pre_nms_topk,
+        post_nms_topk,
+):
+    with tf.name_scope("find_top_rpn_proposals_for_single_level"):
+        class_prediction = pred_objectness_logits
+        probability = class_prediction
 
-    '''
-    通过top_k+gather排序
-    In Detectron2, they chosen the top candiate_nr*6 boxes
-    '''
-    probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
-    proposals = wmlt.batch_gather(proposals,indices)
+        '''
+        通过top_k+gather排序
+        In Detectron2, they chosen the top candiate_nr*6 boxes
+        '''
+        probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
+        proposals = wmlt.batch_gather(proposals,indices)
 
 
-    def fn(bboxes,probability):
-        labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
-        boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
-        probability = tf.gather(probability,indices)
-        return boxes,probability
+        def fn(bboxes,probability):
+            labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
+            boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+            probability = tf.gather(probability,indices)
+            return boxes,probability
 
-    boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
-                                         dtype=(tf.float32,tf.float32),back_prop=False)
-    return tf.stop_gradient(boxes),tf.stop_gradient(probability)
+        boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
+                                      dtype=(tf.float32,tf.float32),back_prop=False)
+        return tf.stop_gradient(boxes),tf.stop_gradient(probability)
 
 
 def rpn_losses(

@@ -81,6 +81,7 @@ class RPN(wmodule.WChildModule):
             True: cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN,
             False: cfg.MODEL.RPN.POST_NMS_TOPK_TEST,
         }
+        self.anchors_num_per_level = []
 
     def forward(self,inputs,features):
 
@@ -92,6 +93,7 @@ class RPN(wmodule.WChildModule):
 
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(inputs,features)
         anchors = self.rpn_head.anchor_generator(inputs,features)
+        self.anchors_num_per_level = [wmlt.combined_static_and_dynamic_shape(x)[0] for x in anchors]
 
         outputs = RPNOutputs(
             self.box2box_transform,
@@ -123,6 +125,7 @@ class RPN(wmodule.WChildModule):
             self.nms_thresh,
             self.pre_nms_topk[self.is_training],
             self.post_nms_topk[self.is_training],
+            self.anchors_num_per_level,
         )
 
         outdata = {PD_BOXES:proposals,PD_PROBABILITY:tf.nn.sigmoid(logits)}
