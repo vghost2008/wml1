@@ -14,6 +14,7 @@ import itertools
 import functools
 import wml_tfutils as wmlt
 import time
+import basic_tftools as btf
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -234,12 +235,28 @@ def crop_and_resize(img,box,crop_size):
     return resize_img(img,crop_size)
 
 '''
+img:[H,W]/[H,W,C]
 box:[N,4] ymin,xmin,ymax,xmax, relative corrdinate
+从同一个图上切图
 '''
 def crop_and_resize_imgs(img,boxes,crop_size):
     res_imgs = []
     for box in boxes:
         sub_img = crop_and_resize(img,box,crop_size)
+        res_imgs.append(sub_img)
+
+    return np.stack(res_imgs,axis=0)
+'''
+img:[N,H,W]/[N,H,W,C]
+box:[N,4] ymin,xmin,ymax,xmax, relative corrdinate
+box 与 img一对一的进行切图
+return:
+[N]+crop_size
+'''
+def one_to_one_crop_and_resize_imgs(imgs,boxes,crop_size):
+    res_imgs = []
+    for i,box in enumerate(boxes):
+        sub_img = crop_and_resize(imgs[i],box,crop_size)
         res_imgs.append(sub_img)
 
     return np.stack(res_imgs,axis=0)
@@ -268,12 +285,22 @@ def crop_image(image,width,height,resize_size=None):
     else:
         return tf.stack(images,axis=0)
 
-def concat_images(images):
-    new_images = []
-    size = tf.shape(images[0])[1:3]
-    for img in images:
-        new_images.append(tf.image.resize_bilinear(img,size=size))
-    return tf.concat(new_images,axis=2)
+'''
+images:list of image with shape [B,H,W,C]
+'''
+def concat_images(images,margin=10):
+    with tf.name_scope("concat_images"):
+        new_images = []
+        mean = tf.reduce_mean(images[0])
+        B,H,W,C = btf.combined_static_and_dynamic_shape(images[0])
+        size = [H,W]
+        if margin is not None:
+            margin_img = tf.ones([B,H,margin,C],dtype=images[0].dtype)*mean
+        for i,img in enumerate(images):
+            if margin is not None and i>0:
+                new_images.append(margin_img)
+            new_images.append(tf.image.resize_bilinear(img,size=size))
+        return tf.concat(new_images,axis=2)
 '''
 img:[H,W]/[H,W,C]
 rect:[ymin,xmin,ymax,xmax]

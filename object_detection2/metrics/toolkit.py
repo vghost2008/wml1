@@ -293,20 +293,27 @@ class ModelPerformance:
             return self.safe_div(self.total_precision,self.test_nr)
 
 class COCOEvaluation(object):
-    def __init__(self,categories_list=None,num_classes=None):
+    def __init__(self,categories_list=None,num_classes=None,mask_on=False):
         if categories_list is None:
             self.categories_list = [{"id":x+1,"name":str(x+1)} for x in range(num_classes)]
         else:
             self.categories_list = categories_list
-        self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
-            self.categories_list,include_metrics_per_category=False)
+        if not mask_on:
+            self.coco_evaluator = coco_evaluation.CocoDetectionEvaluator(
+                self.categories_list,include_metrics_per_category=False)
+        else:
+            self.coco_evaluator = coco_evaluation.CocoMaskEvaluator(
+                self.categories_list,include_metrics_per_category=False)
         self.image_id = 0
     '''
     gtboxes:[N,4]
     gtlabels:[N]
     img_size:[H,W]
+    gtmasks:[N,H,W]
     '''
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],is_crowd=None):
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],
+                 gtmasks=None,
+                 masks=None,is_crowd=None):
         if probability is None:
             probability = np.ones_like(labels,dtype=np.float32)
         if not isinstance(gtboxes,np.ndarray):
@@ -321,45 +328,50 @@ class COCOEvaluation(object):
             probability = np.array(probability)
         if gtlabels.shape[0]>0:
             gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
-            if is_crowd is None:
-                self.coco_evaluator.add_single_ground_truth_image_info(
-                    image_id=str(self.image_id),
-                    groundtruth_dict={
-                        standard_fields.InputDataFields.groundtruth_boxes:
-                            gtboxes,
-                        standard_fields.InputDataFields.groundtruth_classes:gtlabels,
-                    })
-            else:
+            groundtruth_dict={
+                standard_fields.InputDataFields.groundtruth_boxes:
+                    gtboxes,
+                standard_fields.InputDataFields.groundtruth_classes:gtlabels,
+            }
+            if is_crowd is not None:
                 if not isinstance(is_crowd,np.ndarray):
                     is_crowd = np.array(is_crowd)
-                self.coco_evaluator.add_single_ground_truth_image_info(
-                    image_id=str(self.image_id),
-                    groundtruth_dict={
-                        standard_fields.InputDataFields.groundtruth_boxes:
-                            gtboxes,
-                        standard_fields.InputDataFields.groundtruth_classes:gtlabels,
-                        standard_fields.InputDataFields.groundtruth_is_crowd:
-                            is_crowd
-                    })
+                groundtruth_dict[standard_fields.InputDataFields.groundtruth_is_crowd] = is_crowd
+            if gtmasks is not None:
+                groundtruth_dict[standard_fields.InputDataFields.groundtruth_instance_masks] = gtmasks
+            self.coco_evaluator.add_single_ground_truth_image_info(
+                image_id=str(self.image_id),
+                groundtruth_dict=groundtruth_dict)
         if labels.shape[0]>0 and gtlabels.shape[0]>0:
             boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
+            detections_dict={
+                standard_fields.DetectionResultFields.detection_boxes:
+                    boxes,
+                standard_fields.DetectionResultFields.detection_scores:
+                    probability,
+                standard_fields.DetectionResultFields.detection_classes:
+                    labels
+            }
+            if masks is not None:
+                detections_dict[standard_fields.DetectionResultFields.detection_masks] = masks
             self.coco_evaluator.add_single_detected_image_info(
                 image_id=str(self.image_id),
-                detections_dict={
-                    standard_fields.DetectionResultFields.detection_boxes:
-                        boxes,
-                    standard_fields.DetectionResultFields.detection_scores:
-                        probability,
-                    standard_fields.DetectionResultFields.detection_classes:
-                        labels
-                })
+                detections_dict=detections_dict)
         self.image_id += 1
 
+    def num_examples(self):
+        if '_image_ids_with_detections' in self.coco_evaluator.__dict__:
+            return len(self.coco_evaluator._image_ids_with_detections)
+        elif '_image_ids' in self.coco_evaluator.__dict__:
+            return len(self.coco_evaluator._image_ids)
+        else:
+            raise RuntimeError("Error evaluator type.")
+
     def evaluate(self):
-        print(f"Test size {len(self.coco_evaluator._image_ids)}")
+        print(f"Test size {self.num_examples()}")
         return self.coco_evaluator.evaluate()
     def show(self):
-        print(f"Test size {len(self.coco_evaluator._image_ids)}")
+        print(f"Test size {self.num_examples()}")
         self.coco_evaluator.evaluate()
 
 class ClassesWiseModelPerformace(object):

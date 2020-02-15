@@ -24,6 +24,7 @@ import iotoolkit.label_map_util as label_map_util
 from iotoolkit.labelme_toolkit import *
 from multiprocessing import Pool
 import functools
+import cv2
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('data_dir', '',
@@ -88,6 +89,7 @@ def create_tf_example(image,
         category_ids.append(category_id)
 
         binary_mask = object_annotations["segmentation"]
+        #cv2.imwrite(wmlu.home_dir("x.jpg"),binary_mask*255)
         pil_image = PIL.Image.fromarray(binary_mask)
         output_io = io.BytesIO()
         pil_image.save(output_io, format='PNG')
@@ -216,10 +218,10 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/mnistod/eval"
-    output_dir = "/home/vghost/ai/mldata/mnistod/eval_tfrecord"
-    #dataset_dir = "/home/vghost/ai/mldata/mnistod/train"
-    #output_dir = "/home/vghost/ai/mldata/mnistod/train_tfrecord"
+    #dataset_dir = "/home/vghost/ai/mldata/mnistod/eval"
+    #output_dir = "/home/vghost/ai/mldata/mnistod/eval_tfrecord"
+    dataset_dir = "/home/vghost/ai/mldata/mnistod/train1"
+    output_dir = "/home/vghost/ai/mldata/mnistod/train1_tfrecord"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
