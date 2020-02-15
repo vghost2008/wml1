@@ -49,7 +49,7 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
             image = tf.expand_dims(image,axis=0)
             image = tf.expand_dims(image,axis=-1)
             image = tf.tile(image,[1,1,1,3])
-            for i in range(len(self.sizes)):
+            for i in range(len(anchors)):
                 num_cell_anchors = len(self.aspect_ratios[i])*len(self.sizes[i])
                 shape = wmlt.combined_static_and_dynamic_shape(features[i])
                 offset = shape[1]*shape[2]//2

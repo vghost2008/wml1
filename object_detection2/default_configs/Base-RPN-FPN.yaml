@@ -2,7 +2,6 @@ MODEL:
   META_ARCHITECTURE: "ProposalNetwork"
   BACKBONE:
     NAME: "build_shufflenetv2_fpn_backbone"
-    #NAME: "build_shufflenetv2_backbone"
   RESNETS:
     batch_norm_decay: 0.999
   FPN:
@@ -12,9 +11,9 @@ MODEL:
     SIZES: [[50], [100], [200]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
-    #IN_FEATURES: ["P2", "P3", "P4"]
-    IN_FEATURES: ["P4"]
-    #IN_FEATURES: ["C4"]
+    IN_FEATURES: ["P2", "P3", "P4"]
+    #IN_FEATURES: ["P4"]
+    #IN_FEATURES: ["C2","C3","C4"]
     PRE_NMS_TOPK_TRAIN: 200  # Per FPN level
     PRE_NMS_TOPK_TEST: 2000  # Per FPN level
     # Detectron1 uses 2000 proposals per-batch,

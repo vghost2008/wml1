@@ -59,6 +59,17 @@ class FPN(Backbone):
         self.use_depthwise = False
         self.interpolate_op=tf.image.resize_nearest_neighbor
         self.stage = stage
+        self.norm_params = {
+            'decay': 0.997,
+            'epsilon': 1e-4,
+            'scale': True,
+            'updates_collections': tf.GraphKeys.UPDATE_OPS,
+            'fused': None,  # Use fused batch norm if possible.
+            'is_training':self.is_training
+        }
+        #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
+        self.normalizer_fn = slim.batch_norm
+
 
     @property
     def size_divisibility(self):
@@ -89,10 +100,18 @@ class FPN(Backbone):
             output_feature_map_keys = []
             padding = 'SAME'
             kernel_size = 3
-            if use_depthwise:
-                conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1)
+            weight_decay = 1e-4
+            if self.normalizer_fn is not None:
+                normalizer_fn = functools.partial(self.normalizer_fn,**self.norm_params)
             else:
-                conv_op = slim.conv2d
+                normalizer_fn = None
+            if use_depthwise:
+                conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1,
+                normalizer_fn=normalizer_fn)
+            else:
+                conv_op = functools.partial(slim.conv2d,
+                weights_regularizer=slim.l2_regularizer(weight_decay),
+                normalizer_fn=normalizer_fn)
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
                 prev_features = slim.conv2d(

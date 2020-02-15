@@ -197,7 +197,7 @@ class RPNOutputs(object):
                 pred_objectness_logits,
                 pred_anchor_deltas,
             )
-            if global_cfg.GLOBAL.SUMMARY_LEVEL>SummaryLevel.INFO:
+            if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.INFO:
                 with tf.name_scope("RPNCorrectRatio"):
                     ratio = wnn.sigmoid_accuracy_ratio(logits=pred_objectness_logits,labels=gt_objectness_logits)
                 tf.summary.scalar("rpn_accuracy_ratio",ratio)

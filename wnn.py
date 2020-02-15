@@ -585,8 +585,6 @@ def accuracy_ratio(logits,labels):
             actually_get = tf.cast(actually_get,labels.dtype)
         correct_num = tf.reduce_sum(tf.cast(tf.equal(actually_get,labels),tf.float32))
         all_num = tf.cast(wmlt.num_elements(labels),tf.float32)
-        #for d in labels.get_shape().as_list():
-        #    all_num *= d
         return correct_num*100./all_num
 
 def accuracy_num(logits,labels):
@@ -638,9 +636,7 @@ def sigmoid_accuracy_ratio(logits,labels,threshold=0.5):
         actually_get = prob>threshold
         actually_get = tf.cast(actually_get,labels.dtype)
         correct_num = tf.reduce_sum(tf.cast(tf.equal(actually_get,labels),tf.float32))
-        all_num = 1.
-        for d in labels.get_shape().as_list():
-            all_num *= d
+        all_num = tf.cast(wmlt.num_elements(labels),tf.float32)
         return correct_num*100./all_num
 
 
