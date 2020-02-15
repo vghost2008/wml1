@@ -48,19 +48,20 @@ def find_top_rpn_proposals(
     if len(anchors_num_per_level) == 1:
         return find_top_rpn_proposals_for_single_level(proposals,pred_objectness_logits,nms_thresh,pre_nms_topk,
                                                        post_nms_topk)
-    proposals = tf.split(proposals,num_or_size_splits=anchors_num_per_level,axis=1)
-    pred_objectness_logits = tf.split(pred_objectness_logits,num_or_size_splits=anchors_num_per_level,axis=1)
-    boxes = []
-    probabilitys = []
-    for i in range(len(anchors_num_per_level)):
-        t_boxes,t_probability = find_top_rpn_proposals_for_single_level(proposals=proposals[i],
-                                                          pred_objectness_logits=pred_objectness_logits[i],
-                                                          nms_thresh=nms_thresh,
-                                                          pre_nms_topk=pre_nms_topk//(4**i),
-                                                          post_nms_topk=post_nms_topk//(4**i))
-        boxes.append(t_boxes)
-        probabilitys.append(t_probability)
-    return tf.concat(boxes,axis=1),tf.concat(probabilitys,axis=1)
+    with tf.name_scope("find_top_rpn_proposals"):
+        proposals = tf.split(proposals,num_or_size_splits=anchors_num_per_level,axis=1)
+        pred_objectness_logits = tf.split(pred_objectness_logits,num_or_size_splits=anchors_num_per_level,axis=1)
+        boxes = []
+        probabilitys = []
+        for i in range(len(anchors_num_per_level)):
+            t_boxes,t_probability = find_top_rpn_proposals_for_single_level(proposals=proposals[i],
+                                                              pred_objectness_logits=pred_objectness_logits[i],
+                                                              nms_thresh=nms_thresh,
+                                                              pre_nms_topk=pre_nms_topk//(3**i),
+                                                              post_nms_topk=post_nms_topk//(3**i))
+            boxes.append(t_boxes)
+            probabilitys.append(t_probability)
+        return tf.concat(boxes,axis=1),tf.concat(probabilitys,axis=1)
 '''
 this function get exactly candiate_nr boxes by the heristic method
 firt remove boxes by nums, and then get the top candiate_nr boxes, if there not enough boxes after nms,
@@ -88,26 +89,27 @@ def find_top_rpn_proposals_for_single_level(
         pre_nms_topk,
         post_nms_topk,
 ):
-    class_prediction = pred_objectness_logits
-    probability = class_prediction
+    with tf.name_scope("find_top_rpn_proposals_for_single_level"):
+        class_prediction = pred_objectness_logits
+        probability = class_prediction
 
-    '''
-    通过top_k+gather排序
-    In Detectron2, they chosen the top candiate_nr*6 boxes
-    '''
-    probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
-    proposals = wmlt.batch_gather(proposals,indices)
+        '''
+        通过top_k+gather排序
+        In Detectron2, they chosen the top candiate_nr*6 boxes
+        '''
+        probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
+        proposals = wmlt.batch_gather(proposals,indices)
 
 
-    def fn(bboxes,probability):
-        labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
-        boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
-        probability = tf.gather(probability,indices)
-        return boxes,probability
+        def fn(bboxes,probability):
+            labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
+            boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+            probability = tf.gather(probability,indices)
+            return boxes,probability
 
-    boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
-                                  dtype=(tf.float32,tf.float32),back_prop=False)
-    return tf.stop_gradient(boxes),tf.stop_gradient(probability)
+        boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
+                                      dtype=(tf.float32,tf.float32),back_prop=False)
+        return tf.stop_gradient(boxes),tf.stop_gradient(probability)
 
 
 def rpn_losses(
