@@ -10,3 +10,9 @@ RCNNResultsData = OrderedDict#key=[RD_BOXES,RD_LABELS,RD_PROBABILITY,RD_INDICES,
 def unstack_encoded_data_on_batch_dim(data:EncodedData):
     data = [tf.unstack(x,axis=0) for x in data]
     return EncodedData(*data)
+
+class SummaryLevel:
+    DEBUG=0
+    INFO=1
+    WARNING=2
+    CRITICAL=3
