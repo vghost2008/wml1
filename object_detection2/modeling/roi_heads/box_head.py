@@ -3,6 +3,7 @@ import tensorflow as tf
 from thirdparty.registry import Registry
 import wmodule
 import wml_tfutils as wmlt
+import wnnlayer as wnnl
 
 slim = tf.contrib.slim
 
@@ -29,6 +30,8 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
             norm: normalization for the conv layers
         """
         super().__init__(cfg,*args,**kwargs)
+        #Detectron2是没有使用任何normalizer的
+        self.normalizer_fn = wnnl.group_norm
 
 
     def forward(self, x,scope=None):
@@ -49,7 +52,8 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
                     shape = wmlt.combined_static_and_dynamic_shape(x)
                     x = tf.reshape(x,[shape[0],-1])
                 for _ in range(num_fc):
-                    x = slim.fully_connected(x,fc_dim,activation_fn=tf.nn.relu,normalizer_fn=None)
+                    x = slim.fully_connected(x,fc_dim,activation_fn=tf.nn.relu,
+                                             normalizer_fn=self.normalizer_fn)
 
             return x
 

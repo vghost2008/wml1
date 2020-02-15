@@ -902,6 +902,18 @@ def show_return_shape(func,message=None):
         return res
     return wraps_func
 
+def add_name_scope(func):
+    def wraps_func(*args,**kwargs):
+        with tf.name_scope(func.__name__):
+            return func(*args,**kwargs)
+    return wraps_func
+
+def add_variable_scope(func):
+    def wraps_func(*args,**kwargs):
+        with tf.variable_scope(func.__name__):
+            return func(*args,**kwargs)
+    return wraps_func
+
 def select_image_by_mask(image,mask):
     '''
 

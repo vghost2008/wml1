@@ -684,7 +684,7 @@ class StandardROIHeads(ROIHeads):
             return {"loss_mask": mask_rcnn_loss(inputs,mask_logits, instances,fg_selection_mask)}
         else:
             #when inference instances is RCNNResultsData
-            pred_boxes = instances.boxes
+            pred_boxes = instances[RD_BOXES]
             mask_features = self.mask_pooler(features, pred_boxes)
             mask_logits = self.mask_head(mask_features)
             mask_rcnn_inference(mask_logits, instances)

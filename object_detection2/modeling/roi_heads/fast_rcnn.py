@@ -201,6 +201,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
     boxes:[candiate_nr,4]
     labels:[candiate_nr]
     probability:[candiate_nr]
+    indices:[candiate_nr], 输出box所对应的输入box序号
     len: the available boxes number
     '''
 
@@ -314,6 +315,13 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 elems=(probability, pred_proposal_deltas, proposal_boxes),
                 dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
             )
+
+        with tf.name_scope("remove_null_boxes"):
+            max_len = tf.reduce_max(lens)
+            boxes = boxes[:,:max_len]
+            labels = labels[:,:max_len]
+            probability = probability[:,:max_len]
+            res_indices = res_indices[:,:max_len]
 
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
 

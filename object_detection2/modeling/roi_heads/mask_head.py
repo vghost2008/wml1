@@ -40,10 +40,10 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
     gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
     boxes = proposals.boxes
     batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
-    gt_boxes = tf.reshape(boxes,[batch_size*box_nr,box_dim])
-    gt_boxes = tf.boolean_mask(gt_boxes,fg_selection_mask)
+    boxes = tf.reshape(boxes,[batch_size*box_nr,box_dim])
+    boxes = tf.boolean_mask(boxes,fg_selection_mask)
     gt_masks = tf.expand_dims(gt_masks,axis=-1)
-    croped_masks_gt_masks = wmlt.tf_crop_and_resize(gt_masks,gt_boxes,[mask_H,mask_W])
+    croped_masks_gt_masks = wmlt.tf_crop_and_resize(gt_masks,boxes,[mask_H,mask_W])
 
     if not cls_agnostic_mask:
         gt_classes = proposals.gt_object_logits
@@ -54,19 +54,22 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
         pred_mask_logits = tf.expand_dims(pred_mask_logits,axis=-1)
 
 
-    if config.global_cfg.GLOBAL.DEBUG:
+    if config.global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
         pmasks_2d = tf.reshape(fg_selection_mask,[batch_size,box_nr])
-        gt_boxes_3d = tf.expand_dims(gt_boxes,axis=1)
+        boxes_3d = tf.expand_dims(boxes,axis=1)
         wsummary.positive_box_on_images_summary(inputs[IMAGE],proposals.boxes,
                                                 pmasks=pmasks_2d)
         image = wmlt.select_image_by_mask(inputs[IMAGE],pmasks_2d)
         t_gt_masks = tf.expand_dims(tf.squeeze(gt_masks,axis=-1),axis=1)
-        wsummary.detection_image_summary(images=image,boxes=gt_boxes_3d,instance_masks=t_gt_masks,
+        wsummary.detection_image_summary(images=image,boxes=boxes_3d,instance_masks=t_gt_masks,
                                          name="mask_and_boxes_in_mask_loss")
         log_mask = gt_masks
-        log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(gt_boxes,axis=1))
+        log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(boxes,axis=1))
         log_mask = wmli.concat_images([log_mask, croped_masks_gt_masks])
         wmlt.image_summaries(log_mask,"mask",max_outputs=32)
+
+        log_mask = wmli.concat_images([gt_masks, tf.cast(pred_mask_logits>0.5,tf.float32)])
+        wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=32)
 
     mask_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=croped_masks_gt_masks,logits=pred_mask_logits)
     mask_loss = tf.reduce_mean(mask_loss)
@@ -97,24 +100,20 @@ def mask_rcnn_inference(pred_mask_logits, pred_instances):
             the predicted masks to the original image resolution and/or binarizing them, is left
             to the caller.
     """
-    '''cls_agnostic_mask = pred_mask_logits.size(1) == 1
-
-    if cls_agnostic_mask:
-        mask_probs_pred = pred_mask_logits.sigmoid()
-    else:
+    cls_agnostic_mask = pred_mask_logits.get_shape().as_list()[-1] == 1
+    labels = pred_instances[RD_LABELS]
+    batch_size,box_nr = wmlt.combined_static_and_dynamic_shape(labels)
+    if not cls_agnostic_mask:
         # Select masks corresponding to the predicted classes
-        num_masks = pred_mask_logits.shape[0]
-        class_pred = cat([i.pred_classes for i in pred_instances])
-        indices = torch.arange(num_masks, device=class_pred.device)
-        mask_probs_pred = pred_mask_logits[indices, class_pred][:, None].sigmoid()
-    # mask_probs_pred.shape: (B, 1, Hmask, Wmask)
+        pred_mask_logits = tf.transpose(pred_mask_logits,[0,3,1,2])
+        labels = tf.reshape(labels,[-1])-1 #去掉背景
+        pred_mask_logits = wmlt.batch_gather(pred_mask_logits,labels)
+    total_box_nr,H,W = wmlt.combined_static_and_dynamic_shape(pred_mask_logits)
+    pred_mask_logits = tf.reshape(pred_mask_logits,[batch_size,box_nr,H,W])
 
-    num_boxes_per_image = [len(i) for i in pred_instances]
-    mask_probs_pred = mask_probs_pred.split(num_boxes_per_image, dim=0)
+    pred_mask_logits = tf.nn.sigmoid(pred_mask_logits)
 
-    for prob, instances in zip(mask_probs_pred, pred_instances):
-        instances.pred_masks = prob  # (1, Hmask, Wmask)'''
-    pass
+    pred_instances[RD_MASKS] = pred_mask_logits
 
 
 @ROI_MASK_HEAD_REGISTRY.register()

@@ -38,17 +38,18 @@ def str2optimizer(name="Adam",learning_rate=None):
 
     return opt
 def piecewise_lr(initial_lr,step,steps,decay):
-    steps = list(steps)
-    begin_steps = [0]+steps[:-1]
-    steps_pair = list(zip(begin_steps,steps))
-    funs = {}
-    lr = initial_lr
-    def func(lr):
-        return lr
-    for i,(l,h) in enumerate(steps_pair):
-        funs[tf.logical_and(tf.greater_equal(step,l),tf.less(step,h))] = functools.partial(func,lr)
-        lr = lr*decay
-    return tf.case(funs,default=functools.partial(func,lr))
+    with tf.name_scope("build_piecewise_lr"):
+        steps = list(steps)
+        begin_steps = [0]+steps[:-1]
+        steps_pair = list(zip(begin_steps,steps))
+        funs = {}
+        lr = initial_lr
+        def func(lr):
+            return lr
+        for i,(l,h) in enumerate(steps_pair):
+            funs[tf.logical_and(tf.greater_equal(step,l),tf.less(step,h))] = functools.partial(func,lr)
+            lr = lr*decay
+        return tf.case(funs,default=functools.partial(func,lr))
 
 
 def build_learning_rate(initial_lr,
@@ -60,32 +61,33 @@ def build_learning_rate(initial_lr,
                         total_steps=None,
                         steps=None,
                         warmup_epochs=1):
-  if lr_decay_type == 'exponential':
-    assert steps_per_epoch is not None
-    decay_steps = steps_per_epoch * decay_epochs
-    lr = tf.train.exponential_decay(
-        initial_lr, global_step, decay_steps, decay_factor, staircase=True)
-  elif lr_decay_type == 'cosine':
-    assert total_steps is not None
-    lr = 0.5 * initial_lr * (
-        1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
-  elif lr_decay_type == 'constant':
-    lr = initial_lr
-  elif lr_decay_type == "piecewise":
-      assert steps is not None
-      lr = piecewise_lr(initial_lr=initial_lr,step=global_step,steps=steps,decay=decay_factor)
-  else:
-    assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
+  with tf.name_scope("build_learning_rate"):
+      if lr_decay_type == 'exponential':
+        assert steps_per_epoch is not None
+        decay_steps = steps_per_epoch * decay_epochs
+        lr = tf.train.exponential_decay(
+            initial_lr, global_step, decay_steps, decay_factor, staircase=True)
+      elif lr_decay_type == 'cosine':
+        assert total_steps is not None
+        lr = 0.5 * initial_lr * (
+            1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
+      elif lr_decay_type == 'constant':
+        lr = initial_lr
+      elif lr_decay_type == "piecewise":
+          assert steps is not None
+          lr = piecewise_lr(initial_lr=initial_lr,step=global_step,steps=steps,decay=decay_factor)
+      else:
+        assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
 
-  if warmup_epochs:
-    logging.info('Learning rate warmup_epochs: %d', warmup_epochs)
-    warmup_steps = int(warmup_epochs * steps_per_epoch)
-    warmup_lr = (
-        initial_lr * tf.cast(global_step, tf.float32) / tf.cast(
-            warmup_steps, tf.float32))
-    lr = tf.cond(global_step < warmup_steps, lambda: warmup_lr, lambda: lr)
+      if warmup_epochs:
+        logging.info('Learning rate warmup_epochs: %d', warmup_epochs)
+        warmup_steps = int(warmup_epochs * steps_per_epoch)
+        warmup_lr = (
+            initial_lr * tf.cast(global_step, tf.float32) / tf.cast(
+                warmup_steps, tf.float32))
+        lr = tf.cond(global_step < warmup_steps, lambda: warmup_lr, lambda: lr)
 
-  return lr
+      return lr
 
 def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
                  colocate_gradients_with_ops=False,optimizer="Adam",scope=None,num_epochs_per_decay=None):

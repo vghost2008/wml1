@@ -318,8 +318,8 @@ _C.MODEL.ROI_MASK_HEAD.NORM = ""
 _C.MODEL.ROI_MASK_HEAD.CLS_AGNOSTIC_MASK = False
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_MASK_HEAD.POOLER_TYPE = "ROIAlignV2"
-_C.MODEL.ROI_MASK_HEAD.canonical_box_size = 224
-_C.MODEL.ROI_MASK_HEAD.canonical_level = 0
+_C.MODEL.ROI_MASK_HEAD.canonical_box_size = 0.45
+_C.MODEL.ROI_MASK_HEAD.canonical_level = 2
 
 
 # ---------------------------------------------------------------------------- #
@@ -357,8 +357,8 @@ _C.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
 _C.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = 1.0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
-_C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 224
-_C.MODEL.ROI_KEYPOINT_HEAD.canonical_level = 0
+_C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 0.45
+_C.MODEL.ROI_KEYPOINT_HEAD.canonical_level = 2
 
 # ---------------------------------------------------------------------------- #
 # Semantic Segmentation Head

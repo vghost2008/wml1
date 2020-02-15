@@ -151,7 +151,8 @@ class TrainerBase:
         self.iter = self.start_iter = start_iter
         self.max_iter = max_iter
 
-        evaler = mt.COCOEvaluation(num_classes=self.cfg.DATASETS.NUM_CLASSES)
+        evaler = mt.COCOEvaluation(num_classes=self.cfg.DATASETS.NUM_CLASSES,
+                                   mask_on=self.cfg.MODEL.MASK_ON)
 
         try:
             self.before_train()

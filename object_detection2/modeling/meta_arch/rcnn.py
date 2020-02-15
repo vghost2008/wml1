@@ -9,6 +9,9 @@ from object_detection2.standard_names import *
 import numpy as np
 import tensorflow as tf
 from .meta_arch import MetaArch
+import img_utils as wmli
+import cv2
+import wml_utils as wmlu
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(wmodule.WModule):
@@ -180,16 +183,38 @@ class GeneralizedRCNN(wmodule.WModule):
 
     def doeval(self,evaler,datas):
         assert datas[GT_BOXES].shape[0]==1,"Error batch size"
-        image = datas[IMAGE]
+        kwargs = {}
+        image = datas[IMAGE][0]
         gt_boxes = datas[GT_BOXES][0]
         gt_labels = datas[GT_LABELS][0]
         len = datas[RD_LENGTH][0]
         boxes = datas[RD_BOXES][0][:len]
         probability = datas[PD_PROBABILITY][0][:len]
         labels = datas[RD_LABELS][0][:len]
-        evaler(gtboxes=gt_boxes,gtlabels=gt_labels,boxes=boxes,labels = labels,
-               probability=probability,
-               img_size=image.shape[1:3])
+
+        kwargs['gtboxes'] = gt_boxes
+        kwargs['gtlabels'] = gt_labels
+        kwargs['boxes'] = boxes
+        kwargs['labels'] = labels
+        kwargs['probability'] = probability
+        kwargs['img_size'] = image.shape[0:2]
+
+        if RD_MASKS in datas and GT_MASKS in datas:
+            gt_masks = datas[GT_MASKS][0]
+            masks = datas[RD_MASKS][0][:len]
+            N,H,W = masks.shape
+            croped_gt_masks = wmli.one_to_one_crop_and_resize_imgs(gt_masks,gt_boxes,crop_size=[H,W])
+            croped_gt_masks = (croped_gt_masks+0.1).astype(np.uint8)
+            kwargs['gtmasks'] = croped_gt_masks
+            for i in range(gt_masks.shape[0]):
+                wmli.imsave(wmlu.home_dir(f"IMG_{i}_GT.jpg"),gt_masks[i]*255)
+                wmli.imsave(wmlu.home_dir(f"IMG_{i}_CROPED_GT.jpg"),croped_gt_masks[i]*255)
+            for i in range(masks.shape[0]):
+                wmli.imsave(wmlu.home_dir(f"IMG_{i}_PRED.jpg"),masks[i]*255)
+            masks = (masks>0.5).astype(np.uint8)
+            kwargs['masks'] = masks
+
+        evaler(**kwargs)
 
 @META_ARCH_REGISTRY.register()
 class ProposalNetwork(MetaArch):
