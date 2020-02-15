@@ -13,9 +13,9 @@ def default_argument_parser():
     """
     parser = argparse.ArgumentParser(description="Detectron2 Training")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-C4.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/Base-Mask-RCNN-C4.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/cascade_mask_FPN_1x.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/backup/machinelearning/mywork/wml/object_detection2/default_configs/Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
