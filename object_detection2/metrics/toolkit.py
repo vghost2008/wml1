@@ -292,7 +292,7 @@ class ModelPerformance:
         elif item=="precision":
             return self.safe_div(self.total_precision,self.test_nr)
 
-class COCOEvaluation(object):
+class GeneralCOCOEvaluation(object):
     def __init__(self,categories_list=None,num_classes=None,mask_on=False):
         if categories_list is None:
             self.categories_list = [{"id":x+1,"name":str(x+1)} for x in range(num_classes)]
@@ -373,6 +373,48 @@ class COCOEvaluation(object):
     def show(self):
         print(f"Test size {self.num_examples()}")
         self.coco_evaluator.evaluate()
+
+class COCOBoxEvaluation(GeneralCOCOEvaluation):
+    def __init__(self,categories_list=None,num_classes=None):
+        super().__init__(categories_list=categories_list,
+                         num_classes=num_classes,
+                         mask_on=False)
+
+class COCOMaskEvaluation(GeneralCOCOEvaluation):
+    def __init__(self,categories_list=None,num_classes=None):
+        super().__init__(categories_list=categories_list,
+                         num_classes=num_classes,
+                         mask_on=True)
+
+
+class COCOEvaluation(object):
+    def __init__(self,categories_list=None,num_classes=None,mask_on=False):
+        self.box_evaluator = COCOBoxEvaluation(categories_list=categories_list,
+                                               num=num_classes)
+        self.mask_evaluator = None
+        if not mask_on:
+            self.mask_evaluator = COCOMaskEvaluation(categories_list=categories_list,
+                                                     num_classes=num_classes)
+    def __call__(self, *args, **kwargs):
+        self.box_evaluator(*args,**kwargs)
+        if self.mask_evaluator is not None:
+            self.mask_evaluator(*args,**kwargs)
+
+    def num_examples(self):
+        return self.box_evaluator.num_examples()
+
+    def evaluate(self):
+        res = self.box_evaluator.evaluate()
+        if self.mask_evaluator is not None:
+            res1 = self.mask_evaluator.evaluate()
+            return res,res1
+        return res
+
+    def show(self):
+        self.box_evaluator.show()
+        if self.mask_evaluator is not None:
+            self.mask_evaluator.show()
+
 
 class ClassesWiseModelPerformace(object):
     def __init__(self,num_classes,threshold=0.5,classes_begin_value=1,model_type=COCOEvaluation,model_args={}):
