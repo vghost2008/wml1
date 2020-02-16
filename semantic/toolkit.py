@@ -138,30 +138,7 @@ def np_draw_masks_on_images(image,mask,alpha,colors=MIN_RANDOM_STANDARD_COLORS,n
 
     return np.array(res_images)
 
-'''
-bboxes:[(ymin,xmin,ymax,xmax),....] value in range[0,1]
-mask:[X,h,w]
-size:[H,W]
-'''
-def get_fullsize_mask(bboxes,masks,size):
-    if masks.dtype != np.uint8:
-        masks = masks.astype(np.uint8)
 
-    res_masks = []
-    for i,bbox in enumerate(bboxes):
-        x = int(bbox[1]*size[1])
-        y = int(bbox[0]*size[0])
-        w = int((bbox[3]-bbox[1])*size[1])
-        h = int((bbox[2]-bbox[0])*size[0])
-        if w<=0 or h<=0:
-            continue
-        mask = masks[i]
-        mask = cv2.resize(mask,(w,h))
-        res_mask = np.zeros(size,dtype=np.uint8)
-        res_mask[y:y+h,x:x+w] = mask
-        res_masks.append(res_mask)
-
-    return np.array(res_masks)
 
 '''
 masks:[X,H,W]

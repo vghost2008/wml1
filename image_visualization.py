@@ -3,6 +3,8 @@ import tensorflow as tf
 import semantic.visualization_utils as smv
 import basic_tftools as btf
 import semantic.visualization_utils as visu
+import numpy as np
+import cv2
 
 def __draw_detection_image_summary(images,
                            boxes,
@@ -212,3 +214,51 @@ def draw_mask_on_image(image, mask, color=None,alpha=0.4,no_first_mask=False,nam
                                   tf.mod(tf.range(mask_nr,dtype=tf.int32), color_nr))
         image = visu.tf_draw_masks_on_image(image=image,mask=mask,color=color,alpha=alpha)
         return image
+
+'''
+masks:shape=[batch_size,N,h,w]
+boxes:shape=[batch_size,N,4]
+size:[H,W]
+mask_bg_value:mask background value
+return:
+shape=[batch_size,N,H,W]
+'''
+def batch_tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
+    return tf.map_fn(lambda x:tf_get_fullsize_mask(x[0],x[1],size,mask_bg_value),
+                     elems=[boxes,masks],
+                     dtype=masks.dtype)
+'''
+masks:shape=[N,h,w]
+boxes:shape=[N,4]
+size:[H,W]
+return:
+shape=[N,H,W]
+'''
+def tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
+    res = tf.py_func(get_fullsize_mask,[boxes,masks,size,mask_bg_value],Tout=masks.dtype)
+    N,h,w = btf.combined_static_and_dynamic_shape(masks)
+    H,W = size[0],size[1]
+    return tf.reshape(res,[N,H,W])
+
+'''
+bboxes:[(ymin,xmin,ymax,xmax),....] value in range[0,1]
+mask:[X,h,w]
+size:[H,W]
+'''
+def get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
+    dtype = masks.dtype
+
+    res_masks = []
+    for i,bbox in enumerate(boxes):
+        x = int(bbox[1]*size[1])
+        y = int(bbox[0]*size[0])
+        w = int((bbox[3]-bbox[1])*size[1])
+        h = int((bbox[2]-bbox[0])*size[0])
+        res_mask = np.ones(size,dtype=dtype)*mask_bg_value
+        if w>0 and h>0:
+            mask = masks[i]
+            mask = cv2.resize(mask,(w,h))
+            res_mask[y:y+h,x:x+w] = mask
+        res_masks.append(res_mask)
+
+    return np.stack(res_masks,axis=0)

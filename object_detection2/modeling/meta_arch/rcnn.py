@@ -12,6 +12,8 @@ from .meta_arch import MetaArch
 import img_utils as wmli
 import cv2
 import wml_utils as wmlu
+import image_visualization as ivs
+import basic_tftools as btf
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(wmodule.WModule):
@@ -161,10 +163,16 @@ class GeneralizedRCNN(wmodule.WModule):
                                          lengths=results[RD_LENGTH],
                                          instance_masks=instance_masks,name="RCNN_result")
         if instance_masks is not None:
+            shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
+            masks = ivs.batch_tf_get_fullsize_mask(boxes=results[RD_BOXES],
+                                                   masks=instance_masks,
+                                                   size=shape[1:3]
+                                                   )
             wsummary.detection_image_summary(images=tf.zeros_like(batched_inputs[IMAGE]),
                                              boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                              lengths=results[RD_LENGTH],
-                                             instance_masks=instance_masks,name="RCNN_Mask_result")
+                                             instance_masks=masks,
+                                             name="RCNN_Mask_result")
         if do_postprocess:
             return GeneralizedRCNN._postprocess(results, batched_inputs, None),None
         else:

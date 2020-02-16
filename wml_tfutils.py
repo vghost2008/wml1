@@ -16,6 +16,7 @@ from tensorflow.python.framework import graph_util
 from functools import wraps
 from collections import Iterable
 from iotoolkit.transform import  distort_color as _distort_color
+from wtfop.wtfop_ops import set_value
 
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
