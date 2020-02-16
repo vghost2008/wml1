@@ -65,12 +65,13 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
     def forward(self, inputs,features,):
         anchors = []
         image = inputs['image']
-        size = wmlt.combined_static_and_dynamic_shape(image)[1:3]
-        for i,feature in enumerate(features):
-            shape = wmlt.combined_static_and_dynamic_shape(feature)
-            anchors.append(wop.anchor_generator(shape=shape[1:3],size=size,
-                                                scales=self.sizes[i],
-                                                aspect_ratios=self.aspect_ratios[i]))
+        with tf.name_scope("anchor_generator"):
+            size = wmlt.combined_static_and_dynamic_shape(image)[1:3]
+            for i,feature in enumerate(features):
+                shape = wmlt.combined_static_and_dynamic_shape(feature)
+                anchors.append(wop.anchor_generator(shape=shape[1:3],size=size,
+                                                    scales=self.sizes[i],
+                                                    aspect_ratios=self.aspect_ratios[i]))
         if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
             self.show_anchors(anchors,features,img_size=size)
         return anchors
