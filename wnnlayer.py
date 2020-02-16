@@ -776,7 +776,8 @@ scale_gradient_value = 0.5
 def scale_gradient(x,scale):
     global scale_gradient_value
     scale_gradient_value = scale
-    return _scale_gradient(x)
+    with tf.name_scope("scale_gradient"):
+        return _scale_gradient(x)
 
 @tf.custom_gradient
 def _scale_gradient(x):

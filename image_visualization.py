@@ -74,6 +74,7 @@ def __draw_detection_image_summary(images,
                                          min_score_thresh)
   return images
 
+@btf.add_name_scope
 def draw_detection_image_summary(images,
                                  boxes,
                                  classes=None,
@@ -168,6 +169,7 @@ def draw_detection_image_summary(images,
             raise NotImplementedError()
 
 
+@btf.add_name_scope
 def draw_positive_box_on_images(image,boxes,pmasks):
     '''
 
@@ -200,6 +202,7 @@ image:[H,W,C]
 mask: [N,H,W]
 color: [N]
 '''
+@btf.add_name_scope
 def draw_mask_on_image(image, mask, color=None,alpha=0.4,no_first_mask=False,name='summary_image_with_mask'):
     with tf.device("/cpu:0"):
         if no_first_mask:
@@ -223,6 +226,7 @@ mask_bg_value:mask background value
 return:
 shape=[batch_size,N,H,W]
 '''
+@btf.add_name_scope
 def batch_tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
     return tf.map_fn(lambda x:tf_get_fullsize_mask(x[0],x[1],size,mask_bg_value),
                      elems=[boxes,masks],
@@ -234,6 +238,7 @@ size:[H,W]
 return:
 shape=[N,H,W]
 '''
+@btf.add_name_scope
 def tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
     res = tf.py_func(get_fullsize_mask,[boxes,masks,size,mask_bg_value],Tout=masks.dtype)
     N,h,w = btf.combined_static_and_dynamic_shape(masks)
