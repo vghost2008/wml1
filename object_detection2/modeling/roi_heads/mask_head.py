@@ -20,6 +20,7 @@ The registered object will be called with `obj(cfg, input_shape)`.
 """
 
 
+@wmlt.add_name_scope
 def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_mask):
     '''
 
@@ -55,21 +56,22 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
 
 
     if config.global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-        pmasks_2d = tf.reshape(fg_selection_mask,[batch_size,box_nr])
-        boxes_3d = tf.expand_dims(boxes,axis=1)
-        wsummary.positive_box_on_images_summary(inputs[IMAGE],proposals.boxes,
-                                                pmasks=pmasks_2d)
-        image = wmlt.select_image_by_mask(inputs[IMAGE],pmasks_2d)
-        t_gt_masks = tf.expand_dims(tf.squeeze(gt_masks,axis=-1),axis=1)
-        wsummary.detection_image_summary(images=image,boxes=boxes_3d,instance_masks=t_gt_masks,
-                                         name="mask_and_boxes_in_mask_loss")
-        log_mask = gt_masks
-        log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(boxes,axis=1))
-        log_mask = wmli.concat_images([log_mask, croped_masks_gt_masks])
-        wmlt.image_summaries(log_mask,"mask",max_outputs=32)
+        with tf.name_scope("mask_loss_summary"):
+            pmasks_2d = tf.reshape(fg_selection_mask,[batch_size,box_nr])
+            boxes_3d = tf.expand_dims(boxes,axis=1)
+            wsummary.positive_box_on_images_summary(inputs[IMAGE],proposals.boxes,
+                                                    pmasks=pmasks_2d)
+            image = wmlt.select_image_by_mask(inputs[IMAGE],pmasks_2d)
+            t_gt_masks = tf.expand_dims(tf.squeeze(gt_masks,axis=-1),axis=1)
+            wsummary.detection_image_summary(images=image,boxes=boxes_3d,instance_masks=t_gt_masks,
+                                             name="mask_and_boxes_in_mask_loss")
+            log_mask = gt_masks
+            log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(boxes,axis=1))
+            log_mask = wmli.concat_images([log_mask, croped_masks_gt_masks])
+            wmlt.image_summaries(log_mask,"mask",max_outputs=32)
 
-        log_mask = wmli.concat_images([gt_masks, tf.cast(pred_mask_logits>0.5,tf.float32)])
-        wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=32)
+            log_mask = wmli.concat_images([gt_masks, tf.cast(pred_mask_logits>0.5,tf.float32)])
+            wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=32)
 
     mask_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=croped_masks_gt_masks,logits=pred_mask_logits)
     mask_loss = tf.reduce_mean(mask_loss)
@@ -77,7 +79,7 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
     return mask_loss
     pass
 
-
+@wmlt.add_name_scope
 def mask_rcnn_inference(pred_mask_logits, pred_instances):
     """
     Convert pred_mask_logits to estimated foreground probability masks while also
@@ -130,6 +132,16 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
             norm: normalization for the conv layers
         """
         super(MaskRCNNConvUpsampleHead, self).__init__(cfg,**kwargs)
+        self.norm_params = {
+            'decay': 0.997,
+            'epsilon': 1e-4,
+            'scale': True,
+            'updates_collections': tf.GraphKeys.UPDATE_OPS,
+            'fused': None,  # Use fused batch norm if possible.
+            'is_training':self.is_training
+        }
+        #Detectron2默认没有使用normalizer
+        self.normalizer_fn = slim.batch_norm
 
     def forward(self, x):
         cfg = self.cfg
@@ -145,6 +157,8 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
             for k in range(num_conv):
                 x = slim.conv2d(x,conv_dims,[3,3],padding="SAME",
                                     activation_fn=tf.nn.relu,
+                                    normalizer_fn=self.normalizer_fn,
+                                    normalizer_params=self.norm_params,
                                     scope=f"Conf{k}")
             x = slim.conv2d_transpose(x,conv_dims,kernel_size=2,
                                     stride=2,activation_fn=tf.nn.relu,
