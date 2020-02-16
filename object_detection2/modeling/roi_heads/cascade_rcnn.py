@@ -8,6 +8,7 @@ from .roi_heads import ROI_HEADS_REGISTRY, StandardROIHeads
 from object_detection2.datadef import *
 import wml_tfutils as wmlt
 import wnnlayer as wnnl
+import wsummary
 
 
 @ROI_HEADS_REGISTRY.register()
@@ -86,8 +87,8 @@ class CascadeROIHeads(StandardROIHeads):
                 # The output boxes of the previous stage are the input proposals of the next stage
                 proposals_boxes = head_outputs[-1].predict_boxes_for_gt_classes()
                 if self.is_training:
-                    proposals = self.label_and_sample_proposals(inputs,proposals_boxes,
-                                                                do_sample=False)
+                    proposals = self._match_and_label_boxes(inputs,proposals_boxes,
+                                                                stage=k)
                 else:
                     proposals = {PD_BOXES:proposals_boxes}
             head_outputs.append(self._run_stage(features, proposals, k))
@@ -147,3 +148,48 @@ class CascadeROIHeads(StandardROIHeads):
             proposals=proposals,
         )
         return outputs
+
+    def _match_and_label_boxes(self, inputs,proposals,stage):
+        with tf.name_scope(f"match_and_label_boxes{stage}"):
+            gt_boxes = inputs[GT_BOXES]
+            gt_labels = inputs[GT_LABELS]
+            gt_length = inputs[GT_LENGTH]
+            # Augment proposals with ground-truth boxes.
+            # In the case of learned proposals (e.g., RPN), when training starts
+            # the proposals will be low quality due to random initialization.
+            # It's possible that none of these initial
+            # proposals have high enough overlap with the gt objects to be used
+            # as positive examples for the second stage components (box head,
+            # cls head, mask head). Adding the gt boxes to the set of proposals
+            # ensures that the second stage components will have some positive
+            # examples from the start of training. For RPN, this augmentation improves
+            # convergence and empirically improves box AP on COCO by about 0.5
+            # points (under one tested configuration).
+            if self.proposal_append_gt:
+                proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,
+                                                               nr=8,
+                                                               limits=None)
+            res = self.proposal_matchers[stage](proposals, gt_boxes,gt_labels, gt_length)
+            gt_logits_i, scores, indices = res
+
+            if self.cfg.GLOBAL.DEBUG:
+                with tf.name_scope("match_and_label_boxes"):
+                    logmask = tf.greater(gt_logits_i,0)
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=proposals,
+                                                                classes=gt_logits_i,
+                                                                scores=scores,
+                                                                logmask=logmask,
+                                                                name="label_and_sample_proposals_summary")
+                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=pgt_boxes,
+                                                                classes=gt_logits_i,
+                                                                scores=scores,
+                                                                logmask=logmask,
+                                                                name="label_and_sample_proposals_summary_by_gtboxes")
+
+
+            res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
+
+        return res

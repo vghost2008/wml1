@@ -13,8 +13,8 @@ import cv2
 import wsummary
 import basic_tftools as btf
 from tensorflow.python.framework import graph_util
-from functools import wraps
-from collections import Iterable
+
+
 from iotoolkit.transform import  distort_color as _distort_color
 from wtfop.wtfop_ops import set_value
 
@@ -35,6 +35,9 @@ image_summaries_with_label = wsummary.image_summaries_with_label
 row_image_summaries = wsummary.row_image_summaries
 combined_static_and_dynamic_shape = btf.combined_static_and_dynamic_shape
 batch_gather = btf.batch_gather
+show_return_type = btf.show_return_shape
+add_name_scope = btf.add_name_scope
+add_variable_scope = btf.add_variable_scope
 
 
 def add_to_hash_table_collection(value):
@@ -870,50 +873,6 @@ def channel_upsample(input_tensor,scale=None,height_scale=None,width_scale=None)
         output_tensor = tf.transpose(output_tensor,[0,1,3,2,4,5])
         output_tensor = tf.reshape(output_tensor,[batch_size,height*h_scale,width*w_scale,out_channels])
         return output_tensor
-
-def show_return_shape(func,message=None):
-    @wraps(func)
-    def wraps_func(*args,**kwargs):
-        res = func(*args,**kwargs)
-        if isinstance(res,dict):
-            datas = []
-            key = None
-            for k, d in res.items():
-                if not isinstance(d, tf.Tensor):
-                    datas.append(tf.constant("N.A", dtype=tf.string))
-                else:
-                    datas.append(tf.shape(d))
-                    if key is None:
-                        key = k
-            res[key] = tf.Print(res[key], datas, summarize=100,message=message)
-        elif not isinstance(res,Iterable):
-            res = tf.Print(res,[tf.shape(res)],summarize=100)
-        else:
-            datas = []
-            index = -1
-            for i,d in enumerate(res):
-                if not isinstance(d,tf.Tensor):
-                    datas.append(tf.constant("N.A",dtype=tf.string))
-                else:
-                    datas.append(tf.shape(d))
-                    if index<0:
-                        index = i
-            res = list(res)
-            res[index] = tf.Print(res[index],datas,summarize=100,message=message)
-        return res
-    return wraps_func
-
-def add_name_scope(func):
-    def wraps_func(*args,**kwargs):
-        with tf.name_scope(func.__name__):
-            return func(*args,**kwargs)
-    return wraps_func
-
-def add_variable_scope(func):
-    def wraps_func(*args,**kwargs):
-        with tf.variable_scope(func.__name__):
-            return func(*args,**kwargs)
-    return wraps_func
 
 def select_image_by_mask(image,mask):
     '''

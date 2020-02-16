@@ -1,5 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
+from functools import wraps
+from collections import Iterable
 
 def static_or_dynamic_map_fn(fn, elems, dtype=None,
                              parallel_iterations=32, back_prop=True):
@@ -146,3 +148,47 @@ def batch_gather(params,indices,name=None):
             return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
     else:
         return tf.batch_gather(params,indices,name)
+
+def show_return_shape(func,message=None):
+    @wraps(func)
+    def wraps_func(*args,**kwargs):
+        res = func(*args,**kwargs)
+        if isinstance(res,dict):
+            datas = []
+            key = None
+            for k, d in res.items():
+                if not isinstance(d, tf.Tensor):
+                    datas.append(tf.constant("N.A", dtype=tf.string))
+                else:
+                    datas.append(tf.shape(d))
+                    if key is None:
+                        key = k
+            res[key] = tf.Print(res[key], datas, summarize=100,message=message)
+        elif not isinstance(res,Iterable):
+            res = tf.Print(res,[tf.shape(res)],summarize=100)
+        else:
+            datas = []
+            index = -1
+            for i,d in enumerate(res):
+                if not isinstance(d,tf.Tensor):
+                    datas.append(tf.constant("N.A",dtype=tf.string))
+                else:
+                    datas.append(tf.shape(d))
+                    if index<0:
+                        index = i
+            res = list(res)
+            res[index] = tf.Print(res[index],datas,summarize=100,message=message)
+        return res
+    return wraps_func
+
+def add_name_scope(func):
+    def wraps_func(*args,**kwargs):
+        with tf.name_scope(func.__name__):
+            return func(*args,**kwargs)
+    return wraps_func
+
+def add_variable_scope(func):
+    def wraps_func(*args,**kwargs):
+        with tf.variable_scope(func.__name__):
+            return func(*args,**kwargs)
+    return wraps_func
