@@ -146,9 +146,13 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 for each image. Element i has shape (Ri, K * B) or (Ri, B), where Ri is
                 the number of predicted objects for image i and B is the box dimension (4 or 5)
         """
-        batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
+        if self.is_training:
+            proposals_boxes = self.proposals.boxes
+        else:
+            proposals_boxes = self.proposals[PD_BOXES]
+        batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(proposals_boxes)
         pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,box_nr,box_dim])
-        boxes = self.box2box_transform.apply_deltas(deltas=pred_proposal_deltas,boxes=self.proposals.boxes)
+        boxes = self.box2box_transform.apply_deltas(deltas=pred_proposal_deltas,boxes=proposals_boxes)
         return boxes
 
     def predict_boxes_for_gt_classes(self):
@@ -162,11 +166,11 @@ class FastRCNNOutputs(wmodule.WChildModule):
         '''
         with tf.name_scope("predict_boxes_for_gt_classes"):
             predicted_boxes = self.predict_boxes()
-            B = self.proposals.boxes.get_shape().as_list()[-1]
+            B = self.proposals[PD_BOXES].get_shape().as_list()[-1]
             # If the box head is class-agnostic, then the method is equivalent to `predicted_boxes`.
             if predicted_boxes.get_shape().as_list()[-1] > B:
                 gt_classes = tf.reshape(self.proposals.gt_object_logits,[-1])
-                batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals.boxes)
+                batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(self.proposals[PD_BOXES])
                 predicted_boxes = tf.reshape(predicted_boxes,[batch_size*box_nr,-1,box_dim])
                 predicted_boxes = wmlt.batch_gather(predicted_boxes,gt_classes)
                 predicted_boxes = tf.reshape(predicted_boxes,[batch_size,box_nr,box_dim])
@@ -283,12 +287,13 @@ class FastRCNNOutputs(wmodule.WChildModule):
         probs = tf.nn.softmax(self.pred_class_logits, dim=-1)
         return probs
 
-    def inference(self, score_thresh, nms_thresh, topk_per_image,proposal_boxes=None):
+    def inference(self, score_thresh, nms_thresh, topk_per_image,proposal_boxes=None,scores=None):
         """
         Args:
             score_thresh (float): same as fast_rcnn_inference.
             nms_thresh (float): same as fast_rcnn_inference.
             topk_per_image (int): same as fast_rcnn_inference.
+            scores:[batch_size,box_nr,num_classes+1]
         Returns:
             list[Instances]: same as fast_rcnn_inference.
             list[Tensor]: same as fast_rcnn_inference.
@@ -299,13 +304,18 @@ class FastRCNNOutputs(wmodule.WChildModule):
             if proposal_boxes is None:
                 proposal_boxes = self.proposals[PD_BOXES]
             batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
-            total_box_nr,K = wmlt.combined_static_and_dynamic_shape(self.pred_class_logits)
             _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)
-            pred_class_logits = tf.reshape(self.pred_class_logits,[batch_size,-1,K])
+            if scores is None:
+                probability = tf.nn.softmax(self.pred_class_logits)
+            else:
+                probability = scores
+
+            total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
+            probability = tf.reshape(probability,[batch_size,-1,K])
+
             pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
             classes_wise = (L != box_dim)
 
-            probability = tf.nn.softmax(pred_class_logits)
             boxes, labels, probability, res_indices, lens = tf.map_fn(
                 lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
                                                 score_thresh,

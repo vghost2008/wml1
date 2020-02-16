@@ -641,7 +641,7 @@ class StandardROIHeads(ROIHeads):
             if self.train_on_pred_boxes:
                 pred_boxes = outputs.predict_boxes_for_gt_classes()
                 self.rcnn_outboxes = pred_boxes
-            if self.cfg.GLOBAL.DEBUG:
+            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 pred_instances = outputs.inference(
                     self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
                     proposal_boxes=proposals.boxes
