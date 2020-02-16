@@ -158,20 +158,21 @@ class GeneralizedRCNN(wmodule.WModule):
             detected_instances = [x.to(self.device) for x in detected_instances]
             results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
         instance_masks = None if not self.cfg.MODEL.MASK_ON else results.get(RD_MASKS,None)
+        if instance_masks is not None:
+            shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
+            instance_masks = ivs.batch_tf_get_fullsize_mask(boxes=results[RD_BOXES],
+                                                   masks=instance_masks,
+                                                   size=shape[1:3]
+                                                   )
         wsummary.detection_image_summary(images=batched_inputs[IMAGE],
                                          boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                          lengths=results[RD_LENGTH],
                                          instance_masks=instance_masks,name="RCNN_result")
         if instance_masks is not None:
-            shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
-            masks = ivs.batch_tf_get_fullsize_mask(boxes=results[RD_BOXES],
-                                                   masks=instance_masks,
-                                                   size=shape[1:3]
-                                                   )
             wsummary.detection_image_summary(images=tf.zeros_like(batched_inputs[IMAGE]),
                                              boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                              lengths=results[RD_LENGTH],
-                                             instance_masks=masks,
+                                             instance_masks=instance_masks,
                                              name="RCNN_Mask_result")
         if do_postprocess:
             return GeneralizedRCNN._postprocess(results, batched_inputs, None),None
@@ -214,11 +215,13 @@ class GeneralizedRCNN(wmodule.WModule):
             croped_gt_masks = wmli.one_to_one_crop_and_resize_imgs(gt_masks,gt_boxes,crop_size=[H,W])
             croped_gt_masks = (croped_gt_masks+0.1).astype(np.uint8)
             kwargs['gtmasks'] = croped_gt_masks
+            '''
             for i in range(gt_masks.shape[0]):
                 wmli.imsave(wmlu.home_dir(f"IMG_{i}_GT.jpg"),gt_masks[i]*255)
                 wmli.imsave(wmlu.home_dir(f"IMG_{i}_CROPED_GT.jpg"),croped_gt_masks[i]*255)
             for i in range(masks.shape[0]):
                 wmli.imsave(wmlu.home_dir(f"IMG_{i}_PRED.jpg"),masks[i]*255)
+            '''
             masks = (masks>0.5).astype(np.uint8)
             kwargs['masks'] = masks
 
