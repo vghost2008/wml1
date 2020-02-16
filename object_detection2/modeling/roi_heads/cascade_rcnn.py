@@ -59,7 +59,7 @@ class CascadeROIHeads(StandardROIHeads):
                 )
 
     def forward(self, inputs, features, proposals: ProposalsData):
-        proposals_boxes = proposals.boxes
+        proposals_boxes = proposals[PD_BOXES]
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
 
@@ -73,7 +73,7 @@ class CascadeROIHeads(StandardROIHeads):
                 proposals = self.label_and_sample_proposals(inputs, proposals.boxes, do_sample=False)
             losses.update(self._forward_mask(inputs,features_list, proposals))
             losses.update(self._forward_keypoint(inputs,features_list, proposals))
-            return proposals, losses
+            return {}, losses
         else:
             pred_instances = self._forward_box(inputs,features_list, proposals)
             pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
@@ -84,8 +84,12 @@ class CascadeROIHeads(StandardROIHeads):
         for k in range(self.num_cascade_stages):
             if k > 0:
                 # The output boxes of the previous stage are the input proposals of the next stage
+                proposals_boxes = head_outputs[-1].predict_boxes_for_gt_classes()
                 if self.is_training:
-                    proposals = self.label_and_sample_proposals(inputs,head_outputs[-1].predict_boxes_for_gt_classes(),do_sample=False)
+                    proposals = self.label_and_sample_proposals(inputs,proposals_boxes,
+                                                                do_sample=False)
+                else:
+                    proposals = {PD_BOXES:proposals_boxes}
             head_outputs.append(self._run_stage(features, proposals, k))
 
         if self.is_training:
@@ -99,14 +103,16 @@ class CascadeROIHeads(StandardROIHeads):
             scores_per_stage = [h.predict_probs() for h in head_outputs]
 
             # Average the scores across heads
-            scores = [
-                sum(list(scores_per_image)) * (1.0 / self.num_cascade_stages)
-                for scores_per_image in zip(*scores_per_stage)
-            ]
+            scores = tf.stack(scores_per_stage,axis=-1)
+            scores = tf.reduce_mean(scores,axis=-1,keepdims=False)
             # Use the boxes of the last head
-            return head_outputs[-1].inference(
-                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
+            pred_instances = head_outputs[-1].inference(
+                self.test_score_thresh,
+                self.test_nms_thresh,
+                self.test_detections_per_img,
+                scores = scores
             )
+            return pred_instances
 
     def _run_stage(self, features, proposals, stage):
         """
@@ -118,7 +124,11 @@ class CascadeROIHeads(StandardROIHeads):
         Returns:
             FastRCNNOutputs: the output of this stage
         """
-        box_features = self.box_pooler(features, proposals.boxes)
+        if self.is_training:
+            proposals_boxes = proposals.boxes #when training proposals is EncodedData
+        else:
+            proposals_boxes = proposals[PD_BOXES] #when inference, proposals is a dict which is the output of rpn
+        box_features = self.box_pooler(features, proposals_boxes)
         # The original implementation averages the losses among heads,
         # but scale up the parameter gradients of the heads.
         # This is equivalent to adding the losses among heads,

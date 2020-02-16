@@ -1,6 +1,6 @@
 _BASE_: "./Base-RCNN-FPN.yaml"
 MODEL:
-  MASK_ON: True
+  MASK_ON: False
   RESNETS:
     DEPTH: 50
   ROI_HEADS:
@@ -8,4 +8,4 @@ MODEL:
   ROI_BOX_HEAD:
     CLS_AGNOSTIC_BBOX_REG: True
   RPN:
-    POST_NMS_TOPK_TRAIN: 100
+    POST_NMS_TOPK_TRAIN: 1000
