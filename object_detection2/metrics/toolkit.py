@@ -392,7 +392,7 @@ class COCOEvaluation(object):
         self.box_evaluator = COCOBoxEvaluation(categories_list=categories_list,
                                                num_classes=num_classes)
         self.mask_evaluator = None
-        if not mask_on:
+        if mask_on:
             self.mask_evaluator = COCOMaskEvaluation(categories_list=categories_list,
                                                      num_classes=num_classes)
     def __call__(self, *args, **kwargs):
