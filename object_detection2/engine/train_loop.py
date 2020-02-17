@@ -234,10 +234,10 @@ class SimpleTrainer(TrainerBase):
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
         if model.is_training:
             self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_log")
-            self.name = "Trainer"
+            self.name = f"{self.cfg.GLOBAL.PROJ_NAME} trainer"
         else:
             self.log_dir = os.path.join(self.cfg.log_dir,self.cfg.GLOBAL.PROJ_NAME+"_eval_log")
-            self.name = "Evaler"
+            self.name = f"{self.cfg.GLOBAL.PROJ_NAME} evaler"
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)

@@ -91,11 +91,17 @@ class SSD(wmodule.WModule):
         )
 
         if self.is_training:
-            return None,outputs.losses()
+            if self.cfg.GLOBAL.DEBUG:
+                results = outputs.inference(inputs=batched_inputs, box_cls=pred_logits,
+                                            box_delta=pred_anchor_deltas, anchors=anchors)
+            else:
+                results = {}
+
+            return results, outputs.losses()
         else:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                         box_delta=pred_anchor_deltas, anchors=anchors)
-            return results
+            return results,{}
 
     def preprocess_image(self, batched_inputs):
         """
