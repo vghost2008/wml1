@@ -90,4 +90,4 @@ def subsample_labels_by_negative_loss_on_single_img(labels, num_samples, probabi
         # 取预测的最不好的nsize个负样本
         selected_nmask = tf.logical_and(nmask, wmlt.bottom_k_mask(nclass_prediction, k=nsize))
 
-        return selected_pmask,selected_nmask
+        return [selected_pmask,selected_nmask]
