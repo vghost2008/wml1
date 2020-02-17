@@ -92,6 +92,15 @@ class CascadeROIHeads(StandardROIHeads):
                 else:
                     proposals = {PD_BOXES:proposals_boxes}
             head_outputs.append(self._run_stage(features, proposals, k))
+            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+                results = head_outputs[-1].inference(
+                    self.test_score_thresh,
+                    self.test_nms_thresh,
+                    self.test_detections_per_img)
+                wsummary.detection_image_summary(images=inputs[IMAGE],
+                                         boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                         lengths=results[RD_LENGTH],
+                                         name=f"RCNN_result{k}")
 
         if self.is_training:
             losses = {}
@@ -100,7 +109,7 @@ class CascadeROIHeads(StandardROIHeads):
                 losses.update({k + "_stage{}".format(stage): v for k, v in stage_losses.items()})
             return losses
         else:
-            '''# Each is a list[Tensor] of length #image. Each tensor is Ri x (K+1)
+            # Each is a list[Tensor] of length #image. Each tensor is Ri x (K+1)
             scores_per_stage = [h.predict_probs() for h in head_outputs]
 
             # Average the scores across heads
@@ -112,13 +121,6 @@ class CascadeROIHeads(StandardROIHeads):
                 self.test_nms_thresh,
                 self.test_detections_per_img,
                 scores = scores
-            )
-            return pred_instances
-            '''
-            pred_instances = head_outputs[0].inference(
-                self.test_score_thresh,
-                self.test_nms_thresh,
-                self.test_detections_per_img,
             )
             return pred_instances
 
@@ -141,7 +143,7 @@ class CascadeROIHeads(StandardROIHeads):
         # but scale up the parameter gradients of the heads.
         # This is equivalent to adding the losses among heads,
         # but scale down the gradients on features.
-        box_features = wnnl.scale_gradient(box_features, 1.0 / self.num_cascade_stages)
+        #box_features = wnnl.scale_gradient(box_features, 1.0 / self.num_cascade_stages)
         box_features = self.box_head[stage](box_features,scope=f"BoxHead{stage}")
         pred_class_logits, pred_proposal_deltas = self.box_predictor[stage](box_features,scope=f"BoxPredictor{stage}")
         del box_features
