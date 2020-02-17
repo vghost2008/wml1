@@ -14,9 +14,10 @@ import cv2
 import wml_utils as wmlu
 import image_visualization as ivs
 import basic_tftools as btf
+from .meta_arch import MetaArch
 
 @META_ARCH_REGISTRY.register()
-class GeneralizedRCNN(wmodule.WModule):
+class GeneralizedRCNN(MetaArch):
     """
     Generalized R-CNN. Any models that contains the following three components:
     1. Per-image feature extraction (aka backbone)
