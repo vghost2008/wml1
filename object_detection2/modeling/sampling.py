@@ -54,7 +54,7 @@ def subsample_labels_by_negative_loss(labels, num_samples, probability,num_class
         selected_nmask = tf.reshape(selected_nmask,[-1])
         selected_pmask = tf.reshape(selected_pmask,[-1])
         if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-            tf.summary.scalar("psize",tf.reduce_sum(tf.cast(selected_nmask,tf.int32)))
+            tf.summary.scalar("psize",tf.reduce_sum(tf.cast(selected_pmask,tf.int32)))
             tf.summary.scalar("nsize",tf.reduce_sum(tf.cast(selected_nmask,tf.int32)))
 
         return selected_pmask,selected_nmask
