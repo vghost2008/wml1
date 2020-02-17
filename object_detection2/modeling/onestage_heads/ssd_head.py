@@ -206,7 +206,7 @@ class SSDOutputs(wmodule.WChildModule):
         on scores and applying non-maximum suppression (NMS).
 
         Arguments:
-            box_cls;[WxHxA(concat),K]
+            box_cls;[WxHxA(concat),K], logits, not probability
             box_delta [WxHxA(concat),box_dim]
             anchors [WxHxA(concat),box_dim]
             anchors_size: anchors'size per level
@@ -223,13 +223,18 @@ class SSDOutputs(wmodule.WChildModule):
         box_delta = tf.split(box_delta, num_or_size_splits=anchors_size)
         anchors = tf.split(anchors, num_or_size_splits=anchors_size)
         for box_cls_i, box_reg_i, anchors_i in zip(box_cls, box_delta, anchors):
-            # (HxWxAxK,)
-            box_cls_i = tf.nn.softmax(tf.reshape(box_cls_i,[-1]))
+            box_cls_i = tf.nn.softmax(box_cls_i)
+            box_cls_i = box_cls_i[:,1:] #remove background
+            probs,classes_idxs = tf.nn.top_k(box_cls_i,k=1)
+            probs = tf.reshape(probs,[-1])
+            classes_idxs = tf.reshape(classes_idxs,[-1])
+            classes_idxs = classes_idxs+1 #add the offset of background
+
 
             # Keep top k top scoring indices only.
             num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
             # torch.sort is actually faster than .topk (at least on GPUs)
-            predicted_prob, topk_idxs = tf.nn.top_k(box_cls_i, num_topk)
+            predicted_prob, topk_idxs = tf.nn.top_k(probs, num_topk)
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
 
@@ -238,20 +243,12 @@ class SSDOutputs(wmodule.WChildModule):
             predicted_prob = tf.boolean_mask(predicted_prob, keep_idxs)
             topk_idxs = tf.boolean_mask(topk_idxs, keep_idxs)
 
+            classes_idxs = tf.gather(classes_idxs,topk_idxs)
             # ssd use cls agnostic
-            # in this process type, a some anchor may belong to multi class
             # after nms this will be fixed
-            anchor_idxs = topk_idxs // self.num_classes
-            classes_idxs = topk_idxs % self.num_classes
+            box_reg_i = tf.gather(box_reg_i, topk_idxs)
+            anchors_i = tf.gather(anchors_i, topk_idxs)
 
-            box_reg_i = tf.gather(box_reg_i, anchor_idxs)
-            anchors_i = tf.gather(anchors_i, anchor_idxs)
-            #remove background
-            keep_idxs = tf.greater(classes_idxs,0)
-            classes_idxs = tf.boolean_mask(classes_idxs,keep_idxs)
-            anchors_i = tf.boolean_mask(anchors_i,keep_idxs)
-            box_reg_i = tf.boolean_mask(box_reg_i,keep_idxs)
-            predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
             # predict boxes
             predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i)
 
