@@ -160,6 +160,7 @@ class GeneralizedRCNN(wmodule.WModule):
         instance_masks = None if not self.cfg.MODEL.MASK_ON else results.get(RD_MASKS,None)
         if instance_masks is not None:
             shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
+            instance_masks = tf.cast(instance_masks>0.5,tf.float32)
             instance_masks = ivs.batch_tf_get_fullsize_mask(boxes=results[RD_BOXES],
                                                    masks=instance_masks,
                                                    size=shape[1:3]
