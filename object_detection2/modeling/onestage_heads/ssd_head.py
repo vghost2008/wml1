@@ -9,6 +9,8 @@ from object_detection2.standard_names import *
 import wmodule
 from object_detection2.modeling.sampling import subsample_labels_by_negative_loss
 from .onestage_tools import *
+import wsummary
+from object_detection2.datadef import *
 
 
 
@@ -78,6 +80,10 @@ class SSDOutputs(wmodule.WChildModule):
         self.pred_anchor_deltas = pred_anchor_deltas
         self.batch_size_per_image    = cfg.MODEL.SSD.BATCH_SIZE_PER_IMAGE
         self.positive_fraction       = cfg.MODEL.SSD.POSITIVE_FRACTION
+        self.topk_candidates = cfg.MODEL.SSD.TOPK_CANDIDATES_TEST
+        self.score_threshold = cfg.MODEL.SSD.SCORE_THRESH_TEST
+        self.nms_threshold = cfg.MODEL.SSD.NMS_THRESH_TEST
+        self.max_detections_per_image = cfg.TEST.DETECTIONS_PER_IMAGE
 
         anchors = tf.concat(anchors,axis=0)
         anchors = tf.expand_dims(anchors,axis=0)
@@ -104,6 +110,7 @@ class SSDOutputs(wmodule.WChildModule):
         #gt_logits_i为相应anchor box的标签
         return gt_logits_i, gt_anchor_deltas
 
+    @wmlt.add_name_scope
     def losses(self):
         """
         Args:
@@ -158,7 +165,8 @@ class SSDOutputs(wmodule.WChildModule):
 
         return losses
 
-    def inference(self, inputs,box_cls, box_delta,anchors):
+    @wmlt.add_name_scope
+    def inference(self, inputs, box_cls, box_delta, anchors):
         """
         Arguments:
             box_cls, box_delta: Same as the output of :meth:`RetinaNetHead.forward`
@@ -170,41 +178,38 @@ class SSDOutputs(wmodule.WChildModule):
         Returns:
             results (List[Instances]): a list of #images elements.
         """
-        batch_size = inputs[IMAGE].get_shape().as_list()[0]
-        anchors_bach_size = anchors.get_shape().as_list()[0]
+        assert len(anchors[0].get_shape()) == 2, "error anchors dims"
+        anchors_size = [tf.shape(x)[0] for x in anchors]
+        anchors = tf.concat(anchors, axis=0)
 
-        results = []
-        box_cls = [reshape_to_N_HWA_K(x,self.num_classes+1) for x in box_cls]
-        box_delta = [reshape_to_N_HWA_K(x,4) for x in box_delta]
+        box_cls = [reshape_to_N_HWA_K(x, self.num_classes+1) for x in box_cls]
+        box_delta = [reshape_to_N_HWA_K(x, 4) for x in box_delta]
+        box_cls = tf.concat(box_cls, axis=1)
+        box_delta = tf.concat(box_delta, axis=1)
 
-        for img_idx in range(batch_size):
-            box_cls_per_image = [box_cls_per_level[img_idx] for box_cls_per_level in box_cls]
-            box_reg_per_image = [box_reg_per_level[img_idx] for box_reg_per_level in box_delta]
-            anchors_idx = 0 if anchors_bach_size<batch_size else img_idx
-            anchors_per_image = anchors[anchors_idx]
-            results_per_image = self.inference_single_image(
-                box_cls_per_image, box_reg_per_image, anchors_per_image,
-            )
-            results.append(results_per_image)
-        results = list(zip(results))
-        results = [tf.stack(x,axis=0) for x in results]
-        outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[3]}
+        results = wmlt.static_or_dynamic_map_fn(
+            lambda x: self.inference_single_image(x[0], x[1], anchors, anchors_size), elems=[box_cls, box_delta],
+            dtype=(tf.float32, tf.int32, tf.float32, tf.int32),
+            back_prop=False)
+        outdata = {RD_BOXES: results[0], RD_LABELS: results[1], RD_PROBABILITY: results[2], RD_LENGTH: results[3]}
+        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+            wsummary.detection_image_summary(images=inputs[IMAGE],
+                                             boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
+                                             lengths=outdata[RD_LENGTH],
+                                             name="RetinaNet_result")
         return outdata
 
-    def inference_single_image(self, box_cls, box_delta, anchors):
+    @wmlt.add_name_scope
+    def inference_single_image(self, box_cls, box_delta, anchors, anchors_size):
         """
         Single-image inference. Return bounding-box detection results by thresholding
         on scores and applying non-maximum suppression (NMS).
 
         Arguments:
-            box_cls (list[Tensor]): list of #feature levels. Each entry contains
-                tensor of size (H x W x A, K)
-            box_delta (list[Tensor]): Same shape as 'box_cls' except that K becomes 4.
-            anchors (list[Boxes]): list of #feature levels. Each entry contains
-                a Boxes object, which contains all the anchors for that
-                image in that feature level.
-            image_size (tuple(H, W)): a tuple of the image height and width.
-
+            box_cls;[WxHxA(concat),K]
+            box_delta [WxHxA(concat),box_dim]
+            anchors [WxHxA(concat),box_dim]
+            anchors_size: anchors'size per level
         Returns:
             Same as `inference`, but for only one image.
         """
@@ -214,44 +219,56 @@ class SSDOutputs(wmodule.WChildModule):
 
         total_num_classes = self.num_classes+1
         # Iterate over every feature level
+        box_cls = tf.split(box_cls, num_or_size_splits=anchors_size)
+        box_delta = tf.split(box_delta, num_or_size_splits=anchors_size)
+        anchors = tf.split(anchors, num_or_size_splits=anchors_size)
         for box_cls_i, box_reg_i, anchors_i in zip(box_cls, box_delta, anchors):
             # (HxWxAxK,)
             box_cls_i = tf.nn.softmax(tf.reshape(box_cls_i,[-1]))
 
             # Keep top k top scoring indices only.
-            num_topk = tf.min(self.topk_candidates, tf.shape(box_reg_i)[0])
+            num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
             # torch.sort is actually faster than .topk (at least on GPUs)
-            predicted_prob, topk_idxs = tf.nn.top_k(box_cls_i,num_topk,descending=True)
+            predicted_prob, topk_idxs = tf.nn.top_k(box_cls_i, num_topk)
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
 
             # filter out the proposals with low confidence score
-            keep_idxs = tf.greater(predicted_prob,self.score_threshold)
+            keep_idxs = tf.greater(predicted_prob, self.score_threshold)
+            predicted_prob = tf.boolean_mask(predicted_prob, keep_idxs)
+            topk_idxs = tf.boolean_mask(topk_idxs, keep_idxs)
+
+            # ssd use cls agnostic
+            # in this process type, a some anchor may belong to multi class
+            # after nms this will be fixed
+            anchor_idxs = topk_idxs // self.num_classes
+            classes_idxs = topk_idxs % self.num_classes
+
+            box_reg_i = tf.gather(box_reg_i, anchor_idxs)
+            anchors_i = tf.gather(anchors_i, anchor_idxs)
+            #remove background
+            keep_idxs = tf.greater(classes_idxs,0)
+            classes_idxs = tf.boolean_mask(classes_idxs,keep_idxs)
+            anchors_i = tf.boolean_mask(anchors_i,keep_idxs)
+            box_reg_i = tf.boolean_mask(box_reg_i,keep_idxs)
             predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
-            topk_idxs = tf.boolean_mask(topk_idxs,keep_idxs)
-
-            anchor_idxs = topk_idxs // total_num_classes
-            classes_idxs = topk_idxs % total_num_classes
-
-            box_reg_i = tf.gather(box_reg_i,anchor_idxs)
-            anchors_i = tf.gather(anchors_i,anchor_idxs)
             # predict boxes
             predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i)
-
 
             boxes_all.append(predicted_boxes)
             scores_all.append(predicted_prob)
             class_idxs_all.append(classes_idxs)
 
-        boxes_all, scores_all, class_idxs_all= [
-            tf.concat(x,axis=0) for x in [boxes_all, scores_all, class_idxs_all]
+        boxes_all, scores_all, class_idxs_all = [
+            tf.concat(x, axis=0) for x in [boxes_all, scores_all, class_idxs_all]
         ]
-        x,y = wmlt.sort_data(key=scores_all,datas=[boxes_all,class_idxs_all])
-        boxes_all,class_idxs_all = y
-        scores_all,_ = x
-        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
-        boxes,labels,nms_idxs,lens = nms(bboxes=boxes_all,classes=class_idxs_all)
-        scores = tf.gather(scores_all,nms_idxs)
+        x, y = wmlt.sort_data(key=scores_all, datas=[boxes_all, class_idxs_all])
+        boxes_all, class_idxs_all = y
+        scores_all, _ = x
+        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,
+                                k=self.max_detections_per_image)
+        boxes, labels, nms_idxs = nms(bboxes=boxes_all, classes=class_idxs_all)
+        scores = tf.gather(scores_all, nms_idxs)
 
         candiate_nr = self.max_detections_per_image
         len = tf.shape(labels)[0]
@@ -259,6 +276,8 @@ class SSDOutputs(wmodule.WChildModule):
         labels = tf.pad(labels, paddings=[[0, candiate_nr - len]])
         scores = tf.pad(scores, paddings=[[0, candiate_nr - len]])
 
-        return boxes,labels,scores,len
+        return [boxes, labels, scores, len]
+
+
 
 

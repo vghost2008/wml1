@@ -87,6 +87,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         #gt_objectness_logits_i为相应anchor box的标签
         return gt_objectness_logits_i, gt_anchor_deltas
 
+    @wmlt.add_name_scope
     def losses(self):
         """
         Args:
@@ -139,6 +140,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
 
         return {"loss_cls": loss_cls, "loss_box_reg": loss_box_reg}
 
+    @wmlt.add_name_scope
     def inference(self, inputs,box_cls, box_delta,anchors):
         """
         Arguments:
@@ -172,6 +174,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
                                               name="RetinaNet_result")
         return outdata
 
+    @wmlt.add_name_scope
     def inference_single_image(self, box_cls, box_delta, anchors,anchors_size):
         """
         Single-image inference. Return bounding-box detection results by thresholding
