@@ -21,8 +21,8 @@ def ssd_losses(
     pred_anchor_deltas,
 ):
     localization_loss = tf.losses.huber_loss(
-        pred_anchor_deltas,
-        gt_anchor_deltas,
+        predictions=pred_anchor_deltas,
+        labels=gt_anchor_deltas,
         reduction=tf.losses.Reduction.SUM,
         loss_collection=None
     )
