@@ -9,6 +9,7 @@ from object_detection2.modeling.matcher import Matcher
 import math
 from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.ssd_head import *
+from .meta_arch import MetaArch
 
 slim = tf.contrib.slim
 
@@ -17,7 +18,7 @@ __all__ = ["SSD"]
 
 
 @META_ARCH_REGISTRY.register()
-class SSD(wmodule.WModule):
+class SSD(MetaArch):
 
     def __init__(self, cfg,*args,**kwargs):
         super().__init__(cfg,*args,**kwargs)
@@ -103,14 +104,6 @@ class SSD(wmodule.WModule):
                                         box_delta=pred_anchor_deltas, anchors=anchors)
             return results,{}
 
-    def preprocess_image(self, batched_inputs):
-        """
-        Normalize, pad and batch the input images.
-        """
-        batched_inputs[IMAGE] = (batched_inputs[IMAGE]-127.5)/127.5
-        return batched_inputs
-
-
 class SSDHead(wmodule.WChildModule):
 
     def __init__(self, num_anchors,cfg,parent,*args,**kwargs):
@@ -119,6 +112,17 @@ class SSDHead(wmodule.WChildModule):
             len(set(num_anchors)) == 1
         ), "Using different number of anchors between levels is not currently supported!"
         self.num_anchors = num_anchors[0]
+        self.norm_params = {
+            'decay': 0.997,
+            'epsilon': 1e-4,
+            'scale': True,
+            'updates_collections': tf.GraphKeys.UPDATE_OPS,
+            'fused': None,  # Use fused batch norm if possible.
+            'is_training': self.is_training
+        }
+        #测试时不使用batch_norm不收敛
+        self.normalizer_fn = slim.batch_norm
+        self.activation_fn = tf.nn.relu
 
     def forward(self, features):
         """
@@ -143,16 +147,19 @@ class SSDHead(wmodule.WChildModule):
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         logits = []
         bbox_reg = []
-        for feature in features:
+        for j,feature in enumerate(features):
             channels = feature.get_shape().as_list()[-1]
             with tf.variable_scope("WeightSharedConvolutionalBoxPredictor", reuse=tf.AUTO_REUSE):
                 net = feature
                 with tf.variable_scope("BoxPredictionTower"):
                     for i in range(num_convs):
                         net = slim.conv2d(net,channels,[3,3],
-                                          activation_fn=tf.nn.relu,
+                                          activation_fn=None,
                                           normalizer_fn=None,
-                                          scope=f"Conv2d_{i}")
+                                          scope=f"conv2d_{i}")
+                        if self.normalizer_fn is not None:
+                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                        net = self.activation_fn(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
@@ -160,9 +167,12 @@ class SSDHead(wmodule.WChildModule):
                 with tf.variable_scope("ClassPredictionTower"):
                     for i in range(num_convs):
                         net = slim.conv2d(net,channels,[3,3],
-                                          activation_fn=tf.nn.relu,
+                                          activation_fn=None,
                                           normalizer_fn=None,
-                                          scope=f"Conv2d_{i}")
+                                          scope=f"conv2d_{i}")
+                        if self.normalizer_fn is not None:
+                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                        net = self.activation_fn(net)
                 _logits = slim.conv2d(net, self.num_anchors* (num_classes+1), [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          biases_initializer=tf.constant_initializer(value=bias_value),
