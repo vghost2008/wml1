@@ -9,6 +9,7 @@ from object_detection2.modeling.matcher import Matcher
 import math
 from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.retinanet_head import *
+from .meta_arch import MetaArch
 
 slim = tf.contrib.slim
 
@@ -17,7 +18,7 @@ __all__ = ["RetinaNet"]
 
 
 @META_ARCH_REGISTRY.register()
-class RetinaNet(wmodule.WModule):
+class RetinaNet(MetaArch):
     """
     Implement RetinaNet (https://arxiv.org/abs/1708.02002).
     """
@@ -28,12 +29,6 @@ class RetinaNet(wmodule.WModule):
         # fmt: off
         self.num_classes              = cfg.MODEL.RETINANET.NUM_CLASSES
         self.in_features              = cfg.MODEL.RETINANET.IN_FEATURES
-        # Inference parameters:
-        self.score_threshold          = cfg.MODEL.RETINANET.SCORE_THRESH_TEST
-        self.topk_candidates          = cfg.MODEL.RETINANET.TOPK_CANDIDATES_TEST
-        self.nms_threshold            = cfg.MODEL.RETINANET.NMS_THRESH_TEST
-        self.max_detections_per_image = cfg.TEST.DETECTIONS_PER_IMAGE
-        self.batch_size               = cfg.SOLVER.IMS_PER_BATCH
         # fmt: on
 
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
@@ -94,18 +89,17 @@ class RetinaNet(wmodule.WModule):
         )
 
         if self.is_training:
-            return None,outputs.losses()
+            if self.cfg.GLOBAL.DEBUG:
+                results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
+                                            box_delta=pred_anchor_deltas, anchors=anchors)
+            else:
+                results = {}
+
+            return results,outputs.losses()
         else:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                         box_delta=pred_anchor_deltas, anchors=anchors)
-            return results
-
-    def preprocess_image(self, batched_inputs):
-        """
-        Normalize, pad and batch the input images.
-        """
-        batched_inputs[IMAGE] = (batched_inputs[IMAGE]-127.5)/127.5
-        return batched_inputs
+            return results,{}
 
 
 class RetinaNetHead(wmodule.WChildModule):
