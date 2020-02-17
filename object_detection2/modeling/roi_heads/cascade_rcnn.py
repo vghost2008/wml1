@@ -145,7 +145,7 @@ class CascadeROIHeads(StandardROIHeads):
         # but scale up the parameter gradients of the heads.
         # This is equivalent to adding the losses among heads,
         # but scale down the gradients on features.
-        #box_features = wnnl.scale_gradient(box_features, 1.0 / self.num_cascade_stages)
+        box_features = wnnl.scale_gradient(box_features, 1.0 / self.num_cascade_stages)
         box_features = self.box_head[stage](box_features,scope=f"BoxHead{stage}")
         pred_class_logits, pred_proposal_deltas = self.box_predictor[stage](box_features,scope=f"BoxPredictor{stage}")
         del box_features
