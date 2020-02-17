@@ -24,6 +24,8 @@ class CascadeROIHeads(StandardROIHeads):
         self.num_cascade_stages  = len(cascade_ious)
         self.train_on_pred_boxes = cfg.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES
 
+        print(cascade_bbox_reg_weights,cascade_ious)
+        print(len(cascade_bbox_reg_weights),len(cascade_ious))
         assert len(cascade_bbox_reg_weights) == self.num_cascade_stages
         assert cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG,  \
             "CascadeROIHeads only support class-agnostic regression now!"

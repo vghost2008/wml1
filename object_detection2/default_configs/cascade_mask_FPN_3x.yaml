@@ -10,7 +10,7 @@ MODEL:
   RPN:
     POST_NMS_TOPK_TRAIN: 1000
   ROI_BOX_CASCADE_HEAD:
-    BBOX_REG_WEIGHTS: ((10.0, 10.0, 5.0, 5.0))
-    IOUS: (0.5)
+    BBOX_REG_WEIGHTS: ((10.0, 10.0, 5.0, 5.0),)
+    IOUS: (0.5,)
 GLOBAL:
   PROJ_NAME: "CascadeRCNNDemon2"
