@@ -100,7 +100,7 @@ class CascadeROIHeads(StandardROIHeads):
                 losses.update({k + "_stage{}".format(stage): v for k, v in stage_losses.items()})
             return losses
         else:
-            # Each is a list[Tensor] of length #image. Each tensor is Ri x (K+1)
+            '''# Each is a list[Tensor] of length #image. Each tensor is Ri x (K+1)
             scores_per_stage = [h.predict_probs() for h in head_outputs]
 
             # Average the scores across heads
@@ -112,6 +112,13 @@ class CascadeROIHeads(StandardROIHeads):
                 self.test_nms_thresh,
                 self.test_detections_per_img,
                 scores = scores
+            )
+            return pred_instances
+            '''
+            pred_instances = head_outputs[0].inference(
+                self.test_score_thresh,
+                self.test_nms_thresh,
+                self.test_detections_per_img,
             )
             return pred_instances
 

@@ -3,10 +3,11 @@ import tensorflow as tf
 import img_utils as wmli
 import wtfop.wtfop_ops as wop
 from collections import Iterable
-import object_detection.bboxes as wml_bboxes
+import object_detection2.bboxes as wml_bboxes
 import time
 from functools import partial
 import wml_tfutils as wmlt
+from object_detection2.standard_names import *
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
 '''
@@ -26,29 +27,36 @@ class WTransform(object):
     def is_label(self,key):
         return ('label' in key) or ('class' in key)
 
-    def apply_to_images(self,func,data_item):
-        return self.apply_with_filter(func,data_item,filter=self.is_image)
+    def apply_to_images(self,func,data_item,**kwargs):
+        return self.apply_with_filter(func,data_item,filter=self.is_image,**kwargs)
 
-    def apply_to_masks(self,func,data_item):
-        return self.apply_with_filter(func,data_item,filter=self.is_mask)
+    def apply_to_masks(self,func,data_item,**kwargs):
+        return self.apply_with_filter(func,data_item,filter=self.is_mask,**kwargs)
 
-    def apply_to_images_and_masks(self,func,data_item):
+    def apply_to_images_and_masks(self,func,data_item,**kwargs):
         return self.apply_with_filter(func,data_item,
-                                      filter=self.is_image_or_mask)
+                                      filter=self.is_image_or_mask,**kwargs)
 
-    def apply_to_bbox(self,func,data_item):
-        return self.apply_with_filter(func,data_item,filter=self.is_bbox)
+    def apply_to_bbox(self,func,data_item,**kwargs):
+        return self.apply_with_filter(func,data_item,filter=self.is_bbox,**kwargs)
 
-    def apply_to_label(self,func,data_item):
-        return self.apply_with_filter(func,data_item,filter=self.is_label)
+    def apply_to_label(self,func,data_item,**kwargs):
+        return self.apply_with_filter(func,data_item,filter=self.is_label,**kwargs)
 
-    def apply_with_filter(self,func,data_item,filter):
+    def apply_with_filter(self,func,data_item,filter,runtime_filter=None):
         res = {}
-        for k,v in data_item.items():
-            if filter(k):
-                res[k] = func(v)
-            else:
-                res[k] = v
+        if runtime_filter is None:
+            for k,v in data_item.items():
+                if filter(k):
+                    res[k] = func(v)
+                else:
+                    res[k] = v
+        else:
+            for k,v in data_item.items():
+                if filter(k):
+                    res[k] = tf.cond(runtime_filter,lambda:func(v),lambda:v)
+                else:
+                    res[k] = v
         return res
 '''
 img:[H,W,C]
@@ -241,7 +249,59 @@ def flip_up_down(image,bboxes):
         image = tf.image.flip_up_down(image)
     return image,wml_bboxes.bboxes_flip_up_down(bboxes)
 
+'''
+Boxes: relative coordinate
+mask:H,W,N format
+'''
+class RandomFlipLeftRight(WTransform):
+    def __init__(self):
+        pass
+    def __call__(self, data_item):
+        is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
+        func = tf.image.flip_left_right
+        data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
+        func2 = wml_bboxes.bboxes_flip_left_right
+        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        return data_item
 
+'''
+Boxes: relative coordinate
+mask:H,W,N format
+'''
+class RandomFlipUpDown(WTransform):
+    def __init__(self):
+        pass
+    def __call__(self, data_item):
+        is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
+        func = tf.image.flip_up_down
+        data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
+        func2 = wml_bboxes.bboxes_flip_up_down
+        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        return data_item
+
+'''
+Boxes: relative coordinate
+mask:H,W,N format
+'''
+class RandomRotate(WTransform):
+    def __init__(self,clockwise=True):
+        self.clockwise = clockwise
+        if clockwise:
+            self.k = 1
+        else:
+            self.k = 3
+
+    def __call__(self, data_item):
+        is_rotate = tf.greater(tf.random_uniform(shape=[]),0.5)
+        func = partial(tf.image.rot90,k=self.k)
+        data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_rotate)
+        func2 = partial(wml_bboxes.bboxes_rot90,clockwise=self.clockwise)
+        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_rotate)
+        return data_item
+
+'''
+mask:H,W,N format
+'''
 class ResizeShortestEdge(WTransform):
     def __init__(self,short_edge_length=range(640,801,32),align=1,resize_method=tf.image.ResizeMethod.BILINEAR,seed=None):
         if isinstance(short_edge_length, Iterable):
@@ -308,7 +368,20 @@ class BBoxesRelativeToAbsolute(WTransform):
     def __call__(self, data_item):
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             size = tf.shape(data_item[self.img_key])
-            func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
+            func = partial(wml_bboxes.tfrelative_boxes_to_absolutely_boxes,width=size[1],height=size[0])
+            return self.apply_to_bbox(func,data_item)
+
+'''
+prossed batched data
+'''
+class BBoxesAbsoluteToRelative(WTransform):
+    def __init__(self,img_key='image'):
+        self.img_key = img_key
+
+    def __call__(self, data_item):
+        with tf.name_scope("BBoxesRelativeToAbsolute"):
+            size = tf.shape(data_item[self.img_key])[1:3]
+            func = partial(wml_bboxes.tfbatch_absolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
             return self.apply_to_bbox(func,data_item)
 
 '''
@@ -338,5 +411,26 @@ class AddBoxLens(WTransform):
     def __call__(self, data_item):
         gt_len = tf.shape(data_item[self.box_key])[0]
         data_item[self.gt_len_key] = gt_len
+        return data_item
+
+class WDistortColor(WTransform):
+    def __init__(self,**kwargs):
+        self.kwargs = kwargs
+    def __call__(self, data_item):
+        func = partial(distort_color,**self.kwargs)
+        return self.apply_to_images(func,data_item)
+
+class WRandomBlur(WTransform):
+    def __init__(self,**kwargs):
+        self.kwargs = kwargs
+    def __call__(self, data_item):
+        return self.apply_to_images(random_blur,data_item)
+
+class WTransformList(WTransform):
+    def __init__(self,trans_list):
+        self.trans_list = list(trans_list)
+    def __call__(self, data_item):
+        for trans in self.trans_list:
+            data_item = trans(data_item)
         return data_item
 

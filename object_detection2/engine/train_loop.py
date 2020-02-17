@@ -160,7 +160,7 @@ class TrainerBase:
                 self.before_step()
                 results = self.run_eval_step()
                 self.model.doeval(evaler,results)
-                if self.step %100 == 0:
+                if self.step %self.show_eval_results_step == 0:
                     evaler.show()
                 self.after_step()
         except Exception:
@@ -221,8 +221,9 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = None
         self.sess = None
         self.global_step = tf.train.get_or_create_global_step()
-        self.log_step = 100 if model.is_training else 50
+        self.log_step = 100 if model.is_training else 1
         self.save_step = 200
+        self.show_eval_results_step = 1
         self.step = 1
         self.total_loss = None
         self.variables_to_train = None

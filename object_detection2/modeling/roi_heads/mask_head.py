@@ -140,8 +140,8 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
             'fused': None,  # Use fused batch norm if possible.
             'is_training':self.is_training
         }
-        #Detectron2默认没有使用normalizer
-        self.normalizer_fn = slim.batch_norm
+        #Detectron2默认没有使用normalizer, 使用测试数据发现是否使用normalizer并没有什么影响
+        self.normalizer_fn = None #slim.batch_norm
 
     def forward(self, x):
         cfg = self.cfg
@@ -159,7 +159,7 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
                                     activation_fn=tf.nn.relu,
                                     normalizer_fn=self.normalizer_fn,
                                     normalizer_params=self.norm_params,
-                                    scope=f"Conf{k}")
+                                    scope=f"Conv{k}")
             x = slim.conv2d_transpose(x,conv_dims,kernel_size=2,
                                     stride=2,activation_fn=tf.nn.relu,
                                     scope="Upsample")

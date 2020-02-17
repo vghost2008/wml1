@@ -802,6 +802,14 @@ def tfabsolutely_boxes_to_relative_boxes(boxes, width, height):
 
         return tf.stack([ymin, xmin, ymax, xmax], axis=1)
 
+def tfbatch_absolutely_boxes_to_relative_boxes(boxes, width, height):
+    with tf.name_scope("batch_absolutely_boxes_to_relative_boxes"):
+        batch_size,N,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
+        boxes = tf.reshape(boxes,[-1,box_dim])
+        res = tfabsolutely_boxes_to_relative_boxes(boxes,width,height)
+        res = tf.reshape(res,[batch_size,N,box_dim])
+        return res
+
 
 def bboxes_and_labels_filter(bboxes,labels,lens,filter):
     with tf.name_scope("bboxes_and_labels_filter"):

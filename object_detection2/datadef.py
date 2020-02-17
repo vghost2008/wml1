@@ -6,7 +6,6 @@ from wml_utils import MDict
 
 ProposalsData = OrderedDict#namedtuple("ProposalsData",[PD_BOXES,PD_LOGITS])
 RCNNResultsData = OrderedDict#key=[RD_BOXES,RD_LABELS,RD_PROBABILITY,RD_INDICES,RD_LENGTH,RD_MASKS,RD_KEYPOINT]
-EncodedData = namedtuple("EncoderData",[ED_GT_OBJECT_LOGITS,SCORES,ED_INDICES,ED_BOXES,ED_GT_BOXES,ED_GT_LABELS])
 class EncodedData(MDict):
     def __init__(self,gt_object_logits=None,scores=None,indices=None,boxes=None,gt_boxes=None,gt_labels=None):
         if gt_object_logits is not None:
