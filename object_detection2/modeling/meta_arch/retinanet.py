@@ -114,6 +114,17 @@ class RetinaNetHead(wmodule.WChildModule):
             len(set(num_anchors)) == 1
         ), "Using different number of anchors between levels is not currently supported!"
         self.num_anchors = num_anchors[0]
+        self.norm_params = {
+            'decay': 0.997,
+            'epsilon': 1e-4,
+            'scale': True,
+            'updates_collections': tf.GraphKeys.UPDATE_OPS,
+            'fused': None,  # Use fused batch norm if possible.
+            'is_training': self.is_training
+        }
+        # Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
+        self.normalizer_fn = slim.batch_norm
+        self.activation_fn = tf.nn.relu
 
     def forward(self, features):
         """
@@ -138,16 +149,19 @@ class RetinaNetHead(wmodule.WChildModule):
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         logits = []
         bbox_reg = []
-        for feature in features:
+        for j,feature in enumerate(features):
             channels = feature.get_shape().as_list()[-1]
             with tf.variable_scope("WeightSharedConvolutionalBoxPredictor", reuse=tf.AUTO_REUSE):
                 net = feature
                 with tf.variable_scope("BoxPredictionTower"):
                     for i in range(num_convs):
                         net = slim.conv2d(net,channels,[3,3],
-                                          activation_fn=tf.nn.relu,
+                                          activation_fn=None,
                                           normalizer_fn=None,
-                                          scope=f"Conv2d_{i}")
+                                          scope=f"conv2d_{i}")
+                        if self.normalizer_fn is not None:
+                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                        net = self.activation_fn(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
@@ -155,9 +169,12 @@ class RetinaNetHead(wmodule.WChildModule):
                 with tf.variable_scope("ClassPredictionTower"):
                     for i in range(num_convs):
                         net = slim.conv2d(net,channels,[3,3],
-                                          activation_fn=tf.nn.relu,
+                                          activation_fn=None,
                                           normalizer_fn=None,
-                                          scope=f"Conv2d_{i}")
+                                          scope=f"conv2d_{i}")
+                        if self.normalizer_fn is not None:
+                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                        net = self.activation_fn(net)
                 _logits = slim.conv2d(net, self.num_anchors* num_classes, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          biases_initializer=tf.constant_initializer(value=bias_value),
