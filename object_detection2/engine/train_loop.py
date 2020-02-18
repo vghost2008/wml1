@@ -311,9 +311,6 @@ class SimpleTrainer(TrainerBase):
             wmlu.create_empty_dir(self.log_dir)
         if not os.path.exists(self.ckpt_dir):
             wmlu.create_empty_dir(self.ckpt_dir)
-        data = self.data.get_next()
-        DataLoader.detection_image_summary(data,name="data_source")
-        self.input_data = data
         '''if self.cfg.GLOBAL.DEBUG:
             data[IMAGE] = tf.Print(data[IMAGE],[tf.shape(data[IMAGE]),data[ORG_HEIGHT],data[ORG_WIDTH],data[HEIGHT],data[WIDTH]],summarize=100,
                                    name="XXXXX")'''
@@ -332,6 +329,9 @@ class SimpleTrainer(TrainerBase):
                 #scope.reuse_variables()
             with tf.device(f"/gpu:{i}"):
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
+                    data = self.data.get_next()
+                    DataLoader.detection_image_summary(data,name=f"data_source{i}")
+                    self.input_data = data
                     self.res_data,loss_dict = self.model.forward(data)
                     for k,v in loss_dict.items():
                         all_loss_dict[k+f"_stage{i}"] = v

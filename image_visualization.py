@@ -266,4 +266,6 @@ def get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
             res_mask[y:y+h,x:x+w] = mask
         res_masks.append(res_mask)
 
+    if len(res_masks)==0:
+        return np.zeros([0,size[0],size[1]],dtype=dtype)
     return np.stack(res_masks,axis=0)

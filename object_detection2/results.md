@@ -165,6 +165,23 @@
     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.636
     ```
 
+- 使用数据增强, 从结果看使用数据增加后有明显提升
+
+    ```
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.887
+    Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.993
+    Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.989
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.822
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.912
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.846
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.484
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.911
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.911
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.848
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.935
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.868
+    ```
+
 ##SSD
 
 - 除了损失函数外，其它使用与RetinaNet一样的配置
