@@ -20,6 +20,7 @@ def setup(args):
     Create configs and perform basic setups.
     """
     cfg = config.get_cfg()
+    print(f"Config file {args.config_file}")
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.log_dir = args.log_dir

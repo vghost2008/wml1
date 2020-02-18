@@ -358,8 +358,8 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
         self.cls_agnostic_bbox_reg = cls_agnostic_bbox_reg
         self.box_dim = box_dim
 
-    def forward(self, x,scope=None):
-        with tf.variable_scope(scope,"BoxPredictor"):
+    def forward(self, x,scope="BoxPredictor"):
+        with tf.variable_scope(scope):
             if len(x.get_shape()) > 2:
                 shape = wmlt.combined_static_and_dynamic_shape(x)
                 x = tf.reshape(x,[shape[0],-1])
