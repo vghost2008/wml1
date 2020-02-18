@@ -14,6 +14,7 @@ import wml_utils as wmlu
 import logging
 import glob
 from collections import Iterable
+from iotoolkit.transform import WTransformList
 
 slim = tf.contrib.slim
 slim_example_decoder = tf.contrib.slim.tfexample_decoder
@@ -103,10 +104,8 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
     dataset = get_database(dataset_dir=data_dir,num_parallel=num_parallel,file_pattern=file_pattern)
     if transforms is not None:
         if isinstance(transforms,Iterable):
-            for tran in transforms:
-                dataset = dataset.map(tran)
-        else:
-            dataset = dataset.map(transforms)
+            transforms = WTransformList(list(transforms))
+        dataset = dataset.map(transforms)
     with tf.name_scope('data_provider'):
         pass
     '''
