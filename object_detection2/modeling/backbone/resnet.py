@@ -15,7 +15,15 @@ class ResNet(Backbone):
     def forward(self, x):
         res = collections.OrderedDict()
         batch_norm_decay = self.cfg.MODEL.RESNETS.batch_norm_decay #0.999
-        with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay)):
+        if not self.is_training:
+            train_bn = False
+        elif self.cfg.MODEL.RESNETS.FROZEN_BN:
+            print("Frozen bn.")
+            train_bn = False
+        else:
+            train_bn = True
+        with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
+                                             is_training=train_bn)):
             with slim.arg_scope([slim.batch_norm, slim.dropout],
                                 is_training=self.is_training):
                 with tf.variable_scope("FeatureExtractor"):

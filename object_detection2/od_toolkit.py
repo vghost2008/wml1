@@ -2,6 +2,10 @@
 import tensorflow as tf
 import wtfop.wtfop_ops as wop
 import wml_tfutils as wmlt
+import wnnlayer as wnnl
+
+slim = tf.contrib.slim
+
 
 '''
 boxes:[N,4]
@@ -30,3 +34,29 @@ def batched_random_select_boxes(boxes,lens,size):
         boxes = wmlt.reshape(boxes,[batch_size,size,4])
         indexs = wmlt.reshape(indexs,[batch_size,size])
         return boxes,indexs
+
+def get_norm(name:str,is_training):
+    if len(name) == 0:
+        return None,None,
+    elif name == "BN":
+        norm_params = {
+            'decay': 0.997,
+            'epsilon': 1e-4,
+            'scale': True,
+            'updates_collections': tf.GraphKeys.UPDATE_OPS,
+            'fused': None,  # Use fused batch norm if possible.
+            'is_training': is_training
+        }
+        return slim.batch_norm,norm_params
+    elif name == "GN":
+        norm_params = {
+            "G":32,
+            "epsilon":1e-5,
+            "weights_regularizer":None,
+            "scale":True,
+            "offset":True,
+            "scope":"group_norm"
+        }
+        return wnnl.group_norm,norm_params
+    else:
+        raise NotImplementedError()
