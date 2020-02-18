@@ -201,3 +201,23 @@
     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 1.000
     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 1.000
     ```
+
+##Cascade-RCNN (with gradient scale)
+
+- 添加gradient scale后好像对结果并没有多少的改变
+
+    ```
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.994
+    Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.997
+    Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.997
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.995
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.998
+    Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 1.000
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.522
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.999
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.999
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.998
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 1.000
+    Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 1.000
+    ```
+
