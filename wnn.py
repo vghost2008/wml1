@@ -17,6 +17,7 @@ import eval_toolkit as evt
 import os
 import copy
 import functools
+from collections import Iterable
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -314,6 +315,46 @@ def get_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
         grads = optimizer.compute_gradients(total_loss, variables_to_train)
         return grads,total_loss,variables_to_train
 
+'''
+主要用于同时在不同的GPU上训练同一个网络
+'''
+def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
+    '''
+    opt = get_optimizer(global_step,learning_rate=.5,batch_size=1)
+    for i in range(2):
+        with tf.device("/cpu:{}".format(0)):
+            with tf.name_scope("cpu_{}".format(i)):
+                loss = tf.pow(x-10.0,2)+9.0+tf.pow(y-5.,2)
+                tf.losses.add_loss(tf.reduce_sum(loss))
+
+                grads,_,_ = get_train_opv3(optimizer=opt,loss=loss)
+                tower_grads.append(grads)
+
+    avg_grads = average_grads(tower_grads)
+    opt0 = apply_gradientsv3(avg_grads,global_step,opt)
+    opt1 = get_batch_norm_ops()
+    train_op = tf.group(opt0,opt1)
+    :param optimizer:
+    :param scopes:
+    :param loss:
+    :return:
+    '''
+    with tf.name_scope("train_op"):
+        variables_to_train = get_variables_to_train(scopes,re_pattern=re_pattern)
+        show_values(variables_to_train,"variables_to_train",fn=logging.info)
+        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
+
+        if not isinstance(loss,Iterable):
+            loss = [loss]
+        total_loss = list(loss)
+        loss_wr = get_regularization_losses(scopes=scopes,re_pattern=re_pattern,reduction=None)
+        if loss_wr is not None:
+            total_loss = total_loss+loss_wr
+        total_loss = tf.add_n(total_loss)
+
+        grads = optimizer.compute_gradients(total_loss, variables_to_train)
+        return grads,total_loss,variables_to_train
+
 def pure_grads(grads):
     pg=[]
     for g in grads:
@@ -362,17 +403,22 @@ def average_grads(tower_grads,clip_norm=None):
                     print(_v,"have no grads.")
                 expanded_g = tf.expand_dims(g,0)
                 grads.append(expanded_g)
-            grad = tf.concat(values=grads,axis=0)
-            grad = tf.reduce_mean(grad,0)
+            if len(grads)>0:
+                grad = tf.concat(values=grads,axis=0)
+                grad = tf.reduce_mean(grad,0)
+            else:
+                grad = None
 
             v = grad_and_vars[0][1]
             grad_and_var = (grad,v)
             average_grads.append(grad_and_var)
+
         if clip_norm is not None:
             grads,vars = zip(*average_grads)
             grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
             tf.summary.scalar("global_norm", global_norm)
             average_grads = list(zip(grads,vars))
+
         return average_grads
 
 def average_npgrads(grads_list):
@@ -510,6 +556,9 @@ def restore_variables_by_var_list(sess,file_path,vars):
         return file_path,vars
     return []
 
+'''
+value_key: a callable object trans variable(tf.Tensor) to it's save or restore name
+'''
 def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None,verbose=False):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
@@ -600,13 +649,18 @@ def accuracy_num(logits,labels):
 
     return correct_num,tf.reduce_prod(tf.shape(labels))
 
-def get_regularization_losses(scopes=None,re_pattern=None):
+def get_regularization_losses(scopes=None,re_pattern=None,reduction="mean"):
     with tf.name_scope("regularization_losses"):
         col = get_variables_of_collection(tf.GraphKeys.REGULARIZATION_LOSSES,scopes=scopes,re_pattern=re_pattern)
         if len(col)>0:
             print("wr_loss")
             wmlu.show_list(col)
-            return tf.reduce_mean(col)
+            if reduction == "mean":
+                return tf.reduce_mean(col)
+            elif reduction == "sum":
+                return tf.reduce_sum(col)
+            else:
+                return col
         else:
             return None
 

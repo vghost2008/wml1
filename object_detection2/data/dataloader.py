@@ -12,7 +12,8 @@ class DataLoader(wmodule.WModule):
                                         #trans.ResizeToFixedSize(),
                                         trans.RandomFlipLeftRight(),
                                         trans.RandomFlipUpDown(),
-                                        trans.RandomRotate(),
+                                        trans.RandomRotate(clockwise=True),
+                                        #trans.RandomRotate(clockwise=False), 因为已经有了上下及左右翻转的辅助，已经可以覆盖每一个角度
                                         trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TRAIN,
                                                                  max_size=self.cfg.INPUT.MAX_SIZE_TRAIN,
                                                                  align=self.cfg.INPUT.SIZE_ALIGN),

@@ -37,8 +37,8 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
         self.normalizer_fn = wnnl.group_norm
 
 
-    def forward(self, x,scope=None):
-        with tf.variable_scope(scope,"FastRCNNConvFCHead"):
+    def forward(self, x,scope="FastRCNNConvFCHead"):
+        with tf.variable_scope(scope):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
             num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
