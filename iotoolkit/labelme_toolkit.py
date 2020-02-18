@@ -139,10 +139,23 @@ def save_labelme_datav1(file_path,image_path,image,image_data,annotations_list,l
     wmli.imsave(image_path,image_data)
     save_labelme_data(file_path,image_path,image,annotations_list,label_to_text)
 
+'''
+获取标注box scale倍大小的扩展box(面积为scale*scale倍大)
+box的中心点不变
+'''
 def get_expand_bboxes_in_annotations(annotations,scale=2):
    bboxes = [ann["bbox"] for ann in annotations]
    bboxes = odb.expand_bbox(bboxes,scale)
    return bboxes
+
+'''
+获取标注box 扩展为size大小的box
+box的中心点不变
+'''
+def get_expand_bboxes_in_annotationsv2(annotations,size):
+    bboxes = [ann["bbox"] for ann in annotations]
+    bboxes = odb.expand_bbox_by_size(bboxes,size)
+    return bboxes
 
 def get_labels(annotations):
     labels = [ann["category_id"] for ann in annotations]
@@ -166,6 +179,10 @@ def resize(image,annotations_list,img_data,size):
 
     return res_image,res_ann,res_img_data
 
+'''
+从目标集中随机的选一个目标并从中截图
+随机的概率可以通过weights指定
+'''
 def random_cut(image,annotations_list,img_data,size,weights=None,threshold=0.15):
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
@@ -189,6 +206,10 @@ def random_cut(image,annotations_list,img_data,size,weights=None,threshold=0.15)
 
     return None,None,None
 
+'''
+size:[H,W]
+在每一个标目标附近裁剪出一个子图
+'''
 def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
     res = []
     x_max = max(0,image["width"]-size[0])
@@ -196,7 +217,7 @@ def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
-    obj_ann_bboxes = get_expand_bboxes_in_annotations(annotations_list,2)
+    obj_ann_bboxes = get_expand_bboxes_in_annotationsv2(annotations_list,size)
     if len(annotations_list)==0:
         return res
 

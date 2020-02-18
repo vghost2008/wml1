@@ -716,6 +716,23 @@ def expand_bbox(bboxes,scale=2):
         res_bboxes.append((min_x,min_y,new_width,new_height))
 
     return res_bboxes
+
+'''
+bbox:[(xmin,ymin,width,height),....]
+size:[H,W]
+return a list of new bbox with the size 'size' 
+'''
+def expand_bbox_by_size(bboxes,size):
+    res_bboxes = []
+    for bbox in bboxes:
+        cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
+        new_width = size[1]
+        new_height = size[0]
+        min_x = max(cx-new_width//2,0)
+        min_y = max(cy-new_height//2,0)
+        res_bboxes.append((min_x,min_y,new_width,new_height))
+
+    return res_bboxes
 '''
 bboxes:[N,4]
 '''
