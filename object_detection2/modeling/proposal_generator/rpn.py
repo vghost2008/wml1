@@ -87,9 +87,9 @@ class RPN(wmodule.WChildModule):
 
         features = [features[f] for f in self.in_features]
 
-        gt_boxes = inputs['gt_boxes']
+        gt_boxes = inputs.get(GT_BOXES,None)
         #gt_labels = inputs.gt_labels
-        gt_length = inputs['gt_length']
+        gt_length = inputs.get(GT_LENGTH,None)
 
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(inputs,features)
         anchors = self.rpn_head.anchor_generator(inputs,features)

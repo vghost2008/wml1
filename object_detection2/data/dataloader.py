@@ -69,6 +69,13 @@ class DataLoader(wmodule.WModule):
                            max_boxes_to_draw=20,
                            min_score_thresh=0.2,name="detection_image_summary",max_outputs=3):
         image = inputs.get('image',None)
+
+        if 'gt_boxes' not in inputs:
+            if image is not None:
+                wsummary.image_summaries(image,
+                                     name=name+"_onlyimg")
+            return
+        
         boxes = inputs.get('gt_boxes',None)
         classes = inputs.get('gt_labels',None)
         instance_masks = inputs.get('gt_masks',None)

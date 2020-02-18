@@ -61,7 +61,7 @@ class FPN(Backbone):
         self.interpolate_op=tf.image.resize_nearest_neighbor
         self.stage = stage
         #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
-        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.FPN.NORM,self.is_training)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
 
 
     @property

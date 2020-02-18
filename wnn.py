@@ -557,7 +557,10 @@ def restore_variables_by_var_list(sess,file_path,vars):
     return []
 
 '''
-value_key: a callable object trans variable(tf.Tensor) to it's save or restore name
+value_key: a callable object trans variable(tf.Tensor) to it's save or restore name, for example 
+def func(v)
+    if v.name == "v1":
+       return "model/v1"
 '''
 def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None,verbose=False):
     #if restore_evckp and os.path.isdir(path):
