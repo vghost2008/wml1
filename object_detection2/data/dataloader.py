@@ -2,10 +2,39 @@
 import wmodule
 import iotoolkit.transform as trans
 import wsummary
+import tensorflow as tf
 
 class DataLoader(wmodule.WModule):
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self,cfg,*args,**kwargs):
+        super().__init__(cfg,*args,**kwargs)
+        if self.is_training:
+            self.trans_on_single_img = [trans.MaskNHW2HWN(),
+                                        #trans.ResizeToFixedSize(),
+                                        trans.RandomFlipLeftRight(),
+                                        trans.RandomFlipUpDown(),
+                                        trans.RandomRotate(),
+                                        trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TRAIN,
+                                                                 max_size=self.cfg.INPUT.MAX_SIZE_TRAIN,
+                                                                 align=self.cfg.INPUT.SIZE_ALIGN),
+                                        trans.MaskHWN2NHW(),
+                                        trans.BBoxesRelativeToAbsolute(),
+                                        trans.AddBoxLens(),
+                                        trans.UpdateHeightWidth(),
+                                        ]
+            self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                       trans.FixDataInfo()]
+        else:
+            self.trans_on_single_img = [trans.MaskNHW2HWN(),
+                                        #trans.ResizeToFixedSize(),
+                                        trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TEST,
+                                                                 max_size=self.cfg.INPUT.MAX_SIZE_TEST,
+                                                                 align=self.cfg.INPUT.SIZE_ALIGN),
+                                        trans.MaskHWN2NHW(),
+                                        trans.BBoxesRelativeToAbsolute(),
+                                        trans.AddBoxLens(),
+                                        ]
+            self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                       trans.FixDataInfo()]
 
     @staticmethod
     def get_pad_shapes(dataset):
@@ -17,7 +46,7 @@ class DataLoader(wmodule.WModule):
         return res
 
     def load_data(self,path,func,num_classes,batch_size=None,is_training=True):
-        data = func(path,transforms=[trans.MaskNHW2HWN(),trans.ResizeToFixedSize(),trans.MaskHWN2NHW(),trans.AddBoxLens()])
+        data = func(path,transforms=self.trans_on_single_img)
         if is_training:
             data = data.repeat()
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH
@@ -25,6 +54,10 @@ class DataLoader(wmodule.WModule):
         else:
             batch_size = 1 if batch_size is None else batch_size
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
+        if len(self.trans_on_batch_img) == 1:
+            data = data.map(self.trans_on_batch_img[0])
+        elif len(self.trans_on_batch_img) > 1:
+            data = data.map(trans.WTransformList(self.trans_on_batch_img))
         if batch_size>0:
             data = data.prefetch(2)
         return data.make_one_shot_iterator(),num_classes
@@ -39,9 +72,20 @@ class DataLoader(wmodule.WModule):
         classes = inputs.get('gt_labels',None)
         instance_masks = inputs.get('gt_masks',None)
         lengths = inputs.get('gt_length',None)
-        wsummary.detection_image_summary(image,boxes,classes,instance_masks=instance_masks,
-                                         lengths=lengths,category_index=category_index,
-                                         max_boxes_to_draw=max_boxes_to_draw,
-                                         min_score_thresh=min_score_thresh,
-                                         name=name)
+        if instance_masks is not None:
+            wsummary.image_summaries(image,
+                                     name=name+"_onlyimg")
+            wsummary.detection_image_summary(tf.ones_like(image,dtype=tf.float32)*0.5,
+                                             boxes,classes,instance_masks=instance_masks,
+                                             lengths=lengths,category_index=category_index,
+                                             max_boxes_to_draw=max_boxes_to_draw,
+                                             min_score_thresh=min_score_thresh,
+                                             name=name+"_onlymask")
+        else:
+            wsummary.detection_image_summary(image,boxes,classes,instance_masks=instance_masks,
+                                             lengths=lengths,category_index=category_index,
+                                             max_boxes_to_draw=max_boxes_to_draw,
+                                             min_score_thresh=min_score_thresh,
+                                             name=name)
+
 

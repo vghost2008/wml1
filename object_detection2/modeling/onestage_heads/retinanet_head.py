@@ -164,7 +164,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         box_delta = tf.concat(box_delta,axis=1)
 
         results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],anchors,anchors_size),elems=[box_cls,box_delta],
-                                                dtype=(tf.float32,tf.int32,tf.float32,tf.int32),
+                                                dtype=[tf.float32,tf.int32,tf.float32,tf.int32],
                                                 back_prop=False)
         outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[3]}
         if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:

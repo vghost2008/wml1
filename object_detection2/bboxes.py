@@ -817,6 +817,10 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
     with tf.name_scope("relative_boxes_to_absolutely_boxes"):
         boxes = tf.transpose(boxes)
+        if height.dtype != boxes.dtype:
+            height = tf.cast(height,boxes.dtype)
+        if width.dtype != boxes.dtype:
+            width = tf.cast(width,boxes.dtype)
         ymin = boxes[0]*height
         xmin = boxes[1]*width
         ymax = boxes[2]*height
@@ -831,6 +835,10 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 def tfabsolutely_boxes_to_relative_boxes(boxes, width, height):
     with tf.name_scope("absolutely_boxes_to_relative_boxes"):
         boxes = tf.transpose(boxes)
+        if height.dtype != boxes.dtype:
+            height = tf.cast(height,boxes.dtype)
+        if width.dtype != boxes.dtype:
+            width = tf.cast(width,boxes.dtype)
         ymin = boxes[0] / height
         xmin = boxes[1] / width
         ymax = boxes[2] / height

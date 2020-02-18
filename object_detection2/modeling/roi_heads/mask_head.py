@@ -36,7 +36,8 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
 
     gt_masks = inputs[GT_MASKS] #[batch_size,X,H,W]
     batch_size,X,H,W = wmlt.combined_static_and_dynamic_shape(gt_masks)
-    gt_masks = wmlt.batch_gather(gt_masks,proposals.indices)
+    #background include in proposals, which's indices is -1
+    gt_masks = wmlt.batch_gather(gt_masks,tf.nn.relu(proposals.indices))
     gt_masks = tf.reshape(gt_masks,[-1,H,W])
     gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
     boxes = proposals.boxes
