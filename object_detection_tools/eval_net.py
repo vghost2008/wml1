@@ -28,10 +28,11 @@ def setup(args):
 
 
 def main(_):
+    is_training = False
     args = default_argument_parser().parse_args()
 
     cfg = setup(args)
-    data_loader = DataLoader(cfg=cfg)
+    data_loader = DataLoader(cfg=cfg,is_training=is_training)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TEST]
     data,num_classes = data_loader.load_data(*data_args,batch_size=1,is_training=False)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
@@ -42,7 +43,7 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
-    model = SimpleTrainer.build_model(cfg,is_training=False)
+    model = SimpleTrainer.build_model(cfg,is_training=is_training)
     trainer = SimpleTrainer(cfg,data=data,model=model)
     trainer.resume_or_load()
     res = trainer.test(cfg, model)

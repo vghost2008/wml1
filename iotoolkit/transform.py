@@ -303,7 +303,9 @@ class RandomRotate(WTransform):
 mask:H,W,N format
 '''
 class ResizeShortestEdge(WTransform):
-    def __init__(self,short_edge_length=range(640,801,32),align=1,resize_method=tf.image.ResizeMethod.BILINEAR,seed=None):
+    def __init__(self,short_edge_length=range(640,801,32),align=1,resize_method=tf.image.ResizeMethod.BILINEAR,
+                 max_size=-1,
+                 seed=None):
         if isinstance(short_edge_length, Iterable):
             short_edge_length = list(short_edge_length)
         elif not isinstance(short_edge_length, list):
@@ -312,11 +314,13 @@ class ResizeShortestEdge(WTransform):
         self.align = align
         self.resize_method = resize_method
         self.seed = seed
+        self.max_size = max_size
 
     def __call__(self, data_item):
         with tf.name_scope("resize_shortest_edge"):
             if len(self.short_edge_length) == 1:
-                func = partial(resize_img,limit=[self.short_edge_length[0],-1],align=self.align,
+                func = partial(resize_img,limit=[self.short_edge_length[0],self.max_size],
+                                  align=self.align,
                                   resize_method=self.resize_method)
 
             else:
@@ -325,7 +329,9 @@ class ResizeShortestEdge(WTransform):
                                         dtype=tf.int32,
                                         seed=self.seed)
                 s = tf.gather(self.short_edge_length,idx)
-                func = partial(resize_img,limit=[s,-1],align=self.align,resize_method=self.resize_method)
+                func = partial(resize_img,limit=[s,self.max_size],
+                               align=self.align,
+                               resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
 
 class MaskNHW2HWN(WTransform):
@@ -352,6 +358,15 @@ class DelHeightWidth(WTransform):
             del data_item['height']
         if 'width' in data_item:
             del data_item['width']
+        return data_item
+
+class UpdateHeightWidth(WTransform):
+    def __call__(self, data_item):
+        shape = tf.shape(data_item[IMAGE])
+        if 'height' in data_item:
+            data_item['height'] = shape[0]
+        if 'width' in data_item:
+            data_item['width'] = shape[1]
         return data_item
 
 class AddSize(WTransform):
@@ -425,6 +440,19 @@ class WRandomBlur(WTransform):
         self.kwargs = kwargs
     def __call__(self, data_item):
         return self.apply_to_images(random_blur,data_item)
+
+'''
+operator on batch
+'''
+class FixDataInfo(WTransform):
+    def __init__(self,channel=3):
+        self.channel = channel
+
+    def __call__(self, data_item):
+        def func(x):
+            batch_size,H,W,C = wmlt.combined_static_and_dynamic_shape(x)
+            return tf.reshape(x,[batch_size,H,W,self.channel])
+        return self.apply_to_images(func,data_item)
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):

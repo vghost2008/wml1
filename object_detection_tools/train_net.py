@@ -49,7 +49,8 @@ def main(_):
     If you'd like to do anything fancier than the standard training logic,
     consider writing your own training loop or subclassing the trainer.
     """
-    data_loader = DataLoader(cfg=cfg)
+    is_training = True
+    data_loader = DataLoader(cfg=cfg,is_training=is_training)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
     data,num_classes = data_loader.load_data(*data_args)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
@@ -60,7 +61,7 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
-    model = SimpleTrainer.build_model(cfg,is_training=True)
+    model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model)
     trainer.resume_or_load()

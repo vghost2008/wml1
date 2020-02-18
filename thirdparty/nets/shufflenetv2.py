@@ -1,5 +1,6 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import basic_tftools as btf
 
 
 BATCH_NORM_MOMENTUM = 0.997
@@ -88,7 +89,7 @@ def block(x, num_units, out_channels=None, scope='stage'):
 
 def concat_shuffle_split(x, y):
     with tf.name_scope('concat_shuffle_split'):
-        shape = tf.shape(x)
+        shape = btf.combined_static_and_dynamic_shape(x)
         batch_size = shape[0]
         height, width = shape[1], shape[2]
         depth = x.shape[3].value

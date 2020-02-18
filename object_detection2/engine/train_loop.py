@@ -13,6 +13,7 @@ import os
 import wml_tfutils as wmlt
 import wsummary
 import object_detection2.metrics.toolkit as mt
+from object_detection2.standard_names import *
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -221,7 +222,7 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = None
         self.sess = None
         self.global_step = tf.train.get_or_create_global_step()
-        self.log_step = 100 if model.is_training else 50
+        self.log_step = 1 if model.is_training else 50
         self.save_step = 200
         self.show_eval_results_step = 100
         self.step = 1
@@ -263,6 +264,9 @@ class SimpleTrainer(TrainerBase):
         data = self.data.get_next()
         DataLoader.detection_image_summary(data,name="data_source")
         self.input_data = data
+        if self.cfg.GLOBAL.DEBUG:
+            data[IMAGE] = tf.Print(data[IMAGE],[tf.shape(data[IMAGE]),data[ORG_HEIGHT],data[ORG_WIDTH],data[HEIGHT],data[WIDTH]],summarize=100,
+                                   name="XXXXX")
         self.res_data,loss_dict = self.model.forward(data)
         if self.model.is_training:
             for v in loss_dict.values():
