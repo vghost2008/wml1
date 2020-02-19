@@ -61,7 +61,7 @@ def build_learning_rate(initial_lr,
                         decay_epochs=2.4,
                         total_steps=None,
                         steps=None,
-                        warmup_epochs=1):
+                        warmup_steps=1):
   with tf.name_scope("build_learning_rate"):
       if lr_decay_type == 'exponential':
         assert steps_per_epoch is not None
@@ -80,9 +80,9 @@ def build_learning_rate(initial_lr,
       else:
         assert False, 'Unknown lr_decay_type : %s' % lr_decay_type
 
-      if warmup_epochs:
-        logging.info('Learning rate warmup_epochs: %d', warmup_epochs)
-        warmup_steps = int(warmup_epochs * steps_per_epoch)
+      if warmup_steps>2:
+        logging.info('Learning rate warmup steps: %d', warmup_steps)
+        warmup_steps = int(warmup_steps)
         warmup_lr = (
             initial_lr * tf.cast(global_step, tf.float32) / tf.cast(
                 warmup_steps, tf.float32))

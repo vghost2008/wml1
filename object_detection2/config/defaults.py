@@ -594,5 +594,6 @@ _C.GLOBAL.HACK = 1.0
 _C.GLOBAL.DEBUG = True
 _C.GLOBAL.PROJ_NAME = "Demon"
 _C.GLOBAL.SUMMARY_LEVEL = 0
+_C.GLOBAL.WARMUP_STEPS = 0
 _C.log_dir = ""
 _C.ckpt_dir = ""
