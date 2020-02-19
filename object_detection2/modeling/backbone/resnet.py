@@ -31,8 +31,13 @@ class ResNet(Backbone):
 
         self.end_points = end_points
 
-        for i in range(1,5):
-            res[f"C{i+1}"] = end_points["FeatureExtractor/resnet_v1_50/"+f"block{i}"]
+        keys = ["conv1","block1/unit_2/bottleneck_v1","block1","block2","block4"] #block3,block4都是1/32
+        keys2 = ["block1","block2","block3","block4"] #block3,block4都是1/32
+        values2 = ["res1","res2","res3","res4"] #block3,block4都是1/32
+        for i in range(1,6):
+            res[f"C{i}"] = end_points["FeatureExtractor/resnet_v1_50/"+keys[i-1]]
+        for i,k in enumerate(keys2):
+            res[values2[i]] = end_points["FeatureExtractor/resnet_v1_50/"+keys2[i]]
 
         return res
 

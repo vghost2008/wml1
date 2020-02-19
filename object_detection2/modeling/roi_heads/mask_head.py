@@ -8,6 +8,7 @@ import object_detection2.config.config as config
 import image_visualization as ivis
 import wsummary
 import img_utils as wmli
+import object_detection2.od_toolkit as odt
 
 slim = tf.contrib.slim
 
@@ -133,16 +134,8 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
             norm: normalization for the conv layers
         """
         super(MaskRCNNConvUpsampleHead, self).__init__(cfg,**kwargs)
-        self.norm_params = {
-            'decay': 0.997,
-            'epsilon': 1e-4,
-            'scale': True,
-            'updates_collections': tf.GraphKeys.UPDATE_OPS,
-            'fused': None,  # Use fused batch norm if possible.
-            'is_training':self.is_training
-        }
         #Detectron2默认没有使用normalizer, 使用测试数据发现是否使用normalizer并没有什么影响
-        self.normalizer_fn = None #slim.batch_norm
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_MASK_HEAD.NORM,self.is_training)
 
     def forward(self, x):
         cfg = self.cfg

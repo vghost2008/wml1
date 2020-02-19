@@ -401,6 +401,7 @@ def average_grads(tower_grads,clip_norm=None):
             for g,_v in grad_and_vars:
                 if g is None:
                     print(_v,"have no grads.")
+                    continue
                 expanded_g = tf.expand_dims(g,0)
                 grads.append(expanded_g)
             if len(grads)>0:

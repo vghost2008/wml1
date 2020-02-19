@@ -43,18 +43,23 @@ def category_id_filter(category_id):
     good_ids = [1,2,3]
     return category_id in good_ids
 
-#text_to_id={"a":1,"b":2,"c":3,"d":4}
-text_to_id={"0":1,"1":2,"2":3}
+text_to_id={"a":1,"b":2,"c":3,"d":4}
+USE_INDEX_IN_FILE = False
+#text_to_id={"0":1,"1":2,"2":3}
 def label_text_to_id(text):
     return text_to_id[text]
 
 def create_tf_example(image,
                       annotations_list,
-                      img_file):
+                      img_file,
+                      id):
     image_height = image['height']
     image_width = image['width']
     filename = image['file_name']
-    file_index = int(filename[filename.find("_")+1:])
+    if USE_INDEX_IN_FILE:
+        file_index = int(filename[filename.find("_")+1:])
+    else:
+        file_index = id
 
     with tf.gfile.GFile(img_file, 'rb') as fid:
         encoded_jpg = fid.read()
@@ -135,7 +140,7 @@ def create_tf_example(image,
 def _get_output_filename(output_dir, name, idx):
     return '%s/%s_%03d.tfrecord' % (output_dir, name, idx)
 
-def _add_to_tfrecord(file,writer):
+def _add_to_tfrecord(file,writer,id):
     img_file,json_file = file
     image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
     if len(annotations_list)>32:
@@ -146,7 +151,7 @@ def _add_to_tfrecord(file,writer):
         raise RuntimeError("No annotations.")
         return False
     tf_example, num_annotations_skipped = create_tf_example(
-        image_info, annotations_list,img_file)
+        image_info, annotations_list,img_file,id)
     if tf_example is not None:
         writer.write(tf_example.SerializeToString())
         writer.flush()
@@ -186,8 +191,8 @@ def make_tfrecord(file_data,output_dir,name):
     fidx,file_d = file_data
     tf_filename = _get_output_filename(output_dir, name, fidx)
     with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
-        for file in file_d:
-            _add_to_tfrecord(file, tfrecord_writer)
+        for i,file in enumerate(file_d):
+            _add_to_tfrecord(file, tfrecord_writer,id=fidx*SAMPLES_PER_FILES+i)
 
 def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0):
     files = get_files(data_dir,img_suffix=img_suffix)
