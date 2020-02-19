@@ -124,7 +124,7 @@ _C.MODEL.FPN = CN()
 _C.MODEL.FPN.IN_FEATURES = []
 _C.MODEL.FPN.OUT_CHANNELS = 256
 
-# Options: "" (no norm), "GN"
+# Options: "" (no norm), "GN", "BN"
 _C.MODEL.FPN.NORM = ""
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
@@ -489,6 +489,7 @@ _C.MODEL.RESNETS.DEFORM_MODULATED = False
 # Number of groups in deformable conv.
 _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 _C.MODEL.RESNETS.batch_norm_decay = 0.999
+_C.MODEL.RESNETS.FROZEN_BN = False
 
 
 # ---------------------------------------------------------------------------- #

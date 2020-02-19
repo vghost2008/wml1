@@ -7,6 +7,7 @@ from .build import BACKBONE_REGISTRY
 from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
+import object_detection2.od_toolkit as odt
 
 slim = tf.contrib.slim
 
@@ -59,16 +60,8 @@ class FPN(Backbone):
         self.use_depthwise = False
         self.interpolate_op=tf.image.resize_nearest_neighbor
         self.stage = stage
-        self.norm_params = {
-            'decay': 0.997,
-            'epsilon': 1e-4,
-            'scale': True,
-            'updates_collections': tf.GraphKeys.UPDATE_OPS,
-            'fused': None,  # Use fused batch norm if possible.
-            'is_training':self.is_training
-        }
         #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
-        self.normalizer_fn = slim.batch_norm
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
 
 
     @property

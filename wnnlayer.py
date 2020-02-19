@@ -12,6 +12,7 @@ import nlp.wlayers as nlpl
 import numpy as np
 import time
 from tensorflow.contrib.framework.python.ops import add_arg_scope
+import basic_tftools as btf
 
 DATA_FORMAT_NHWC = 'NHWC'
 slim = tf.contrib.slim
@@ -138,18 +139,7 @@ def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope(scope):
-        if x.get_shape().is_fully_defined():
-            N,H,W,C = x.get_shape().as_list()
-        else:
-            none_nr = 0
-            for v in x.get_shape().as_list():
-                if v is None:
-                    none_nr += 1
-            if none_nr>1:
-                N, H, W, _ = tf.unstack(tf.shape(x),axis=0)
-                C = x.get_shape().as_list()[-1]
-            else:
-                N,H,W,C = x.get_shape().as_list()
+        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
         beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
         if weights_regularizer is not None:
