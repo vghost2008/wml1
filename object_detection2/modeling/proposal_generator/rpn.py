@@ -26,7 +26,9 @@ class StandardRPNHead(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
         self.anchor_generator = build_anchor_generator(cfg,parent=self,*args,**kwargs)
-        self.num_cell_anchors = self.anchor_generator.num_cell_anchors[0]
+        num_cell_anchors = self.anchor_generator.num_cell_anchors
+        assert len(set(num_cell_anchors))==1,"all levers cell anchors num must be equal."
+        self.num_cell_anchors = num_cell_anchors[0]
         self.box_dim = self.anchor_generator.box_dim
 
     def forward(self,inputs,features):
