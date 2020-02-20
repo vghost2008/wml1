@@ -161,12 +161,19 @@ class LastLevelP6P7(wmodule.WChildModule):
 
     def __init__(self, out_channels,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
         self.out_channels = out_channels
 
     def forward(self, c5):
-        p6 = slim.conv2d(c5,self.out_channels,[3,3],stride=2,activation_fn=None,
-                         normalizer_fn=None)
-        p7 = slim.conv2d(tf.nn.relu(p6),self.out_channels,[3,3],stride=2,activation_fn=None,normalizer_fn=None)
+        with tf.variable_scope("FPNLastLevel"):
+            p6 = slim.conv2d(c5,self.out_channels,[3,3],stride=2,activation_fn=tf.nn.relu,
+                         normalizer_fn=self.normalizer_fn,normalizer_params=self.norm_params,
+                         scope="conv1")
+
+            p7 = slim.conv2d(p6,self.out_channels,[3,3],stride=2,activation_fn=None,
+                        normalizer_fn=self.normalizer_fn,
+                        normalizer_params=self.norm_params,
+                        scope="conv2")
         return [p6, p7]
 
 
@@ -211,7 +218,6 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
-        norm=cfg.MODEL.FPN.NORM,
         top_block=LastLevelP6P7(out_channels,cfg,*args,**kwargs),
         fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
         cfg=cfg,

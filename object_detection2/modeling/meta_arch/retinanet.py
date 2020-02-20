@@ -10,6 +10,7 @@ import math
 from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.retinanet_head import *
 from .meta_arch import MetaArch
+from object_detection2.datadef import *
 
 slim = tf.contrib.slim
 
@@ -89,7 +90,7 @@ class RetinaNet(MetaArch):
         )
 
         if self.is_training:
-            if self.cfg.GLOBAL.DEBUG:
+            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                             box_delta=pred_anchor_deltas, anchors=anchors)
             else:

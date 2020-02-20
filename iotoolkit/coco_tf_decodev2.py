@@ -16,6 +16,7 @@ import glob
 from object_detection2.standard_names import *
 from collections import Iterable
 from iotoolkit.transform import WTransformList
+from object_detection2.standard_names import *
 
 slim = tf.contrib.slim
 slim_example_decoder = tf.contrib.slim.tfexample_decoder
@@ -123,10 +124,13 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
     id_to_label:first id is the category_id in coco, second label is the label id for model
     '''
     dataset = get_database(dataset_dir=data_dir,num_parallel=num_parallel,file_pattern=file_pattern)
+    def filter_func(x):
+        return tf.greater(tf.shape(x[GT_BOXES])[0],0)
+    dataset = dataset.filter(filter_func)
     if transforms is not None:
         if isinstance(transforms,Iterable):
             transforms = WTransformList(transforms)
-        dataset = dataset.map(transforms)
+        dataset = dataset.map(transforms,num_parallel_calls=8)
     with tf.name_scope('data_provider'):
         pass
     return dataset

@@ -65,7 +65,7 @@ class DataLoader(wmodule.WModule):
         elif len(self.trans_on_batch_img) > 1:
             data = data.map(trans.WTransformList(self.trans_on_batch_img))
         if batch_size>0:
-            data = data.prefetch(2)
+            data = data.prefetch(4)
         return data.make_one_shot_iterator(),num_classes
 
     @staticmethod

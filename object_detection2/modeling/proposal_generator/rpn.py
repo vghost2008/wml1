@@ -108,7 +108,7 @@ class RPN(wmodule.WChildModule):
             gt_boxes,
             gt_length=gt_length
         )
-        if self.cfg.GLOBAL.DEBUG:
+        if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
             outputs.inputs = inputs
 
         if self.is_training:

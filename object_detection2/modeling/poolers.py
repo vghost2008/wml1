@@ -5,6 +5,7 @@ import wmodule
 import object_detection2.bboxes as odbox
 from object_detection2.config.config import global_cfg
 from object_detection2.wlayers import *
+from object_detection2.datadef import *
 import wsummary
 
 __all__ = ["ROIPooler"]
@@ -132,7 +133,7 @@ class ROIPooler(wmodule.WChildModule):
             features = tf.stack(features,axis=1)
             level_assignments = tf.reshape(level_assignments,[-1])
 
-            if global_cfg.GLOBAL.DEBUG:
+            if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 wsummary.histogram_or_scalar(level_assignments,"level_assignments")
 
             output = wmlt.batch_gather(features,level_assignments)

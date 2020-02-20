@@ -301,7 +301,7 @@ class SimpleTrainer(TrainerBase):
             print("variables to train:")
             wmlu.show_list(self.variables_to_train)
             for v in self.variables_to_train:
-                wsummary.histogram_or_scalar(v,v.name)
+                wsummary.histogram_or_scalar(v,v.name[:-2])
 
             self.saver = tf.train.Saver()
             tf.summary.scalar("total_loss",self.total_loss)
@@ -347,7 +347,7 @@ class SimpleTrainer(TrainerBase):
             print("variables to train:")
             wmlu.show_list(self.variables_to_train)
             for v in self.variables_to_train:
-                wsummary.histogram_or_scalar(v,v.name)
+                wsummary.histogram_or_scalar(v,v.name[:-2])
 
             self.saver = tf.train.Saver()
             tf.summary.scalar("total_loss",self.total_loss)
@@ -371,7 +371,8 @@ class SimpleTrainer(TrainerBase):
         steps = self.cfg.SOLVER.STEPS
         print("Train steps:",steps)
         lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
-                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=self.cfg.GLOBAL.WARMUP_STEPS)
+        tf.summary.scalar("lr",lr)
         self.max_train_step = steps[-1]
         opt = wnn.str2optimizer(learning_rate=lr)
         tower_grads = []
@@ -381,16 +382,16 @@ class SimpleTrainer(TrainerBase):
                 scope._reuse = tf.AUTO_REUSE
                 #scope.reuse_variables()
             with tf.device(f"/gpu:{i}"):
+                data = self.data.get_next()
+                DataLoader.detection_image_summary(data,name=f"data_source{i}")
+                self.input_data = data
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
-                    data = self.data.get_next()
-                    DataLoader.detection_image_summary(data,name=f"data_source{i}")
-                    self.input_data = data
                     self.res_data,loss_dict = self.model.forward(data)
-                    for k,v in loss_dict.items():
-                        all_loss_dict[k+f"_stage{i}"] = v
-                        tf.summary.scalar(f"loss/{k}",v)
-                    grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_dict.values())
-                    tower_grads.append(grads)
+                for k,v in loss_dict.items():
+                    all_loss_dict[k+f"_stage{i}"] = v
+                    tf.summary.scalar(f"loss/{k}",v)
+                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_dict.values())
+                tower_grads.append(grads)
         avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
         opt0 = wnn.apply_gradientsv3(avg_grads, self.global_step, opt)
         opt1 = wnn.get_batch_norm_ops()
@@ -407,7 +408,7 @@ class SimpleTrainer(TrainerBase):
         print("variables to train:")
         wmlu.show_list(self.variables_to_train)
         for v in self.variables_to_train:
-            wsummary.histogram_or_scalar(v,v.name)
+            wsummary.histogram_or_scalar(v,v.name[:-2])
 
         self.saver = tf.train.Saver()
         tf.summary.scalar("total_loss",self.total_loss)
