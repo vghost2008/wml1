@@ -7,6 +7,7 @@ import wml_tfutils as wmlt
 import object_detection.utils as odu
 import time
 import wml_utils as wmlu
+import basic_tftools as btf
 
 FLAGS = tf.app.flags.FLAGS
 slim = tf.contrib.slim
@@ -67,7 +68,7 @@ def get_database(dataset_dir,num_samples=1,file_pattern='train_*.tfrecord',
             num_classes=num_classes,
             labels_to_names=None)
 
-@wmlt.show_return_shape
+@btf.show_return_shape
 def get_data(data_dir,batch_size=4,num_samples=1,num_classes=3,id_to_label={}):
     dataset = get_database(dataset_dir=data_dir,num_classes=num_classes,num_samples=num_samples)
     files = wmlu.recurse_get_filepath_in_dir(data_dir,suffix=".tfrecord")

@@ -72,7 +72,7 @@ class DataLoader(wmodule.WModule):
     def detection_image_summary(inputs,
                            category_index=None,
                            max_boxes_to_draw=20,
-                           min_score_thresh=0.2,name="detection_image_summary",max_outputs=3):
+                           min_score_thresh=0.2,name="detection_image_summary",max_outputs=3,show_mask=True):
         image = inputs.get('image',None)
 
         if 'gt_boxes' not in inputs:
@@ -85,7 +85,7 @@ class DataLoader(wmodule.WModule):
         classes = inputs.get('gt_labels',None)
         instance_masks = inputs.get('gt_masks',None)
         lengths = inputs.get('gt_length',None)
-        if instance_masks is not None:
+        if instance_masks is not None and show_mask:
             wsummary.image_summaries(image,
                                      name=name+"_onlyimg")
             wsummary.detection_image_summary(tf.ones_like(image,dtype=tf.float32)*0.5,
@@ -95,7 +95,7 @@ class DataLoader(wmodule.WModule):
                                              min_score_thresh=min_score_thresh,
                                              name=name+"_onlymask")
         else:
-            wsummary.detection_image_summary(image,boxes,classes,instance_masks=instance_masks,
+            wsummary.detection_image_summary(image,boxes,classes,
                                              lengths=lengths,category_index=category_index,
                                              max_boxes_to_draw=max_boxes_to_draw,
                                              min_score_thresh=min_score_thresh,

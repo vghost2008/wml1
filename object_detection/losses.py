@@ -193,7 +193,7 @@ class ODLoss:
                 if bboxes_remove_indices is not None:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask = \
                     wml.static_or_dynamic_map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3],x[4]),elems=[gregs,glabels,classes_logits,bboxes_regs,
-                     bboxes_remove_indices],dtype=(tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool))
+                     bboxes_remove_indices],dtype=[tf.float32,tf.float32,tf.float32,tf.int32,tf.float32,tf.bool,tf.bool])
                 else:
                     loss0, loss1, loss2,total_nr,p_div_all,pmask,nmask= \
                         wml.static_or_dynamic_map_fn(lambda x:self.lossv1(x[0],x[1],x[2],x[3]),

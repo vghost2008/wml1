@@ -1,6 +1,7 @@
 #Object detection2 test results
 
 - 测试数据为mnistod(分三个类), 训练数据10k, 测试数据1k
+- 默认使用Adam
 
 ##Base-RPN.yaml
 
@@ -317,4 +318,3 @@
     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 1.000
     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 1.000
     ```
-

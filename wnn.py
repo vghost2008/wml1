@@ -23,21 +23,22 @@ slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
 g_bn_variables={}
 
-def str2optimizer(name="Adam",learning_rate=None):
+def str2optimizer(name="Adam",learning_rate=None,**kwargs):
     print("Optimizer {}".format(name))
     opt = None
     if name== "Adam":
-        opt = tf.train.AdamOptimizer(learning_rate)
+        opt = tf.train.AdamOptimizer(learning_rate,**kwargs)
     elif name== "GD":
-        opt =  tf.train.GradientDescentOptimizer(learning_rate)
+        opt =  tf.train.GradientDescentOptimizer(learning_rate,**kwargs)
     elif name== "Momentum":
-        opt = tf.train.MomentumOptimizer(learning_rate)
+        opt = tf.train.MomentumOptimizer(learning_rate,**kwargs)
     elif name== "RMSProp":
-        opt = tf.train.RMSPropOptimizer(learning_rate)
+        opt = tf.train.RMSPropOptimizer(learning_rate,**kwargs)
     else:
         raise ValueError("error optimizer")
 
     return opt
+
 def piecewise_lr(initial_lr,step,steps,decay):
     with tf.name_scope("build_piecewise_lr"):
         steps = list(steps)
@@ -106,7 +107,7 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
                         decay_factor=learn_rate_decay_factor,
                         decay_epochs=num_epochs_per_decay,
                         total_steps=None,
-                        warmup_epochs=1)
+                        warmup_steps=1000)
         lr = tf.maximum(min_learn_rate,lr)
         tf.summary.scalar("lr",lr)
         #opt = tf.train.GradientDescentOptimizer(lr)

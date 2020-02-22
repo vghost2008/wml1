@@ -13,8 +13,6 @@ import cv2
 import wsummary
 import basic_tftools as btf
 from tensorflow.python.framework import graph_util
-
-
 from iotoolkit.transform import  distort_color as _distort_color
 from wtfop.wtfop_ops import set_value
 
@@ -892,6 +890,14 @@ def sort_data(key,datas):
     values,indices = tf.nn.top_k(key,k=size)
     datas = [tf.gather(x,indices) for x in datas]
     return [values,indices],datas
+
+def get_pad_shapes_for_padded_batch(dataset):
+    shapes = dataset.output_shapes
+    res = {}
+    for k,v in shapes.items():
+        shape = v.as_list()
+        res[k] = shape
+    return res
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

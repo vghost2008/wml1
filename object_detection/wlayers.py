@@ -49,7 +49,6 @@ class WROIAlign:
                 bboxes = tf.convert_to_tensor(bboxes,dtype=tf.float32)
             if batch_index.dtype is not tf.int32:
                 batch_index = tf.cast(batch_index,tf.int32)
-            assert bboxes.get_shape().ndims==2,"Error bboxes dims"
             width = pool_width*self.bin_size[1]
             height = pool_height*self.bin_size[0]
             boxes_shape = bboxes.get_shape().as_list()

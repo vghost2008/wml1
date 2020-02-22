@@ -105,7 +105,7 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
     if transforms is not None:
         if isinstance(transforms,Iterable):
             transforms = WTransformList(list(transforms))
-        dataset = dataset.map(transforms)
+        dataset = dataset.map(transforms,num_parallel_calls=num_parallel)
     with tf.name_scope('data_provider'):
         pass
     '''

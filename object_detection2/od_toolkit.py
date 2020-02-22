@@ -60,3 +60,21 @@ def get_norm(name:str,is_training):
         return wnnl.group_norm,norm_params
     else:
         raise NotImplementedError()
+
+
+def fusion(feature_maps,depth=None,scope=None):
+    with tf.variable_scope(scope,"fusion"):
+        if depth is None:
+            depth = feature_maps[-1].get_shape().as_list()[-1]
+        out_feature_maps = []
+        ws = []
+        for i,net in enumerate(feature_maps):
+            wi = tf.get_variable(f"w{i}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
+            wi = tf.nn.relu(wi)
+            ws.append(wi)
+        sum_w = tf.add_n(ws)+1e-4
+        for i,net in enumerate(feature_maps):
+            if net.get_shape().as_list()[-1] != depth:
+                raise RuntimeError("Depth must be equal.")
+            out_feature_maps.append(net*ws[i]/sum_w)
+        return tf.add_n(out_feature_maps)

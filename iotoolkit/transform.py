@@ -8,6 +8,8 @@ import time
 from functools import partial
 import wml_tfutils as wmlt
 from object_detection2.standard_names import *
+import numpy as np
+
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
 '''
@@ -333,6 +335,40 @@ class ResizeShortestEdge(WTransform):
                                align=self.align,
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
+'''
+mask:H,W,N format
+'''
+class ResizeLongestEdge(WTransform):
+    def __init__(self,long_edge_length=range(640,801,32),align=1,resize_method=tf.image.ResizeMethod.BILINEAR,
+                 min_size=-1,
+                 seed=None):
+        if isinstance(long_edge_length, Iterable):
+            long_edge_length = list(long_edge_length)
+        elif not isinstance(long_edge_length, list):
+            long_edge_length = [long_edge_length]
+        self.long_edge_length = long_edge_length
+        self.align = align
+        self.resize_method = resize_method
+        self.seed = seed
+        self.min_size = min_size
+
+    def __call__(self, data_item):
+        with tf.name_scope("resize_shortest_edge"):
+            if len(self.long_edge_length) == 1:
+                func = partial(resize_img,limit=[self.min_size,self.long_edge_length[0]],
+                               align=self.align,
+                               resize_method=self.resize_method)
+
+            else:
+                idx = tf.random_uniform(shape=(),
+                                        minval=0,maxval=len(self.long_edge_length),
+                                        dtype=tf.int32,
+                                        seed=self.seed)
+                s = tf.gather(self.long_edge_length,idx)
+                func = partial(resize_img,limit=[self.min_size,s],
+                               align=self.align,
+                               resize_method=self.resize_method)
+            return self.apply_to_images_and_masks(func,data_item)
 
 class MaskNHW2HWN(WTransform):
     def __init__(self):
@@ -441,6 +477,39 @@ class WRandomBlur(WTransform):
     def __call__(self, data_item):
         return self.apply_to_images(random_blur,data_item)
 
+class WTransImgToFloat(WTransform):
+    def __init__(self,**kwargs):
+        self.kwargs = kwargs
+    def __call__(self, data_item):
+        func = partial(tf.cast, dtype=tf.float32)
+        return self.apply_to_images(func,data_item)
+
+class WTransImgToGray(WTransform):
+    def __init__(self,**kwargs):
+        self.kwargs = kwargs
+    def __call__(self, data_item):
+        return self.apply_to_images(tf.image.rgb_to_grayscale,data_item)
+
+class WPerImgStandardization(WTransform):
+    def __init__(self,**kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, data_item):
+        return self.apply_to_images(tf.image.per_image_standardization,data_item)
+
+class WTransLabels(WTransform):
+    def __init__(self,id_to_label):
+        '''
+        原有的label称为id, 变换后的称为label
+        id_to_label为一个字典, key为id, value为label
+        '''
+        self.id_to_label = id_to_label
+
+    def __call__(self, data_item):
+        labels = data_item[GT_LABELS]
+        labels = wop.int_hash(labels,self.id_to_label)
+        data_item[GT_LABELS] = labels
+        return data_item
 '''
 operator on batch
 '''
