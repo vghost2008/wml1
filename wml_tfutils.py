@@ -452,6 +452,15 @@ def check_value_in_ckp(sess,scope):
         tf.reduce_max(variables[0]),
         tf.reduce_mean(variables[0])]))
 
+def check_value_in_ckpv2(sess,variable):
+    graph = tf.get_default_graph()
+    variable = graph.get_tensor_by_name(variable)
+    print(sess.run([tf.reduce_sum(variable),
+                    tf.reduce_sum(tf.abs(variable)),
+                    tf.reduce_min(variable),
+                    tf.reduce_max(variable),
+                    tf.reduce_mean(variable)]))
+
 def unstack(value,axis=0,name="unstack",keep_dim=False):
     if keep_dim == False:
         return tf.unstack(value=value,name=name,axis=axis)

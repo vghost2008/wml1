@@ -543,9 +543,10 @@ def restore_variables_by_key(sess,file_path, exclude=None,only_scope=None,key=No
         for v in _variables_to_restore:
             variables_to_restore[value_key(v)] = v
 
-    restorer = tf.train.Saver(variables_to_restore)
     if not silent:
         logging.info(name+"_variables_to_restore:"+str(parameterNum(variables_to_restore)))
+
+    restorer = tf.train.Saver(variables_to_restore)
 
     if file_path is not None:
         logging.info("Restore values from"+file_path)
