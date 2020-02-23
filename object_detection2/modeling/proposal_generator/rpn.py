@@ -32,6 +32,14 @@ class StandardRPNHead(wmodule.WChildModule):
         self.box_dim = self.anchor_generator.box_dim
 
     def forward(self,inputs,features):
+        '''
+
+        :param inputs:
+        :param features: list of [N,Hi,Wi,Ci] Ci must be equal.
+        :return:
+        logits: list of [N,Hi,Wi,A]
+        anchor_deltas: list of [N,Hi,Wi,Ax4]
+        '''
         del inputs
         pred_objectness_logits = []
         pred_anchor_deltas = []

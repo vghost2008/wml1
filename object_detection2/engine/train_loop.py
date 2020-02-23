@@ -340,7 +340,7 @@ class SimpleTrainer(TrainerBase):
             steps = self.cfg.SOLVER.STEPS
             print("Train steps:",steps)
             lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
-                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_epochs=0)
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=1000)
             self.max_train_step = steps[-1]
             self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,lr=lr,
                                                                                       clip_norm=self.cfg.SOLVER.CLIP_NORM)

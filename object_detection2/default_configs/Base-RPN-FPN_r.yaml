@@ -1,0 +1,49 @@
+MODEL:
+  META_ARCHITECTURE: "ProposalNetwork"
+  PROPOSAL_GENERATOR:
+    NAME: "RetinaNet"
+  BACKBONE:
+    NAME: "build_shufflenetv2_fpn_backbone"
+  RESNETS:
+    batch_norm_decay: 0.999
+  FPN:
+    #IN_FEATURES: ["C2", "C3", "C4"]
+    IN_FEATURES: ["C2", "C3", "C4"]
+  ANCHOR_GENERATOR:
+    SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
+    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+  RETINANET_PG:
+    IN_FEATURES: ["P2", "P3", "P4"]
+    #IN_FEATURES: ["P4"]
+    #IN_FEATURES: ["C2","C3","C4"]
+    PRE_NMS_TOPK_TRAIN: 2000  # Per FPN level
+    PRE_NMS_TOPK_TEST: 2000  # Per FPN level
+    # Detectron1 uses 2000 proposals per-batch,
+    # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
+    # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
+    POST_NMS_TOPK_TRAIN: 1000
+    POST_NMS_TOPK_TEST: 500
+  ROI_HEADS:
+    NAME: "StandardROIHeads"
+    IN_FEATURES: ["p2", "p3", "p4", "p5"]
+  ROI_BOX_HEAD:
+    NAME: "FastRCNNConvFCHead"
+    NUM_FC: 2
+    POOLER_RESOLUTION: 7
+  ROI_MASK_HEAD:
+    NAME: "MaskRCNNConvUpsampleHead"
+    NUM_CONV: 4
+    POOLER_RESOLUTION: 14
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.02
+  STEPS: (6000,8000,10000)
+  MAX_ITER: 90000
+INPUT:
+  MIN_SIZE_TRAIN: (512,512)
+GLOBAL:
+  PROJ_NAME: "RetinaNetPGFPNDemon"
+VERSION: 2

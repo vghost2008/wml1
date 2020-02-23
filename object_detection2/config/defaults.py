@@ -232,6 +232,62 @@ _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 _C.MODEL.RPN.NMS_THRESH = 0.7
 
 # ---------------------------------------------------------------------------- #
+# RetinaNet proposal generator options
+# ---------------------------------------------------------------------------- #
+_C.MODEL.RETINANET_PG = CN()
+_C.MODEL.RETINANET_PG.HEAD_NAME = "StandardRETINANET_PGHead"  # used by RETINANET_PG_HEAD_REGISTRY
+
+_C.MODEL.RETINANET_PG.NUM_CLASSES = 1
+# Names of the input feature maps to be used by RETINANET_PG
+# e.g., ["p2", "p3", "p4", "p5", "p6"] for FPN
+_C.MODEL.RETINANET_PG.IN_FEATURES = ["P3", "P4", "P5", "P6"]
+# Remove RETINANET_PG anchors that go outside the image by BOUNDARY_THRESH pixels
+# Set to -1 or a large value, e.g. 100000, to disable pruning anchors
+_C.MODEL.RETINANET_PG.BOUNDARY_THRESH = -1
+# IOU overlap ratios [BG_IOU_THRESHOLD, FG_IOU_THRESHOLD]
+# Minimum overlap required between an anchor and ground-truth box for the
+# (anchor, gt box) pair to be a positive example (IoU >= FG_IOU_THRESHOLD
+# ==> positive RETINANET_PG example: 1)
+# Maximum overlap allowed between an anchor and ground-truth box for the
+# (anchor, gt box) pair to be a negative examples (IoU < BG_IOU_THRESHOLD
+# ==> negative RETINANET_PG example: 0)
+# Anchors with overlap in between (BG_IOU_THRESHOLD <= IoU < FG_IOU_THRESHOLD)
+# are ignored (-1)
+_C.MODEL.RETINANET_PG.IOU_THRESHOLDS = [0.4, 0.5]
+_C.MODEL.RETINANET_PG.IOU_LABELS = [0, -1, 1]
+# Weights on (dx, dy, dw, dh) for normalizing RETINANET_PG anchor regression targets
+_C.MODEL.RETINANET_PG.BBOX_REG_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
+_C.MODEL.RETINANET_PG.LOSS_WEIGHT = 1.0
+# Number of top scoring RETINANET_PG proposals to keep before applying NMS
+# When FPN is used, this is *per FPN level* (not total)
+_C.MODEL.RETINANET_PG.PRE_NMS_TOPK_TRAIN = 12000
+_C.MODEL.RETINANET_PG.PRE_NMS_TOPK_TEST = 6000
+# Number of top scoring RETINANET_PG proposals to keep after applying NMS
+# When FPN is used, this limit is applied per level and then again to the union
+# of proposals from all levels
+# NOTE: When FPN is used, the meaning of this config is different from Detectron1.
+# It means per-batch topk in Detectron1, but per-image topk here.
+# See "modeling/rpn/rpn_outputs.py" for details.
+_C.MODEL.RETINANET_PG.POST_NMS_TOPK_TRAIN = 2000
+_C.MODEL.RETINANET_PG.POST_NMS_TOPK_TEST = 1000
+# NMS threshold used on RETINANET_PG proposals
+_C.MODEL.RETINANET_PG.NMS_THRESH = 0.7
+_C.MODEL.RETINANET_PG.FOCAL_LOSS_GAMMA = 2.0
+_C.MODEL.RETINANET_PG.FOCAL_LOSS_ALPHA = 0.25
+_C.MODEL.RETINANET_PG.SMOOTH_L1_LOSS_BETA = 0.1
+# Convolutions to use in the cls and bbox tower
+# NOTE: this doesn't include the last conv for logits
+_C.MODEL.RETINANET_PG.NUM_CONVS = 4
+# Prior prob for rare case (i.e. foreground) at the beginning of training.
+# This is used to set the bias for the logits layer of the classifier subnet.
+# This improves training stability in the case of heavy class imbalance.
+_C.MODEL.RETINANET_PG.PRIOR_PROB = 0.01
+
+_C.MODEL.RETINANET_PG.SCORE_THRESH_TEST = 0.05
+_C.MODEL.RETINANET_PG.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.RETINANET_PG.NMS_THRESH_TEST = 0.5
+
+# ---------------------------------------------------------------------------- #
 # ROI HEADS options
 # ---------------------------------------------------------------------------- #
 _C.MODEL.ROI_HEADS = CN()

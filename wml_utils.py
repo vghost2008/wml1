@@ -6,7 +6,6 @@ import tensorflow as tf
 import shutil
 import scipy
 import random
-from tensorflow.contrib.slim.python.slim.data import parallel_reader
 import time
 from functools import wraps
 import random

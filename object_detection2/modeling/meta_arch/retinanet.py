@@ -35,7 +35,7 @@ class RetinaNet(MetaArch):
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
 
         self.anchor_generator = build_anchor_generator(cfg,parent=self,*args,**kwargs)
-        self.head = RetinaNetHead(cfg=cfg, num_anchors=self.anchor_generator.num_cell_anchors,parent=self,
+        self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET, num_anchors=self.anchor_generator.num_cell_anchors,parent=self,
                                   *args,**kwargs)
 
         # Matching and loss
@@ -77,7 +77,7 @@ class RetinaNet(MetaArch):
         gt_labels = batched_inputs[GT_LABELS]
 
         outputs = RetinaNetOutputs(
-            cfg=self.cfg,
+            cfg=self.cfg.MODEL.RETINANET,
             parent=self,
             box2box_transform=self.box2box_transform,
             anchor_matcher=self.anchor_matcher,
@@ -86,7 +86,8 @@ class RetinaNet(MetaArch):
             anchors=anchors,
             gt_boxes=gt_boxes,
             gt_labels=gt_labels,
-            gt_length=gt_length
+            gt_length=gt_length,
+            max_detections_per_image=self.cfg.TEST.DETECTIONS_PER_IMAGE,
         )
 
         if self.is_training:
@@ -110,6 +111,14 @@ class RetinaNetHead(wmodule.WChildModule):
     """
 
     def __init__(self, num_anchors,cfg,parent,*args,**kwargs):
+        '''
+
+        :param num_anchors:
+        :param cfg:  only the child part
+        :param parent:
+        :param args:
+        :param kwargs:
+        '''
         super().__init__(cfg,*args,parent=parent,**kwargs)
         assert (
             len(set(num_anchors)) == 1
@@ -134,19 +143,19 @@ class RetinaNetHead(wmodule.WChildModule):
                 Each tensor in the list correspond to different feature levels.
 
         Returns:
-            logits (list[Tensor]): #lvl tensors, each has shape (N, AxK, Hi, Wi).
+            logits (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi,AxK).
                 The tensor predicts the classification probability
                 at each spatial position for each of the A anchors and K object
                 classes.
-            bbox_reg (list[Tensor]): #lvl tensors, each has shape (N, Ax4, Hi, Wi).
+            bbox_reg (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi, Ax4).
                 The tensor predicts 4-vector (dx,dy,dw,dh) box
                 regression values for every anchor. These values are the
                 relative offset between the anchor and the ground truth box.
         """
         cfg = self.cfg
-        num_classes      = cfg.MODEL.RETINANET.NUM_CLASSES
-        num_convs        = cfg.MODEL.RETINANET.NUM_CONVS
-        prior_prob       = cfg.MODEL.RETINANET.PRIOR_PROB
+        num_classes      = cfg.NUM_CLASSES
+        num_convs        = cfg.NUM_CONVS
+        prior_prob       = cfg.PRIOR_PROB
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         logits = []
         bbox_reg = []

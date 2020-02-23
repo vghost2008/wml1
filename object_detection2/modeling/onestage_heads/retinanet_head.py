@@ -9,6 +9,7 @@ from object_detection2.standard_names import *
 import wmodule
 from .onestage_tools import *
 from object_detection2.datadef import *
+from object_detection2.config.config import global_cfg
 import wsummary
 
 
@@ -25,10 +26,12 @@ class RetinaNetOutputs(wmodule.WChildModule):
         gt_boxes=None,
         gt_labels=None,
         gt_length=None,
+        max_detections_per_image=100,
         **kwargs,
     ):
         """
         Args:
+            cfg: Only the child part
             box2box_transform (Box2BoxTransform): :class:`Box2BoxTransform` instance for
                 anchor-proposal transformations.
             anchor_matcher (Matcher): :class:`Matcher` instance for matching anchors to
@@ -50,13 +53,13 @@ class RetinaNetOutputs(wmodule.WChildModule):
                 the ground-truth ("gt") boxes for image i.
         """
         super().__init__(cfg,parent=parent,**kwargs)
-        self.num_classes      = cfg.MODEL.RETINANET.NUM_CLASSES
-        self.focal_loss_alpha         = cfg.MODEL.RETINANET.FOCAL_LOSS_ALPHA
-        self.focal_loss_gamma         = cfg.MODEL.RETINANET.FOCAL_LOSS_GAMMA
-        self.topk_candidates          = cfg.MODEL.RETINANET.TOPK_CANDIDATES_TEST
-        self.score_threshold          = cfg.MODEL.RETINANET.SCORE_THRESH_TEST
-        self.nms_threshold            = cfg.MODEL.RETINANET.NMS_THRESH_TEST
-        self.max_detections_per_image = cfg.TEST.DETECTIONS_PER_IMAGE
+        self.num_classes      = cfg.NUM_CLASSES
+        self.focal_loss_alpha         = cfg.FOCAL_LOSS_ALPHA
+        self.focal_loss_gamma         = cfg.FOCAL_LOSS_GAMMA
+        self.topk_candidates          = cfg.TOPK_CANDIDATES_TEST
+        self.score_threshold          = cfg.SCORE_THRESH_TEST
+        self.nms_threshold            = cfg.NMS_THRESH_TEST
+        self.max_detections_per_image = max_detections_per_image
         self.box2box_transform = box2box_transform
         self.anchor_matcher = anchor_matcher
         self.pred_logits = pred_logits
@@ -167,7 +170,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
                                                 dtype=[tf.float32,tf.int32,tf.float32,tf.int32],
                                                 back_prop=False)
         outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[3]}
-        if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+        if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
             wsummary.detection_image_summary(images=inputs[IMAGE],
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
                                              lengths=outdata[RD_LENGTH],
