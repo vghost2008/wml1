@@ -53,7 +53,10 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
             if num_fc>0:
                 if len(x.get_shape()) > 2:
                     shape = wmlt.combined_static_and_dynamic_shape(x)
-                    x = tf.reshape(x,[shape[0],-1])
+                    dim = 1
+                    for i in range(1,len(shape)):
+                        dim = dim*shape[i]
+                    x = tf.reshape(x,[shape[0],dim])
                 for _ in range(num_fc):
                     x = slim.fully_connected(x,fc_dim,activation_fn=tf.nn.relu,
                                              normalizer_fn=self.normalizer_fn)
