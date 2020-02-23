@@ -114,7 +114,7 @@ class RetinaNet(wmodule.WChildModule):
 
             assert batched_inputs[IMAGE].get_shape().as_list()[0]==1,"inference only support batch size equal one."
 
-            length = results[RD_LENGTH][0]
+            length = tf.maximum(results[RD_LENGTH][0],1)
 
             outdata = {PD_BOXES: results[RD_BOXES][:,:length], PD_PROBABILITY: results[RD_PROBABILITY][:,:length]}
 
