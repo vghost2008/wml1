@@ -106,7 +106,8 @@ class RetinaNet(wmodule.WChildModule):
             wsummary.detection_image_summary(images=batched_inputs[IMAGE], boxes=outdata[PD_BOXES],
                                              name="rpn/proposals")
 
-            return outdata, outputs.losses()
+            losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
+            return outdata, losses
         else:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                         box_delta=pred_anchor_deltas, anchors=anchors)
