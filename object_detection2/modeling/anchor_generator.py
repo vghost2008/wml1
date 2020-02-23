@@ -52,7 +52,7 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
             for i in range(len(anchors)):
                 num_cell_anchors = len(self.aspect_ratios[i])*len(self.sizes[i])
                 shape = wmlt.combined_static_and_dynamic_shape(features[i])
-                offset = shape[1]*shape[2]//2
+                offset = shape[1]*shape[2]*num_cell_anchors[i]//2
                 boxes = anchors[i][offset:offset+num_cell_anchors]
                 boxes = tf.expand_dims(boxes,axis=0)
                 wsummary.detection_image_summary(images=image,boxes=boxes,name=f"level_i")
