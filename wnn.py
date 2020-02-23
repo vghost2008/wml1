@@ -145,17 +145,23 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
             tf.summary.scalar("global_norm", global_norm)
         return train_op,total_loss,variables_to_train
 
-def nget_train_op(global_step,lr=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
+def nget_train_op(global_step,lr=None,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
                  colocate_gradients_with_ops=False,optimizer="Adam",scope=None):
     with tf.name_scope(name=scope,default_name="train_op"):
-        tf.summary.scalar("lr",lr)
         variables_to_train = get_variables_to_train(scopes,scopes_pattern)
         show_values(variables_to_train,"variables_to_train",fn=logging.info)
         logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
         variables_not_to_train = get_variables_not_to_train(variables_to_train)
         show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
         logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
-        opt = str2optimizer(optimizer,lr)
+
+        if lr is not None:
+            tf.summary.scalar("lr",lr)
+
+        if isinstance(optimizer,str):
+            opt = str2optimizer(optimizer,lr)
+        else:
+            opt = optimizer
 
         if loss is not None:
             total_loss = loss

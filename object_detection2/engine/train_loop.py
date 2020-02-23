@@ -341,8 +341,10 @@ class SimpleTrainer(TrainerBase):
             print("Train steps:",steps)
             lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
                                      lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=1000)
+            tf.summary.scalar("lr", lr)
+            opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)
             self.max_train_step = steps[-1]
-            self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,lr=lr,
+            self.train_op,self.total_loss,self.variables_to_train = wnn.nget_train_op(self.global_step,optimizer=opt,
                                                                                       clip_norm=self.cfg.SOLVER.CLIP_NORM)
             print("variables to train:")
             wmlu.show_list(self.variables_to_train)
