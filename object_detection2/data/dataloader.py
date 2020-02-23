@@ -26,6 +26,7 @@ class DataLoader(wmodule.WModule):
                                        trans.FixDataInfo()]
             '''self.trans_on_single_img = [trans.MaskNHW2HWN(),
                                         trans.ResizeToFixedSize(),
+                                        trans.AddBoxLens(),
                                         trans.UpdateHeightWidth(),
                                         ]
             self.trans_on_batch_img = [trans.FixDataInfo()]'''
