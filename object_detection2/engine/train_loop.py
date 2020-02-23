@@ -326,8 +326,8 @@ class SimpleTrainer(TrainerBase):
                                    name="XXXXX")'''
         self.res_data,loss_dict = self.model.forward(data)
         if self.model.is_training:
-            for v in loss_dict.values():
-                tf.summary.scalar(f"loss/{v.name}",v)
+            for k,v in loss_dict.items():
+                tf.summary.scalar(f"loss/{k}",v)
                 tf.losses.add_loss(v)
 
         self.loss_dict = loss_dict
