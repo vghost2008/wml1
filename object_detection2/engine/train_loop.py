@@ -376,13 +376,13 @@ class SimpleTrainer(TrainerBase):
                                      lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=self.cfg.GLOBAL.WARMUP_STEPS)
         tf.summary.scalar("lr",lr)
         self.max_train_step = steps[-1]
-        opt = wnn.str2optimizer(learning_rate=lr)
+        opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)
         tower_grads = []
         for i in range(len(self.gpus)):
-            if i==0:
-                scope = tf.get_variable_scope()
-                scope._reuse = tf.AUTO_REUSE
-                #scope.reuse_variables()
+            scope = tf.get_variable_scope()
+            if i>0:
+                #scope._reuse = tf.AUTO_REUSE
+                scope.reuse_variables()
             with tf.device(f"/gpu:{i}"):
                 data = self.data.get_next()
                 DataLoader.detection_image_summary(data,name=f"data_source{i}")
@@ -392,6 +392,7 @@ class SimpleTrainer(TrainerBase):
                 for k,v in loss_dict.items():
                     all_loss_dict[k+f"_stage{i}"] = v
                     tf.summary.scalar(f"loss/{k}",v)
+                scope._reuse = tf.AUTO_REUSE
                 grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_dict.values())
                 tower_grads.append(grads)
         avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
