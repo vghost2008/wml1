@@ -31,3 +31,26 @@ def permute_all_cls_and_box_to_N_HWA_K_and_concat(box_cls, box_delta, num_classe
     box_cls = tf.concat(box_cls_flattened, axis=1)
     box_delta = tf.concat(box_delta_flattened, axis=1)
     return box_cls, box_delta
+
+def general_to_N_HWA_K_and_concat(*args, K=80):
+    """
+    args:list of [batch_size,H,W,A*K]
+    K:int or list of int
+    return:
+    list of [batch_size,HWA(concat),K]
+    """
+    res = []
+    nr = len(args)
+    if isinstance(K,int):
+        K = [K]*nr
+    for i,d in enumerate(args):
+        d = [reshape_to_N_HWA_K(x, K[i]) for x in d]
+        # concatenate on the first dimension (representing the feature levels), to
+        # take into account the way the labels were generated (with all feature maps
+        # being concatenated as well)
+        d = tf.concat(d, axis=1)
+        res.append(d)
+    if len(res) == 1:
+        return res[0]
+    else:
+        return res

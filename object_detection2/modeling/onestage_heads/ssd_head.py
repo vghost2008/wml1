@@ -195,8 +195,9 @@ class SSDOutputs(wmodule.WChildModule):
         if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
             wsummary.detection_image_summary(images=inputs[IMAGE],
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
+                                             scores=outdata[RD_PROBABILITY],
                                              lengths=outdata[RD_LENGTH],
-                                             name="RetinaNet_result")
+                                             name="SSD_result")
         return outdata
 
     @wmlt.add_name_scope

@@ -36,17 +36,24 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
     assert mask_H==mask_W, "Mask prediction must be square!"
 
     gt_masks = inputs[GT_MASKS] #[batch_size,X,H,W]
-    batch_size,X,H,W = wmlt.combined_static_and_dynamic_shape(gt_masks)
-    #background include in proposals, which's indices is -1
-    gt_masks = wmlt.batch_gather(gt_masks,tf.nn.relu(proposals.indices))
-    gt_masks = tf.reshape(gt_masks,[-1,H,W])
-    gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
+
+    with tf.device("/cpu:0"):
+        #当输入图像分辨率很高时这里可能会消耗过多的GPU资源，因此改在CPU上执行
+        batch_size,X,H,W = wmlt.combined_static_and_dynamic_shape(gt_masks)
+        #background include in proposals, which's indices is -1
+        gt_masks = wmlt.batch_gather(gt_masks,tf.nn.relu(proposals.indices))
+        gt_masks = tf.reshape(gt_masks,[-1,H,W])
+        gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
+
     boxes = proposals.boxes
     batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
     boxes = tf.reshape(boxes,[batch_size*box_nr,box_dim])
     boxes = tf.boolean_mask(boxes,fg_selection_mask)
-    gt_masks = tf.expand_dims(gt_masks,axis=-1)
-    croped_masks_gt_masks = wmlt.tf_crop_and_resize(gt_masks,boxes,[mask_H,mask_W])
+
+    with tf.device("/cpu:0"):
+        #当输入图像分辨率很高时这里可能会消耗过多的GPU资源，因此改在CPU上执行
+        gt_masks = tf.expand_dims(gt_masks,axis=-1)
+        croped_masks_gt_masks = wmlt.tf_crop_and_resize(gt_masks,boxes,[mask_H,mask_W])
 
     if not cls_agnostic_mask:
         gt_classes = proposals.gt_object_logits
@@ -70,10 +77,10 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
             log_mask = gt_masks
             log_mask = ivis.draw_detection_image_summary(log_mask,boxes=tf.expand_dims(boxes,axis=1))
             log_mask = wmli.concat_images([log_mask, croped_masks_gt_masks])
-            wmlt.image_summaries(log_mask,"mask",max_outputs=32)
+            wmlt.image_summaries(log_mask,"mask",max_outputs=3)
 
             log_mask = wmli.concat_images([gt_masks, tf.cast(pred_mask_logits>0.5,tf.float32)])
-            wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=32)
+            wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=3)
 
     mask_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=croped_masks_gt_masks,logits=pred_mask_logits)
     mask_loss = tf.reduce_mean(mask_loss)

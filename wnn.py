@@ -632,7 +632,7 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         if not verbose:
             def v_filter(x:str):
                 #return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
-                return (not x.endswith("ExponentialMovingAverage"))
+                return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("Momentum"))
             unrestored_variables = filter(v_filter,unrestored_variables)
             unrestored_variables0 = filter(v_filter,unrestored_variables0)
         show_values(unrestored_variables, "Unrestored variables in ckpt")

@@ -65,6 +65,7 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
     def forward(self, inputs,features,):
         anchors = []
         image = inputs['image']
+        assert len(features)==len(self.sizes),"Error features len."
         with tf.name_scope("anchor_generator"):
             size = wmlt.combined_static_and_dynamic_shape(image)[1:3]
             for i,feature in enumerate(features):

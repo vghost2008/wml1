@@ -16,7 +16,6 @@ class CascadeROIHeads(StandardROIHeads):
     def _init_box_head(self, cfg,*args,**kwargs):
         # fmt: off
         pooler_resolution        = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
-        sampling_ratio           = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
         pooler_type              = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
         bin_size = cfg.MODEL.ROI_BOX_HEAD.bin_size
         cascade_bbox_reg_weights = cfg.MODEL.ROI_BOX_CASCADE_HEAD.BBOX_REG_WEIGHTS

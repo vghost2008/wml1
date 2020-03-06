@@ -6,6 +6,20 @@ import image_visualization as imv
 
 isSingleValueTensor = btf.isSingleValueTensor
 
+def detection_image_summary_with_croped_mask(images,
+                           boxes,
+                           *args,
+                           instance_masks=None,
+                           **kwargs):
+    if instance_masks is not None:
+        shape = btf.combined_static_and_dynamic_shape(images)
+        instance_masks = tf.cast(instance_masks > 0.5, tf.float32)
+        instance_masks = imv.batch_tf_get_fullsize_mask(boxes=boxes,
+                                                        masks=instance_masks,
+                                                        size=shape[1:3]
+                                                        )
+    return detection_image_summary(images,boxes,*args,instance_masks=instance_masks,**kwargs)
+
 def detection_image_summary_by_logmask(images,
                             boxes,
                             classes=None,

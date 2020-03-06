@@ -8,6 +8,7 @@ from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
 import object_detection2.od_toolkit as odt
+from .build import build_backbone_hook
 
 slim = tf.contrib.slim
 
@@ -19,7 +20,7 @@ class FPN(Backbone):
 
     def __init__(
         self, cfg,bottom_up, in_features, out_channels, top_block=None, fuse_type="sum",
-            *args,**kwargs
+            parent=None,*args,**kwargs
     ):
         """
         Args:
@@ -45,7 +46,7 @@ class FPN(Backbone):
                 which takes the element-wise mean of the two.
         """
         stage = int(in_features[-1][1:])
-        super(FPN, self).__init__(cfg,*args,**kwargs)
+        super(FPN, self).__init__(cfg,parent=parent,*args,**kwargs)
         assert isinstance(bottom_up, Backbone)
 
         # Place convs into top-down order (from low to high resolution)
@@ -62,6 +63,7 @@ class FPN(Backbone):
         self.stage = stage
         #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
+        self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.FPN,parent=self)
 
 
     @property
@@ -83,6 +85,8 @@ class FPN(Backbone):
         """
         # Reverse feature maps into top-down order (from low to high resolution)
         bottom_up_features = self.bottom_up(x)
+        if self.hook_before is not None:
+            bottom_up_features = self.hook_before(bottom_up_features,x)
         image_features = [bottom_up_features[f] for f in self.in_features]
         use_depthwise = self.use_depthwise
         depth = self.out_channels
@@ -137,7 +141,10 @@ class FPN(Backbone):
                 output_feature_maps_list.extend(res)
                 for i in range(len(res)):
                     output_feature_map_keys.append(f"P{self.stage+i+1}")
-        return collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
+        res = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
+        if self.hook_after is not None:
+            res = self.hook_after(res,x)
+        return res
 
 class LastLevelMaxPool(wmodule.WChildModule):
     """
@@ -159,22 +166,21 @@ class LastLevelP6P7(wmodule.WChildModule):
     C5 feature.
     """
 
-    def __init__(self, out_channels,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, out_channels,cfg,*args,**kwargs):
+        super().__init__(cfg=cfg,*args,**kwargs)
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
         self.out_channels = out_channels
 
     def forward(self, c5):
         with tf.variable_scope("FPNLastLevel"):
-            p6 = slim.conv2d(c5,self.out_channels,[3,3],stride=2,activation_fn=tf.nn.relu,
+            res = []
+            last_feature = c5
+            for i in range(self.cfg.MODEL.FPN.LAST_LEVEL_NUM_CONV):
+                last_feature  = slim.conv2d(last_feature,self.out_channels,[3,3],stride=2,activation_fn=tf.nn.relu,
                          normalizer_fn=self.normalizer_fn,normalizer_params=self.norm_params,
-                         scope="conv1")
-
-            p7 = slim.conv2d(p6,self.out_channels,[3,3],stride=2,activation_fn=None,
-                        normalizer_fn=self.normalizer_fn,
-                        normalizer_params=self.norm_params,
-                        scope="conv2")
-        return [p6, p7]
+                         scope=f"conv{i+1}")
+                res.append(last_feature)
+        return res
 
 
 @BACKBONE_REGISTRY.register()

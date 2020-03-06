@@ -781,6 +781,15 @@ def bbox_of_boxes(boxes):
     xmax = np.max(boxes[3])
     return [ymin,xmin,ymax,xmax]
 
+def tfbbox_of_boxes(boxes):
+    if not isinstance(boxes,tf.Tensor):
+        boxes = tf.convert_to_tensor(boxes)
+    boxes = tf.transpose(boxes)
+    ymin = tf.reduce_min(boxes[0])
+    xmin = tf.reduce_min(boxes[1])
+    ymax = tf.reduce_max(boxes[2])
+    xmax = tf.reduce_max(boxes[3])
+    return tf.convert_to_tensor([ymin,xmin,ymax,xmax])
 
 '''
 boxes:[N,4],[ymin,xmin,ymax,xmax]
@@ -817,10 +826,14 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
     with tf.name_scope("relative_boxes_to_absolutely_boxes"):
         boxes = tf.transpose(boxes)
-        if height.dtype != boxes.dtype:
-            height = tf.cast(height,boxes.dtype)
-        if width.dtype != boxes.dtype:
+        if not isinstance(width,tf.Tensor):
+            width = tf.convert_to_tensor(width,dtype=boxes.dtype)
+        elif width.dtype != boxes.dtype:
             width = tf.cast(width,boxes.dtype)
+        if not isinstance(height,tf.Tensor):
+            height = tf.convert_to_tensor(height,dtype=boxes.dtype)
+        elif height.dtype != boxes.dtype:
+            height = tf.cast(height,boxes.dtype)
         ymin = boxes[0]*height
         xmin = boxes[1]*width
         ymax = boxes[2]*height

@@ -126,9 +126,11 @@ _C.MODEL.FPN.OUT_CHANNELS = 256
 
 # Options: "" (no norm), "GN", "BN"
 _C.MODEL.FPN.NORM = ""
+_C.MODEL.FPN.LAST_LEVEL_NUM_CONV = 2
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
 _C.MODEL.FPN.FUSE_TYPE = "sum"
+_C.MODEL.FPN.BACKBONE_HOOK = ("","")
 
 _C.MODEL.BIFPN = CN()
 # Names of the input feature maps to be used by FPN
@@ -144,6 +146,7 @@ _C.MODEL.BIFPN.REPEAT= 1
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
 _C.MODEL.BIFPN.FUSE_TYPE = "sum"
+_C.MODEL.BIFPN.BACKBONE_HOOK = ("","")
 
 # ---------------------------------------------------------------------------- #
 # Proposal generator options
@@ -286,6 +289,7 @@ _C.MODEL.RETINANET_PG.PRIOR_PROB = 0.01
 _C.MODEL.RETINANET_PG.SCORE_THRESH_TEST = 0.05
 _C.MODEL.RETINANET_PG.TOPK_CANDIDATES_TEST = 1000
 _C.MODEL.RETINANET_PG.NMS_THRESH_TEST = 0.5
+_C.MODEL.RETINANET_PG.FAST_MODE = False
 
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options
@@ -669,3 +673,4 @@ _C.GLOBAL.SAVE_STEP = 200
 _C.GLOBAL.WARMUP_STEPS = 0
 _C.log_dir = ""
 _C.ckpt_dir = ""
+

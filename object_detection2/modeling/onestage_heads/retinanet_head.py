@@ -174,6 +174,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
             wsummary.detection_image_summary(images=inputs[IMAGE],
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
                                              lengths=outdata[RD_LENGTH],
+                                             scores=outdata[RD_PROBABILITY],
                                               name="RetinaNet_result")
         return outdata
 

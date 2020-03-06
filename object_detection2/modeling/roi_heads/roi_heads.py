@@ -349,10 +349,8 @@ class Res5ROIHeads(ROIHeads):
 
     def res5_block(self, net):
         batch_norm_decay = self.cfg.MODEL.RESNETS.batch_norm_decay #0.999
-        #nr = 3
-        #use_batch_norm = True
-        nr = 1
-        use_batch_norm = False
+        nr = 3
+        use_batch_norm = True
         blocks = [
             resnet_utils.Block('block4', bottleneck, [{
                 'depth': 2048,

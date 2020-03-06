@@ -305,14 +305,19 @@ def show_member(obj,name=None):
     for name,var in vars(obj).items():
         print("%s : "%(name),var)
 
-def show_list(values):
+def show_list(values,fmt=None):
     if values is None:
         return
     if isinstance(values,str):
         return show_list([values])
     print("[")
-    for v in values:
-        print(v)
+    if fmt is None:
+        for v in values:
+            print(v)
+    else:
+        for v in values:
+            print(fmt%v)
+
     print("]")
 def show_dict(values):
     print("[")
@@ -560,8 +565,11 @@ def sync_data_dir(src_dir,dst_dir):
         src_dir += "/"
     if not dst_dir.endswith("/"):
         dst_dir += "/"
+    if src_dir == dst_dir:
+        print(f"src dir and the dst dir is the same one {src_dir}, skip.")
+        return
     src_dir += "*"
-    cmd = f"cp -vu {src_dir} {dst_dir}"
+    cmd = f"cp -vup {src_dir} {dst_dir}"
     print(cmd)
     os.system(cmd)
     sys.stdout.flush()

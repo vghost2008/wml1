@@ -268,7 +268,7 @@ def fpn_top_down_feature_mapsv2(image_features,
                               depth,
                               use_depthwise=False,
                               use_explicit_padding=False,
-                              scope=None,smooth_last=False):
+                              scope=None,smooth_last=False,scope_type=tf.name_scope):
     """Generates `top-down` feature maps for Feature Pyramid Networks.
 
     See https://arxiv.org/abs/1612.03144 for details.
@@ -287,7 +287,7 @@ def fpn_top_down_feature_mapsv2(image_features,
       feature_maps: an OrderedDict mapping keys (feature map names) to
         tensors where each tensor has shape [batch, height_i, width_i, depth_i].
     """
-    with tf.name_scope(scope, 'top_down'):
+    with scope_type(scope, 'top_down'):
         num_levels = len(image_features)
         output_feature_maps_list = []
         output_feature_map_keys = []

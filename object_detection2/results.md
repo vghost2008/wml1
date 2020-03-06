@@ -2,6 +2,8 @@
 
 - 测试数据为mnistod(分三个类), 训练数据10k, 测试数据1k
 - 默认使用Adam
+- Detectron2默认仅在主干网络部分使用normalizer, 其它地方均未使用，使用的优化器为Momentum, momentum=0.9
+- 后续测试发现在不使用normalizer的情况下Momentum优化器仍然可以收敛到一个比较好的状态，但还是要比使用normalizer差一些
 
 ##Base-RPN.yaml
 

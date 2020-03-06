@@ -3,7 +3,7 @@ import tensorflow as tf
 import wmodule
 import functools
 from .backbone import Backbone
-from .build import BACKBONE_REGISTRY
+from .build import BACKBONE_REGISTRY,build_backbone_hook
 from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
@@ -20,7 +20,7 @@ class BIFPN(Backbone):
 
     def __init__(
         self, cfg,bottom_up, in_features, out_channels, fuse_type="sum",
-            *args,**kwargs
+            parent=None,*args,**kwargs
     ):
         """
         Args:
@@ -46,7 +46,7 @@ class BIFPN(Backbone):
                 which takes the element-wise mean of the two.
         """
         stage = int(in_features[-1][1:])
-        super(BIFPN, self).__init__(cfg,*args,**kwargs)
+        super(BIFPN, self).__init__(cfg,parent=parent,*args,**kwargs)
         assert isinstance(bottom_up, Backbone)
 
         # Place convs into top-down order (from low to high resolution)
@@ -61,7 +61,7 @@ class BIFPN(Backbone):
         self.interpolate_op=tf.image.resize_nearest_neighbor
         self.stage = stage
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.BIFPN.NORM,self.is_training)
-
+        self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.BIFPN,parent=self)
 
     @property
     def size_divisibility(self):
@@ -82,6 +82,8 @@ class BIFPN(Backbone):
         """
         # Reverse feature maps into top-down order (from low to high resolution)
         bottom_up_features = self.bottom_up(x)
+        if self.hook_before is not None:
+            bottom_up_features = self.hook_before(bottom_up_features,x)
         image_features = [bottom_up_features[f] for f in self.in_features]
         use_depthwise = self.use_depthwise
         depth = self.out_channels
@@ -121,6 +123,8 @@ class BIFPN(Backbone):
             for name,net in zip(self.in_features,feature_maps):
                 index = int(name[1:])
                 res[f"P{index}"] = net
+            if self.hook_after is not None:
+                res = self.hook_after(res, x)
             return res
 
 

@@ -35,6 +35,7 @@ class RetinaNet(wmodule.WChildModule):
             True: cfg.MODEL.RETINANET_PG.POST_NMS_TOPK_TRAIN,
             False: cfg.MODEL.RETINANET_PG.POST_NMS_TOPK_TEST,
         }
+        self.fast_mode = cfg.MODEL.RETINANET_PG.FAST_MODE
         # fmt: on
         self.anchor_generator = build_anchor_generator(cfg,parent=self,*args,**kwargs)
         self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET_PG, num_anchors=self.anchor_generator.num_cell_anchors,parent=self,
@@ -109,15 +110,30 @@ class RetinaNet(wmodule.WChildModule):
             losses = {"pg_"+k: v * self.loss_weight for k, v in outputs.losses().items()}
             return outdata, losses
         else:
-            results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
-                                        box_delta=pred_anchor_deltas, anchors=anchors)
+            if self.fast_mode:
+                results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
+                                            box_delta=pred_anchor_deltas, anchors=anchors)
 
-            assert batched_inputs[IMAGE].get_shape().as_list()[0]==1,"inference only support batch size equal one."
+                assert batched_inputs[IMAGE].get_shape().as_list()[0]==1,"inference only support batch size equal one."
 
-            length = tf.maximum(results[RD_LENGTH][0],1)
+                length = tf.maximum(results[RD_LENGTH][0],1)
 
-            outdata = {PD_BOXES: results[RD_BOXES][:,:length], PD_PROBABILITY: results[RD_PROBABILITY][:,:length]}
+                outdata = {PD_BOXES: results[RD_BOXES][:,:length], PD_PROBABILITY: results[RD_PROBABILITY][:,:length]}
 
-            wsummary.detection_image_summary(images=batched_inputs[IMAGE], boxes=outdata[PD_BOXES],
-                                             name="rpn/proposals")
+                wsummary.detection_image_summary(images=batched_inputs[IMAGE], boxes=outdata[PD_BOXES],
+                                                 name="rpn/proposals")
+            else:
+                proposals, logits = find_top_rpn_proposals(
+                    outputs.predict_proposals(),
+                    outputs.predict_objectness_logits(),
+                    self.nms_thresh,
+                    self.pre_nms_topk[self.is_training],
+                    self.post_nms_topk[self.is_training],
+                    self.anchors_num_per_level,
+                )
+
+                outdata = {PD_BOXES: proposals, PD_PROBABILITY: tf.nn.sigmoid(logits)}
+                wsummary.detection_image_summary(images=batched_inputs[IMAGE], boxes=outdata[PD_BOXES],
+                                                 name="rpn/proposals")
+
             return outdata,{}

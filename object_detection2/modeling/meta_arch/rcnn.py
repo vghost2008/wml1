@@ -118,6 +118,7 @@ class GeneralizedRCNN(MetaArch):
             wsummary.detection_image_summary(images=batched_inputs[IMAGE],
                                          boxes=results[RD_BOXES], classes=results[RD_LABELS],
                                          lengths=results[RD_LENGTH],
+                                         scores=results[RD_PROBABILITY],
                                          name="RCNN_result")
 
         losses = {}
@@ -169,6 +170,7 @@ class GeneralizedRCNN(MetaArch):
         wsummary.detection_image_summary(images=batched_inputs[IMAGE],
                                          boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                          lengths=results[RD_LENGTH],
+                                         scores=results[RD_PROBABILITY],
                                          instance_masks=instance_masks,name="RCNN_result")
         if instance_masks is not None:
             wsummary.detection_image_summary(images=tf.zeros_like(batched_inputs[IMAGE]),

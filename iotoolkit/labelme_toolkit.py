@@ -47,7 +47,10 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
             ymin = np.min(y)
             ymax = np.max(y)
             segmentation = cv.drawContours(mask,all_points,-1,color=(1),thickness=cv.FILLED)
-            label = label_text_to_id(shape["label"])
+            if label_text_to_id is not None:
+                label = label_text_to_id(shape["label"])
+            else:
+                label = shape["label"]
             annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
     return image,annotations_list
 

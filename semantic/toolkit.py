@@ -7,6 +7,7 @@ from .mask_utils import iou,np_iou
 import numpy as np
 sys.path.append(os.path.dirname(__file__))
 import semantic.visualization_utils as visu
+import image_visualization as ivs
 import cv2
 from semantic.visualization_utils import MIN_RANDOM_STANDARD_COLORS
 
@@ -168,7 +169,7 @@ def merge_masks(masks,labels,num_classes,size=None,no_background=True):
     return res
 
 def get_fullsize_merged_mask(masks,bboxes,labels,size,num_classes,no_background=True):
-    fullsize_masks = get_fullsize_mask(bboxes,masks,size)
+    fullsize_masks = ivs.get_fullsize_mask(bboxes,masks,size)
     return merge_masks(fullsize_masks,labels,num_classes,size,no_background)
 
 class ModelPerformance:
