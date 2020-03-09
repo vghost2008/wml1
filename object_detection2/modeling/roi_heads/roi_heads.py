@@ -347,7 +347,7 @@ class Res5ROIHeads(ROIHeads):
                 **kwargs
             )
 
-    def res5_block(self, net):
+    def res5_block(self, net,reuse=None):
         batch_norm_decay = self.cfg.MODEL.RESNETS.batch_norm_decay #0.999
         nr = 3
         use_batch_norm = True
@@ -361,18 +361,18 @@ class Res5ROIHeads(ROIHeads):
         with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
                                              is_training=self.is_training,
                                              use_batch_norm=use_batch_norm)):
-            with tf.variable_scope("resnet_v1_101"):
+            with tf.variable_scope("resnet_v1_101",reuse=reuse):
                 net = resnet_utils.stack_blocks_dense(
                         net, blocks)
         return net
 
 
-    def _shared_roi_transform(self, features, boxes):
+    def _shared_roi_transform(self, features, boxes,reuse=None):
         '''
         返回的batch_size与box nr 合并到了新的batch_size这一维
         '''
         x = self.pooler(features, boxes)
-        x = self.res5_block(x)
+        x = self.res5_block(x,reuse=reuse)
         return x
 
     def forward(self, inputs, features, proposals:ProposalsData):
@@ -430,10 +430,10 @@ class Res5ROIHeads(ROIHeads):
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )
-            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances = self.forward_with_given_boxes(features, pred_instances,reuse=True)
             return pred_instances, {}
 
-    def forward_with_given_boxes(self, features, instances:RCNNResultsData):
+    def forward_with_given_boxes(self, features, instances:RCNNResultsData,reuse=None):
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
 
@@ -451,7 +451,7 @@ class Res5ROIHeads(ROIHeads):
 
         if self.mask_on:
             features = [features[f] for f in self.in_features]
-            x = self._shared_roi_transform(features, instances.boxes)
+            x = self._shared_roi_transform(features, instances[RD_BOXES],reuse=reuse)
             mask_logits = self.mask_head(x)
             mask_rcnn_inference(mask_logits, instances)
         return instances

@@ -179,22 +179,9 @@ class GeneralizedRCNN(MetaArch):
                                              instance_masks=instance_masks,
                                              name="RCNN_Mask_result")
         if do_postprocess:
-            return GeneralizedRCNN._postprocess(results, batched_inputs, None),None
+            return self._postprocess(results, batched_inputs, None),None
         else:
             return results,None
-
-    def preprocess_image(self, batched_inputs):
-        """
-        Normalize, pad and batch the input images.
-        """
-        batched_inputs[IMAGE] = (batched_inputs[IMAGE]-127.5)/127.5
-        return batched_inputs
-
-    @staticmethod
-    def _postprocess(instances, batched_inputs, image_sizes):
-        return instances
-
-
 
 @META_ARCH_REGISTRY.register()
 class ProposalNetwork(MetaArch):

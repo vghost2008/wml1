@@ -776,12 +776,22 @@ def batch_indices_to_mask(indices,lens,size):
         return mask,ind
     return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(indices,lens),dtype=(tf.bool,tf.int32),back_prop=False)
 
+'''
+data:[N,X]
+mask:[N,X]
+size:()
+return:
+[N,size]
+'''
 def batch_boolean_mask(data,mask,size):
     if not isinstance(data,tf.Tensor):
         data = tf.convert_to_tensor(data)
     def fn(d,m):
         d = tf.boolean_mask(d,m)
-        d = tf.pad(d,[[0,size-tf.shape(d)[0]]]+[0,0]*(d.get_shape().ndims-1))
+        padding = [[0,size-tf.shape(d)[0]]]
+        if d.get_shape().ndims>1:
+            padding = padding+[[0,0]]*(d.get_shape().ndims-1)
+        d = tf.pad(d,padding)
         return d
     return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
 

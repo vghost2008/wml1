@@ -1038,7 +1038,7 @@ def get_proposal_boxesv3(class_prediction,
     通过top_k+gather排序
     In Detectron2, they chosen the top candiate_nr*6 boxes
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr*6,tf.shape(probability)[1]))
+    probability,indices = tf.nn.top_k(probability,k=tf.minimum(candiate_nr*3,tf.shape(probability)[1]))
     labels = wml.batch_gather(labels,indices)
     bboxes_regs = wml.batch_gather(bboxes_regs,indices)
     proposal_bboxes = wml.batch_gather(proposal_bboxes,indices)

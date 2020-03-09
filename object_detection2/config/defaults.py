@@ -10,6 +10,7 @@ _C.MODEL.MASK_ON = False
 _C.MODEL.KEYPOINT_ON = False
 _C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
+_C.MODEL.MIN_BOXES_AREA_TEST = 0.
 
 # Path (possibly with schema like catalog:// or detectron2://) to a checkpoint file
 # to be loaded to the model. You can find available models in the model zoo.
@@ -329,6 +330,7 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # If True, augment proposals with ground-truth boxes before sampling proposals to
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
+#预测时box结果的最小相对面积
 
 # ---------------------------------------------------------------------------- #
 # Box Head

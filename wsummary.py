@@ -105,7 +105,8 @@ def detection_image_summary(images,
   if lengths is not None:
       lengths = lengths[:max_outputs]
 
-  images = imv.draw_detection_image_summary(images,
+  with tf.device(":/cpu:0"):
+    images = imv.draw_detection_image_summary(images,
                                          boxes,
                                          classes,
                                          scores,

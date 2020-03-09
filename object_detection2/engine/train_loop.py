@@ -245,8 +245,11 @@ class SimpleTrainer(TrainerBase):
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
-        if tf.gfile.Exists(self.log_dir):
-            tf.gfile.DeleteRecursively(self.log_dir)
+        try:
+            if tf.gfile.Exists(self.log_dir):
+                tf.gfile.DeleteRecursively(self.log_dir)
+        except:
+            pass
         if inference:
             self.build_inference_net()
         elif not self.model.is_training or self.gpus is None:

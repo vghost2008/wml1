@@ -233,7 +233,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 nb_labels = tf.reshape(nb_labels, [-1])
                 box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(proposal_bboxes)
                 bboxes_regs = tf.reshape(bboxes_regs,[box_nr,num_classes,box_dim])
-                bboxes_regs = wmlt.select_2thdata_by_index(bboxes_regs, nb_labels)
+                bboxes_regs = wmlt.batch_gather(bboxes_regs,nb_labels)
             del nb_labels
             proposal_bboxes.get_shape().assert_is_compatible_with(bboxes_regs.get_shape())
             '''
@@ -241,12 +241,15 @@ class FastRCNNOutputs(wmodule.WChildModule):
             通过top_k+gather排序
             '''
             probability, indices = tf.nn.top_k(probability, k=tf.shape(probability)[0])
-            labels = wmlt.gather_in_axis(labels, indices, axis=0)
-            bboxes_regs = wmlt.gather_in_axis(bboxes_regs, indices, axis=0)
-            proposal_bboxes = wmlt.gather_in_axis(proposal_bboxes, indices, axis=0)
-            res_indices = wmlt.gather_in_axis(res_indices, indices, axis=0)
+            labels = tf.gather(labels, indices)
+            bboxes_regs = tf.gather(bboxes_regs, indices)
+            proposal_bboxes = tf.gather(proposal_bboxes, indices)
+            res_indices = tf.gather(res_indices, indices)
 
             pmask = tf.greater(probability, threshold)
+            #probability = tf.Print(probability,[probability,pmask,tf.shape(probability),tf.shape(pmask)],
+                                   #summarize=1000,
+                                   #name="XXXXXXXXX")
             probability = tf.boolean_mask(probability, pmask)
             labels = tf.boolean_mask(labels, pmask)
             proposal_bboxes = tf.boolean_mask(proposal_bboxes, pmask)
@@ -327,7 +330,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
             )
 
         with tf.name_scope("remove_null_boxes"):
-            max_len = tf.reduce_max(lens)
+            #max_len=0会引导程序异常退出，原因未知
+            max_len = tf.maximum(1,tf.reduce_max(lens))
             boxes = boxes[:,:max_len]
             labels = labels[:,:max_len]
             probability = probability[:,:max_len]

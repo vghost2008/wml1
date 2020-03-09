@@ -574,6 +574,10 @@ def func(v)
 def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None,verbose=False):
     #if restore_evckp and os.path.isdir(path):
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
+    bn_ops = tf.get_collection(key=tf.GraphKeys.UPDATE_OPS)
+    bn_ops = [x.name for x in bn_ops]
+    print("Batch normal ops.")
+    wmlu.show_list(bn_ops)
     if exclude is None and exclude_var is not None:
         exclude = exclude_var
     file_path = wmlt.get_ckpt_file_path(path)
