@@ -44,18 +44,19 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
         return 4
 
     def show_anchors(self,anchors,features,img_size=[512,512]):
-        with tf.name_scope("show_anchors"):
-            image = tf.ones(img_size)
-            image = tf.expand_dims(image,axis=0)
-            image = tf.expand_dims(image,axis=-1)
-            image = tf.tile(image,[1,1,1,3])
-            for i in range(len(anchors)):
-                num_cell_anchors = len(self.aspect_ratios[i])*len(self.sizes[i])
-                shape = wmlt.combined_static_and_dynamic_shape(features[i])
-                offset = ((shape[1]//2)*shape[2]+shape[2]//2)*num_cell_anchors
-                boxes = anchors[i][offset:offset+num_cell_anchors]
-                boxes = tf.expand_dims(boxes,axis=0)
-                wsummary.detection_image_summary(images=image,boxes=boxes,name=f"level_{i}")
+        with tf.device(":/cpu:0"):
+            with tf.name_scope("show_anchors"):
+                image = tf.ones(img_size)
+                image = tf.expand_dims(image,axis=0)
+                image = tf.expand_dims(image,axis=-1)
+                image = tf.tile(image,[1,1,1,3])
+                for i in range(len(anchors)):
+                    num_cell_anchors = len(self.aspect_ratios[i])*len(self.sizes[i])
+                    shape = wmlt.combined_static_and_dynamic_shape(features[i])
+                    offset = ((shape[1]//2)*shape[2]+shape[2]//2)*num_cell_anchors
+                    boxes = anchors[i][offset:offset+num_cell_anchors]
+                    boxes = tf.expand_dims(boxes,axis=0)
+                    wsummary.detection_image_summary(images=image,boxes=boxes,name=f"level_{i}")
 
 
     @property

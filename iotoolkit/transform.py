@@ -60,6 +60,8 @@ class WTransform(object):
                 else:
                     res[k] = v
         return res
+    def __str__(self):
+        return type(self).__name__
 '''
 img:[H,W,C]
 '''
@@ -530,4 +532,6 @@ class WTransformList(WTransform):
         for trans in self.trans_list:
             data_item = trans(data_item)
         return data_item
+    def __str__(self):
+        return "WTransformList: "+str(self.trans_list)
 

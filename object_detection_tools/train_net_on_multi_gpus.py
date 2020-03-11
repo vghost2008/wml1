@@ -57,7 +57,8 @@ def main(_):
     is_training = True
     data_loader = DataLoader(cfg=cfg,is_training=is_training)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
-    data,num_classes = data_loader.load_data(*data_args)
+    with tf.device(":/cpu:0"):
+        data,num_classes = data_loader.load_data(*data_args)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes

@@ -53,6 +53,7 @@ class DataLoader(wmodule.WModule):
         return res
 
     def load_data(self,path,func,num_classes,batch_size=None,is_training=True):
+        print("Trans on single img:",self.trans_on_single_img)
         data = func(path,transforms=self.trans_on_single_img)
         if is_training:
             data = data.repeat()
@@ -61,6 +62,7 @@ class DataLoader(wmodule.WModule):
         else:
             batch_size = 1 if batch_size is None else batch_size
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
+        print("Trans on batch img:",self.trans_on_batch_img)
         if len(self.trans_on_batch_img) == 1:
             data = data.map(self.trans_on_batch_img[0])
         elif len(self.trans_on_batch_img) > 1:

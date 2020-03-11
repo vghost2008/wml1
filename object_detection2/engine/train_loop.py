@@ -266,7 +266,8 @@ class SimpleTrainer(TrainerBase):
             if self.saver is not None:
                 self.saver.save(self.sess, os.path.join(self.ckpt_dir, CHECK_POINT_FILE_NAME), global_step=self.step)
             self.sess.close()
-        self.summary_writer.close()
+        if self.summary_writer is not None:
+            self.summary_writer.close()
 
     def build_inference_net(self):
         if not os.path.exists(self.log_dir):
@@ -295,7 +296,8 @@ class SimpleTrainer(TrainerBase):
             wmlu.create_empty_dir(self.log_dir)
         if not os.path.exists(self.ckpt_dir):
             wmlu.create_empty_dir(self.ckpt_dir)
-        data = self.data.get_next()
+        with tf.device(":/cpu:0"):
+            data = self.data.get_next()
         DataLoader.detection_image_summary(data,name="data_source")
         self.input_data = data
         '''if self.cfg.GLOBAL.DEBUG:
@@ -361,8 +363,9 @@ class SimpleTrainer(TrainerBase):
                 #scope._reuse = tf.AUTO_REUSE
                 scope.reuse_variables()
             with tf.device(f"/gpu:{i}"):
-                data = self.data.get_next()
-                DataLoader.detection_image_summary(data,name=f"data_source{i}")
+                with tf.device(":/cpu:0"):
+                    data = self.data.get_next()
+                    DataLoader.detection_image_summary(data,name=f"data_source{i}")
                 self.input_data = data
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
                     self.res_data,loss_dict = self.model.forward(data)

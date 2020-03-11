@@ -27,31 +27,34 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
     with open(file_path,"r",encoding="gb18030") as f:
         print(file_path)
         data_str = f.read()
-        json_data = json.loads(data_str)
-        img_width = int(json_data["imageWidth"])
-        img_height = int(json_data["imageHeight"])
-        image["height"] = int(img_height)
-        image["width"] = int(img_width)
-        image["file_name"] = wmlu.base_name(file_path)
-        for shape in json_data["shapes"]:
-            mask = np.zeros(shape=[img_height,img_width],dtype=np.uint8)
-            all_points = np.array([shape["points"]]).astype(np.int32)
-            if len(all_points)<1:
-                continue
-            points = np.transpose(all_points[0])
-            x,y = np.vsplit(points,2)
-            x = np.minimum(np.maximum(0,x),img_width-1)
-            y = np.minimum(np.maximum(0,y),img_height-1)
-            xmin = np.min(x)
-            xmax = np.max(x)
-            ymin = np.min(y)
-            ymax = np.max(y)
-            segmentation = cv.drawContours(mask,all_points,-1,color=(1),thickness=cv.FILLED)
-            if label_text_to_id is not None:
-                label = label_text_to_id(shape["label"])
-            else:
-                label = shape["label"]
-            annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
+        try:
+            json_data = json.loads(data_str)
+            img_width = int(json_data["imageWidth"])
+            img_height = int(json_data["imageHeight"])
+            image["height"] = int(img_height)
+            image["width"] = int(img_width)
+            image["file_name"] = wmlu.base_name(file_path)
+            for shape in json_data["shapes"]:
+                mask = np.zeros(shape=[img_height,img_width],dtype=np.uint8)
+                all_points = np.array([shape["points"]]).astype(np.int32)
+                if len(all_points)<1:
+                    continue
+                points = np.transpose(all_points[0])
+                x,y = np.vsplit(points,2)
+                x = np.minimum(np.maximum(0,x),img_width-1)
+                y = np.minimum(np.maximum(0,y),img_height-1)
+                xmin = np.min(x)
+                xmax = np.max(x)
+                ymin = np.min(y)
+                ymax = np.max(y)
+                segmentation = cv.drawContours(mask,all_points,-1,color=(1),thickness=cv.FILLED)
+                if label_text_to_id is not None:
+                    label = label_text_to_id(shape["label"])
+                else:
+                    label = shape["label"]
+                annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
+        except:
+            pass
     return image,annotations_list
 
 def save_labelme_data(file_path,image_path,image,annotations_list,label_to_text=lambda x:str(x)):

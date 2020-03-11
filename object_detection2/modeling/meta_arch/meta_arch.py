@@ -25,7 +25,7 @@ class MetaArch(wmodule.WModule):
             with tf.name_scope("postprocess"):
                 instances[RD_BOXES] = tf.clip_by_value(instances[RD_BOXES],0.0,1.0)
                 box_are = odb.box_area(instances[RD_BOXES])
-                mask = tf.greater(box_are,self.cfg.MODEL.ROI_HEADS.MIN_BOXES_AREA_TEST)
+                mask = tf.greater(box_are,self.cfg.MODEL.MIN_BOXES_AREA_TEST)
                 size = tf.shape(instances[RD_LABELS])[1]
                 mask0 = tf.sequence_mask(instances[RD_LENGTH],maxlen=size)
                 mask = tf.logical_and(mask,mask0)

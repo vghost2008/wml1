@@ -220,11 +220,12 @@ class RPNOutputs(object):
             pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
 
             if global_cfg.GLOBAL.DEBUG:
-                with tf.name_scope("rpn_sampled_box"):
-                    log_anchors = self.anchors*tf.ones([batch_size,1,1])
-                    logmask = tf.reshape(pos_idx,[batch_size,-1])
-                    wsummary.detection_image_summary_by_logmask(images=self.inputs[IMAGE],boxes=log_anchors,
-                                                                logmask=logmask)
+                with tf.device(":/cpu:0"):
+                    with tf.name_scope("rpn_sampled_box"):
+                        log_anchors = self.anchors*tf.ones([batch_size,1,1])
+                        logmask = tf.reshape(pos_idx,[batch_size,-1])
+                        wsummary.detection_image_summary_by_logmask(images=self.inputs[IMAGE],boxes=log_anchors,
+                                                                    logmask=logmask)
 
             valid_mask = tf.logical_or(pos_idx,neg_idx)
             gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])

@@ -254,21 +254,22 @@ class ROIHeads(wmodule.WChildModule):
                 proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
                 scores = wmlt.batch_gather(scores, rcn_indices)
             if self.cfg.GLOBAL.DEBUG:
-                with tf.name_scope("label_and_sample_proposals_summary"):
-                    logmask = tf.greater(gt_logits_i,0)
-                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
-                                                                boxes=proposals,
-                                                                classes=gt_logits_i,
-                                                                scores=scores,
-                                                                logmask=logmask,
-                                                                name="label_and_sample_proposals_summary")
-                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
-                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
-                                                                boxes=pgt_boxes,
-                                                                classes=gt_logits_i,
-                                                                scores=scores,
-                                                                logmask=logmask,
-                                                                name="label_and_sample_proposals_summary_by_gtboxes")
+                with tf.device(":/cpu:0"):
+                    with tf.name_scope("label_and_sample_proposals_summary"):
+                        logmask = tf.greater(gt_logits_i,0)
+                        wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                    boxes=proposals,
+                                                                    classes=gt_logits_i,
+                                                                    scores=scores,
+                                                                    logmask=logmask,
+                                                                    name="label_and_sample_proposals_summary")
+                        pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
+                        wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                    boxes=pgt_boxes,
+                                                                    classes=gt_logits_i,
+                                                                    scores=scores,
+                                                                    logmask=logmask,
+                                                                    name="label_and_sample_proposals_summary_by_gtboxes")
 
 
             res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
