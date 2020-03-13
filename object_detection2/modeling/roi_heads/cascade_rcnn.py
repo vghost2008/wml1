@@ -9,6 +9,7 @@ from object_detection2.datadef import *
 import wml_tfutils as wmlt
 import wnnlayer as wnnl
 import wsummary
+from object_detection2.odtools import *
 
 
 @ROI_HEADS_REGISTRY.register()
@@ -83,6 +84,7 @@ class CascadeROIHeads(StandardROIHeads):
 
     def _forward_box(self, inputs,features, proposals):
         head_outputs = []
+        img_size = get_img_size_from_batched_inputs(inputs)
         for k in range(self.num_cascade_stages):
             if k > 0:
                 # The output boxes of the previous stage are the input proposals of the next stage
@@ -92,7 +94,7 @@ class CascadeROIHeads(StandardROIHeads):
                                                                 stage=k)
                 else:
                     proposals = {PD_BOXES:proposals_boxes}
-            head_outputs.append(self._run_stage(features, proposals, k))
+            head_outputs.append(self._run_stage(features, proposals, k,img_size=img_size))
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 results = head_outputs[-1].inference(
                     self.test_score_thresh,
@@ -125,7 +127,7 @@ class CascadeROIHeads(StandardROIHeads):
             )
             return pred_instances
 
-    def _run_stage(self, features, proposals, stage):
+    def _run_stage(self, features, proposals, stage,img_size):
         """
         Args:
             features (list[Tensor]): #lvl input features to ROIHeads
@@ -139,7 +141,7 @@ class CascadeROIHeads(StandardROIHeads):
             proposals_boxes = proposals.boxes #when training proposals is EncodedData
         else:
             proposals_boxes = proposals[PD_BOXES] #when inference, proposals is a dict which is the output of rpn
-        box_features = self.box_pooler(features, proposals_boxes)
+        box_features = self.box_pooler(features, proposals_boxes,img_size=img_size)
         # The original implementation averages the losses among heads,
         # but scale up the parameter gradients of the heads.
         # This is equivalent to adding the losses among heads,

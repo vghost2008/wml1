@@ -29,6 +29,9 @@ class WTransform(object):
     def is_label(self,key):
         return ('label' in key) or ('class' in key)
 
+    '''
+    func: func(x:Tensor)->Tensor
+    '''
     def apply_to_images(self,func,data_item,**kwargs):
         return self.apply_with_filter(func,data_item,filter=self.is_image,**kwargs)
 
@@ -194,33 +197,6 @@ def distorted_bounding_box_crop(image,
                                                    threshold=filter_threshold,
                                                    assign_negative=False)
         return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
-
-'''
-mask:[N,H,W]
-'''
-def distorted_bounding_box_and_mask_crop(image,
-                                mask,
-                                labels,
-                                bboxes,
-                                min_object_covered=0.3,
-                                aspect_ratio_range=(0.9, 1.1),
-                                area_range=(0.1, 1.0),
-                                max_attempts=200,
-                                filter_threshold=0.3,
-                                scope=None):
-    dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
-            distorted_bounding_box_crop(image, labels, bboxes,
-                                        area_range=area_range,
-                                        min_object_covered=min_object_covered,
-                                        aspect_ratio_range=aspect_ratio_range,
-                                        max_attempts=max_attempts,
-                                        filter_threshold=filter_threshold,
-                                        scope=scope)
-    mask = tf.boolean_mask(mask,bboxes_mask)
-    mask = tf.transpose(mask,perm=[1,2,0])
-    mask = tf.slice(mask,bbox_begin,bbox_size)
-    dst_mask = tf.transpose(mask,perm=[2,0,1])
-    return dst_image,dst_mask,labels, bboxes, bbox_begin,bbox_size,bboxes_mask
 
 def random_rot90(image,bboxes,clockwise=True):
     return tf.cond(tf.greater(tf.random_uniform(shape=[]), 0.5),
@@ -473,6 +449,15 @@ class WDistortColor(WTransform):
         func = partial(distort_color,**self.kwargs)
         return self.apply_to_images(func,data_item)
 
+class WRandomDistortColor(WTransform):
+    def __init__(self,probability=0.5,**kwargs):
+        self.kwargs = kwargs
+        self.probability = probability
+    def __call__(self, data_item):
+        is_dis = tf.less_equal(tf.random_uniform(shape=[]),self.probability)
+        func = partial(distort_color,**self.kwargs)
+        return self.apply_to_images(func,data_item,runtime_filter=is_dis)
+
 class WRandomBlur(WTransform):
     def __init__(self,**kwargs):
         self.kwargs = kwargs
@@ -498,6 +483,48 @@ class WPerImgStandardization(WTransform):
 
     def __call__(self, data_item):
         return self.apply_to_images(tf.image.per_image_standardization,data_item)
+'''
+如果有Mask分支，Mask必须先转换为HWN的模式
+'''
+class SampleDistortedBoundingBox(WTransform):
+    def __init__(self,
+                 min_object_covered=0.3,
+                 aspect_ratio_range=(0.9, 1.1),
+                 area_range=(0.1, 1.0),
+                 max_attempts=100,
+                 filter_threshold=0.3,
+                 ):
+        self.min_object_covered = min_object_covered
+        self.aspect_ratio_range = aspect_ratio_range
+        self.area_range = area_range
+        self.max_attempts = max_attempts
+        self.filter_threshold = filter_threshold
+
+    def __call__(self, data_item):
+        labels = data_item[GT_LABELS]
+        data_item[GT_LABELS] = labels
+        image = data_item[IMAGE]
+        bboxes = data_item[GT_BOXES]
+        dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
+            distorted_bounding_box_crop(image, labels, bboxes,
+                                        area_range=self.area_range,
+                                        min_object_covered=self.min_object_covered,
+                                        aspect_ratio_range=self.aspect_ratio_range,
+                                        max_attempts=self.max_attempts,
+                                        filter_threshold=self.filter_threshold,
+                                        scope="distorted_bounding_box_crop")
+        data_item[IMAGE] = dst_image
+        data_item[GT_LABELS] = labels
+        data_item[GT_BOXES] = bboxes
+
+        if GT_MASKS in data_item:
+            def func(mask):
+                mask = tf.boolean_mask(mask,bboxes_mask)
+                mask = tf.slice(mask,bbox_begin,bbox_size)
+                return mask
+            data_item = self.apply_to_masks(func,data_item)
+
+        return data_item
 
 class WTransLabels(WTransform):
     def __init__(self,id_to_label):

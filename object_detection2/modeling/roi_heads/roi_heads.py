@@ -15,6 +15,7 @@ from object_detection2.standard_names import *
 from wtfop.wtfop_ops import wpad
 from object_detection2.datadef import *
 from .keypoint_head import build_keypoint_head
+from object_detection2.odtools import *
 
 slim = tf.contrib.slim
 
@@ -368,11 +369,11 @@ class Res5ROIHeads(ROIHeads):
         return net
 
 
-    def _shared_roi_transform(self, features, boxes,reuse=None):
+    def _shared_roi_transform(self, features, boxes,img_size,reuse=None):
         '''
         返回的batch_size与box nr 合并到了新的batch_size这一维
         '''
-        x = self.pooler(features, boxes)
+        x = self.pooler(features, boxes,img_size=img_size)
         x = self.res5_block(x,reuse=reuse)
         return x
 
@@ -380,13 +381,14 @@ class Res5ROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
+        img_size = get_img_size_from_batched_inputs(inputs)
         proposal_boxes = proposals[PD_BOXES]
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposal_boxes)
             proposal_boxes = proposals.boxes
 
         box_features = self._shared_roi_transform(
-            [features[f] for f in self.in_features], proposal_boxes
+            [features[f] for f in self.in_features], proposal_boxes,img_size=img_size
         )
         feature_pooled = tf.reduce_mean(box_features,axis=[1, 2],keep_dims=False)  # pooled to 1x1
         pred_class_logits, pred_proposal_deltas = self.box_predictor(feature_pooled)
@@ -431,10 +433,12 @@ class Res5ROIHeads(ROIHeads):
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )
-            pred_instances = self.forward_with_given_boxes(features, pred_instances,reuse=True)
+            pred_instances = self.forward_with_given_boxes(features, pred_instances,
+                                                           img_size=img_size,
+                                                           reuse=True)
             return pred_instances, {}
 
-    def forward_with_given_boxes(self, features, instances:RCNNResultsData,reuse=None):
+    def forward_with_given_boxes(self, features, instances:RCNNResultsData,img_size,reuse=None):
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
 
@@ -452,7 +456,9 @@ class Res5ROIHeads(ROIHeads):
 
         if self.mask_on:
             features = [features[f] for f in self.in_features]
-            x = self._shared_roi_transform(features, instances[RD_BOXES],reuse=reuse)
+            x = self._shared_roi_transform(features, instances[RD_BOXES],
+                                           img_size=img_size,
+                                           reuse=reuse)
             mask_logits = self.mask_head(x)
             mask_rcnn_inference(mask_logits, instances)
         return instances
@@ -560,6 +566,7 @@ class StandardROIHeads(ROIHeads):
 
         features_list = [features[f] for f in self.in_features]
 
+        img_size = get_img_size_from_batched_inputs(inputs)
         if self.is_training:
             pred_instances,losses = self._forward_box(features_list, proposals)
             # Usually the original proposals used by the box head are used by the mask, keypoint
@@ -568,18 +575,18 @@ class StandardROIHeads(ROIHeads):
             if self.train_on_pred_boxes:
                 #proposals里面的box已经是采样的结果,无需再进行采样操作
                 proposals = self.label_and_sample_proposals(inputs,proposals.boxes,do_sample=False)
-            losses.update(self._forward_mask(inputs,features_list, proposals))
-            losses.update(self._forward_keypoint(inputs,features_list, proposals))
+            losses.update(self._forward_mask(inputs,features_list, proposals,img_size=img_size))
+            losses.update(self._forward_keypoint(inputs,features_list, proposals,img_size=img_size))
             return pred_instances, losses
         else:
-            pred_instances,_ = self._forward_box(features_list, proposals)
+            pred_instances,_ = self._forward_box(features_list, proposals,img_size=img_size)
             # During inference cascaded prediction is used: the mask and keypoints heads are only
             # applied to the top scoring box detections.
-            mk_pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
+            mk_pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances,img_size=img_size)
             pred_instances.update(mk_pred_instances)
             return pred_instances, {}
 
-    def forward_with_given_boxes(self, inputs,features, instances):
+    def forward_with_given_boxes(self, inputs,features, instances,img_size):
         """
         Use the given boxes in `instances` to produce other (non-box) per-ROI outputs.
 
@@ -600,11 +607,11 @@ class StandardROIHeads(ROIHeads):
         assert not self.is_training
         features = [features[f] for f in self.in_features]
 
-        instances = self._forward_mask(inputs,features, instances)
-        instances = self._forward_keypoint(inputs,features, instances)
+        instances = self._forward_mask(inputs,features, instances,img_size=img_size)
+        instances = self._forward_keypoint(inputs,features, instances,img_size=img_size)
         return instances
 
-    def _forward_box(self, features, proposals):
+    def _forward_box(self, features, proposals,img_size):
         """
         Forward logic of the box prediction branch. If `self.train_on_pred_boxes is True`,
             the function puts predicted boxes in the `proposal_boxes` field of `proposals` argument.
@@ -624,7 +631,7 @@ class StandardROIHeads(ROIHeads):
             proposal_boxes = proposals.boxes #when training proposals's EncodedData
         else:
             proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
-        box_features = self.box_pooler(features, proposal_boxes)
+        box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         box_features = self.box_head(box_features)
         pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
         del box_features
@@ -654,7 +661,7 @@ class StandardROIHeads(ROIHeads):
             )
             return pred_instances,{}
 
-    def _forward_mask(self, inputs,features, instances):
+    def _forward_mask(self, inputs,features, instances,img_size):
         """
         Forward logic of the mask prediction branch.
 
@@ -676,7 +683,7 @@ class StandardROIHeads(ROIHeads):
             # The loss is only defined on positive proposals.
             fg_selection_mask = select_foreground_proposals(instances)
             proposal_boxes = instances.boxes
-            mask_features = self.mask_pooler(features, proposal_boxes)
+            mask_features = self.mask_pooler(features, proposal_boxes,img_size=img_size)
             fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
             mask_features = tf.boolean_mask(mask_features, fg_selection_mask)
             mask_logits = self.mask_head(mask_features)
@@ -689,7 +696,7 @@ class StandardROIHeads(ROIHeads):
             mask_rcnn_inference(mask_logits, instances)
             return instances
 
-    def _forward_keypoint(self, inputs,features, instances):
+    def _forward_keypoint(self, inputs,features, instances,img_size):
         """
         Forward logic of the keypoint prediction branch.
 

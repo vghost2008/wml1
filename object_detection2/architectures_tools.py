@@ -6,7 +6,6 @@ import object_detection2.od_toolkit as odt
 slim = tf.contrib.slim
 
 '''
-与第三方的BiFPN实现不同的地方为：
 feature_maps:shape=[[h,w,c0],[2*h,2*w,c1],[4*h,4*w,c2],...]
 '''
 def BiFPN(feature_maps,conv_op=slim.conv2d,upsample_op=wmlt.nearest_neighbor_upsampling,depths=None,scope=None):

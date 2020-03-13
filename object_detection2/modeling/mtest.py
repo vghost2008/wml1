@@ -31,13 +31,15 @@ class WMLTest(tf.test.TestCase):
                 t_features.append(np.ones([1,2,2,1])*(2-i))
             t_features = np.concatenate(t_features,axis=0)
             boxes = [[[0.0,0.0,0.59,0.9],[0.0,0.0,0.3,0.3],[0.0,0.0,0.1,0.1]]]
+            img_size = [224,224]
             cfg = config.get_cfg()
+            config.set_global_cfg(cfg)
             cfg = cfg.MODEL.ROI_BOX_HEAD
-            cfg.canonical_box_size = 0.3
+            cfg.canonical_box_size = 0.3*224
             cfg.canonical_level = 1
             p = wmodule.WModule(cfg)
             pooler = ROIPooler(cfg,parent=p,output_size=[2,2])
-            features = pooler.forward(features,tf.convert_to_tensor(boxes,dtype=tf.float32))
+            features = pooler.forward(features,tf.convert_to_tensor(boxes,dtype=tf.float32),img_size=img_size)
             features = sess.run(features)
             self.assertAllClose(t_features,features,atol=1e-3)
 

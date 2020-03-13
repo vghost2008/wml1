@@ -11,7 +11,7 @@ import wsummary
 __all__ = ["ROIPooler"]
 
 
-def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, canonical_level):
+def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, canonical_level,img_size):
     """
     Map each box in `box_lists` to a feature map level index and return the assignment
     vector.
@@ -36,7 +36,7 @@ def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, can
     """
     with tf.name_scope("assign_boxes_to_levels"):
         eps = 1e-6
-        box_sizes = tf.sqrt(odbox.box_area(bboxes))
+        box_sizes = tf.sqrt(odbox.box_area(bboxes))*tf.sqrt(tf.cast(img_size[0]*img_size[1],tf.float32))
         # Eqn.(1) in FPN paper
         level_assignments = tf.floor(
             canonical_level + tf.log(box_sizes / canonical_box_size + eps)/math.log(2)
@@ -46,8 +46,6 @@ def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, can
         level_assignments = tf.cast(level_assignments,tf.int32)
         level_assignments = tf.clip_by_value(level_assignments, min_level, max_level)
         return level_assignments - min_level
-
-
 
 
 class ROIPooler(wmodule.WChildModule):
@@ -105,11 +103,12 @@ class ROIPooler(wmodule.WChildModule):
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
 
-    def forward(self, x, bboxes):
+    def forward(self, x, bboxes,img_size):
         """
         Args:
             x (list[Tensor]): tensorshape is [batch_size,H,W,C] resolution from high to low
             bboxes:[batch_size,box_nr,4]
+            img_size:[2],(H,W)
 
         Returns:
             Tensor:
@@ -124,7 +123,7 @@ class ROIPooler(wmodule.WChildModule):
                 return self.level_pooler(x[0], bboxes)
 
             level_assignments = assign_boxes_to_levels(
-                bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level
+                bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level,img_size
             )
             features = []
             for net in x:

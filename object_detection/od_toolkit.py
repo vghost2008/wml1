@@ -170,7 +170,8 @@ def __get_predictionv2(class_prediction,
     NMS前数据必须已经排好序
     通过top_k+gather排序
     '''
-    probability,indices = tf.nn.top_k(probability,k=tf.shape(probability)[0])
+    k = tf.minimum(tf.shape(probability)[0],candiate_nr*6)
+    probability,indices = tf.nn.top_k(probability,k=k)
     labels = wml.gather_in_axis(labels,indices,axis=0)
     bboxes_regs = wml.gather_in_axis(bboxes_regs,indices,axis=0)
     proposal_bboxes = wml.gather_in_axis(proposal_bboxes,indices,axis=0)
@@ -1253,4 +1254,29 @@ def select_boxes_by_probs(bboxes,labels,probs,threshold=0.5):
     return bboxes,labels,probs
 
 distorted_bounding_box_crop = trans.distorted_bounding_box_crop
-distorted_bounding_box_and_mask_crop = trans.distorted_bounding_box_and_mask_crop
+'''
+mask:[N,H,W]
+'''
+def distorted_bounding_box_and_mask_crop(image,
+                                mask,
+                                labels,
+                                bboxes,
+                                min_object_covered=0.3,
+                                aspect_ratio_range=(0.9, 1.1),
+                                area_range=(0.1, 1.0),
+                                max_attempts=200,
+                                filter_threshold=0.3,
+                                scope=None):
+    dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
+            distorted_bounding_box_crop(image, labels, bboxes,
+                                        area_range=area_range,
+                                        min_object_covered=min_object_covered,
+                                        aspect_ratio_range=aspect_ratio_range,
+                                        max_attempts=max_attempts,
+                                        filter_threshold=filter_threshold,
+                                        scope=scope)
+    mask = tf.boolean_mask(mask,bboxes_mask)
+    mask = tf.transpose(mask,perm=[1,2,0])
+    mask = tf.slice(mask,bbox_begin,bbox_size)
+    dst_mask = tf.transpose(mask,perm=[2,0,1])
+    return dst_image,dst_mask,labels, bboxes, bbox_begin,bbox_size,bboxes_mask
