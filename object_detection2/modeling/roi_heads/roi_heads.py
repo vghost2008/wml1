@@ -234,8 +234,6 @@ class ROIHeads(wmodule.WChildModule):
                 proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,limits=None)
             res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
             gt_logits_i, scores, indices = res
-            #gt_logits_i = tf.Print(gt_logits_i,[scores],name="XXXXX_matcher_scores",summarize=10000)
-            #gt_logits_i = tf.Print(gt_logits_i,[gt_logits_i],name="XXXXX_matcher_scoresgtlogitsi",summarize=10000)
 
             if do_sample:
                 pos_nr = int(self.batch_size_per_image*self.positive_sample_fraction)
@@ -248,8 +246,13 @@ class ROIHeads(wmodule.WChildModule):
                               dtype=(tf.int32, tf.int32),
                               back_prop=False,
                               parallel_iterations=batch_size)
-                #gt_logits_i = tf.Print(gt_logits_i,[scores],name="XXXXX_matcher_scores",summarize=10000)
-                #gt_logits_i = tf.Print(gt_logits_i,[gt_logits_i],name="XXXXX_matcher_scores",summarize=10000)
+                if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+                    with tf.name_scope("rcn_sample"):
+                        pos_nr = tf.reduce_sum(tf.cast(tf.greater(gt_logits_i,0),tf.int32))
+                        neg_nr = wmlt.num_elements(gt_logits_i)-pos_nr
+                        tf.summary.scalar("pos_nr",pos_nr)
+                        tf.summary.scalar("neg_nr",neg_nr)
+
 
                 indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
                 proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
@@ -406,7 +409,8 @@ class Res5ROIHeads(ROIHeads):
         if self.is_training:
             del features
             losses = outputs.losses()
-            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+            #if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+            if False:
                 pred_instances = outputs.inference(
                     self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
                     proposal_boxes=proposals.boxes
@@ -568,7 +572,7 @@ class StandardROIHeads(ROIHeads):
 
         img_size = get_img_size_from_batched_inputs(inputs)
         if self.is_training:
-            pred_instances,losses = self._forward_box(features_list, proposals)
+            pred_instances,losses = self._forward_box(features_list, proposals,img_size=img_size)
             # Usually the original proposals used by the box head are used by the mask, keypoint
             # heads. But when `self.train_on_pred_boxes is True`, proposals will contain boxes
             # predicted by the box head.

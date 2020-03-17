@@ -234,7 +234,6 @@ class RPNOutputs(object):
             gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
             gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
             pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
-
             objectness_loss, localization_loss = rpn_losses(
                 gt_objectness_logits,
                 gt_anchor_deltas,

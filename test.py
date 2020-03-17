@@ -14,6 +14,7 @@ import object_detection.npod_toolkit as npodt
 from wml_utils import *
 import object_detection.bboxes as bboxes
 import img_utils as wmli
+import basic_tftools as btf
 
 class WMLTest(tf.test.TestCase):
     def testLabelSmoothV1(self):
@@ -334,6 +335,14 @@ class WMLTest(tf.test.TestCase):
             boxes,class_idxs,scores,indices = sess.run([boxes,class_idxs,scores,indices])
             self.assertAllEqual(indices,[1,0,3,2])
             self.assertAllClose(boxes,t_boxes,atol=1e-3)
+
+    def test_twod_indexs_to_oned_indexs(self):
+        with self.test_session() as sess:
+            indexs = tf.convert_to_tensor([[0,1,3,5,6],[9,1,3,5,0],[1,4,5,6,2]])
+            target = [0,1,3,5,6,19,11,13,15,10,21,24,25,26,22]
+            indexs = btf.twod_indexs_to_oned_indexs(indexs,depth=10)
+            indexs = indexs.eval()
+            self.assertAllEqual(a=indexs,b=target)
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

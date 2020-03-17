@@ -9,6 +9,7 @@ import image_visualization as ivis
 import wsummary
 import img_utils as wmli
 import object_detection2.od_toolkit as odt
+import basic_tftools as btf
 
 slim = tf.contrib.slim
 
@@ -22,28 +23,32 @@ The registered object will be called with `obj(cfg, input_shape)`.
 
 
 @wmlt.add_name_scope
-def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_mask):
+def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_mask,log=True):
     '''
 
-    :param inputs:
-    :param pred_mask_logits: [X,H,W,C] C==1 if cls_anostic_mask else num_classes
-    :param proposals:
+    :param inputs:inputs[GT_MASKS] [batch_size,N,H,W]
+    :param pred_mask_logits: [Y,H,W,C] C==1 if cls_anostic_mask else num_classes, H,W is the size of mask
+       not the position in org image
+    :param proposals:proposals.indices:[batch_size,M], proposals.boxes [batch_size,M],proposals.gt_object_logits:[batch_size,M]
     :param fg_selection_mask: [X]
+    X = batch_size*M
+    Y = tf.reduce_sum(fg_selection_mask)
     :return:
     '''
     cls_agnostic_mask = pred_mask_logits.get_shape().as_list()[-1] == 1
     total_num_masks,mask_H,mask_W,C  = wmlt.combined_static_and_dynamic_shape(pred_mask_logits)
     assert mask_H==mask_W, "Mask prediction must be square!"
 
-    gt_masks = inputs[GT_MASKS] #[batch_size,X,H,W]
+    gt_masks = inputs[GT_MASKS] #[batch_size,N,H,W]
 
     with tf.device("/cpu:0"):
         #当输入图像分辨率很高时这里可能会消耗过多的GPU资源，因此改在CPU上执行
         batch_size,X,H,W = wmlt.combined_static_and_dynamic_shape(gt_masks)
         #background include in proposals, which's indices is -1
-        gt_masks = wmlt.batch_gather(gt_masks,tf.nn.relu(proposals.indices))
-        gt_masks = tf.reshape(gt_masks,[-1,H,W])
-        gt_masks = tf.boolean_mask(gt_masks,fg_selection_mask)
+        gt_masks = tf.reshape(gt_masks,[batch_size*X,H,W])
+        indices = btf.twod_indexs_to_oned_indexs(tf.nn.relu(proposals.indices),depth=X)
+        indices = tf.boolean_mask(indices,fg_selection_mask)
+        gt_masks = tf.gather(gt_masks,indices)
 
     boxes = proposals.boxes
     batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
@@ -64,8 +69,8 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
         pred_mask_logits = tf.expand_dims(pred_mask_logits,axis=-1)
 
 
-    if config.global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-        with tf.name_scope(":/cpu:0"):
+    if log and config.global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+        with tf.device(":/cpu:0"):
             with tf.name_scope("mask_loss_summary"):
                 pmasks_2d = tf.reshape(fg_selection_mask,[batch_size,box_nr])
                 boxes_3d = tf.expand_dims(boxes,axis=1)
@@ -119,7 +124,8 @@ def mask_rcnn_inference(pred_mask_logits, pred_instances):
         # Select masks corresponding to the predicted classes
         pred_mask_logits = tf.transpose(pred_mask_logits,[0,3,1,2])
         labels = tf.reshape(labels,[-1])-1 #去掉背景
-        pred_mask_logits = wmlt.batch_gather(pred_mask_logits,labels)
+        #当同时预测多个图片时，labels后面可能有填充的0，上一步减1时可能出现负数
+        pred_mask_logits = wmlt.batch_gather(pred_mask_logits,tf.nn.relu(labels))
     total_box_nr,H,W = wmlt.combined_static_and_dynamic_shape(pred_mask_logits)
     pred_mask_logits = tf.reshape(pred_mask_logits,[batch_size,box_nr,H,W])
 

@@ -2,6 +2,8 @@
 import tensorflow as tf
 from functools import wraps
 from collections import Iterable
+import time
+import math
 
 def static_or_dynamic_map_fn(fn, elems, dtype=None,
                              parallel_iterations=32, back_prop=True):
@@ -192,3 +194,43 @@ def add_variable_scope(func):
         with tf.variable_scope(func.__name__):
             return func(*args,**kwargs)
     return wraps_func
+
+def probability_case(prob_fn_pairs,scope=None,seed=int(time.time())):
+    '''
+    :param prob_fn_pairs:[(probs0,fn0),(probs1,fn1),...]
+    :param scope:
+    :return:
+    '''
+    with tf.variable_scope(name_or_scope=scope,default_name=f"probability_cond{len(prob_fn_pairs)}"):
+        pred_fn_pairs={}
+        last_prob = 0.
+        p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32,seed=seed)
+        for pf in prob_fn_pairs:
+            fn = pf[1]
+            cur_prob = last_prob+pf[0]
+            pred = tf.logical_and(tf.greater_equal(p,last_prob),tf.less(p,cur_prob))
+            pred_fn_pairs[pred] = fn
+            last_prob = cur_prob
+        assert math.fabs(last_prob-1.)<1e-2,"Error probabiliby distribultion"
+
+        return tf.case(pred_fn_pairs,exclusive=True)
+
+@add_name_scope
+def twod_indexs_to_oned_indexs(indexs,depth=None):
+    '''
+    :param indexs: [N,M]
+    :param depth: the offset
+    :return: [N*M],
+    res[0:M] = indexs[0]
+    res[M,M*2] = indexs[1]+depth
+    ...
+    '''
+    N,M = combined_static_and_dynamic_shape(indexs)
+
+    if depth is None:
+        depth =  M
+
+    offset = tf.reshape(tf.range(N,dtype=indexs.dtype)*depth,[N,1])*tf.ones([N,M],dtype=indexs.dtype)
+    offset = tf.reshape(offset,[-1])
+    indexs = tf.reshape(indexs,[-1])
+    return indexs+offset

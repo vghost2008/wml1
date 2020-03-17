@@ -3,7 +3,6 @@
 import scipy.misc
 import matplotlib.image as mpimg
 import numpy as np
-import wml_utils as wmlu
 import shutil
 import os
 import cv2
@@ -11,8 +10,6 @@ import tensorflow as tf
 import copy
 import random
 import itertools
-import functools
-import wml_tfutils as wmlt
 import time
 import basic_tftools as btf
 
@@ -405,9 +402,9 @@ def rot90(image,clockwise=True):
 
 def random_rot90(image,clockwise=None):
     if clockwise is None:
-        return wmlt.probability_case([(0.34,lambda: image),(0.33,lambda: rot90(image,True)),(0.33,lambda:rot90(image,False))])
+        return btf.probability_case([(0.34,lambda: image),(0.33,lambda: rot90(image,True)),(0.33,lambda:rot90(image,False))])
     else:
-        return wmlt.probability_case([(0.5,lambda: image),(0.5,lambda: rot90(image,clockwise))])
+        return btf.probability_case([(0.5,lambda: image),(0.5,lambda: rot90(image,clockwise))])
 
 def random_saturation(image,gray_image=None,minval=0.0,maxval=1.0,scope=None):
     with tf.name_scope(scope, 'random_saturation', [image]):
@@ -434,7 +431,7 @@ class ImagePatch(object):
     def to_patch(self,images,scope=None):
         with tf.name_scope(scope,"to_patch"):
             patch_size = self.patch_size
-            batch_size, height, width, channel = wmlt.combined_static_and_dynamic_shape(images)
+            batch_size, height, width, channel = btf.combined_static_and_dynamic_shape(images)
             self.batch_size, self.height, self.width, self.channel = batch_size, height, width, channel
             net = tf.reshape(images, [batch_size, height // patch_size, patch_size, width // patch_size, patch_size,
                                    channel])

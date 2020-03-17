@@ -6,13 +6,9 @@ from tensorflow.python import pywrap_tensorflow
 import wml_utils as wmlu
 import os
 import numpy as np
-import math
-import time
 import logging
-import cv2
 import wsummary
 import basic_tftools as btf
-from tensorflow.python.framework import graph_util
 from iotoolkit.transform import  distort_color as _distort_color
 from wtfop.wtfop_ops import set_value
 
@@ -36,7 +32,7 @@ batch_gather = btf.batch_gather
 show_return_type = btf.show_return_shape
 add_name_scope = btf.add_name_scope
 add_variable_scope = btf.add_variable_scope
-
+probability_case = btf.probability_case
 
 def add_to_hash_table_collection(value):
     tf.add_to_collection(_HASH_TABLE_COLLECTION,value)
@@ -629,25 +625,6 @@ def split(datas,num):
             res.append(tf.split(data,num_or_size_splits=num))
         return res
 
-def probability_case(prob_fn_pairs,scope=None,seed=int(time.time())):
-    '''
-    :param prob_fn_pairs:[(probs0,fn0),(probs1,fn1),...]
-    :param scope:
-    :return:
-    '''
-    with tf.variable_scope(name_or_scope=scope,default_name=f"probability_cond{len(prob_fn_pairs)}"):
-        pred_fn_pairs={}
-        last_prob = 0.
-        p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32,seed=seed)
-        for pf in prob_fn_pairs:
-            fn = pf[1]
-            cur_prob = last_prob+pf[0]
-            pred = tf.logical_and(tf.greater_equal(p,last_prob),tf.less(p,cur_prob))
-            pred_fn_pairs[pred] = fn
-            last_prob = cur_prob
-        assert math.fabs(last_prob-1.)<1e-2,"Error probabiliby distribultion"
-
-        return tf.case(pred_fn_pairs,exclusive=True)
 
 def fixed_padding(inputs, kernel_size, rate=1):
   """Pads the input along the spatial dimensions independently of input size.

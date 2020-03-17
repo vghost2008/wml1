@@ -69,11 +69,9 @@ def create_tf_example(image,
     xmax = []
     ymin = []
     ymax = []
-    is_crowd = []
     category_ids = []
     encoded_mask_png = []
     num_annotations_skipped = 0
-    example = None
     for object_annotations in annotations_list:
         (x, y, width, height) = tuple(object_annotations['bbox'])
         if width <= 0 or height <= 0:
@@ -100,8 +98,9 @@ def create_tf_example(image,
         pil_image.save(output_io, format='PNG')
         encoded_mask_png.append(output_io.getvalue())
 
-    if len(xmin) == 0:
-        return None,None
+    #for test
+    #if len(xmin) == 0:
+        #return None,None
 
     feature_dict = {
       'image/height':
@@ -129,9 +128,7 @@ def create_tf_example(image,
     feature_dict['image/object/mask'] = (
         dataset_util.bytes_list_feature(encoded_mask_png))
     example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
-    #category_id is the key of ID_TO_TEXT
-    #if len(category_ids)==0:
-          #return None,None,None
+
     if example is None:
         print("None example")
         return None,None
@@ -148,8 +145,9 @@ def _add_to_tfrecord(file,writer,id):
         return False
     if len(annotations_list)==0:
         print("No annotations.")
-        raise RuntimeError("No annotations.")
-        return False
+        #for test
+        #raise RuntimeError("No annotations.")
+        #return False
     tf_example, num_annotations_skipped = create_tf_example(
         image_info, annotations_list,img_file,id)
     if tf_example is not None:

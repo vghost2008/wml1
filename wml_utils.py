@@ -449,6 +449,33 @@ class TimeThis():
     def __exit__(self, exc_type, exc_val, exc_tb):
         print(f"{self.name}: total time {time.time()-self.begin_time}.")
 
+class AvgTimeThis():
+    def __init__(self,name="TimeThis",skip_nr=3):
+        self.step = 0
+        self.begin_time = 0.
+        self.name = name
+        self.datas = []
+        self.skip_nr = skip_nr
+
+    def __enter__(self):
+        self.begin_time = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.step = self.step + 1
+        if(self.step>self.skip_nr):
+            self.datas.append(time.time()-self.begin_time)
+
+    def clear(self):
+        self.datas = []
+
+    def get_time(self):
+        if(len(self.datas) == 0):
+                return 0
+        return np.mean(np.array(self.datas))
+
+    def __str__(self):
+        return "AVG: "+str(self.get_time())+ f", test_nr = {self.step}, {self.datas}"
+
 
 def time_this(func):
     @wraps(func)

@@ -14,6 +14,7 @@ import wml_tfutils as wmlt
 import wsummary
 import object_detection2.metrics.toolkit as mt
 from object_detection2.standard_names import *
+from tensorflow.python import debug as tfdbg
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -204,7 +205,7 @@ class SimpleTrainer(TrainerBase):
     or write your own training loop.
     """
 
-    def __init__(self, cfg,model, data,gpus=None,inference=False):
+    def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False):
         """
         Args:
             model: a torch Module. Takes a data from data_loader and returns a
@@ -234,6 +235,7 @@ class SimpleTrainer(TrainerBase):
         self.res_data = None
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
         self.gpus = gpus
+        self.debug_tf = debug_tf #example filter: r -f has_inf_or_nan
         if inference:
             assert not model.is_training,"Error training statu"
         if model.is_training:
@@ -385,8 +387,11 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = all_loss_dict
 
         config = tf.ConfigProto(allow_soft_placement=True)
-        # config.gpu_options.allow_growth = True
+        #config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
+
+        if self.debug_tf:
+            self.sess = tfdbg.LocalCLIDebugWrapperSession(self.sess)
 
         print("variables to train:")
         wmlu.show_list(self.variables_to_train)
@@ -429,17 +434,18 @@ class SimpleTrainer(TrainerBase):
         if self.step%self.log_step == 0:
             _,total_loss,self.step,summary = self.sess.run([self.train_op,self.total_loss,self.global_step,self.summary])
             self.summary_writer.add_summary(summary, self.step)
-            sys.stdout.flush()
         else:
             _,total_loss,self.step = self.sess.run([self.train_op,self.total_loss,self.global_step])
 
         t_cost = time.perf_counter() - start
         print(f"{self.name} step={self.step}, loss={total_loss}, time_cost={t_cost}")
 
+        if self.step%20 == 0:
+            sys.stdout.flush()
+
         if self.step%self.save_step == 0:
             print("save check point file.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
-            sys.stdout.flush()
         if self.max_train_step>0 and self.step>self.max_train_step:
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()

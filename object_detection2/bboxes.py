@@ -1,7 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import wtfop.wtfop_ops as wtfop
-import wml_tfutils as wmlt
+import basic_tftools as btf
 import numpy as np
 import os
 import sys
@@ -52,7 +52,7 @@ def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=Fa
                 nms_indexs = tf.gather(r_index,nms_indexs)
             nms_indexs = tf.pad(nms_indexs,[[0,k-lens]])
             return [boxes,labels,nms_indexs,r_len]
-        boxes,labels,nms_indexs,lens = wmlt.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
+        boxes,labels,nms_indexs,lens = btf.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
                                                                      dtype=(tf.float32,tf.int32,tf.int32,tf.int32))
         return boxes,labels,nms_indexs,lens
 
@@ -473,7 +473,7 @@ def batch_decode_boxes(anchor_bboxes,regs,prio_scaling=[0.1,0.1,0.2,0.2]):
         old_shape = tf.shape(regs)
     if anchor_bboxes.get_shape().as_list()[0] == 1:
         anchor_bboxes = tf.squeeze(anchor_bboxes,axis=0)
-        return wmlt.static_or_dynamic_map_fn(lambda reg:wtfop.decode_boxes1(anchor_bboxes,reg,prio_scaling=prio_scaling),
+        return btf.static_or_dynamic_map_fn(lambda reg:wtfop.decode_boxes1(anchor_bboxes,reg,prio_scaling=prio_scaling),
                                              elems=regs,
                                              dtype=tf.float32,back_prop=False)
     else:
@@ -711,7 +711,7 @@ def tfabsolutely_boxes_to_relative_boxes(boxes, width, height):
 
 def tfbatch_absolutely_boxes_to_relative_boxes(boxes, width, height):
     with tf.name_scope("batch_absolutely_boxes_to_relative_boxes"):
-        batch_size,N,box_dim = wmlt.combined_static_and_dynamic_shape(boxes)
+        batch_size,N,box_dim = btf.combined_static_and_dynamic_shape(boxes)
         boxes = tf.reshape(boxes,[-1,box_dim])
         res = tfabsolutely_boxes_to_relative_boxes(boxes,width,height)
         res = tf.reshape(res,[batch_size,N,box_dim])
@@ -720,7 +720,7 @@ def tfbatch_absolutely_boxes_to_relative_boxes(boxes, width, height):
 
 def bboxes_and_labels_filter(bboxes,labels,lens,filter):
     with tf.name_scope("bboxes_and_labels_filter"):
-        batch_size,nr,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
+        batch_size,nr,_ = btf.combined_static_and_dynamic_shape(bboxes)
         def fn(boxes,label,len):
            boxes = boxes[:len,:]
            label = label[:len]
@@ -729,7 +729,7 @@ def bboxes_and_labels_filter(bboxes,labels,lens,filter):
            boxes = tf.pad(boxes,[[0,nr-len],[0,0]])
            label = tf.pad(label,[[0,nr-len]])
            return [boxes,label,len]
-        return wmlt.static_or_dynamic_map_fn(lambda x:fn(x[0],x[1],x[2]),[bboxes,labels,lens],back_prop=False)
+        return btf.static_or_dynamic_map_fn(lambda x:fn(x[0],x[1],x[2]),[bboxes,labels,lens],back_prop=False)
 '''
 box0:[ymin,xmin,ymax,xmax]
 box1:[N,4],[ymin,xmin,ymax,xmax]
