@@ -18,6 +18,7 @@ FILEINDEX = "fileindex"
 FILENAME = "filename"
 GT_OBJECT_LOGITS = "gt_object_logits"
 
+#Encoded data
 ED_GT_OBJECT_LOGITS = "gt_object_logits"
 ED_SCORES = "scores"
 ED_INDICES = "indices"
@@ -27,6 +28,7 @@ ED_GT_LABELS = GT_LABELS
 ED_GT_DELTAS = "deltas"
 ED_GT_DELTAS = "deltas"
 
+#Results Data
 RD_BOXES = BOXES
 RD_LABELS = LABELS
 RD_PROBABILITY = PROBABILITY
@@ -35,6 +37,7 @@ RD_LENGTH = "length"
 RD_MASKS = "masks"
 RD_KEYPOINT = "keypoint"
 
+#Proposal network't result
 PD_BOXES = "boxes"
 PD_PROBABILITY = PROBABILITY
 

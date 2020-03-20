@@ -28,10 +28,7 @@ class ShuffleNetV2(Backbone):
 @BACKBONE_REGISTRY.register()
 def build_shufflenetv2_backbone(cfg, *args,**kwargs):
     """
-    Create a ResNet instance from config.
-
-    Returns:
-        ResNet: a :class:`ResNet` instance.
+    Create a ShuffleNetV2 instance from config.
     """
     # need registration of new blocks/stems?
     return ShuffleNetV2(cfg,*args,**kwargs)

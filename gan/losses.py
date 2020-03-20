@@ -1,4 +1,4 @@
-#coding=utf-8
+#dcoding=utf-8
 import tensorflow as tf
 
 def get_gan_losses_fn():

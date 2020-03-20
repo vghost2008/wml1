@@ -36,7 +36,7 @@ def __parse_func(example_proto):
         'image/object/bbox/truncated': tf.VarLenFeature(dtype=tf.int64),
     }
     example_proto = tf.parse_single_example(example_proto,keys_to_features)
-    image = tf.image.decode_jpeg(example_proto['image/encoded'])
+    image = tf.image.decode_jpeg(example_proto['image/encoded'],channels=3)
     xmin = tf.sparse_tensor_to_dense(example_proto['image/object/bbox/xmin'])
     ymin = tf.sparse_tensor_to_dense(example_proto['image/object/bbox/ymin'])
     xmax = tf.sparse_tensor_to_dense(example_proto['image/object/bbox/xmax'])

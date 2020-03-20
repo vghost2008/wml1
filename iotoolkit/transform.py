@@ -313,6 +313,8 @@ class ResizeShortestEdge(WTransform):
                                align=self.align,
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
+    def __str__(self):
+        return type(self).__name__+f"[{self.short_edge_length}, max_size={self.max_size}]"
 '''
 mask:H,W,N format
 '''

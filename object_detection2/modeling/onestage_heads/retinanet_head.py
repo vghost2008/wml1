@@ -151,8 +151,6 @@ class RetinaNetOutputs(wmodule.WChildModule):
             anchors (list[list[Boxes]]): a list of #images elements. Each is a
                 list of #feature level Boxes. The Boxes contain anchors of this
                 image on the specific feature level.
-            image_sizes (List[torch.Size]): the input image sizes
-
         Returns:
             results (List[Instances]): a list of #images elements.
         """

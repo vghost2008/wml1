@@ -20,6 +20,7 @@ def register_all_coco(root="datasets"):
     #名字，tfrecord文件路径,解码函数，num_classes(不包含背景)
     SPLITS = [
         ("coco_2017_train", os.path.join(dataset_root_path,"coco_tfdata"),coco_get_data,90),
+        ("coco_2014_train", os.path.join(dataset_root_path,"coco/tfdata1"),coco_get_data,90),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3),
         ("mnistod_eval", os.path.join(dataset_root_path,"mnistod/eval_tfrecord"),coco_get_data,3)
     ]

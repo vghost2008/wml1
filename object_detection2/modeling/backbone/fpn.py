@@ -187,7 +187,7 @@ class LastLevelP6P7(wmodule.WChildModule):
 def build_resnet_fpn_backbone(cfg,*args,**kwargs):
     """
     Args:
-        cfg: a detectron2 CfgNode
+        cfg: a CfgNode
 
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
@@ -212,7 +212,7 @@ def build_resnet_fpn_backbone(cfg,*args,**kwargs):
 def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
     """
     Args:
-        cfg: a detectron2 CfgNode
+        cfg: a CfgNode
 
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
@@ -236,7 +236,7 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
 def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
     """
     Args:
-        cfg: a detectron2 CfgNode
+        cfg: a CfgNode
 
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
@@ -260,7 +260,7 @@ def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
 def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
     """
     Args:
-        cfg: a detectron2 CfgNode
+        cfg: a CfgNode
 
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.

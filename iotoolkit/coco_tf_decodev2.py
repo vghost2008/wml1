@@ -56,7 +56,7 @@ def __parse_func(example_proto):
         'image/file_index': tf.FixedLenFeature((), tf.int64,1)
     }
     example_proto = tf.parse_single_example(example_proto,keys_to_features)
-    image = tf.image.decode_jpeg(example_proto['image/encoded'])
+    image = tf.image.decode_jpeg(example_proto['image/encoded'],channels=3)
     masks = __decode_png_instance_masks(example_proto)
     xmin = tf.sparse_tensor_to_dense(example_proto['image/object/bbox/xmin'])
     ymin = tf.sparse_tensor_to_dense(example_proto['image/object/bbox/ymin'])

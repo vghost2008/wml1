@@ -208,10 +208,13 @@ class SimpleTrainer(TrainerBase):
     def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False):
         """
         Args:
-            model: a torch Module. Takes a data from data_loader and returns a
+            model: a objectdetection Module. Takes a data from data_loader and returns a
                 dict of losses.
-            data_loader: an iterable. Contains data to be used to call model.
-            optimizer: a torch optimizer.
+            data: when inference is False, data is a tf.Dataset.Iterator Contains data to be used to call model.
+                when inference is True, data is a tf.Tensor
+            gpus:list(int), when train on multi gpus, it's the gpus index to be used, or Nonr for train on single gpu
+            inference: whether in inference mode
+            debug_tf: whether debug tensorflow
         """
         super().__init__(cfg=cfg)
         logging.basicConfig(level=logging.INFO,
@@ -424,13 +427,7 @@ class SimpleTrainer(TrainerBase):
         """
         assert self.model.is_training, "[SimpleTrainer] model was changed to eval mode!"
         start = time.perf_counter()
-        """
-        If your want to do something with the data, you can wrap the dataloader.
-        """
 
-        """
-        If your want to do something with the losses, you can wrap the model.
-        """
         if self.step%self.log_step == 0:
             _,total_loss,self.step,summary = self.sess.run([self.train_op,self.total_loss,self.global_step,self.summary])
             self.summary_writer.add_summary(summary, self.step)
@@ -452,18 +449,9 @@ class SimpleTrainer(TrainerBase):
             raise Exception("Train Finish")
 
     def run_eval_step(self):
-        """
-        Implement the standard training logic described above.
-        """
         assert not self.model.is_training, "[SimpleTrainer] model was changed to eval mode!"
         start = time.perf_counter()
-        """
-        If your want to do something with the data, you can wrap the dataloader.
-        """
 
-        """
-        If your want to do something with the losses, you can wrap the model.
-        """
         if self.step%self.log_step == 0:
             res_data = self.res_data_for_eval
             summary_dict = {"summary":self.summary}
@@ -487,7 +475,7 @@ class SimpleTrainer(TrainerBase):
         """
         Returns:
 
-        It now calls :func:`detectron2.modeling.build_model`.
+        It now calls :func:`object_detection2.modeling.build_model`.
         Overwrite it if you'd like a different model.
         """
         model = build_model(cfg,**kwargs)

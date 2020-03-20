@@ -34,9 +34,6 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 When B is 4, each row is [dx, dy, dw, dh (, ....)].
                 When B is 5, each row is [dx, dy, dw, dh, da (, ....)].
             proposals: When training it's EncodedData, when inference, it's ProposalsData
-            smooth_l1_beta (float): The transition point between L1 and L2 loss in
-                the smooth L1 loss function. When set to 0, the loss becomes L1. When
-                set to +inf, the loss becomes constant 0.
         """
         super().__init__(cfg,parent,**kwargs)
         self.box2box_transform = box2box_transform
@@ -93,7 +90,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             # (if 0 <= k < bg_class_ind) and the target; there is no loss defined on predictions
             # for non-gt classes and background.
             # Empty fg_inds produces a valid loss of zero as long as the size_average
-            # arg to smooth_l1_loss is False (otherwise it uses torch.mean internally
+            # arg to smooth_l1_loss is False (otherwise it uses mean internally
             # and would produce a nan loss).
             fg_inds = tf.greater(self.gt_classes,0)
             gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas,fg_inds)
@@ -162,7 +159,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
 		还是这个形状
 		Detectron2所有的配置都没有使用这一功能，但理论上来说这样更好（但训练的效率更低）
 		为了防止前期不能生成好的结果，这里实现相对于Detectron2来说加入了gt_boxes
-        :return:[batch_size,box_nr,box_dim]
+        :return:
+        [batch_size,box_nr,box_dim]
         '''
         with tf.name_scope("predict_boxes_for_gt_classes"):
             predicted_boxes = self.predict_boxes()

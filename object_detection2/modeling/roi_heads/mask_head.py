@@ -87,9 +87,8 @@ def mask_rcnn_loss(inputs,pred_mask_logits, proposals:EncodedData,fg_selection_m
 
                 log_mask = wmli.concat_images([gt_masks, tf.cast(pred_mask_logits>0.5,tf.float32)])
                 wmlt.image_summaries(log_mask,"gt_vs_pred",max_outputs=3)
-
     mask_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=croped_masks_gt_masks,logits=pred_mask_logits)
-    mask_loss = tf.reduce_mean(mask_loss)
+    mask_loss = btf.safe_reduce_mean(mask_loss)
 
     return mask_loss
     pass
@@ -100,19 +99,19 @@ def mask_rcnn_inference(pred_mask_logits, pred_instances):
     Convert pred_mask_logits to estimated foreground probability masks while also
     extracting only the masks for the predicted classes in pred_instances. For each
     predicted box, the mask of the same class is attached to the instance by adding a
-    new "pred_masks" field to pred_instances.
+    new RD_MASKS field to pred_instances.
 
     Args:
-        pred_mask_logits (Tensor): A tensor of shape (B, C, Hmask, Wmask) or (B, 1, Hmask, Wmask)
+        pred_mask_logits (Tensor): A tensor of shape (B,Hmask, Wmask,C) or (B, Hmask, Wmask, 1)
             for class-specific or class-agnostic, where B is the total number of predicted masks
             in all images, C is the number of foreground classes, and Hmask, Wmask are the height
             and width of the mask predictions. The values are logits.
-        pred_instances (list[Instances]): A list of N Instances, where N is the number of images
-            in the batch. Each Instances must have field "pred_classes".
-
+        pred_instances (dict): A dict of prediction results, pred_instances[RD_LABELS]:[batch_size,Y],
+        pred_instances[RD_LENGTH], [batch_size]
+        current the batch_size must be 1, and X == pred_instances[RD_LENGTH][0] == Y
     Returns:
-        None. pred_instances will contain an extra "pred_masks" field storing a mask of size (Hmask,
-            Wmask) for predicted class. Note that the masks are returned as a soft (non-quantized)
+        None. pred_instances will contain an extra RD_MASKS field storing a mask of size [batch_size,Y,Hmask,
+            Wmask] for predicted class. Note that the masks are returned as a soft (non-quantized)
             masks the resolution predicted by the network; post-processing steps, such as resizing
             the predicted masks to the original image resolution and/or binarizing them, is left
             to the caller.

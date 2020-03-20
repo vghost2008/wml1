@@ -6,9 +6,12 @@ import wnnlayer as wnnl
 
 slim = tf.contrib.slim
 
-
 '''
+random select size boxes from the input boxes
 boxes:[N,4]
+len:() indict the size of boxes, or None
+return:
+[size,4]
 '''
 def random_select_boxes(boxes,size,len=None):
     with tf.name_scope("random_select_boxes"):
@@ -26,6 +29,8 @@ def random_select_boxes(boxes,size,len=None):
 '''
 boxes:[batch_size,N,4]
 lens:[batch_size]
+return:
+[batch_size,size,4]
 '''
 def batched_random_select_boxes(boxes,lens,size):
     with tf.name_scope("random_select_boxes"):

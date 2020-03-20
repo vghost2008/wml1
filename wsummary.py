@@ -106,6 +106,20 @@ def detection_image_summary(images,
       lengths = lengths[:max_outputs]
 
   with tf.device(":/cpu:0"):
+    if images.get_shape().as_list()[0] is None:
+        nr = tf.reduce_prod(tf.shape(boxes))
+        B,H,W,C = btf.combined_static_and_dynamic_shape(images)
+        images = tf.cond(tf.greater(B,0),lambda:images,lambda:tf.ones([1,H,W,C],dtype=images.dtype))
+        boxes = tf.cond(tf.greater(nr,0),lambda:boxes,lambda:tf.ones([1,1,4],dtype=boxes.dtype))
+        if classes is not None:
+            classes = tf.cond(tf.greater(nr, 0), lambda: classes, lambda: tf.ones([1, 1], dtype=classes.dtype))
+        if scores is not None:
+            scores = tf.cond(tf.greater(nr, 0), lambda: scores, lambda: tf.ones([1, 1], dtype=scores.dtype))
+        if instance_masks is not None:
+            B, N,H, W = btf.combined_static_and_dynamic_shape(instance_masks)
+            instance_masks = tf.cond(tf.greater(nr, 0), lambda: instance_masks, lambda: tf.zeros([1, 1,H,W],
+                                                                                                 dtype=instance_masks.dtype))
+
     images = imv.draw_detection_image_summary(images,
                                          boxes,
                                          classes,
@@ -116,6 +130,7 @@ def detection_image_summary(images,
                                          lengths=lengths,
                                          max_boxes_to_draw=max_boxes_to_draw,
                                          min_score_thresh=min_score_thresh)
+
   tf.summary.image(name,images,max_outputs=max_outputs)
 
 

@@ -695,7 +695,7 @@ class StandardROIHeads(ROIHeads):
         else:
             #when inference instances is RCNNResultsData
             pred_boxes = instances[RD_BOXES]
-            mask_features = self.mask_pooler(features, pred_boxes)
+            mask_features = self.mask_pooler(features, pred_boxes,img_size=img_size)
             mask_logits = self.mask_head(mask_features)
             mask_rcnn_inference(mask_logits, instances)
             return instances

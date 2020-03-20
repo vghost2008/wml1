@@ -234,3 +234,32 @@ def twod_indexs_to_oned_indexs(indexs,depth=None):
     offset = tf.reshape(offset,[-1])
     indexs = tf.reshape(indexs,[-1])
     return indexs+offset
+
+def safe_reduce_mean(input_tensor,
+                axis=None,
+                keepdims=None,
+                name=None,
+                reduction_indices=None,
+                default_value=0,
+                keep_dims=None):
+    nr = tf.reduce_prod(tf.shape(input_tensor))
+    shape = combined_static_and_dynamic_shape(input_tensor)
+    def get_default_value():
+        if axis is not None:
+            if axis<len(shape)-1:
+                shape_i = shape[:axis]+shape[axis+1:]
+            else:
+                shape_i = shape[:axis]
+        else:
+            shape_i = ()
+
+        if math.fabs(default_value)<1e-8:
+            return tf.zeros(shape_i,dtype=input_tensor.dtype)
+
+    def get_normal_value():
+        return tf.reduce_mean(input_tensor,axis=axis,keepdims=keepdims,name=name,
+                              reduction_indices=reduction_indices,
+                              keep_dims=keep_dims)
+    return tf.cond(tf.greater(nr,0),get_normal_value,get_default_value)
+
+

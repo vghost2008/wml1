@@ -31,7 +31,7 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
         """
         super().__init__(cfg,*args,**kwargs)
         '''
-        Detectron2是没有使用任何normalizer的
+        Detectron2默认没有使用任何normalizer
         但我在使用测试数据时发现，使用group_norm(默认参数)后性能会显著提升
         '''
         self.normalizer_fn = wnnl.group_norm

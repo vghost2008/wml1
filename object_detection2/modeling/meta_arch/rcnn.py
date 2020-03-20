@@ -41,7 +41,7 @@ class GeneralizedRCNN(MetaArch):
                 Each item in the list contains the inputs for one image.
                 For now, each item in the list is a dict that contains:
 
-                * image: Tensor, image in (C, H, W) format.
+                * image: Tensor, image in (B,H, W,C) format.
                 * instances (optional): groundtruth :class:`Instances`
                 * proposals (optional): :class:`Instances`, precomputed proposals.
 

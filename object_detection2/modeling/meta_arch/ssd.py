@@ -58,7 +58,7 @@ class SSD(MetaArch):
                 Each item in the list contains the inputs for one image.
                 For now, each item in the list is a dict that contains:
 
-                * image: Tensor, image in (C, H, W) format.
+                * image: Tensor, image in (H, W, C) format.
                 * instances: Instances
 
                 Other information that's included in the original dicts, such as:

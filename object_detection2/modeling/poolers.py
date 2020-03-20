@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import math
 import sys
 import wmodule
@@ -13,17 +12,13 @@ __all__ = ["ROIPooler"]
 
 def assign_boxes_to_levels(bboxes, min_level, max_level, canonical_box_size, canonical_level,img_size):
     """
-    Map each box in `box_lists` to a feature map level index and return the assignment
-    vector.
-
-    Args:
-        bboxes:[batch_size,box_nr,4]
-        min_level (int): Smallest feature map level index. the first input feature map of Pooler::forward is consider 0,
-        max_level (int): Largest feature map level index.
-        canonical_box_size (float): A canonical box size in pixels (sqrt(box area)).
-        canonical_level (int): The feature map level index on which a canonically-sized box
-            should be placed.
-
+    bboxes: [batch_size,box_nr,4] relative coordinate
+    min_level: normal is 0
+    max_leval: normal is len(feature_map)-1
+    canonical_box_size: box size (sqrt(box_area)) in pixel unit
+    canonical_level: in range [min_level,max_level]
+    img_size: [2]
+    
     Returns:
         [batch_size,box_nr], the value in range [min_level,max_level]
         return the corresponding feature map level for each box
@@ -63,10 +58,10 @@ class ROIPooler(wmodule.WChildModule):
                 e.g., 14 x 14. If tuple or list is given, the length must be 2.
             pooler_type (string): Name of the type of pooling operation that should be applied.
                 For instance, "ROIPool" or "ROIAlign".
-            canonical_box_size (float): A canonical box size in pixels (sqrt(box area)). The default
+            cfg.canonical_box_size (float): A canonical box size in pixels (sqrt(box area)). The default
                 is heuristically defined as 224 pixels in the FPN paper (based on ImageNet
                 pre-training).
-            canonical_level (int): The feature map level index from which a canonically-sized box
+            cfg.canonical_level (int): The feature map level index from which a canonically-sized box
                 should be placed. The default is defined as level 4 (stride=16) in the FPN paper,
                 i.e., a box of size 224x224 will be placed on the feature with stride=16.
                 The box placement for all boxes will be determined from their sizes w.r.t
@@ -78,6 +73,7 @@ class ROIPooler(wmodule.WChildModule):
                 small for the input feature maps, the closest level will be used.
 
                 In this implementation, the canonical level is the index of input feature map for Pooler::forward
+            cfg: only the child part
         """
         super().__init__(cfg=cfg,parent=parent,**kwargs)
 
@@ -110,6 +106,7 @@ class ROIPooler(wmodule.WChildModule):
             Tensor:
                 A tensor of shape (M, output_size, output_size,C) where M is the total number of
                 boxes aggregated over all N batch images and C is the number of channels in `x`.
+                which means M = batch_size*box_nr
         """
         assert isinstance(x, list),"Arguments to pooler must be lists"
         level_num = len(x)
@@ -121,6 +118,7 @@ class ROIPooler(wmodule.WChildModule):
             level_assignments = assign_boxes_to_levels(
                 bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level,img_size
             )
+
             features = []
             for net in x:
                 features.append(self.level_pooler(net,bboxes))
@@ -132,6 +130,5 @@ class ROIPooler(wmodule.WChildModule):
                 wsummary.histogram_or_scalar(level_assignments,"level_assignments")
 
             output = wmlt.batch_gather(features,level_assignments)
-
 
             return output

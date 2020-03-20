@@ -12,8 +12,6 @@ _C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
 _C.MODEL.MIN_BOXES_AREA_TEST = 0.
 
-# Path (possibly with schema like catalog:// or detectron2://) to a checkpoint file
-# to be loaded to the model. You can find available models in the model zoo.
 _C.MODEL.WEIGHTS = ""
 
 # Values to be used for image normalization (BGR order, since INPUT.FORMAT defaults to BGR).
@@ -573,9 +571,6 @@ _C.MODEL.RESNETS.FROZEN_BN = False
 # ---------------------------------------------------------------------------- #
 _C.SOLVER = CN()
 
-# See detectron2/solver/build.py for LR scheduler options
-_C.SOLVER.LR_SCHEDULER_NAME = "WarmupMultiStepLR"
-
 _C.SOLVER.MAX_ITER = 40000
 
 _C.SOLVER.BASE_LR = 0.001
@@ -661,7 +656,7 @@ _C.VIS_PERIOD = 0
 # You can set them in command line or config files,
 # and access it with:
 #
-# from detectron2.config import global_cfg
+# from config import global_cfg
 # print(global_cfg.HACK)
 #
 # Do not commit any configs into it.
@@ -675,4 +670,3 @@ _C.GLOBAL.SAVE_STEP = 200
 _C.GLOBAL.WARMUP_STEPS = 0
 _C.log_dir = ""
 _C.ckpt_dir = ""
-

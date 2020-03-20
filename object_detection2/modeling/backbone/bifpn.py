@@ -131,9 +131,6 @@ class BIFPN(Backbone):
 @BACKBONE_REGISTRY.register()
 def build_resnet_bifpn_backbone(cfg,*args,**kwargs):
     """
-    Args:
-        cfg: a detectron2 CfgNode
-
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
@@ -154,9 +151,6 @@ def build_resnet_bifpn_backbone(cfg,*args,**kwargs):
 @BACKBONE_REGISTRY.register()
 def build_shufflenetv2_bifpn_backbone(cfg,*args,**kwargs):
     """
-    Args:
-        cfg: a detectron2 CfgNode
-
     Returns:
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """

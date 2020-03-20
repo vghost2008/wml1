@@ -24,13 +24,13 @@ class DataLoader(wmodule.WModule):
                                         ]
             self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
                                        trans.FixDataInfo()]
-            self.trans_on_single_img = [trans.MaskNHW2HWN(),
+            '''self.trans_on_single_img = [trans.MaskNHW2HWN(),
                                         trans.ResizeToFixedSize(),
                                         trans.MaskHWN2NHW(),
                                         trans.AddBoxLens(),
                                         trans.UpdateHeightWidth(),
                                         ]
-            self.trans_on_batch_img = [trans.FixDataInfo()]
+            self.trans_on_batch_img = [trans.FixDataInfo()]'''
         else:
             self.trans_on_single_img = [trans.MaskNHW2HWN(),
                                         #trans.ResizeToFixedSize(),
