@@ -151,6 +151,29 @@ def batch_gather(params,indices,name=None):
     else:
         return tf.batch_gather(params,indices,name)
 
+def show_input_shape(func,message=None):
+    @wraps(func)
+    def wraps_func(*args,**kwargs):
+        data = []
+        for d in args:
+            data.append(d)
+        for k,v in kwargs:
+            data.append(v)
+        datas = []
+        index = -1
+        for i,d in enumerate(data):
+            if not isinstance(d,tf.Tensor):
+                datas.append(tf.constant("N.A",dtype=tf.string))
+            else:
+                datas.append(tf.shape(d))
+                if index<0:
+                    index = i
+        res = list(data)
+        res[index] = tf.Print(res[index],datas,summarize=100,message=message)
+        res = func(*args,**kwargs)
+        return res
+    return wraps_func
+
 def show_return_shape(func,message=None):
     @wraps(func)
     def wraps_func(*args,**kwargs):

@@ -7,9 +7,11 @@ PROBABILITY = "probability"
 IMAGE = 'image'
 HEIGHT = "height"
 WIDTH = "width"
+IS_CROWD = 'is_crowd'
+MASK_AREA = "mask_area"
 ORG_HEIGHT = "org_height"
 ORG_WIDTH = "org_width"
-IS_CROWD = 'is_crowd'
+
 GT_BOXES = 'gt_boxes'
 GT_LENGTH = 'gt_length'
 GT_LABELS = 'gt_labels'
@@ -34,8 +36,9 @@ RD_LABELS = LABELS
 RD_PROBABILITY = PROBABILITY
 RD_INDICES = INDICES
 RD_LENGTH = "length"
-RD_MASKS = "masks"
+RD_MASKS = "masks"  #标准格式为[batch_size,N,H,W]
 RD_KEYPOINT = "keypoint"
+RD_MASK_AREA = MASK_AREA
 
 #Proposal network't result
 PD_BOXES = "boxes"

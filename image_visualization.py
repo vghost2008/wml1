@@ -269,3 +269,9 @@ def get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
     if len(res_masks)==0:
         return np.zeros([0,size[0],size[1]],dtype=dtype)
     return np.stack(res_masks,axis=0)
+
+def draw_polygon(img,polygon,color=(255,255,255),is_line=True,isClosed=True):
+    if is_line:
+        return cv2.polylines(img, [polygon], color=color,isClosed=isClosed)
+    else:
+        return cv2.fillPoly(img,[polygon],color=color)

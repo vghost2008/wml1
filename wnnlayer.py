@@ -13,6 +13,7 @@ import numpy as np
 import time
 from tensorflow.contrib.framework.python.ops import add_arg_scope
 import basic_tftools as btf
+from collections import Iterable
 
 DATA_FORMAT_NHWC = 'NHWC'
 slim = tf.contrib.slim
@@ -774,3 +775,125 @@ def __scale_gradient(x,scale):
         return dy0*(tf.ones_like(x)*scale),None
         #return tf.zeros_like(x)
     return (tf.identity(x)),grad
+
+@tf.custom_gradient
+def __quantized(res,x):
+    with tf.control_dependencies([x]):
+        res = tf.identity(res)
+    def grad(dy):
+        return None,dy
+    return res,grad
+
+def quantized_layer(x,e,e_regularizer=orthogonal_regularizerv2(),scale_e=1.0,scale_x=1.0):
+    org_data = x
+    x = tf.expand_dims(x,axis=-2)
+    d = tf.norm(x-e,axis=-1)
+    k = tf.argmin(d, axis=-1)
+    res = tf.gather(e, k)
+    res = __quantized(res,org_data)
+    if e_regularizer is not None:
+        e_r = e_regularizer(tf.transpose(e))
+    l_e = tf.reduce_mean(tf.norm(tf.stop_gradient(res)-x))*scale_e
+    l_x = tf.reduce_mean(tf.norm(tf.stop_gradient(x)-res))*scale_x
+    loss = {}
+    loss["l_e"] = l_e
+    loss["l_x"] = l_x
+    loss["e_r"] = e_r
+    return res,loss
+
+@add_arg_scope
+def deform_conv2d(inputs,
+                  offset,
+                  num_outputs,
+                  kernel_size,
+                  stride=1,
+                  padding='SAME',
+                  activation_fn=nn.relu,
+                  weights_initializer=initializers.xavier_initializer(),
+                  weights_regularizer=None,
+                  biases_initializer=init_ops.zeros_initializer(),
+                  biases_regularizer=None,
+                  normalizer_fn=None,
+                  normalizer_params=None,
+                  outputs_collections=None,
+                  rate=1,
+                  num_groups=1,
+                  deformable_group=1,
+                  reuse=None,
+                  scope=None):
+    '''
+    :param inputs: [B,H,W,C] or [B,C,H,W]
+    :param offset: [B,H,W,num_groups*kernel_size[0]*kernel_size[1]*2]
+    :param num_outputs:
+    :param kernel_size:
+    :param stride:
+    :param padding:
+    :param activation_fn:
+    :param weights_initializer:
+    :param weights_regularizer:
+    :param biases_initializer:
+    :param biases_regularizer:
+    :param normalizer_fn:
+    :param normalizer_params:
+    :param outputs_collections:
+    :param rate:
+    :param reuse:
+    :param scope:
+    :return:
+    '''
+    with variable_scope.variable_scope(scope, 'deform_conv2d', [inputs], reuse=reuse) as sc:
+        in_channels = inputs.get_shape().as_list()[-1]
+        assert num_outputs%num_groups==0,"error num outputs."
+        if isinstance(kernel_size,list):
+            shape = [num_outputs,in_channels//num_groups]+kernel_size
+        else:
+            shape = [num_outputs,in_channels//num_groups,kernel_size,kernel_size]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+        if biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        inputs = tf.transpose(inputs,perm=[0,3,1,2])
+        offset = tf.transpose(offset,perm=[0,3,1,2])
+        outputs = wtfop.deform_conv_op(x=inputs,
+                                       filter=w,
+                                       offset=offset,
+                                       strides=[1, 1,stride, stride],padding=padding,
+                                       rates=[1,1,rate,rate],
+                                       num_groups=num_groups,
+                                       deformable_group=deformable_group,
+                                       data_format="NCHW")
+        outputs = tf.transpose(outputs,perm=[0,2,3,1]) + b
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+        if activation_fn is not None:
+            outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
+            outputs = activation_fn(outputs)
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
+def deform_conv2dv2(inputs,
+                  num_outputs,
+                  kernel_size,
+                  deformable_group=1,
+                  scope=None,
+                  **kwargs
+                  ):
+    with tf.variable_scope(scope,"deform_conv2d"):
+        if not isinstance(kernel_size,Iterable):
+            kernel_size = [kernel_size,kernel_size]
+        offset = slim.conv2d(inputs,deformable_group*2*kernel_size[0]*kernel_size[1],[1,1],scope="get_offset",
+                             activation_fn=None,
+                             normalizer_fn=None)
+        return deform_conv2d(inputs=inputs,
+                             offset=offset,
+                             kernel_size=kernel_size,
+                             num_outputs=num_outputs,
+                             deformable_group=deformable_group,**kwargs)
+
+

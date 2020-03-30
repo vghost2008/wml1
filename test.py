@@ -15,6 +15,10 @@ from wml_utils import *
 import object_detection.bboxes as bboxes
 import img_utils as wmli
 import basic_tftools as btf
+import os
+
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+
 
 class WMLTest(tf.test.TestCase):
     def testLabelSmoothV1(self):
@@ -343,6 +347,35 @@ class WMLTest(tf.test.TestCase):
             indexs = btf.twod_indexs_to_oned_indexs(indexs,depth=10)
             indexs = indexs.eval()
             self.assertAllEqual(a=indexs,b=target)
+
+    def test_deform_conv2d(self):
+        with self.test_session() as sess:
+            '''x = tf.ones([17,224,224,32])
+            offset = tf.ones([17,224,224,3*3*2*8])
+            out = wnnl.deform_conv2d(inputs=x,offset=offset,num_outputs=64,
+                                     kernel_size=3,stride=1,num_groups=2,deformable_group=8)
+            sess.run(tf.global_variables_initializer())
+            print("test_deform_conv2d")
+            print(out)
+            print(out.eval())'''
+            pass
+
+    def test_top_k_mask(self):
+        with self.test_session() as sess:
+            a = tf.constant([9, 8, 0, 6, 7, 1])
+            d = wmlt.top_k_mask(a, 4)
+            sess.run(tf.global_variables_initializer())
+            out = sess.run(d)
+            self.assertAllEqual(out,[ True, True,False, True, True,False])
+    def test_top_k_mask_nd(self):
+        with self.test_session() as sess:
+            a = tf.constant([[[9, 2, 3, 4, 19], [5, 6, 7, 8, 55], [11, 0, 9, 8, 0]]])
+            d = wmlt.top_k_mask(a, 2)
+            sess.run(tf.global_variables_initializer())
+            out = sess.run(d)
+            self.assertAllEqual(out,[[[ True,False,False,False, True],
+                                     [False, False, False,  True,  True],
+                                     [ True, False,  True, False, False]]])
 
 if __name__ == "__main__":
     np.random.seed(int(time.time()))

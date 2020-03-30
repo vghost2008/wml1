@@ -20,7 +20,7 @@ class MetaArch(wmodule.WModule):
             batched_inputs[IMAGE] = (batched_inputs[IMAGE]-127.5)/127.5
             return batched_inputs
 
-    def _postprocess(self,instances, batched_inputs, image_sizes):
+    def _postprocess(self,instances, batched_inputs):
         if self.cfg.MODEL.MIN_BOXES_AREA_TEST>1e-5:
             with tf.name_scope("postprocess"):
                 instances[RD_BOXES] = tf.clip_by_value(instances[RD_BOXES],0.0,1.0)
@@ -36,9 +36,9 @@ class MetaArch(wmodule.WModule):
                     res[k] = n_v
                 length = tf.reduce_sum(tf.cast(mask,tf.int32),axis=1)
                 res[RD_LENGTH] = length
-
-
-        return res
+            return res
+        else:
+            return instances
 
     def doeval(self,evaler,datas):
         assert datas[GT_BOXES].shape[0]==1,"Error batch size"

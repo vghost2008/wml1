@@ -101,6 +101,7 @@ class TrainerBase:
     def __init__(self,cfg):
         self._hooks = []
         self.cfg = cfg
+        self.full_trace = False
 
     def register_hooks(self, hooks):
         """
@@ -431,6 +432,14 @@ class SimpleTrainer(TrainerBase):
         if self.step%self.log_step == 0:
             _,total_loss,self.step,summary = self.sess.run([self.train_op,self.total_loss,self.global_step,self.summary])
             self.summary_writer.add_summary(summary, self.step)
+        elif self.full_trace:
+            if self.step %3==0:
+                print("Full trace tensorflow may cause segment errors.")
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            _, total_loss, self.step = self.sess.run([self.train_op, self.total_loss, self.global_step],
+                                                     options=run_options, run_metadata=run_metadata)
+            self.summary_writer.add_run_metadata(run_metadata, f"setp{self.step}")
         else:
             _,total_loss,self.step = self.sess.run([self.train_op,self.total_loss,self.global_step])
 
@@ -440,10 +449,10 @@ class SimpleTrainer(TrainerBase):
         if self.step%20 == 0:
             sys.stdout.flush()
 
-        if self.step%self.save_step == 0:
+        if self.step%self.save_step == 0 and self.step>2:
             print("save check point file.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
-        if self.max_train_step>0 and self.step>self.max_train_step:
+        if self.max_train_step>1 and self.step>self.max_train_step:
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()
             raise Exception("Train Finish")
@@ -459,6 +468,15 @@ class SimpleTrainer(TrainerBase):
             res_data = self.sess.run(res_data)
             self.summary_writer.add_summary(res_data['summary'], self.step)
             sys.stdout.flush()
+        elif self.full_trace:
+            if self.step % 3 == 0:
+                print("Full trace tensorflow may cause segment errors.")
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            res_data = self.res_data_for_eval
+            res_data = self.sess.run(res_data,
+                                     options=run_options, run_metadata=run_metadata)
+            self.summary_writer.add_run_metadata(run_metadata, f"setp{self.step}")
         else:
             res_data = self.res_data_for_eval
             res_data = self.sess.run(res_data)

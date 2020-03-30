@@ -194,18 +194,97 @@ def scale_image_summaries(var,name,max_outputs=3,heigh=None):
     var = tf.image.resize_nearest_neighbor(var,size=[heigh,shape[-1]])
     tf.summary.image(name,var,max_outputs=max_outputs)
 
-def top_k_mask(value,k=1,shape=None):
+def top_k_mask_nd(value,k=1):
+    assert value.shape.ndims>1, "error dim size"
+    shape = btf.combined_static_and_dynamic_shape(value)
+    N = 1
+    for i in range(len(shape)-1):
+        N = N*shape[i]
+    value = tf.reshape(value,[N,shape[-1]])
     values, indics = tf.nn.top_k(value, k)
     indics, _ = tf.nn.top_k(-indics, k)
-    if value.get_shape().is_fully_defined():
-        res = tf.cast(tf.sparse_to_dense(-indics, value.shape, 1), tf.bool)
-    else:
-        shape = tf.shape(value)
-        res = tf.cast(tf.sparse_to_dense(-indics, shape,1),tf.bool)
-    if shape is None:
-         return res
-    else:
-        return tf.reshape(res,shape)
+    indics1 = -indics
+    indics0 = tf.reshape(tf.range(N),[N,1])
+    indics0 = tf.tile(indics0,[1,k])
+    indics = tf.reshape(indics1,[-1,1])
+    indics0 = tf.reshape(indics0,[-1,1])
+    indics = tf.concat([indics0,indics],axis=1)
+    res = tf.cast(tf.sparse_to_dense(indics,[N,shape[-1]], 1), tf.bool)
+    res = tf.reshape(res,shape)
+    indics1 = tf.reshape(indics1,shape[:-1]+[k])
+    return res,indics1
+
+
+def top_k_mask_1d(value,k=1):
+    assert value.shape.ndims==1, "error dim size"
+    values, indics = tf.nn.top_k(value, k)
+    indics, _ = tf.nn.top_k(-indics, k)
+    indics = -indics
+    res = tf.cast(tf.sparse_to_dense(indics, value.shape, 1), tf.bool)
+    return res,indics
+
+def top_k_mask(value,k=1,shape=None,return_indices=False):
+    with tf.name_scope("top_k_mask"):
+        if value.shape.ndims == 1:
+            res,indices = top_k_mask_1d(value,k=k)
+        else:
+            res,indices = top_k_mask_nd(value,k=k)
+        if shape is not None:
+            res = tf.reshape(res,shape)
+        if return_indices:
+            return res,indices
+        else:
+            return res
+
+def random_top_k_mask_nd(value,k=3,nr=1):
+    assert value.shape.ndims>1, "error dim size"
+    shape = btf.combined_static_and_dynamic_shape(value)
+    N = 1
+    for i in range(len(shape)-1):
+        N = N*shape[i]
+    value = tf.reshape(value,[N,shape[-1]])
+    values, indics = tf.nn.top_k(value, k)
+    indics = tf.transpose(indics)
+    indics = tf.random_shuffle(indics)
+    indics = indics[:nr,:]
+    indics = tf.transpose(indics)
+    indics, _ = tf.nn.top_k(-indics, nr)
+    indics1 = -indics
+    indics0 = tf.reshape(tf.range(N),[N,1])
+    indics0 = tf.tile(indics0,[1,nr])
+    indics = tf.reshape(indics1,[-1,1])
+    indics0 = tf.reshape(indics0,[-1,1])
+    indics = tf.concat([indics0,indics],axis=1)
+    res = tf.cast(tf.sparse_to_dense(indics,[N,shape[-1]], 1), tf.bool)
+    res = tf.reshape(res,shape)
+    return res,indics1
+
+
+def random_top_k_mask_1d(value,k=3,nr=1):
+    assert value.shape.ndims==1, "error dim size"
+    values, indics = tf.nn.top_k(value, k)
+    indics = tf.random_shuffle(indics)
+    indics = indics[:nr]
+    indics, _ = tf.nn.top_k(-indics, nr)
+    indics = -indics
+    res = tf.cast(tf.sparse_to_dense(indics, value.shape, 1), tf.bool)
+    return res,indics
+
+'''
+从value中选出得分最高的k个，再从k个中随机选nr个返回
+'''
+def random_top_k_mask(value,k=3,nr=1,shape=None,return_indices=False):
+    with tf.name_scope("top_k_mask"):
+        if value.shape.ndims == 1:
+            res,indices = random_top_k_mask_1d(value,k=k,nr=nr)
+        else:
+            res,indices = random_top_k_mask_nd(value,k=k,nr=nr)
+        if shape is not None:
+            res = tf.reshape(res,shape)
+        if return_indices:
+            return res,indices
+        else:
+            return res
 
 def bottom_k_mask(value, k=1,shape=None):
     return top_k_mask(-value,k,shape)
@@ -386,10 +465,6 @@ def bytes_feature(value):
 def bytes_vec_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
 
-def draw_points(points,image,color,size=3):
-    pass
-
-
 def merge(scopes=None):
     if scopes is None:
         return tf.summary.merge_all()
@@ -413,8 +488,6 @@ def merge_exclude(excludes=None):
             if not var.name.startswith(exclude):
                 summaries_list.append(var)
         vars = summaries_list
-
-    #wmlu.show_list(summaries_list)
 
     return tf.summary.merge(summaries_list)
 
@@ -776,6 +849,12 @@ def Print(data,*inputs,**kwargs):
     op = tf.print(*inputs,**kwargs)
     with tf.control_dependencies([op]):
         return tf.identity(data)
+
+def print_tensor_shape(input_,data,name=None,summarize=100):
+    data = [tf.shape(x) for x in data]
+    if name is not None:
+        data = [tf.constant(name+": ")]+data
+    return tf.Print(input_,data,summarize=summarize)
 
 '''
 indicator:[X],tf.bool

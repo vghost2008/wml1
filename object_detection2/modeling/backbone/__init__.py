@@ -1,1 +1,1 @@
-from . import resnet,fpn,shufflenetv2,bifpn
+from . import resnet,fpn,shufflenetv2,bifpn,buildin_hooks

@@ -141,7 +141,7 @@ class GeneralizedRCNN(MetaArch):
                                              instance_masks=instance_masks,
                                              name="RCNN_Mask_result")
         if do_postprocess:
-            return self._postprocess(results, batched_inputs, None),None
+            return self._postprocess(results, batched_inputs),None
         else:
             return results,None
 

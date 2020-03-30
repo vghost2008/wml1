@@ -164,7 +164,7 @@ def merge_masks(masks,labels,num_classes,size=None,no_background=True):
 
     for i,mask in enumerate(masks):
         label = get_label(labels[i])
-        res[label:label+1,:,:] = res[label:label+1,:,:]|np.expand_dims(mask,axis=0)
+        res[label:label+1,:,:] = np.logical_or(res[label:label+1,:,:],np.expand_dims(mask,axis=0))
 
     return res
 

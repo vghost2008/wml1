@@ -147,7 +147,7 @@ def self_attenation(net,*args,**kwargs):
         Q,K,V = tf.split(net,num_or_size_splits=3,axis=2)
         return multi_head_attention(Q,K,V,*args,**kwargs)
 
-def split_heads(x, n):
+def split_heads(x, n,name=None):
     '''
     :param x:  [batch_size,M,D]
     :param n:  分割数

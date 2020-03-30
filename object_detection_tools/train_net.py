@@ -7,7 +7,7 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 slim = tf.contrib.slim
 

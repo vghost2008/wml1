@@ -78,8 +78,8 @@ def get_text_pos_fn(pmin,pmax,bbox,label):
 def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
                         color_fn=None,
                         text_fn=None,
-                         get_text_pos_fn=get_text_pos_fn,
-                       thickness=4,show_text=False,fontScale=1.2):
+                        get_text_pos_fn=get_text_pos_fn,
+                        thickness=4,show_text=False,fontScale=1.2):
     shape = img.shape
     if scores is None:
         scores = np.ones_like(classes,dtype=np.float32)
@@ -98,7 +98,10 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
         if show_text and text_fn is not None:
             s = text_fn(classes[i], scores[i])
             p = get_text_pos_fn(p10,p2,bbox,classes[i])
-            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX, fontScale=fontScale, color=(0.,255.,0.), thickness=1)
+            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX,
+                        fontScale=fontScale,
+                        color=(0.,255.,0.),
+                        thickness=1)
 
     return img
 '''
@@ -122,13 +125,20 @@ def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=N
         mask = np.expand_dims(mask,axis=-1)
         img[y:y+h,x:x+w,:] = (img[y:y+h,x:x+w,:]*(np.array([[[1]]],dtype=np.float32)-mask*0.4)).astype(np.uint8)+(mask*color*0.4).astype(np.uint8)
 
-    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness=thickness,show_text=show_text,fontScale=fontScale)
+    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,
+                               color_fn=color_fn,
+                               text_fn=text_fn,
+                               thickness=thickness,
+                               show_text=show_text,
+                               fontScale=fontScale)
     return img
 
 '''
 mask include the area of whole image
 '''
-def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
+def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,
+                           show_text=False,
+                           fontScale=0.8):
     if not isinstance(masks,np.ndarray):
         masks = np.array(masks)
     masks = masks.astype(np.uint8)
@@ -146,13 +156,13 @@ def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn
         mask = masks[i]
         img = smv.draw_mask_on_image_array(img,mask,color=color,alpha=0.4)
 
-    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,color_fn,text_fn,thickness,show_text,fontScale)
+    img = bboxes_draw_on_imgv2(img,classes,scores,bboxes,
+                               color_fn=color_fn,
+                               text_fn=text_fn,
+                               thickness=thickness,
+                               show_text=show_text,
+                               fontScale=fontScale)
     return img
-
-
-
-
-
 
 '''
 sigsize:(w,h)图像大小
