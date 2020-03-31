@@ -90,11 +90,11 @@ ID_TO_TEXT={1: {u'supercategory': u'person', u'id': 1, u'name': u'person'},
             90: {u'supercategory': u'indoor', u'id': 90, u'name': u'toothbrush'}}
 
 class COCOData:
-    def __init__(self,filter=None):
+    def __init__(self,filter=None,include_masks=True):
         self.images = None
         self.annotations_index = None
         self.image_dir = None
-        self.include_masks = False
+        self.include_masks = include_masks
         self.category_index = None
         self.filter=filter
 
@@ -102,7 +102,7 @@ class COCOData:
         filename = image['file_name']
         return os.path.join(self.image_dir, filename)
 
-    def read_data(self,annotations_file,image_dir,include_masks=False):
+    def read_data(self,annotations_file,image_dir):
         with tf.gfile.GFile(annotations_file, 'r') as fid:
             groundtruth_data = json.load(fid)
             images = groundtruth_data['images']
@@ -132,7 +132,6 @@ class COCOData:
         self.images = images
         self.annotations_index = annotations_index
         self.image_dir = image_dir
-        self.include_masks = include_masks
         self.category_index = category_index
 
     def get_image_annotation(self,image):
@@ -152,7 +151,7 @@ class COCOData:
         area = []
         num_annotations_skipped = 0
         annotations_list = self.annotations_index[image_id]
-        binary_mask = None
+        binary_masks = []
         for object_annotations in annotations_list:
             (x, y, width, height) = tuple(object_annotations['bbox'])
             if width <= 0 or height <= 0:
@@ -184,12 +183,19 @@ class COCOData:
                 binary_mask = mask.decode(run_len_encoding)
                 if not object_annotations['iscrowd']:
                     binary_mask = np.amax(binary_mask, axis=2)
-            boxes = np.array(list(zip(ymin,xmin,ymax,xmax)))
+                binary_masks.append(binary_mask)
+
+        boxes = np.array(list(zip(ymin,xmin,ymax,xmax)))
+
+        if len(binary_masks)>0:
+            binary_masks = np.stack(binary_masks,axis=0)
+        else:
+            binary_masks = None
 
         if len(category_ids)==0:
             print(full_path)
             return None,None,None,None,None,None,None,None
-        return full_path,category_ids,category_names,boxes,binary_mask,area,is_crowd,num_annotations_skipped
+        return full_path,[image_height,image_height],category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
 
     def get_items(self):
         for image in self.images:
@@ -197,6 +203,25 @@ class COCOData:
 
     def get_boxes_items(self):
         for image in self.images:
-            full_path,category_ids,category_names,boxes,binary_mask,area,is_crowd,num_annotations_skipped = \
+            full_path,img_size,category_ids,category_names,boxes,binary_mask,area,is_crowd,num_annotations_skipped = \
             self.get_image_annotation(image)
-            yield full_path,category_ids,boxes,is_crowd
+            yield full_path,img_size,category_ids,boxes,is_crowd
+
+if __name__ == "__main__":
+    import img_utils as wmli
+    import object_detection_tools.visualization as odv
+    import matplotlib.pyplot as plt
+    data = COCOData()
+    data.read_data("/data/mldata/coco/annotations/instances_train2014.json",image_dir="/data/mldata/coco/train2014")
+    for x in data.get_items():
+        full_path, category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
+        img = wmli.imread(full_path)
+        def text_fn(classes,scores):
+            return ID_TO_TEXT[classes]['name']
+        odv.draw_bboxes_and_maskv2(
+        img=img, classes=category_ids, scores=None, bboxes=boxes, masks=binary_mask, color_fn = None, text_fn = text_fn, thickness = 4,
+        show_text = True,
+        fontScale = 0.8)
+        plt.figure()
+        plt.imshow(img)
+        plt.show()

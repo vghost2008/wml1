@@ -9,6 +9,7 @@ import copy
 import img_utils as wmli
 import random
 import matplotlib.pyplot as plt
+import sys
 import cv2
 
 def get_files(data_dir, img_suffix="jpg"):
@@ -330,59 +331,79 @@ def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=Non
     plt.imshow(image_data)
     plt.show()
 
-def data_statistics(data_dir):
-    files = get_files(data_dir)
-    statistics_data = {}
-    file_statistics_data = {}
+class LabelMeData(object):
+    def __init__(self,label_text2id=None,shuffle=False):
+        self.files = None
+        self.label_text2id = label_text2id
+        self.shuffle = shuffle
+        
+    def read_data(self,dir_path):
+        self.files = get_files(dir_path)
+        if self.shuffle:
+            random.shuffle(self.files)
 
-    data_nrs = []
-    for img_file,json_file in files:
-        image, annotations_list = read_labelme_data(json_file,lambda x:x)
-        data_nrs.append(len(annotations_list))
-        temp_file_statistics_data = {}
-        for ann in annotations_list:
-            label = ann["category_id"]
-            if label in statistics_data:
-                statistics_data[label] += 1
+    def get_items(self):
+        '''
+        :return: 
+        full_path,img_size,category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
+        '''
+        for i,(img_file, json_file) in enumerate(self.files):
+            sys.stdout.write('\r>> read data %d/%d' % (i + 1, len(self.files)))
+            sys.stdout.flush()
+            image, annotations_list = read_labelme_data(json_file, None)
+            labels_names,bboxes = get_labels_and_bboxes(image,annotations_list)
+            masks = [ann["segmentation"] for ann in annotations_list]
+            if len(masks)>0:
+                masks = np.stack(masks,axis=0)
+            
+            if self.label_text2id is not None:
+                labels = [self.label_text2id(x) for x in labels_names]
             else:
-                statistics_data[label] = 1
-            temp_file_statistics_data[label] = 1
-        for k in temp_file_statistics_data.keys():
-            if k in file_statistics_data:
-                file_statistics_data[k] += 1
-            else:
-                file_statistics_data[k] = 1
-    if len(files)<1:
-        return
-    data_nrs = np.array(data_nrs)
-    print(f"Data size {len(files)}.")
-    print(f"Data size per file: max data size {np.max(data_nrs)}, min data size {np.min(data_nrs)}, mean {np.mean(data_nrs)}, var {np.var(data_nrs)}")
-    print("Num of each classes")
-    wmlu.show_dict(statistics_data)
-    print("Num of each classes in files")
-    wmlu.show_dict(file_statistics_data)
-    _file_statistics_data = {}
-    for k,v in file_statistics_data.items():
-        _file_statistics_data[k] = v*100.0/len(files)
-
-
-    total_num = 0
-    for v in statistics_data.values():
-        total_num += v
-
-    _statistics = {}
-    for k,v in statistics_data.items():
-        _statistics[k] = 100.0*v/total_num
-
-    print("Percent of each classes")
-    wmlu.show_dict(_statistics)
-
-    print("Percent of each classes in files")
-    wmlu.show_dict(_file_statistics_data)
-
+                labels = None
+                
+            yield img_file, [image['height'],image['width']],labels, labels_names, bboxes, masks, None, None,None 
+    
+    def get_boxes_items(self):
+        '''
+        :return: 
+        full_path,img_size,category_ids,boxes,is_crowd
+        '''
+        for i,(img_file, json_file) in enumerate(self.files):
+            sys.stdout.write('\r>> read data %d/%d' % (i + 1, len(self.files)))
+            sys.stdout.flush()
+            image, annotations_list = read_labelme_data(json_file, None)
+            labels_names,bboxes = get_labels_and_bboxes(image,annotations_list)
+            labels = [self.label_text2id(x) for x in labels_names]
+            yield img_file,[image['height'],image['width']],labels, bboxes,  None
 
 if __name__ == "__main__":
-    data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatasv3")
+    #data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatasv3")
+    import img_utils as wmli
+    import object_detection_tools.visualization as odv
+    import matplotlib.pyplot as plt
+    ID_TO_TEXT = {1:{"id":1,"name":"a"},2:{"id":2,"name":"b"},3:{"id":3,"name":"c"}}
+    NAME_TO_ID = {}
+    for k,v in ID_TO_TEXT.items():
+        NAME_TO_ID[v["name"]] = v["id"]
+    def name_to_id(name):
+        return NAME_TO_ID[name]
+
+    data = LabelMeData(label_text2id=name_to_id,shuffle=True)
+    data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav8_preproc")
+    for x in data.get_items():
+        full_path, category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
+        img = wmli.imread(full_path)
 
 
+        def text_fn(classes, scores):
+            return ID_TO_TEXT[classes]['name']
 
+        odv.draw_bboxes_and_maskv2(
+            img=img, classes=category_ids, scores=None, bboxes=boxes, masks=binary_mask, color_fn=None,
+            text_fn=text_fn, thickness=4,
+            show_text=True,
+            fontScale=0.8)
+        plt.figure()
+        plt.imshow(img)
+        plt.show()

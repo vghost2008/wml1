@@ -56,7 +56,5 @@ def main(_):
     trainer.resume_or_load()
     return trainer.train()
 
-
-
 if __name__ == "__main__":
     tf.app.run()

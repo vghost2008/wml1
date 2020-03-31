@@ -50,7 +50,5 @@ def main(_):
     res = trainer.test(cfg, model)
     return res
 
-
-
 if __name__ == "__main__":
     tf.app.run()
