@@ -1,0 +1,21 @@
+_BASE_: "./Base-RCNN-FPN.yaml"
+MODEL:
+  MASK_ON: True
+  RESNETS:
+    DEPTH: 50
+  ROI_HEADS:
+    #NAME: "Res5ROIHeads"
+    OUTPUTS: "FastRCNNOutputs"
+  PROPOSAL_GENERATOR:
+    NAME: "RetinaNet"
+    #OUTPUTS: "PGRetinaNetOutputs"
+    OUTPUTS: "PGRetinaNetGIOUOutputs"
+  RETINANET_PG:
+    FAST_MODE: False
+    IN_FEATURES: ["P2","P3","P4"]
+SOLVER:
+  IMS_PER_BATCH: 8
+
+GLOBAL:
+  PROJ_NAME: "MaskRCNNRPGUIODemon"
+  LOG_STEP: 100

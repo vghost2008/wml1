@@ -10,9 +10,11 @@ import wmodule
 from .onestage_tools import *
 from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
+from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 import wsummary
 
 
+@HEAD_OUTPUTS.register()
 class RetinaNetOutputs(wmodule.WChildModule):
     def __init__(
         self,
@@ -107,6 +109,8 @@ class RetinaNetOutputs(wmodule.WChildModule):
                 storing the loss. Used during training only. The dict keys are:
                 "loss_cls" and "loss_box_reg"
         """
+        assert len(self.pred_logits[0].get_shape()) == 4,"error logits dim"
+        assert len(self.pred_anchor_deltas[0].get_shape()) == 4,"error anchors dim"
         gt_classes,gt_anchors_deltas = self._get_ground_truth()
         pred_class_logits, pred_anchor_deltas = permute_all_cls_and_box_to_N_HWA_K_and_concat(
             self.pred_logits, self.pred_anchor_deltas, self.num_classes
@@ -118,7 +122,6 @@ class RetinaNetOutputs(wmodule.WChildModule):
         num_foreground = tf.reduce_sum(tf.cast(foreground_idxs,tf.int32))
 
         gt_classes_target = tf.boolean_mask(gt_classes,valid_idxs)
-        gt_classes_target = gt_classes_target
         gt_classes_target = tf.one_hot(gt_classes_target,depth=self.num_classes+1)
         gt_classes_target = gt_classes_target[:,1:]#RetinaNet中没有背景, 因为背景index=0, 所以要在one hot 后去掉背景
         pred_class_logits = tf.boolean_mask(pred_class_logits,valid_idxs)
@@ -147,14 +150,21 @@ class RetinaNetOutputs(wmodule.WChildModule):
     def inference(self, inputs,box_cls, box_delta,anchors):
         """
         Arguments:
-            box_cls, box_delta: Same as the output of :meth:`RetinaNetHead.forward`
-            anchors (list[list[Boxes]]): a list of #images elements. Each is a
-                list of #feature level Boxes. The Boxes contain anchors of this
-                image on the specific feature level.
+            inputs: same as RetinaNet.forward's batched_inputs
+            box_cls: list of Tensor, Tensor's shape is [B,H,W,A*num_classes]
+            box_delta: list of Tensor, Tensor's shape is [B,H,W,A*4]
+            anchors: list of Tensor, Tensor's shape is [X,4]( X=H*W*A)
         Returns:
-            results (List[Instances]): a list of #images elements.
+            results:
+            RD_BOXES: [B,N,4]
+            RD_LABELS: [B,N]
+            RD_PROBABILITY:[ B,N]
+            RD_LENGTH:[B]
         """
         assert len(anchors[0].get_shape())==2,"error anchors dims"
+        assert len(box_cls[0].get_shape())==4,"error box cls dims"
+        assert len(box_delta[0].get_shape())==4,"error box delta dims"
+        
         anchors_size = [tf.shape(x)[0] for x in anchors]
         anchors = tf.concat(anchors,axis=0)
 
@@ -186,10 +196,14 @@ class RetinaNetOutputs(wmodule.WChildModule):
             box_cls;[WxHxA(concat),K]
             box_delta [WxHxA(concat),box_dim]
             anchors [WxHxA(concat),box_dim]
-            anchors_size: anchors'size per level
+            anchors_size: list of Tensor,anchors'size per level
         Returns:
             Same as `inference`, but for only one image.
         """
+        assert len(box_cls.get_shape())==2,"Error box cls tensor shape"
+        assert len(box_delta.get_shape())==2,"Error box delta tensor shape"
+        assert len(anchors.get_shape())==2,"Error anchors tensor shape"
+        
         boxes_all = []
         scores_all = []
         class_idxs_all = []
@@ -243,10 +257,10 @@ class RetinaNetOutputs(wmodule.WChildModule):
         candiate_nr = self.max_detections_per_image
         #labels = tf.Print(labels,[tf.shape(labels)],name="XXXXXXXXXXXXXXXXXXXX",summarize=100)
         labels = labels+1 #加上背景
-        len = tf.shape(labels)[0]
-        boxes = tf.pad(boxes, paddings=[[0, candiate_nr - len], [0, 0]])
-        labels = tf.pad(labels, paddings=[[0, candiate_nr - len]])
-        scores = tf.pad(scores, paddings=[[0, candiate_nr - len]])
+        lens = tf.shape(labels)[0]
+        boxes = tf.pad(boxes, paddings=[[0, candiate_nr - lens], [0, 0]])
+        labels = tf.pad(labels, paddings=[[0, candiate_nr - lens]])
+        scores = tf.pad(scores, paddings=[[0, candiate_nr - lens]])
 
-        return [boxes,labels,scores,len]
+        return [boxes,labels,scores,lens]
 

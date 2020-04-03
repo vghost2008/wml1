@@ -1,6 +1,8 @@
 import tensorflow as tf
 import wml_tfutils as wmlt
+import wtfop.wtfop_ops as wop
 from object_detection2.config.config import global_cfg
+from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 import itertools
 import logging
 import numpy as np
@@ -8,26 +10,20 @@ from ..sampling import subsample_labels
 import wsummary
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
+import object_detection2.wlayers as odl
 import wnn
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 from .rpn_toolkit import *
 
 logger = logging.getLogger(__name__)
 
-
-
-def rpn_losses(
+def rpn_losses_giou(
     gt_objectness_logits,
     gt_anchor_deltas,
     pred_objectness_logits,
     pred_anchor_deltas,
 ):
-    localization_loss = tf.losses.huber_loss(
-        pred_anchor_deltas,
-        gt_anchor_deltas,
-        reduction=tf.losses.Reduction.SUM,
-        loss_collection=None
-    )
+    reg_loss_sum = 1.0 - odl.giou(pred_anchor_deltas, gt_anchor_deltas)
+    localization_loss = tf.reduce_sum(reg_loss_sum)
 
     objectness_loss = tf.losses.sigmoid_cross_entropy(
         logits=tf.expand_dims(pred_objectness_logits,1),
@@ -39,7 +35,7 @@ def rpn_losses(
 
 
 @HEAD_OUTPUTS.register()
-class RPNOutputs(object):
+class RPNGIOUOutputs(object):
     def __init__(
         self,
         box2box_transform,
@@ -101,7 +97,7 @@ class RPNOutputs(object):
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
 
-        gt_anchor_deltas = self.box2box_transform.get_deltas(self.anchors,self.gt_boxes,gt_objectness_logits_i,indices)
+        gt_anchor_deltas = wmlt.batch_gather(self.gt_boxes,indices)
         #gt_objectness_logits_i为相应anchor box的标签
         return gt_objectness_logits_i, gt_anchor_deltas
 
@@ -118,9 +114,13 @@ class RPNOutputs(object):
             pred_objectness_logits = [tf.reshape(x,[batch_size,-1]) for x in self.pred_objectness_logits]
             pred_objectness_logits = tf.concat(pred_objectness_logits,axis=1)
             pred_anchor_deltas = [tf.reshape(x,[batch_size,-1,box_dim]) for x in self.pred_anchor_deltas]
-            pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1)
+            pred_anchor_deltas = tf.concat(pred_anchor_deltas,axis=1) #shape=[B,-1,4]
             pred_objectness_logits = tf.reshape(pred_objectness_logits,[-1])
+            anchors = tf.tile(self.anchors,[batch_size,1,1])
+            anchors = tf.reshape(anchors,[-1,box_dim])
             pred_anchor_deltas = tf.reshape(pred_anchor_deltas,[-1,box_dim])
+            
+            
 
             if global_cfg.GLOBAL.DEBUG:
                 with tf.device(":/cpu:0"):
@@ -134,10 +134,14 @@ class RPNOutputs(object):
             gt_objectness_logits = tf.reshape(gt_objectness_logits,[-1])
             gt_objectness_logits = tf.boolean_mask(gt_objectness_logits,valid_mask)
             pred_objectness_logits = tf.boolean_mask(pred_objectness_logits,valid_mask)
+            
             gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
             gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
+            
             pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
-            objectness_loss, localization_loss = rpn_losses(
+            anchors = tf.boolean_mask(anchors,pos_idx)
+            pred_anchor_deltas = self.box2box_transform.apply_deltas(deltas=pred_anchor_deltas,boxes=anchors)
+            objectness_loss, localization_loss = rpn_losses_giou(
                 gt_objectness_logits,
                 gt_anchor_deltas,
                 pred_objectness_logits,

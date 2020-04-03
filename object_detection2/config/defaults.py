@@ -157,6 +157,8 @@ _C.MODEL.PROPOSAL_GENERATOR.NAME = "RPN"
 # (a the scale used during training or inference)
 _C.MODEL.PROPOSAL_GENERATOR.MIN_SIZE = 0
 
+_C.MODEL.PROPOSAL_GENERATOR.OUTPUTS = "RPNOutputs"
+
 
 # ---------------------------------------------------------------------------- #
 # Anchor generator options
@@ -329,6 +331,8 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
 #预测时box结果的最小相对面积
+
+_C.MODEL.ROI_HEADS.OUTPUTS = "FastRCNNOutputs"
 
 # ---------------------------------------------------------------------------- #
 # Box Head
@@ -521,6 +525,7 @@ _C.MODEL.RETINANET.BBOX_REG_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
 _C.MODEL.RETINANET.FOCAL_LOSS_GAMMA = 2.0
 _C.MODEL.RETINANET.FOCAL_LOSS_ALPHA = 0.25
 _C.MODEL.RETINANET.SMOOTH_L1_LOSS_BETA = 0.1
+_C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 
 
 # ---------------------------------------------------------------------------- #

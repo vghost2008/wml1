@@ -1,8 +1,8 @@
 #coding=utf-8
 from object_detection2.modeling.meta_arch.retinanet import RetinaNetHead as RetinaNetHead
-from object_detection2.modeling.proposal_generator.retinanet_head import RetinaNetOutputs
 from object_detection2.modeling.proposal_generator.rpn_outputs import find_top_rpn_proposals
 from object_detection2.standard_names import *
+from object_detection2.modeling.meta_arch.build import build_outputs
 import wml_tfutils as wmlt
 import wsummary
 from .build import PROPOSAL_GENERATOR_REGISTRY
@@ -45,6 +45,7 @@ class RetinaNet(wmodule.WChildModule):
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RETINANET_PG.BBOX_REG_WEIGHTS)
         self.anchor_matcher = Matcher(
             cfg.MODEL.RETINANET_PG.IOU_THRESHOLDS,
+            same_pos_label=1,
             allow_low_quality_matches=True,
             cfg=cfg,
             parent=self,
@@ -76,7 +77,7 @@ class RetinaNet(wmodule.WChildModule):
         gt_length = batched_inputs[GT_LENGTH]
         gt_labels = batched_inputs[GT_LABELS]
 
-        outputs = RetinaNetOutputs(
+        outputs = build_outputs(self.cfg.MODEL.PROPOSAL_GENERATOR.OUTPUTS,
             cfg=self.cfg.MODEL.RETINANET_PG,
             parent=self,
             box2box_transform=self.box2box_transform,

@@ -313,6 +313,7 @@ class SimpleTrainer(TrainerBase):
         if self.model.is_training:
             for k,v in loss_dict.items():
                 tf.summary.scalar(f"loss/{k}",v)
+                v = tf.cond(tf.logical_or(tf.is_nan(v),tf.is_inf(v)),lambda : tf.zeros_like(v),lambda:v)
                 tf.losses.add_loss(v)
 
         self.loss_dict = loss_dict
@@ -375,11 +376,15 @@ class SimpleTrainer(TrainerBase):
                 self.input_data = data
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
                     self.res_data,loss_dict = self.model.forward(data)
+                loss_values = []
                 for k,v in loss_dict.items():
                     all_loss_dict[k+f"_stage{i}"] = v
                     tf.summary.scalar(f"loss/{k}",v)
+                    v = tf.cond(tf.logical_or(tf.is_nan(v), tf.is_inf(v)), lambda: tf.zeros_like(v), lambda: v)
+                    loss_values.append(v)
+
                 scope._reuse = tf.AUTO_REUSE
-                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_dict.values())
+                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_values)
                 tower_grads.append(grads)
         avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
         opt0 = wnn.apply_gradientsv3(avg_grads, self.global_step, opt)

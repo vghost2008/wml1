@@ -6,9 +6,10 @@ from .build import PROPOSAL_GENERATOR_REGISTRY
 from object_detection2.modeling.anchor_generator import *
 from object_detection2.modeling.matcher import *
 from object_detection2.modeling.box_regression import *
-from .rpn_outputs import RPNOutputs,find_top_rpn_proposals
+from .rpn_outputs import find_top_rpn_proposals
 from object_detection2.datadef import *
 import wsummary
+from object_detection2.modeling.meta_arch.build import build_outputs
 
 slim = tf.contrib.slim
 
@@ -74,7 +75,10 @@ class RPN(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
         self.rpn_head = build_rpn_head(cfg,parent=self,*args,**kwargs)
-        self.anchor_matcher = Matcher(thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,same_pos_label=1,allow_low_quality_matches=True,cfg=cfg,
+        self.anchor_matcher = Matcher(thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,
+                                      same_pos_label=1,
+                                      allow_low_quality_matches=True,
+                                      cfg=cfg,
                                       parent=self)
         self.box2box_transform = Box2BoxTransform()
         self.in_features             = cfg.MODEL.RPN.IN_FEATURES
@@ -104,8 +108,7 @@ class RPN(wmodule.WChildModule):
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(inputs,features)
         anchors = self.rpn_head.anchor_generator(inputs,features)
         self.anchors_num_per_level = [wmlt.combined_static_and_dynamic_shape(x)[0] for x in anchors]
-
-        outputs = RPNOutputs(
+        outputs = build_outputs(self.cfg.MODEL.PROPOSAL_GENERATOR.OUTPUTS,
             self.box2box_transform,
             self.anchor_matcher,
             self.batch_size_per_image,

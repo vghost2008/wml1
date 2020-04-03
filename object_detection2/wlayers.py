@@ -62,8 +62,8 @@ class WROIAlign:
         self.bin_size = list(bin_size)
         self.output_size = output_size
     '''
-    bboxes:[batch_size,nr,4]
-    net:[batch_size,X,4]
+    bboxes:[batch_size,X,4]
+    net:[batch_size,H,W,C]
     输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
     '''
     def __call__(self, net,bboxes):
@@ -81,6 +81,45 @@ class WROIAlign:
             if self.bin_size[0]>1 and self.bin_size[1]>1:
                 net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
                                  padding="SAME")
+            return net
+
+class WROIAlignRotated:
+    '''
+    bin_size:(h,w)每一个格子的大小
+
+    '''
+    def __init__(self,bin_size=[2,2],output_size=[7,7]):
+        assert(len(bin_size)>=2)
+        self.bin_size = list(bin_size)
+        self.output_size = output_size
+    def make_outbox_and_inbox(self,bboxes):
+        raise NotImplementedError("Not implemented.")
+        return bboxes,bboxes
+    '''
+    bboxes:[batch_size,X,5], (ymin,xmin,ymax,xmax,angle(radian))
+    net:[batch_size,H,W,C]
+    输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
+    '''
+    def __call__(self, net,bboxes):
+        with tf.variable_scope("WROIAlignRotated"):
+            pool_height,pool_width = self.output_size
+            if not isinstance(bboxes,tf.Tensor):
+                bboxes = tf.convert_to_tensor(bboxes,dtype=tf.float32)
+            bboxes = tf.reshape(bboxes,[-1,4])
+            width = pool_width*self.bin_size[1]
+            height = pool_height*self.bin_size[0]
+            batch_index = _make_batch_index_for_pooler(bboxes)
+            batch_index = tf.stop_gradient(tf.reshape(batch_index, [-1]))
+            bboxes = tf.stop_gradient(tf.reshape(bboxes, [-1, 4]))
+            angles = bboxes[...,4]
+            angles = tf.reshape(angles,[-1])
+            outboxes,inboxes = self.make_outbox_and_inbox(bboxes,)
+            net = tf.image.crop_and_resize(image=net, boxes=outboxes, box_ind=batch_index, crop_size=[height*4, width*4])
+            net = tf.contrib.image.rotate(net,angles)
+            net = tf.image.crop_and_resize(image=net, boxes=inboxes, box_ind=batch_index, crop_size=[height, width])
+            if self.bin_size[0]>1 and self.bin_size[1]>1:
+                net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
+                                     padding="SAME")
             return net
 
 '''
@@ -169,3 +208,32 @@ def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=Fa
         boxes,labels,nms_indexs,lens = wmlt.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
                                                                      dtype=(tf.float32,tf.int32,tf.int32,tf.int32))
         return boxes,labels,nms_indexs,lens
+
+'''
+paper: Generalized Intersection over Union: A Metric and A Loss for Bounding Box Regression
+GIoU = IoU - (C - (A U B)) / C
+GIoU_Loss = 1 - GIoU
+bboxes0: [...,4] (ymin,xmin,ymax,xmax) or (xmin,ymin,xmax,ymax)
+bboxes1: [...,4] (ymin,xmin,ymax,xmax) or (xmin,ymin,xmax,ymax)
+'''
+def giou(bboxes0, bboxes1,name=None):
+    with tf.name_scope(name,default_name="giou"):
+        # 1. calulate intersection over union
+        area_1 = (bboxes0[..., 2] - bboxes0[..., 0]) * (bboxes0[..., 3] - bboxes0[..., 1])
+        area_2 = (bboxes1[..., 2] - bboxes1[..., 0]) * (bboxes1[..., 3] - bboxes1[..., 1])
+
+        intersection_wh = tf.minimum(bboxes0[..., 2:], bboxes1[..., 2:]) - tf.maximum(bboxes0[..., :2], bboxes1[..., :2])
+        intersection_wh = tf.maximum(intersection_wh, 0)
+
+        intersection = intersection_wh[..., 0] * intersection_wh[..., 1]
+        union = (area_1 + area_2) - intersection
+
+        ious = intersection / tf.maximum(union, 1e-10)
+
+        # 2. (C - (A U B))/C
+        C_wh = tf.maximum(bboxes0[..., 2:], bboxes1[..., 2:]) - tf.minimum(bboxes0[..., :2], bboxes1[..., :2])
+        C_wh = tf.maximum(C_wh, 1e-10)
+        C = C_wh[..., 0] * C_wh[..., 1]
+
+        giou = ious - (C - union) /C
+        return giou

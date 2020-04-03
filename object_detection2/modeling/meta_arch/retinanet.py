@@ -1,14 +1,14 @@
 #coding=utf-8
 import tensorflow as tf
 import wmodule
-from .build import META_ARCH_REGISTRY
+from .build import META_ARCH_REGISTRY,build_outputs
 from object_detection2.modeling.backbone.build import build_backbone
 from object_detection2.modeling.anchor_generator import build_anchor_generator
 from object_detection2.modeling.box_regression import Box2BoxTransform
 from object_detection2.modeling.matcher import Matcher
 import math
 from object_detection2.standard_names import *
-from object_detection2.modeling.onestage_heads.retinanet_head import *
+from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 
@@ -35,7 +35,9 @@ class RetinaNet(MetaArch):
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
 
         self.anchor_generator = build_anchor_generator(cfg,parent=self,*args,**kwargs)
-        self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET, num_anchors=self.anchor_generator.num_cell_anchors,parent=self,
+        self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET,
+                                  num_anchors=self.anchor_generator.num_cell_anchors,
+                                  parent=self,
                                   *args,**kwargs)
 
         # Matching and loss
@@ -76,7 +78,7 @@ class RetinaNet(MetaArch):
         gt_length = batched_inputs[GT_LENGTH]
         gt_labels = batched_inputs[GT_LABELS]
 
-        outputs = RetinaNetOutputs(
+        outputs = build_outputs(name=self.cfg.MODEL.RETINANET.OUTPUTS,
             cfg=self.cfg.MODEL.RETINANET,
             parent=self,
             box2box_transform=self.box2box_transform,

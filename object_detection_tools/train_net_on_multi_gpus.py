@@ -6,7 +6,7 @@ from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
-gpus = [4,5,6]
+gpus = [2,3]
 gpus_str=""
 for g in gpus:
     gpus_str+=str(g)+","
@@ -52,7 +52,7 @@ def main(_):
 
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
-    trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus)
+    trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)
     trainer.resume_or_load()
     return trainer.train()
 

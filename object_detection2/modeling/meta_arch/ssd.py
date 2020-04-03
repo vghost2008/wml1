@@ -8,7 +8,7 @@ from object_detection2.modeling.box_regression import Box2BoxTransform
 from object_detection2.modeling.matcher import Matcher
 import math
 from object_detection2.standard_names import *
-from object_detection2.modeling.onestage_heads.ssd_head import *
+from object_detection2.modeling.onestage_heads.ssd_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 

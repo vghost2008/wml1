@@ -3,18 +3,20 @@ import tensorflow as tf
 import wmodule
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
+from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 import wtfop.wtfop_ops as wop
 import functools
 from object_detection2.datadef import *
 import numpy as np
 import wnn
 import wsummary
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+import wml_tfutils as wmlt
+import object_detection2.wlayers as odl
 
 slim = tf.contrib.slim
 
 @HEAD_OUTPUTS.register()
-class FastRCNNOutputs(wmodule.WChildModule):
+class FastRCNNGIOUOutputs(wmodule.WChildModule):
     """
     A class that stores information about outputs of a Fast R-CNN head.
     """
@@ -81,9 +83,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         #gt_anchor_deltas = self.box2box_transform.get_deltas(self.anchors,self.gt_boxes,gt_objectness_logits_i,indices)
         with tf.name_scope("box_regression_loss"):
-            gt_proposal_deltas = self.box2box_transform.get_deltas_by_proposals_data(self.proposals)
+            gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes,self.proposals.indices)
             batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
             gt_proposal_deltas = tf.reshape(gt_proposal_deltas,[batch_size*box_nr,box_dim])
+            proposal_bboxes = tf.reshape(self.proposals.boxes,[batch_size*box_nr,box_dim])
             cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
             num_classes = self.pred_class_logits.get_shape().as_list()[-1]
             fg_num_classes = num_classes-1
@@ -97,16 +100,15 @@ class FastRCNNOutputs(wmodule.WChildModule):
             fg_inds = tf.greater(self.gt_classes,0)
             gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas,fg_inds)
             pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas,fg_inds)
+            proposal_bboxes = tf.boolean_mask(proposal_bboxes,fg_inds)
             gt_logits_i = tf.boolean_mask(self.gt_classes,fg_inds)
             if not cls_agnostic_bbox_reg:
                 pred_proposal_deltas = tf.reshape(pred_proposal_deltas,[-1,fg_num_classes,box_dim])
                 pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i- 1)
 
-            loss_box_reg = tf.losses.huber_loss(
-                predictions=pred_proposal_deltas, labels=gt_proposal_deltas,
-                loss_collection=None,
-                reduction=tf.losses.Reduction.SUM,
-            )
+            pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas,boxes=proposal_bboxes)
+            loss_box_reg = 1.0 - odl.giou(pred_bboxes, gt_proposal_deltas)
+            loss_box_reg = tf.reduce_sum(loss_box_reg)
             num_samples = wmlt.num_elements(self.gt_classes)
             # The loss is normalized using the total number of regions (R), not the number
             # of foreground regions even though the box regression loss is only defined on

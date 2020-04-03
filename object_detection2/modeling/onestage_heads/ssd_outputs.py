@@ -1,5 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
+from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+import wsummary
 import wml_tfutils as wmlt
 import wnn
 import functools
@@ -9,7 +11,6 @@ from object_detection2.standard_names import *
 import wmodule
 from object_detection2.modeling.sampling import subsample_labels_by_negative_loss
 from .onestage_tools import *
-import wsummary
 from object_detection2.datadef import *
 
 
@@ -35,6 +36,8 @@ def ssd_losses(
     )
     return objectness_loss, localization_loss
 
+
+@HEAD_OUTPUTS.register()
 class SSDOutputs(wmodule.WChildModule):
     def __init__(
         self,

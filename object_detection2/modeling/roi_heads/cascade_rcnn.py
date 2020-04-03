@@ -10,6 +10,7 @@ import wml_tfutils as wmlt
 import wnnlayer as wnnl
 import wsummary
 from object_detection2.odtools import *
+from object_detection2.modeling.meta_arch.build import build_outputs
 
 
 @ROI_HEADS_REGISTRY.register()
@@ -152,7 +153,7 @@ class CascadeROIHeads(StandardROIHeads):
         pred_class_logits, pred_proposal_deltas = self.box_predictor[stage](box_features,scope=f"BoxPredictor{stage}")
         del box_features
 
-        outputs = FastRCNNOutputs(
+        outputs = build_outputs(name=self.cfg.MODEL.ROI_HEADS.OUTPUTS,
             cfg=self.cfg,
             parent=self,
             box2box_transform=self.box2box_transform[stage],

@@ -6,6 +6,7 @@ import numpy as np
 import os
 import sys
 import random
+import basic_tftools as btf
 sys.path.append(os.path.dirname(__file__))
 import math
 import object_detection.wmath as wmath
@@ -279,7 +280,7 @@ def npto_cyxhw(data):
 对data的shape没有限制
 '''
 def to_cxyhw(data):
-    old_shape = tf.shape(data)
+    old_shape = btf.combined_static_and_dynamic_shape(data)
     data = tf.reshape(data,[-1,4])
     data = tf.transpose(data,perm=[1,0])
     ymin,xmin,ymax,xmax = tf.unstack(data,axis=0)
@@ -295,7 +296,7 @@ def to_cxyhw(data):
 将以cy,cx,h,w表示的box转换为以ymin,xmin,ymax,xmax表示的box
 '''
 def to_yxminmax(data):
-    old_shape = tf.shape(data)
+    old_shape = btf.combined_static_and_dynamic_shape(data)
     data = tf.reshape(data,[-1,4])
     data = tf.transpose(data,perm=[1,0])
     cy, cx, h, w = tf.unstack(data,axis=0)
@@ -459,6 +460,7 @@ def decode_boxes(boxes,
     bboxes = tf.stack([ymin,xmin,ymax,xmax],axis=0)
     bboxes = tf.transpose(bboxes,perm=[1,0])
     bboxes = tf.reshape(bboxes, l_shape)
+    bboxes = tf.clip_by_value(bboxes,0.0,1.0)
     return bboxes
 
 '''

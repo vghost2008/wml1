@@ -875,7 +875,7 @@ def deform_conv2d(inputs,
             outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
             outputs = activation_fn(outputs)
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
-
+'''
 @add_arg_scope
 def deform_conv2dv2(inputs,
                   num_outputs,
@@ -895,5 +895,6 @@ def deform_conv2dv2(inputs,
                              kernel_size=kernel_size,
                              num_outputs=num_outputs,
                              deformable_group=deformable_group,**kwargs)
+'''
 
 

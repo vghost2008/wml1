@@ -7,7 +7,7 @@ MODEL:
     OUT_FEATURES: ["P2", "P3", "P4"]
   FPN:
     IN_FEATURES: ["C2", "C3", "C4"]
-    BACKBONE_HOOK: ("","DeformConvBackboneHook")
+    BACKBONE_HOOK: ("","")
   ANCHOR_GENERATOR:
     SIZES: [[32], [64], [128]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)

@@ -5,6 +5,7 @@ import basic_tftools as btf
 import semantic.visualization_utils as visu
 import numpy as np
 import cv2
+import sys
 
 def __draw_detection_image_summary(images,
                            boxes,
@@ -254,15 +255,17 @@ def get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
     dtype = masks.dtype
 
     res_masks = []
+    boxes = np.clip(boxes,0.0,1.0)
     for i,bbox in enumerate(boxes):
         x = int(bbox[1]*size[1])
         y = int(bbox[0]*size[0])
         w = int((bbox[3]-bbox[1])*size[1])
         h = int((bbox[2]-bbox[0])*size[0])
         res_mask = np.ones(size,dtype=dtype)*mask_bg_value
-        if w>0 and h>0:
+        if w>1 and h>1:
             mask = masks[i]
             mask = cv2.resize(mask,(w,h))
+            sys.stdout.flush()
             res_mask[y:y+h,x:x+w] = mask
         res_masks.append(res_mask)
 

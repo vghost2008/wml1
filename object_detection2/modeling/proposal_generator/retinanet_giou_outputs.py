@@ -1,13 +1,15 @@
 #coding=utf-8
 from object_detection2.modeling.meta_arch.retinanet import RetinaNet as _RetinaNet
-from object_detection2.modeling.onestage_heads.retinanet_head import RetinaNetOutputs as _RetinaNetOutputs
+from object_detection2.modeling.onestage_heads.retinanet_giou_outputs import RetinaNetGIOUOutputs as _RetinaNetOutputs
 import wml_tfutils as wmlt
 import functools
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
 import wtfop.wtfop_ops as wop
+from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 
-class RetinaNetOutputs(_RetinaNetOutputs):
+@HEAD_OUTPUTS.register()
+class PGRetinaNetGIOUOutputs(_RetinaNetOutputs):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent=parent,*args,**kwargs)
 

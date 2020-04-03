@@ -16,6 +16,7 @@ from wtfop.wtfop_ops import wpad
 from object_detection2.datadef import *
 from .keypoint_head import build_keypoint_head
 from object_detection2.odtools import *
+from object_detection2.modeling.meta_arch.build import build_outputs
 
 slim = tf.contrib.slim
 
@@ -396,8 +397,7 @@ class Res5ROIHeads(ROIHeads):
         feature_pooled = tf.reduce_mean(box_features,axis=[1, 2],keep_dims=False)  # pooled to 1x1
         pred_class_logits, pred_proposal_deltas = self.box_predictor(feature_pooled)
         del feature_pooled
-
-        outputs = FastRCNNOutputs(
+        outputs = build_outputs(name=self.cfg.MODEL.ROI_HEADS.OUTPUTS,
             cfg=self.cfg,
             parent=self,
             box2box_transform=self.box2box_transform,
@@ -640,7 +640,7 @@ class StandardROIHeads(ROIHeads):
         pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
         del box_features
 
-        outputs = FastRCNNOutputs(
+        outputs = build_outputs(name=self.cfg.MODEL.ROI_HEADS.OUTPUTS,
             cfg=self.cfg,parent=self,
             box2box_transform=self.box2box_transform,
             pred_class_logits=pred_class_logits,
