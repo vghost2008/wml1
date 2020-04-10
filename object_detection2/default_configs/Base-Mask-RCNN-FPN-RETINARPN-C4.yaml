@@ -10,7 +10,7 @@ MODEL:
     NAME: "RetinaNet"
     OUTPUTS: "PGRetinaNetOutputs"
   RETINANET_PG:
-    FAST_MODE: False
+    FAST_MODE: True
     IN_FEATURES: ["P2","P3","P4"]
 SOLVER:
   IMS_PER_BATCH: 8

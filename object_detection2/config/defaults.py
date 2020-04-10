@@ -290,7 +290,7 @@ _C.MODEL.RETINANET_PG.PRIOR_PROB = 0.01
 _C.MODEL.RETINANET_PG.SCORE_THRESH_TEST = 0.05
 _C.MODEL.RETINANET_PG.TOPK_CANDIDATES_TEST = 1000
 _C.MODEL.RETINANET_PG.NMS_THRESH_TEST = 0.5
-_C.MODEL.RETINANET_PG.FAST_MODE = False
+_C.MODEL.RETINANET_PG.FAST_MODE = True
 
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options
@@ -529,6 +529,49 @@ _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 
 
 # ---------------------------------------------------------------------------- #
+# RetinaNet Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.YOLACT = CN()
+
+# This is the number of foreground classes.
+_C.MODEL.YOLACT.NUM_CLASSES = 80
+
+_C.MODEL.YOLACT.IN_FEATURES = ["P3", "P4", "P5", "P6"]
+
+# Convolutions to use in the cls and bbox tower
+# NOTE: this doesn't include the last conv for logits
+_C.MODEL.YOLACT.NUM_CONVS = 4
+
+# IoU overlap ratio [bg, fg] for labeling anchors.
+# Anchors with < bg are labeled negative (0)
+# Anchors  with >= bg and < fg are ignored (-1)
+# Anchors with >= fg are labeled positive (1)
+_C.MODEL.YOLACT.IOU_THRESHOLDS = [0.4, 0.5]
+_C.MODEL.YOLACT.IOU_LABELS = [0, -1, 1]
+
+# Prior prob for rare case (i.e. foreground) at the beginning of training.
+# This is used to set the bias for the logits layer of the classifier subnet.
+# This improves training stability in the case of heavy class imbalance.
+_C.MODEL.YOLACT.PRIOR_PROB = 0.01
+
+# Inference cls score threshold, only anchors with score > INFERENCE_TH are
+# considered for inference (to improve speed)
+_C.MODEL.YOLACT.SCORE_THRESH_TEST = 0.05
+_C.MODEL.YOLACT.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.YOLACT.NMS_THRESH_TEST = 0.5
+
+# Weights on (dx, dy, dw, dh) for normalizing Retinanet anchor regression targets
+_C.MODEL.YOLACT.BBOX_REG_WEIGHTS = (1.0, 1.0, 1.0, 1.0)
+
+# Loss parameters
+_C.MODEL.YOLACT.FOCAL_LOSS_GAMMA = 2.0
+_C.MODEL.YOLACT.FOCAL_LOSS_ALPHA = 0.25
+_C.MODEL.YOLACT.SMOOTH_L1_LOSS_BETA = 0.1
+_C.MODEL.YOLACT.PROTONET_NR = 32
+_C.MODEL.YOLACT.MASK_SIZE = 63
+_C.MODEL.YOLACT.MASK_THRESHOLD = 0.1
+_C.MODEL.YOLACT.OUTPUTS = "YOLACTOutputs"
+# ---------------------------------------------------------------------------- #
 # ResNe[X]t options (ResNets = {ResNet, ResNeXt}
 # Note that parts of a resnet may be used for both the backbone and the head
 # These options apply to both
@@ -591,9 +634,7 @@ _C.SOLVER.GAMMA = 0.1
 # The iteration number to decrease learning rate by GAMMA.
 _C.SOLVER.STEPS = (30000,)
 
-_C.SOLVER.WARMUP_FACTOR = 1.0 / 1000
 _C.SOLVER.WARMUP_ITERS = 1000
-_C.SOLVER.WARMUP_METHOD = "linear"
 
 # Save a checkpoint after every this number of iterations
 _C.SOLVER.CHECKPOINT_PERIOD = 5000
@@ -672,6 +713,5 @@ _C.GLOBAL.PROJ_NAME = "Demon"
 _C.GLOBAL.SUMMARY_LEVEL = 0
 _C.GLOBAL.LOG_STEP = 100
 _C.GLOBAL.SAVE_STEP = 200
-_C.GLOBAL.WARMUP_STEPS = 0
 _C.log_dir = ""
 _C.ckpt_dir = ""

@@ -1,1 +1,1 @@
-from . import rcnn,retinanet,ssd
+from . import rcnn,retinanet,ssd,yolact

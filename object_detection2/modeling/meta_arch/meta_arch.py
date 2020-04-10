@@ -72,7 +72,10 @@ class MetaArch(wmodule.WModule):
             for i in range(masks.shape[0]):
                 wmli.imsave(wmlu.home_dir(f"IMG_{i}_PRED.jpg"),masks[i]*255)
             '''
-            masks = (masks>0.5).astype(np.uint8)
+            if (masks.dtype != np.uint8) and (masks.dtype != np.bool):
+                masks = (masks>0.5).astype(np.uint8)
+            if masks.dtype == np.bool:
+                masks = masks.astype(np.uint8)
             kwargs['masks'] = masks
 
         evaler(**kwargs)

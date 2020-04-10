@@ -827,6 +827,7 @@ def batch_indices_to_mask(indices,lens,size):
     return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(indices,lens),dtype=(tf.bool,tf.int32),back_prop=False)
 
 '''
+每一个element分别执行boolean mask并pad到size大小
 data:[N,X]
 mask:[N,X]
 size:()
@@ -844,6 +845,43 @@ def batch_boolean_mask(data,mask,size):
         d = tf.pad(d,padding)
         return d
     return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
+
+'''
+每一个element分别执行boolean mask并 concat在一起
+data:[N,X]
+mask:[N,X]
+N must be full defined
+return:
+[Y]
+'''
+def batch_boolean_maskv2(data,mask):
+    if not isinstance(data,tf.Tensor):
+        data = tf.convert_to_tensor(data)
+    res = []
+    shape = btf.combined_static_and_dynamic_shape(data)
+    for i in range(shape[0]):
+        res.append(tf.boolean_mask(data[i],mask[i]))
+    return tf.concat(res,axis=0)
+
+'''
+每一个element先用indices gather再执行boolean mask并 concat在一起
+data:[M,X]
+indices:[N,X]
+mask:[N,X]
+N must be full defined
+return:
+[Y]
+'''
+def batch_boolean_maskv3(data,indices,mask):
+    if not isinstance(data,tf.Tensor):
+        data = tf.convert_to_tensor(data)
+    res = []
+    shape = btf.combined_static_and_dynamic_shape(data)
+    for i in range(shape[0]):
+        indx = tf.boolean_mask(indices[i],mask[i])
+        d = tf.gather(data[i],indx)
+        res.append(d)
+    return tf.concat(res,axis=0)
 
 def Print(data,*inputs,**kwargs):
     op = tf.print(*inputs,**kwargs)

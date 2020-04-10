@@ -1,1 +1,1 @@
-from . import retinanet_outputs,retinanet_giou_outputs,ssd_outputs
+from . import retinanet_outputs,retinanet_giou_outputs,ssd_outputs,yolact_outputs

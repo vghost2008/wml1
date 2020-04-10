@@ -13,7 +13,8 @@ def detection_image_summary_with_croped_mask(images,
                            **kwargs):
     if instance_masks is not None:
         shape = btf.combined_static_and_dynamic_shape(images)
-        instance_masks = tf.cast(instance_masks > 0.5, tf.float32)
+        if instance_masks.dtype != tf.uint8 and instance_masks.dtype != tf.bool:
+            instance_masks = tf.cast(instance_masks > 0.5, tf.float32)
         instance_masks = imv.batch_tf_get_fullsize_mask(boxes=boxes,
                                                         masks=instance_masks,
                                                         size=shape[1:3]
@@ -205,9 +206,10 @@ def image_summaries_with_label(img,label,name,max_outputs=3,scale=True):
                   lambda:img)
     tf.summary.image(name,img,max_outputs=max_outputs)
 
-def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hsv=False):
+def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,resize=False,is_hsv=False):
     with tf.name_scope(name):
         is_channel_equal = True
+        shape = btf.combined_static_and_dynamic_shape(imgs[0])
         log_image = tf.identity(imgs[0][:max_outputs])
         channel = log_image.get_shape().as_list()[-1]
         for i in range(1,len(imgs)):
@@ -220,6 +222,8 @@ def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hs
         for i in range(1,len(imgs)):
             log_image = tf.pad(log_image, paddings=[[0, 0], [0, 0], [0, margin], [0, 0]])
             img = imgs[i][:max_outputs]
+            if resize:
+                img = tf.image.resize_nearest_neighbor(img,size=shape[1:3])
             if not is_channel_equal:
                 if img.get_shape().as_list()[-1] == 1:
                     img = tf.tile(img,[1,1,1,3])
@@ -231,4 +235,18 @@ def row_image_summaries(imgs,name="image_contrast",max_outputs=3,margin=10,is_hs
 def positive_box_on_images_summary(image,boxes,pmasks,name="positive_box_on_images_summary"):
     image = imv.draw_positive_box_on_images(image,boxes,pmasks)
     image_summaries(image,name)
+
+@btf.add_name_scope
+def feature_map_summary(feature_map,name="feature_map",max_outputs=None):
+    data = feature_map[0]
+    if max_outputs is None:
+        max_outputs = feature_map.get_shape().as_list()[-1]
+    data = tf.transpose(data,[2,0,1])
+    data = tf.expand_dims(data,axis=-1)
+    min = tf.reduce_min(data)
+    max = tf.reduce_max(data)
+    data = (data-min)/(max-min+1e-8)
+    tf.summary.image(name,data,max_outputs=max_outputs)
+
+
 

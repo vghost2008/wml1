@@ -11,6 +11,10 @@ IS_CROWD = 'is_crowd'
 MASK_AREA = "mask_area"
 ORG_HEIGHT = "org_height"
 ORG_WIDTH = "org_width"
+LOGITS = "logits"
+BOXES_REGS = "box_regs"
+SEMANTIC = "semantic"
+COEFFICIENT = "coefficient"
 
 GT_BOXES = 'gt_boxes'
 GT_LENGTH = 'gt_length'

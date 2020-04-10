@@ -326,7 +326,8 @@ class SimpleTrainer(TrainerBase):
             steps = self.cfg.SOLVER.STEPS
             print("Train steps:",steps)
             lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
-                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=1000)
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,
+                                     warmup_steps=self.cfg.SOLVER.WARMUP_ITERS)
             tf.summary.scalar("lr", lr)
             opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)
             self.max_train_step = steps[-1]
@@ -359,7 +360,8 @@ class SimpleTrainer(TrainerBase):
         steps = self.cfg.SOLVER.STEPS
         print("Train steps:",steps)
         lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
-                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,warmup_steps=self.cfg.GLOBAL.WARMUP_STEPS)
+                                     lr_decay_type="piecewise",steps=steps,decay_factor=0.1,
+                                     warmup_steps=self.cfg.SOLVER.WARMUP_ITERS)
         tf.summary.scalar("lr",lr)
         self.max_train_step = steps[-1]
         opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)

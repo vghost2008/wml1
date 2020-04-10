@@ -34,11 +34,20 @@ def r1_regularizer(images,D_fn,r1_lambda=10,scope=None):
     print("Discriminative R1 regularizer loss.")
     with tf.name_scope(scope,"R1regularizer"):
         a_logits_t = D_fn(images=images)
-        gradients = tf.gradients(a_logits_t, [images])[0]
-        axis = np.arange(1, gradients.get_shape().ndims) if gradients.get_shape().ndims is not 1 else None
-        l2_squqred_grads = tf.reduce_sum(tf.square(gradients),axis=axis)
+        if not isinstance(images,list):
+            images = [images]
+        gradients = tf.gradients(a_logits_t, images,stop_gradients=images)
+        res = []
+        for gradient in gradients:
+            axis = np.arange(1, gradient.get_shape().ndims) if gradient.get_shape().ndims is not 1 else None
+            l2_squqred_grads = tf.reduce_sum(tf.square(gradient),axis=axis)
+            res.append(l2_squqred_grads)
+        if len(res) == 1:
+            res = res[0]
+        else:
+            res = tf.add_n(res)
         #slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
-        gradient_penalty = l2_squqred_grads*0.5
+        gradient_penalty = res*0.5
         a_loss = r1_lambda * gradient_penalty
         wml.variable_summaries_v2(a_loss,"r1_loss")
         return a_loss

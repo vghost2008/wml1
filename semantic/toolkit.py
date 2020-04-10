@@ -10,35 +10,39 @@ import semantic.visualization_utils as visu
 import image_visualization as ivs
 import cv2
 from semantic.visualization_utils import MIN_RANDOM_STANDARD_COLORS
+import basic_tftools as btf
 
 '''
 mask:[N,height,width]
 labels:[N]
-num_classes:()
+num_classes:() not include background 
 return:
 [num_classes,height,width]
 '''
-'''def sparse_mask_to_dense(mask,labels,num_classes):
+def sparse_mask_to_dense(mask,labels,num_classes,no_background=True):
     with tf.variable_scope("SparseMaskToDense"):
         if mask.dtype is not tf.bool:
             mask = tf.cast(mask,tf.bool)
-        if mask.get_shape().is_fully_defined():
-            shape = mask.get_shape().as_list()
+        shape = btf.combined_static_and_dynamic_shape(mask)
+        if no_background:
+            out_shape = [num_classes,shape[1],shape[2]]
+            labels = labels-1
         else:
-            shape = tf.shape(mask)
-
-        out_shape = [num_classes,shape[0],shape[1]]
+            out_shape = [num_classes+1, shape[1], shape[2]]
         init_res = tf.zeros(shape=out_shape,dtype=tf.bool)
-        nr = tf.shape(labels)[0]
-        indexs = tf.range(nr)
 
-        mask = tf.transpose(mask,perm=[2,0,1])
-        def fn(data,index):
-            tmp_data = set_value(tensor=init_res,v=mask[index],index=labels[index])
-            return tf.logical_or(data,tmp_data)
-        res = tf.foldl(fn,elems=indexs,initializer=None,back_prop=False)
-        res = tf.transpose(res,perm=[1,2,0])
-        return res'''
+        def fn(merged_m,m,l):
+            tmp_data = set_value(tensor=init_res,v=m,index=l)
+            return tf.logical_or(merged_m,tmp_data)
+        res = tf.foldl(lambda x,y:fn(x,y[0],y[1]),elems=(mask,labels),initializer=init_res,back_prop=False)
+        return res
+
+def batch_sparse_mask_to_dense(mask,labels,lens,num_classes,no_background=True):
+    def fn(mask,labels,l):
+        mask = mask[:l]
+        labels = labels[:l]
+        return sparse_mask_to_dense(mask,labels,num_classes,no_background=no_background)
+    return tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=[mask,labels,lens],back_prop=False,dtype=tf.bool)
 
 '''
 image:[height,width,3]

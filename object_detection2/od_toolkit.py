@@ -83,3 +83,4 @@ def fusion(feature_maps,depth=None,scope=None):
                 raise RuntimeError("Depth must be equal.")
             out_feature_maps.append(net*ws[i]/sum_w)
         return tf.add_n(out_feature_maps)
+
