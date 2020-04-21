@@ -15,6 +15,7 @@ import wml_utils as wmlu
 import image_visualization as ivs
 import basic_tftools as btf
 from .meta_arch import MetaArch
+from object_detection2.data.dataloader import DataLoader
 
 @META_ARCH_REGISTRY.register()
 class GeneralizedRCNN(MetaArch):
@@ -81,7 +82,8 @@ class GeneralizedRCNN(MetaArch):
                                          boxes=results[RD_BOXES], classes=results[RD_LABELS],
                                          lengths=results[RD_LENGTH],
                                          scores=results[RD_PROBABILITY],
-                                         name="RCNN_result")
+                                         name="RCNN_result",
+                                         category_index=DataLoader.category_index)
 
         losses = {}
         losses.update(detector_losses)

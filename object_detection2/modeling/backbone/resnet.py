@@ -24,10 +24,8 @@ class ResNet(Backbone):
             train_bn = True
         with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
                                              is_training=train_bn)):
-            with slim.arg_scope([slim.batch_norm, slim.dropout],
-                                is_training=self.is_training):
-                with tf.variable_scope("FeatureExtractor"):
-                    _,end_points = resnet_v1_50(x['image'],output_stride=None)
+            with tf.variable_scope("FeatureExtractor"):
+                _,end_points = resnet_v1_50(x['image'],output_stride=None)
 
         self.end_points = end_points
 

@@ -13,6 +13,7 @@ from object_detection2.config.config import global_cfg
 from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
 import wsummary
 import semantic.toolkit as smt
+from object_detection2.data.dataloader import DataLoader
 
 
 @HEAD_OUTPUTS.register()
@@ -262,14 +263,16 @@ class YOLACTOutputs(wmodule.WChildModule):
                                              lengths=outdata[RD_LENGTH],
                                              instance_masks=outdata[RD_MASKS],
                                              scores=outdata[RD_PROBABILITY],
-                                              name="YOLACT_result")
+                                              name="YOLACT_result",
+                                             category_index=DataLoader.category_index)
             wsummary.detection_image_summary_with_croped_mask(images=tf.zeros_like(inputs[IMAGE]),
                                                           boxes=outdata[RD_BOXES],
                                                           classes=outdata[RD_LABELS],
                                                           lengths=outdata[RD_LENGTH],
                                                           instance_masks=outdata[RD_MASKS],
                                                           scores=outdata[RD_PROBABILITY],
-                                                          name="YOLACT_only_mask_result")
+                                                          name="YOLACT_only_mask_result",
+                                                          category_index = DataLoader.category_index)
         return outdata
 
     @wmlt.add_name_scope

@@ -17,7 +17,20 @@ class MetaArch(wmodule.WModule):
         Normalize, pad and batch the input images.
         """
         with tf.name_scope("preprocess_image"):
-            batched_inputs[IMAGE] = (batched_inputs[IMAGE]-127.5)/127.5
+            b_img = batched_inputs[IMAGE]
+            if self.cfg.MODEL.PREPROCESS == "ton1p1":
+                b_img = (b_img-127.5)/127.5
+            elif self.cfg.MODEL.PREPROCESS == "subimagenetmean":
+                channel_means = [123.68, 116.779, 103.939]
+                b_img = b_img-[[[channel_means]]]
+            elif self.cfg.MODEL.PREPROCESS == "standardization":
+                b_img = tf.image.per_image_standardization(b_img)
+            elif self.cfg.MODEL.PREPROCESS == "standardization":
+                pass
+            else:
+                raise ValueError(f"Error preprocess type {self.cfg.MODEL.PREPROCESS}")
+
+            batched_inputs[IMAGE] = b_img
             return batched_inputs
 
     def _postprocess(self,instances, batched_inputs):

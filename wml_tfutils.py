@@ -776,22 +776,65 @@ def assert_shape_equal(v,values,name=None):
     return assert_equal(v,shapes,name=name)
 
 '''
+image:[batch_size,H,W,C]/[H,W,C]
+bboxes:[batch_size,X,4]/[X,4] (ymin,xmin,ymax,xmax) in [0,1]
+length::[batch_size]
+size:(H,W)
+output:
+[box_nr,size[0],size[1],C]
+'''
+def tf_crop_and_resizev2(image,bboxes,size,lengths=None):
+    if len(image.get_shape())==3:
+        assert len(bboxes.get_shape())==2, "error box shape"
+        image = tf.expand_dims(image,axis=0)
+        bboxes = tf.expand_dims(bboxes,axis=0)
+    assert len(image.get_shape())==4,"error image shape"
+    assert len(bboxes.get_shape())==3,"error bboxes shape"
+    B,H,W,C = btf.combined_static_and_dynamic_shape(image)
+    _,X,_ = btf.combined_static_and_dynamic_shape(bboxes)
+    bboxes = tf.reshape(bboxes,[B*X,4])
+
+    index = tf.range(B)
+    index = tf.tile(tf.reshape(index,[B,1]),[1,X])
+    index = tf.reshape(index,[-1])
+    if lengths is not None:
+        mask = tf.sequence_mask(lengths,maxlen=X)
+        mask = tf.reshape(mask,[-1])
+        bboxes = tf.boolean_mask(bboxes,mask)
+        index = tf.boolean_mask(index,mask)
+    images = tf.image.crop_and_resize(image,bboxes,index,size)
+    return images
+'''
 image:[batch_size,X,H,W,C]/[X,H,W,C]
 bboxes:[batch_size,X,4]/[X,4] (ymin,xmin,ymax,xmax) in [0,1]
 size:(H,W)
+lengths: [batch_size]
 output:
 [batch_size,box_nr,size[0],size[1],C]/ [box_nr,size[0],size[1],C]
+or [Y,size[0],size[1],C] if lengths is not None
 '''
-def tf_crop_and_resize(image,bboxes,size):
+def tf_crop_and_resize(image,bboxes,size,lengths=None):
     if len(image.get_shape()) == 4:
         image = tf.expand_dims(image,axis=0)
         bboxes = tf.expand_dims(bboxes,axis=0)
         return tf.squeeze(batch_tf_crop_and_resize(image,bboxes,size),axis=0)
     elif len(image.get_shape()) == 5:
-        return batch_tf_crop_and_resize(image,bboxes,size)
+        res = batch_tf_crop_and_resize(image,bboxes,size)
+        if lengths is not None:
+            B,X,H,W,C = btf.combined_static_and_dynamic_shape(image)
+            mask = tf.reshape(tf.sequence_mask(lengths,X),[-1])
+            res = tf.reshape(res,[-1,size[0],size[1],C])
+            res = tf.boolean_mask(res,mask)
+        return res
     else:
         raise Exception("Error image ndims.")
-
+'''
+image:[batch_size,X,H,W,C]
+bboxes:[batch_size,X,4] (ymin,xmin,ymax,xmax) in [0,1]
+size:(H,W)
+output:
+[batch_size,box_nr,size[0],size[1],C]
+'''
 def batch_tf_crop_and_resize(image,bboxes,size):
     img_shape = btf.combined_static_and_dynamic_shape(image)
     batch_size = img_shape[0]
@@ -806,6 +849,7 @@ def batch_tf_crop_and_resize(image,bboxes,size):
     shape = btf.combined_static_and_dynamic_shape(images)
     images = reshape(images,[batch_size,box_nr]+shape[1:])
     return images
+
 mask_to_indices = btf.mask_to_indices
 
 def indices_to_mask(indices,size):

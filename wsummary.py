@@ -82,7 +82,7 @@ def detection_image_summary(images,
       classes are 1-indexed.
     scores: [N, max_detections] float32 tensor of detection scores.
     category_index: a dict that maps integer ids to category dicts. e.g.
-      {1: {'name': 'dog'}, 2: {'name': 'cat'}, ...}
+      {1:  'dog', 2:'cat', ...}
     instance_masks: A 4D uint8 tensor of shape [N, max_detection, H, W] with
       instance masks.
     keypoints: A 4D float32 tensor of shape [N, max_detection, num_keypoints, 2]

@@ -6,6 +6,7 @@ import semantic.visualization_utils as visu
 import numpy as np
 import cv2
 import sys
+import wtfop.wtfop_ops as wop
 
 def __draw_detection_image_summary(images,
                            boxes,
@@ -25,7 +26,7 @@ def __draw_detection_image_summary(images,
       classes are 1-indexed.
     scores: None or [N, max_detections] float32 tensor of detection scores.
     category_index: a dict that maps integer ids to category dicts. e.g.
-      {1: {'name': 'dog'}, 2: {'name': 'cat'}, ...}
+      {1: 'dog', 2: 'cat', ...}
     instance_masks: A 4D uint8 tensor of shape [N, max_detection, H, W] with
       instance masks.
     keypoints: A 4D float32 tensor of shape [N, max_detection, num_keypoints, 2]
@@ -56,7 +57,7 @@ def __draw_detection_image_summary(images,
   if category_index is None:
     category_index = {}
     for i in range(100):
-      category_index[i] = {'name':str(i)}
+      category_index[i] = str(i)
 
   if classes is None:
       classes = tf.ones(tf.shape(boxes)[:2],dtype=tf.int32)
@@ -241,10 +242,11 @@ shape=[N,H,W]
 '''
 @btf.add_name_scope
 def tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
-    res = tf.py_func(get_fullsize_mask,[boxes,masks,size,mask_bg_value],Tout=masks.dtype)
+    return wop.full_size_mask(mask=masks,bboxes=boxes,size=size)
+    '''res = tf.py_func(get_fullsize_mask,[boxes,masks,size,mask_bg_value],Tout=masks.dtype)
     N,h,w = btf.combined_static_and_dynamic_shape(masks)
     H,W = size[0],size[1]
-    return tf.reshape(res,[N,H,W])
+    return tf.reshape(res,[N,H,W])'''
 
 '''
 bboxes:[(ymin,xmin,ymax,xmax),....] value in range[0,1]

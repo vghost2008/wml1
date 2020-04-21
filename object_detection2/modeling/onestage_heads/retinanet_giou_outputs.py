@@ -12,6 +12,7 @@ from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
 import object_detection2.wlayers as odl
 from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.data.dataloader import DataLoader
 import wsummary
 
 
@@ -189,7 +190,8 @@ class RetinaNetGIOUOutputs(wmodule.WChildModule):
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
                                              lengths=outdata[RD_LENGTH],
                                              scores=outdata[RD_PROBABILITY],
-                                              name="RetinaNetGIou_result")
+                                              name="RetinaNetGIou_result",
+                                             category_index=DataLoader.category_index)
         return outdata
 
     @wmlt.add_name_scope

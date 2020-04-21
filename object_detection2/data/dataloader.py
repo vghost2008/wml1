@@ -5,14 +5,15 @@ import wsummary
 import tensorflow as tf
 
 class DataLoader(wmodule.WModule):
+    category_index = None
     def __init__(self,cfg,*args,**kwargs):
-        super().__init__(cfg,*args,**kwargs)
+        super().__init__(cfg=cfg,*args,**kwargs)
         if self.is_training:
             self.trans_on_single_img = [trans.MaskNHW2HWN(),
                                         #trans.ResizeToFixedSize(),
                                         trans.RandomFlipLeftRight(),
-                                        trans.RandomFlipUpDown(),
-                                        trans.RandomRotate(clockwise=True),
+                                        #trans.RandomFlipUpDown(),
+                                        #trans.RandomRotate(clockwise=True),
                                         #trans.RandomRotate(clockwise=False), 因为已经有了上下及左右翻转的辅助，已经可以覆盖每一个角度
                                         trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TRAIN,
                                                                  max_size=self.cfg.INPUT.MAX_SIZE_TRAIN,
@@ -53,7 +54,7 @@ class DataLoader(wmodule.WModule):
             res[k] = shape
         return res
 
-    def load_data(self,path,func,num_classes,batch_size=None,is_training=True):
+    def load_data(self,path,func,num_classes,category_index,batch_size=None,is_training=True):
         print("Trans on single img:",self.trans_on_single_img)
         data = func(path,transforms=self.trans_on_single_img)
         if is_training:
@@ -62,6 +63,7 @@ class DataLoader(wmodule.WModule):
             data = data.shuffle(batch_size*4)
         else:
             batch_size = 1 if batch_size is None else batch_size
+        DataLoader.category_index = category_index
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
         print("Trans on batch img:",self.trans_on_batch_img)
         if len(self.trans_on_batch_img) == 1:
@@ -74,7 +76,6 @@ class DataLoader(wmodule.WModule):
 
     @staticmethod
     def detection_image_summary(inputs,
-                           category_index=None,
                            max_boxes_to_draw=20,
                            min_score_thresh=0.2,name="detection_image_summary",max_outputs=3,show_mask=True):
         image = inputs.get('image',None)
@@ -92,13 +93,13 @@ class DataLoader(wmodule.WModule):
         if instance_masks is not None and show_mask:
             wsummary.detection_image_summary(image,
                                              boxes,classes,instance_masks=instance_masks,
-                                             lengths=lengths,category_index=category_index,
+                                             lengths=lengths,category_index=DataLoader.category_index,
                                              max_boxes_to_draw=max_boxes_to_draw,
                                              min_score_thresh=min_score_thresh,
                                              name=name)
         else:
             wsummary.detection_image_summary(image,boxes,classes,
-                                             lengths=lengths,category_index=category_index,
+                                             lengths=lengths,category_index=DataLoader.category_index,
                                              max_boxes_to_draw=max_boxes_to_draw,
                                              min_score_thresh=min_score_thresh,
                                              name=name)

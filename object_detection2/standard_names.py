@@ -48,3 +48,6 @@ RD_MASK_AREA = MASK_AREA
 PD_BOXES = "boxes"
 PD_PROBABILITY = PROBABILITY
 
+
+GRADIENT_DEBUG_COLLECTION = "gradient_debug_collection"
+

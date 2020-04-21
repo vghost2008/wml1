@@ -11,6 +11,7 @@ from .onestage_tools import *
 from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
 from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.data.dataloader import DataLoader
 import wsummary
 
 
@@ -183,7 +184,8 @@ class RetinaNetOutputs(wmodule.WChildModule):
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
                                              lengths=outdata[RD_LENGTH],
                                              scores=outdata[RD_PROBABILITY],
-                                              name="RetinaNet_result")
+                                              name="RetinaNet_result",
+                                             category_index=DataLoader.category_index)
         return outdata
 
     @wmlt.add_name_scope

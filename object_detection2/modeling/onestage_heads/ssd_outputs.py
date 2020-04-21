@@ -12,6 +12,8 @@ import wmodule
 from object_detection2.modeling.sampling import subsample_labels_by_negative_loss
 from .onestage_tools import *
 from object_detection2.datadef import *
+from object_detection2.config.config import global_cfg
+from object_detection2.data.dataloader import DataLoader
 
 
 
@@ -199,7 +201,8 @@ class SSDOutputs(wmodule.WChildModule):
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
                                              scores=outdata[RD_PROBABILITY],
                                              lengths=outdata[RD_LENGTH],
-                                             name="SSD_result")
+                                             name="SSD_result",
+                                             category_index=DataLoader.category_index)
         return outdata
 
     @wmlt.add_name_scope

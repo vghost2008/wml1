@@ -165,6 +165,7 @@ class TrainerBase:
                 self.model.doeval(evaler,results)
                 if self.step %self.show_eval_results_step == 0:
                     evaler.show()
+                    pass
                 self.after_step()
         except Exception:
             logger.exception("Exception during training:")
@@ -294,7 +295,7 @@ class SimpleTrainer(TrainerBase):
         # config.gpu_options.allow_growth = True
         self.top_variable_name_scope = "Model"
 
-        print("Update ops.")
+        print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
     def build_net(self):
@@ -337,6 +338,7 @@ class SimpleTrainer(TrainerBase):
             wmlu.show_list(self.variables_to_train)
             for v in self.variables_to_train:
                 wsummary.histogram_or_scalar(v,v.name[:-2])
+            wnn.log_moving_variable()
 
             self.saver = tf.train.Saver()
             tf.summary.scalar("total_loss",self.total_loss)
@@ -345,7 +347,7 @@ class SimpleTrainer(TrainerBase):
         self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
         init = tf.global_variables_initializer()
         self.sess.run(init)
-        print("Update ops.")
+        print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
     def build_net_run_on_multi_gpus(self):
@@ -375,6 +377,7 @@ class SimpleTrainer(TrainerBase):
                 with tf.device(":/cpu:0"):
                     data = self.data.get_next()
                     DataLoader.detection_image_summary(data,name=f"data_source{i}")
+                                                       
                 self.input_data = data
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
                     self.res_data,loss_dict = self.model.forward(data)
@@ -386,9 +389,19 @@ class SimpleTrainer(TrainerBase):
                     loss_values.append(v)
 
                 scope._reuse = tf.AUTO_REUSE
+                '''if (i==0) and len(tf.get_collection(GRADIENT_DEBUG_COLLECTION))>0:
+                    total_loss_sum = tf.add_n(loss_values)
+                    xs = tf.get_collection(GRADIENT_DEBUG_COLLECTION)
+                    grads = tf.gradients(total_loss_sum,xs)
+                    grads = [tf.reduce_sum(tf.abs(x)) for x in grads]
+                    loss_values[0] = tf.Print(loss_values[0],grads+["grads"],summarize=100)'''
+
                 grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_values)
                 tower_grads.append(grads)
-        avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
+        if self.cfg.SOLVER.CLIP_NORM>1:
+            avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
+        else:
+            avg_grads = wnn.average_grads(tower_grads, clip_norm=None)
         opt0 = wnn.apply_gradientsv3(avg_grads, self.global_step, opt)
         opt1 = wnn.get_batch_norm_ops()
         self.train_op = tf.group(opt0, opt1)
@@ -408,6 +421,7 @@ class SimpleTrainer(TrainerBase):
         wmlu.show_list(self.variables_to_train)
         for v in self.variables_to_train:
             wsummary.histogram_or_scalar(v,v.name[:-2])
+        wnn.log_moving_variable()
 
         self.saver = tf.train.Saver()
         tf.summary.scalar("total_loss",self.total_loss)
@@ -416,7 +430,7 @@ class SimpleTrainer(TrainerBase):
         self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
         init = tf.global_variables_initializer()
         self.sess.run(init)
-        print("Update ops.")
+        print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
     def resume_or_load(self,ckpt_path=None,sess=None,**kwargs):

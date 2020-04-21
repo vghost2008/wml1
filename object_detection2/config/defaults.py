@@ -11,7 +11,7 @@ _C.MODEL.KEYPOINT_ON = False
 _C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
 _C.MODEL.MIN_BOXES_AREA_TEST = 0.
-
+_C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
 _C.MODEL.WEIGHTS = ""
 
 # Values to be used for image normalization (BGR order, since INPUT.FORMAT defaults to BGR).
@@ -526,6 +526,7 @@ _C.MODEL.RETINANET.FOCAL_LOSS_GAMMA = 2.0
 _C.MODEL.RETINANET.FOCAL_LOSS_ALPHA = 0.25
 _C.MODEL.RETINANET.SMOOTH_L1_LOSS_BETA = 0.1
 _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
+_C.MODEL.RETINANET.NORM = "BN"
 
 
 # ---------------------------------------------------------------------------- #

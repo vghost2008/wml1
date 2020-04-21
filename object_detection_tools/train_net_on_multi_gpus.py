@@ -6,7 +6,8 @@ from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
-gpus = [2,3]
+gpus = [0,1,7]
+gpus = [2,3,4]
 gpus_str=""
 for g in gpus:
     gpus_str+=str(g)+","
@@ -48,13 +49,21 @@ def main(_):
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
+    cfg.DATASETS.NUM_CLASSES = num_classes
+    
     cfg.freeze()
     config.set_global_cfg(cfg)
 
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)
-    trainer.resume_or_load()
+    if len(cfg.MODEL.WEIGHTS) > 3:
+        kwargs = {
+            "only_scope": "FeatureExtractor/resnet_v1_50",
+        }
+    else:
+        kwargs = {'extend_vars': trainer.global_step}
+    trainer.resume_or_load(**kwargs)
     return trainer.train()
 
 if __name__ == "__main__":

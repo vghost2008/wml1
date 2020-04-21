@@ -287,13 +287,14 @@ def main(_):
 
   def filter(image):
       return image["id"] not in ids
+
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
       FLAGS.include_masks,
       img_filter=filter,
-      is_train_data=True)
+      is_train_data=False)
 
 
 if __name__ == '__main__':

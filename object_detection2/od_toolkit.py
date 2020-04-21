@@ -60,7 +60,6 @@ def get_norm(name:str,is_training):
             "weights_regularizer":None,
             "scale":True,
             "offset":True,
-            "scope":"group_norm"
         }
         return wnnl.group_norm,norm_params
     else:

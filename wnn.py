@@ -350,6 +350,9 @@ def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
         variables_to_train = get_variables_to_train(scopes,re_pattern=re_pattern)
         show_values(variables_to_train,"variables_to_train",fn=logging.info)
         logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
+        variables_not_to_train = get_variables_not_to_train(variables_to_train)
+        show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
+        logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
 
         if not isinstance(loss,Iterable):
             loss = [loss]
@@ -568,7 +571,7 @@ def restore_variables_by_var_list(sess,file_path,vars):
 '''
 value_key: a callable object trans variable(tf.Tensor) to it's save or restore name, for example 
 def func(v)
-    if v.name == "v1":
+    if v.name == "v1:0":
        return "model/v1"
 '''
 def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restore_evckp=True,value_key=None,exclude_var=None,extend_vars=None,global_scopes=None,verbose=False):
@@ -576,7 +579,7 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
     #    evt.WEvalModel.restore_ckp(FLAGS.check_point_dir)
     bn_ops = tf.get_collection(key=tf.GraphKeys.UPDATE_OPS)
     bn_ops = [x.name for x in bn_ops]
-    print("Batch normal ops.")
+    print("batch_norm_ops.")
     wmlu.show_list(bn_ops)
     if exclude is None and exclude_var is not None:
         exclude = exclude_var
@@ -642,6 +645,11 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         show_values(unrestored_variables, "Unrestored variables in ckpt")
         show_values(unrestored_variables0, "Unrestored variables of global variables")
     return True
+
+def log_moving_variable():
+    for v in tf.global_variables():
+        if "moving_mean" in v.name or "moving_variance" in v.name:
+            wsummary.histogram_or_scalar(v,v.name[:-2])
 
 def accuracy_ratio(logits,labels):
     with tf.name_scope("accuracy_ratio"):
