@@ -64,6 +64,7 @@ class FPN(Backbone):
         #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
         self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.FPN,parent=self)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.FPN.ACTIVATION_FN)
 
 
     @property
@@ -103,12 +104,15 @@ class FPN(Backbone):
             else:
                 normalizer_fn = None
             if use_depthwise:
-                conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1,
-                normalizer_fn=normalizer_fn)
+                conv_op = functools.partial(slim.separable_conv2d, 
+                                            depth_multiplier=1,
+                                            normalizer_fn=normalizer_fn,
+                                            activation_fn=self.activation_fn)
             else:
                 conv_op = functools.partial(slim.conv2d,
-                weights_regularizer=slim.l2_regularizer(weight_decay),
-                normalizer_fn=normalizer_fn)
+                                            weights_regularizer=slim.l2_regularizer(weight_decay),
+                                            normalizer_fn=normalizer_fn,
+                                            activation_fn=self.activation_fn)
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
                 prev_features = slim.conv2d(
@@ -169,6 +173,7 @@ class LastLevelP6P7(wmodule.WChildModule):
     def __init__(self, out_channels,cfg,*args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.FPN.ACTIVATION_FN)
         self.out_channels = out_channels
 
     def forward(self, c5):
@@ -176,9 +181,11 @@ class LastLevelP6P7(wmodule.WChildModule):
             res = []
             last_feature = c5
             for i in range(self.cfg.MODEL.FPN.LAST_LEVEL_NUM_CONV):
-                last_feature  = slim.conv2d(last_feature,self.out_channels,[3,3],stride=2,activation_fn=tf.nn.relu,
-                         normalizer_fn=self.normalizer_fn,normalizer_params=self.norm_params,
-                         scope=f"conv{i+1}")
+                last_feature  = slim.conv2d(last_feature,self.out_channels,[3,3],stride=2,
+                                            activation_fn=self.activation_fn,
+                                            normalizer_fn=self.normalizer_fn,
+                                            normalizer_params=self.norm_params,
+                                            scope=f"conv{i+1}")
                 res.append(last_feature)
         return res
 

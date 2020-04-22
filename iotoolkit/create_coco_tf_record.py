@@ -73,6 +73,10 @@ src_file_index = 0
 def category_id_filter(category_id):
     return True
 
+def trans_id(category_id):
+    return ID_TO_COMPRESSED_ID[category_id]
+    #return category_id
+
 def create_tf_example(image,
                       annotations_list,
                       image_dir,
@@ -139,6 +143,7 @@ def create_tf_example(image,
       num_annotations_skipped += 1
       continue
     category_id = int(object_annotations['category_id'])
+    category_id = trans_id(category_id)
     if not category_id_filter(category_id):
       num_annotations_skipped += 1
       continue

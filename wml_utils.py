@@ -8,6 +8,7 @@ import scipy
 import random
 import time
 from functools import wraps
+from collections import Iterable
 import random
 import sys
 import socket
@@ -313,12 +314,19 @@ def show_list(values,fmt=None):
     print("[")
     if fmt is None:
         for v in values:
-            print(v)
+            if isinstance(v,Iterable):
+                show_list(v)
+            else:
+                print(v)
     else:
         for v in values:
-            print(fmt%v)
+            if isinstance(v,Iterable):
+                show_list(v)
+            else:
+                print(fmt%v)
 
     print("]")
+
 def show_dict(values):
     print("[")
     for k,v in values.items():
@@ -439,15 +447,22 @@ def gather(data,indexs):
     return res_data
 
 class TimeThis():
-    def __init__(self,name="TimeThis"):
+    def __init__(self,name="TimeThis",auto_show=True):
         self.begin_time = 0.
+        self.end_time = 0
         self.name = name
+        self.auto_show = auto_show
 
     def __enter__(self):
         self.begin_time = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print(f"{self.name}: total time {time.time()-self.begin_time}.")
+        self.end_time = time.time()
+        if self.auto_show:
+            print(f"{self.name}: total time {self.end_time-self.begin_time}.")
+
+    def time(self):
+        return self.end_time-self.begin_time
 
 class AvgTimeThis():
     def __init__(self,name="TimeThis",skip_nr=3):

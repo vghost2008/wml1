@@ -647,9 +647,18 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
     return True
 
 def log_moving_variable():
+    def moving_name(name:str):
+        name = name[:-2]
+        a = name.find("/")
+        if a<=0:
+            return name+"_moving"
+        name_a = name[:a]
+        name_b = name[a:]
+        return name_a+"_moving"+name_b
+
     for v in tf.global_variables():
         if "moving_mean" in v.name or "moving_variance" in v.name:
-            wsummary.histogram_or_scalar(v,v.name[:-2])
+            wsummary.histogram_or_scalar(v,moving_name(v.name))
 
 def accuracy_ratio(logits,labels):
     with tf.name_scope("accuracy_ratio"):

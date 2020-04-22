@@ -39,7 +39,7 @@ def getF1(gtboxes,gtlabels,boxes,labels,threshold=0.5):
     for i in range(gt_size):
         max_index = -1
         max_jaccard = 0.0
-        #iterator on all boxes to find one have the most maximum jacard value with current ground-truth box
+        #iterator on all boxes to find one which have the most maximum jacard value with current ground-truth box
         for j in range(boxes_size):
             if gtlabels[i] != labels[j] or boxes_mask[j] != 0:
                 continue

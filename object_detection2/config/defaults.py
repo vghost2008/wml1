@@ -125,6 +125,7 @@ _C.MODEL.FPN.OUT_CHANNELS = 256
 
 # Options: "" (no norm), "GN", "BN"
 _C.MODEL.FPN.NORM = ""
+_C.MODEL.FPN.ACTIVATION_FN = "relu"
 _C.MODEL.FPN.LAST_LEVEL_NUM_CONV = 2
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
@@ -527,6 +528,7 @@ _C.MODEL.RETINANET.FOCAL_LOSS_ALPHA = 0.25
 _C.MODEL.RETINANET.SMOOTH_L1_LOSS_BETA = 0.1
 _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 _C.MODEL.RETINANET.NORM = "BN"
+_C.MODEL.RETINANET.ACTIVATION_FN = "relu"
 
 
 # ---------------------------------------------------------------------------- #
@@ -712,7 +714,7 @@ _C.GLOBAL.HACK = 1.0
 _C.GLOBAL.DEBUG = True
 _C.GLOBAL.PROJ_NAME = "Demon"
 _C.GLOBAL.SUMMARY_LEVEL = 0
-_C.GLOBAL.LOG_STEP = 100
-_C.GLOBAL.SAVE_STEP = 200
+_C.GLOBAL.LOG_STEP = 200
+_C.GLOBAL.SAVE_STEP = 500
 _C.log_dir = ""
 _C.ckpt_dir = ""

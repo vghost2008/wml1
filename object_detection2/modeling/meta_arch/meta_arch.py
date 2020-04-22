@@ -7,6 +7,7 @@ import numpy as np
 import object_detection2.bboxes as odb
 import wml_tfutils as wmlt
 from collections import OrderedDict
+import wsummary
 
 class MetaArch(wmodule.WModule):
     def __init__(self,*args,**kwargs):
@@ -29,7 +30,7 @@ class MetaArch(wmodule.WModule):
                 pass
             else:
                 raise ValueError(f"Error preprocess type {self.cfg.MODEL.PREPROCESS}")
-
+            wsummary.histogram_or_scalar(b_img,"preprocessed_image")
             batched_inputs[IMAGE] = b_img
             return batched_inputs
 

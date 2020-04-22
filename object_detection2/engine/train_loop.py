@@ -102,6 +102,7 @@ class TrainerBase:
         self._hooks = []
         self.cfg = cfg
         self.full_trace = False
+        self.time_stamp = time.time()
 
     def register_hooks(self, hooks):
         """
@@ -139,6 +140,7 @@ class TrainerBase:
                 self.run_step()
                 self.after_step()
         except Exception:
+            print(f"Total train time {(time.time()-self.time_stamp)/3600}")
             logger.exception("Exception during training:")
         finally:
             self.after_train()
@@ -164,11 +166,17 @@ class TrainerBase:
                 results = self.run_eval_step()
                 self.model.doeval(evaler,results)
                 if self.step %self.show_eval_results_step == 0:
-                    evaler.show()
+                    t = wmlu.TimeThis(auto_show=False)
+                    with t:
+                        evaler.show()
+                    if (t.time()>=10) and (self.show_eval_results_step<2000):
+                        self.show_eval_results_step *= 2
                     pass
                 self.after_step()
         except Exception:
-            logger.exception("Exception during training:")
+            evaler.show()
+            print(f"Total eval time {(time.time()-self.time_stamp)/3600}")
+            logger.exception("Exception during eval:")
         finally:
             self.after_train()
 
@@ -241,6 +249,7 @@ class SimpleTrainer(TrainerBase):
         self.ckpt_dir = os.path.join(self.cfg.ckpt_dir,self.cfg.GLOBAL.PROJ_NAME)
         self.gpus = gpus
         self.debug_tf = debug_tf #example filter: r -f has_inf_or_nan
+        self.timer = wmlu.AvgTimeThis()
         if inference:
             assert not model.is_training,"Error training statu"
         if model.is_training:
@@ -266,7 +275,6 @@ class SimpleTrainer(TrainerBase):
 
         self.res_data_for_eval = self.res_data
         self.res_data_for_eval.update(self.input_data)
-
 
     def __del__(self):
         if self.sess is not None:
@@ -483,7 +491,7 @@ class SimpleTrainer(TrainerBase):
         start = time.perf_counter()
 
         if self.step%self.log_step == 0:
-            res_data = self.res_data_for_eval
+            res_data = dict(self.res_data_for_eval)
             summary_dict = {"summary":self.summary}
             res_data.update(summary_dict)
             res_data = self.sess.run(res_data)
@@ -500,11 +508,12 @@ class SimpleTrainer(TrainerBase):
             self.summary_writer.add_run_metadata(run_metadata, f"setp{self.step}")
         else:
             res_data = self.res_data_for_eval
-            res_data = self.sess.run(res_data)
+            with self.timer:
+                res_data = self.sess.run(res_data)
         self.step += 1
 
         t_cost = time.perf_counter() - start
-        print(f"{self.name} step={self.step}, time_cost={t_cost}")
+        print(f"{self.name} step={self.step}, time_cost={t_cost}, avg_time_cost={self.timer.get_time()}")
 
         return res_data
 

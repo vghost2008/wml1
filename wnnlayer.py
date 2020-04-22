@@ -165,21 +165,77 @@ def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
         return x
 
 @add_arg_scope
+def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
+    with tf.variable_scope(scope):
+        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
+        gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
+        gamma = tf.reshape(gamma,[1,1,1,G,C//G])
+        beta = tf.reshape(beta,[1,1,1,G,C//G])
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N, H, W, G, C // G,])
+        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+
+        gain = tf.math.rsqrt(var + epsilon)
+        offset_value = -mean * gain
+
+        if scale:
+            gain *= gamma
+            offset_value *= gamma
+
+        if offset:
+            offset_value += beta
+
+        x = x * gain + offset_value
+        x = wmlt.reshape(x, [N,H,W,C])
+        return x
+
+@add_arg_scope
 def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
-        gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
-        beta = tf.get_variable(name="beta",shape=[1,C],initializer=tf.zeros_initializer())
+        gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer())
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N,G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
-        if offset:
-            x = x-mean
+        gain = tf.math.rsqrt(var+epsilon)
+        offset_value = -mean*gain
         if scale:
-            x = x/tf.sqrt(var + epsilon)
+            gain *= gamma
+            offset_value *= gamma
+        if offset:
+            offset += beta
+        x = x*gain+offset_value
         x = wmlt.reshape(x, [N,C])
-        return x*gamma + beta
+        return x
+    
+@add_arg_scope
+def group_norm_2d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+    with tf.variable_scope(scope):
+        N,C = x.get_shape().as_list()
+        gamma = tf.get_variable(name="gamma",shape=[1,C],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,C],initializer=tf.zeros_initializer())
+        gamma = tf.reshape(gamma,[1,G,C//G])
+        beta = tf.reshape(beta,[1,G,C//G])
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N,G, C // G,])
+        mean, var = tf.nn.moments(x, [2], keep_dims=True)
+        gain = tf.math.rsqrt(var+epsilon)
+        offset_value = -mean*gain
+        if scale:
+            gain *= gamma
+            offset_value *= gamma
+        if offset:
+            offset += beta
+        x = x*gain+offset_value
+        x = wmlt.reshape(x, [N,C])
+        return x
 
 @add_arg_scope
 def group_norm_with_sn(x, G=32, epsilon=1e-5,scope="group_norm_with_sn",sn_iteration=1,max_sigma=None):
@@ -224,6 +280,30 @@ def group_norm_2d_with_sn(x, G=32, epsilon=1e-5,scope="group_norm_with_sn",sn_it
         x = (x - mean) / tf.sqrt(var + epsilon)
         x = wmlt.reshape(x, [N,C])
         return x*spectral_norm(gamma,sn_iteration,max_sigma=max_sigma)+ beta
+
+@add_arg_scope
+def evo_norm_s0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope="evo_norm_s0"):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale with shape [1,1,1,C] # G: number of groups for GN
+    # WARNING: after evo_norm_s0, there is no need to append a activation fn.
+    with tf.variable_scope(scope):
+        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
+        gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
+        v1 = tf.get_variable(name="v1",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N, H, W, G, C // G,])
+        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+
+        gain = tf.math.rsqrt(var + epsilon)
+
+        if scale:
+            gain *= gamma
+
+        x = x * tf.nn.sigmoid(x*v1)*gain + beta
+        x = wmlt.reshape(x, [N,H,W,C])
+        return x
 
 @add_arg_scope
 def layer_norm(x,scope="layer_norm"):

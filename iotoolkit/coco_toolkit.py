@@ -7,6 +7,8 @@ import numpy as np
 from pycocotools import mask
 import tensorflow as tf
 import iotoolkit.label_map_util as label_map_util
+ID_TO_COMPRESSED_ID = {}
+COMPRESSED_ID_TO_ID = {}
 
 ID_TO_TEXT={1: {u'supercategory': u'person', u'id': 1, u'name': u'person'},
             2: {u'supercategory': u'vehicle', u'id': 2, u'name': u'bicycle'},
@@ -88,6 +90,17 @@ ID_TO_TEXT={1: {u'supercategory': u'person', u'id': 1, u'name': u'person'},
             88: {u'supercategory': u'indoor', u'id': 88, u'name': u'teddy bear'},
             89: {u'supercategory': u'indoor', u'id': 89, u'name': u'hair drier'},
             90: {u'supercategory': u'indoor', u'id': 90, u'name': u'toothbrush'}}
+COMPRESSED_ID_TO_TEXT = {}
+
+j = 1
+for i in range(1,81):
+    while j not in ID_TO_TEXT:
+        j += 1
+    ID_TO_COMPRESSED_ID[j] = i
+    COMPRESSED_ID_TO_ID[i] = j
+
+for k,v in COMPRESSED_ID_TO_ID.items():
+    COMPRESSED_ID_TO_TEXT[k] = ID_TO_TEXT[v]['name']
 
 class COCOData:
     def __init__(self,filter=None,include_masks=True):

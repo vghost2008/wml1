@@ -129,7 +129,7 @@ class RetinaNetHead(wmodule.WChildModule):
         self.num_anchors = num_anchors[0]
         # Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
-        self.activation_fn = tf.nn.relu
+        self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
 
     def forward(self, features):
         """
@@ -166,7 +166,8 @@ class RetinaNetHead(wmodule.WChildModule):
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
                             net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
-                        net = self.activation_fn(net)
+                        if self.activation_fn is not None:
+                            net = self.activation_fn(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
@@ -179,7 +180,8 @@ class RetinaNetHead(wmodule.WChildModule):
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
                             net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
-                        net = self.activation_fn(net)
+                        if self.activation_fn is not None:
+                            net = self.activation_fn(net)
                 _logits = slim.conv2d(net, self.num_anchors* num_classes, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          biases_initializer=tf.constant_initializer(value=bias_value),

@@ -62,9 +62,37 @@ def get_norm(name:str,is_training):
             "offset":True,
         }
         return wnnl.group_norm,norm_params
+    elif name == "evo_norm_s0":
+        norm_params = {
+            "G": 32,
+            "epsilon": 1e-5,
+            "weights_regularizer": None,
+            "scale": True,
+        }
+        return wnnl.evo_norm_s0, norm_params
+    elif name == "GNV0":
+        norm_params = {
+            "G": 32,
+            "epsilon": 1e-5,
+            "weights_regularizer": None,
+            "scale": True,
+            "offset": True,
+            "scope":"group_norm"
+        }
+        return wnnl.group_norm_4d_v0, norm_params
     else:
         raise NotImplementedError()
-
+def get_activation_fn(name):
+    activation_dict = {"relu":tf.nn.relu,
+                       "relu6":tf.nn.relu6,
+                       "NA":None,
+                       "swish":tf.nn.swish,
+                       "sigmoid":tf.nn.sigmoid,
+                       "tanh":tf.nn.tanh}
+    if name in activation_dict:
+        return activation_dict[name]
+    else:
+        raise KeyError(f"Can't find activation fn {name}.")
 
 def fusion(feature_maps,depth=None,scope=None):
     with tf.variable_scope(scope,"fusion"):
