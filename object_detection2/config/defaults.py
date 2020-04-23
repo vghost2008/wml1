@@ -13,6 +13,8 @@ _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
 _C.MODEL.MIN_BOXES_AREA_TEST = 0.
 _C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
 _C.MODEL.WEIGHTS = ""
+_C.MODEL.ONLY_SCOPE = ""
+_C.MODEL.INPUT_ALIGN = 1
 
 # Values to be used for image normalization (BGR order, since INPUT.FORMAT defaults to BGR).
 # To train on images of different number of channels, just set different mean & std.
@@ -122,6 +124,7 @@ _C.MODEL.FPN = CN()
 # e.g., ["res2", "res3", "res4", "res5"]
 _C.MODEL.FPN.IN_FEATURES = []
 _C.MODEL.FPN.OUT_CHANNELS = 256
+_C.MODEL.FPN.BACKBONE = ""
 
 # Options: "" (no norm), "GN", "BN"
 _C.MODEL.FPN.NORM = ""
@@ -140,8 +143,9 @@ _C.MODEL.BIFPN.IN_FEATURES = []
 _C.MODEL.BIFPN.OUT_CHANNELS = 256
 
 # Options: "" (no norm), "GN", "BN"
+_C.MODEL.BIFPN.BACKBONE = ""
 _C.MODEL.BIFPN.NORM = ""
-
+_C.MODEL.BIFPN.ACTIVATION_FN = "relu"
 _C.MODEL.BIFPN.REPEAT= 1
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
@@ -587,9 +591,6 @@ _C.MODEL.RESNETS.OUT_FEATURES = ["res4"]  # res4 for C4 backbone, res2..5 for FP
 # Number of groups to use; 1 ==> ResNet; > 1 ==> ResNeXt
 _C.MODEL.RESNETS.NUM_GROUPS = 1
 
-# Options: FrozenBN, GN, "SyncBN", "BN"
-_C.MODEL.RESNETS.NORM = "FrozenBN"
-
 # Baseline width of each group.
 # Scaling this parameters will scale the width of all bottleneck layers.
 _C.MODEL.RESNETS.WIDTH_PER_GROUP = 64
@@ -616,6 +617,24 @@ _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 _C.MODEL.RESNETS.batch_norm_decay = 0.999
 _C.MODEL.RESNETS.FROZEN_BN = False
 
+
+_C.MODEL.MOBILENETS = CN()
+
+# Options: FrozenBN, GN, "SyncBN", "BN"
+_C.MODEL.MOBILENETS.VERSION = 3
+
+_C.MODEL.MOBILENETS.DEPTH_MULTIPLIER = 1.0
+_C.MODEL.MOBILENETS.batch_norm_decay = 0.999
+_C.MODEL.MOBILENETS.FROZEN_BN = False
+
+_C.MODEL.EFFICIENTNETS = CN()
+
+# Options: FrozenBN, GN, "SyncBN", "BN"
+_C.MODEL.EFFICIENTNETS.TYPE = 0
+_C.MODEL.EFFICIENTNETS.FROZEN_BN = False
+_C.MODEL.EFFICIENTNETS.MAKE_C6C7 = False
+_C.MODEL.EFFICIENTNETS.NORM = "BN"
+_C.MODEL.EFFICIENTNETS.ACTIVATION_FN = "relu"
 
 # ---------------------------------------------------------------------------- #
 # Solver

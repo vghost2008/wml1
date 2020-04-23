@@ -13,7 +13,7 @@ def default_argument_parser():
     """
     CONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/"
     COCOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/coco/"
-    parser = argparse.ArgumentParser(description="Detectron2 Training")
+    parser = argparse.ArgumentParser(description="ObjectDetection2 Training")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN_r.yaml", metavar="FILE", help="path to config file")
@@ -28,21 +28,17 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-RETINARPN-C4.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/cascade_mask_FPN_1x.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/cascade_mask_FPN_3x.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-SSD.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-YOLACT.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default=CONFIG_DIR+"Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet_4.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"EfficientDet-D0.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",
         help="whether to attempt to resume from the checkpoint directory",
     )
     parser.add_argument("--eval-only", action="store_true", help="perform evaluation only")
-    #parser.add_argument("--eval-only", type=bool,default=True, help="perform evaluation only")
-
-    # PyTorch still may leave orphan processes in multi-gpu training.
-    # Therefore we use a deterministic way to obtain port,
-    # so that users are aware of orphan processes by seeing the port occupied.
     parser.add_argument(
         "opts",
         help="Modify config options using the command-line",

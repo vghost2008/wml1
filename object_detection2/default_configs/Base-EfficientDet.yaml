@@ -1,23 +1,26 @@
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  #WEIGHTS: "/home/vghost/ai/mldata/mobilenet/v3-large_224_1.0_float/ema"
-  ONLY_SCOPE: "MobilenetV3"
+  INPUT_ALIGN: 128
   BACKBONE:
-    #NAME: "build_retinanet_shufflenetv2_fpn_backbone"
-    NAME: "build_retinanet_any_fpn_backbone"
-    #NAME: "build_mobile_backbone"
-  RESNETS:
-    OUT_FEATURES: ["P2", "P3", "P4"]
+    NAME: "build_any_bifpn_backbone"
+  EFFICIENTNETS:
+    TYPE: 0
+    FROZEN_BN: False
   ANCHOR_GENERATOR:
     #SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952], [256, 322.53978877308754, 406.37466930385904], [512, 645.0795775461751, 812.7493386077181]]
     SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
-  FPN:
+  BIFPN:
     IN_FEATURES: ["C2", "C3", "C4"]
     BACKBONE: "build_efficientnet_backbone"
+    REPEAT: 1
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
   RETINANET:
     IN_FEATURES: ["P2","P3","P4"]
     IOU_THRESHOLDS: [0.4, 0.5]
     IOU_LABELS: [0, -1, 1]
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"

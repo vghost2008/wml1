@@ -23,8 +23,13 @@ class DataLoader(wmodule.WModule):
                                         trans.AddBoxLens(),
                                         trans.UpdateHeightWidth(),
                                         ]
-            self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
-                                       trans.FixDataInfo()]
+            if cfg.MODEL.INPUT_ALIGN > 1:
+                self.trans_on_batch_img = [trans.PadtoAlign(align=cfg.MODEL.INPUT_ALIGN),
+                                           trans.BBoxesAbsoluteToRelative(),
+                                           trans.FixDataInfo()]
+            else:
+                self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                           trans.FixDataInfo()]
             '''self.trans_on_single_img = [trans.MaskNHW2HWN(),
                                         trans.ResizeToFixedSize(),
                                         trans.MaskHWN2NHW(),

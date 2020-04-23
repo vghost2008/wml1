@@ -554,6 +554,37 @@ class FixDataInfo(WTransform):
             return tf.reshape(x,[batch_size,H,W,self.channel])
         return self.apply_to_images(func,data_item)
 
+'''
+image: [B,H,W,C]
+如果有Mask分支，Mask必须为[B,N,H,W]
+'''
+class PadtoAlign(WTransform):
+    def __init__(self,align=1):
+        self.align = align
+
+    def __call__(self, data_item):
+        if self.align <= 1:
+            return data_item
+
+        def get_pad_value(v):
+            return ((v+self.align-1)//self.align)*self.align-v
+
+
+        def func4img(x):
+            batch_size,H,W,C = wmlt.combined_static_and_dynamic_shape(x)
+            padd_H = get_pad_value(H)
+            padd_W = get_pad_value(W)
+            return tf.pad(x,paddings=[[0,0,],[0,padd_H],[0,padd_W],[0,0]])
+
+        def func4mask(x):
+            batch_size, N,H, W = wmlt.combined_static_and_dynamic_shape(x)
+            padd_H = get_pad_value(H)
+            padd_W = get_pad_value(W)
+            return tf.pad(x, paddings=[[0, 0, ], [0,0],[0, padd_H], [0, padd_W]])
+
+        data_item = self.apply_to_images(func4img,data_item)
+        return self.apply_to_masks(func4mask,data_item)
+
 class WTransformList(WTransform):
     def __init__(self,trans_list):
         self.trans_list = list(trans_list)

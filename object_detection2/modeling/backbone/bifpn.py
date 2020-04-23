@@ -3,7 +3,7 @@ import tensorflow as tf
 import wmodule
 import functools
 from .backbone import Backbone
-from .build import BACKBONE_REGISTRY,build_backbone_hook
+from .build import BACKBONE_REGISTRY,build_backbone_hook,build_backbone_by_name
 from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
@@ -62,6 +62,7 @@ class BIFPN(Backbone):
         self.stage = stage
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.BIFPN.NORM,self.is_training)
         self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.BIFPN,parent=self)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.BIFPN.ACTIVATION_FN)
 
     @property
     def size_divisibility(self):
@@ -95,22 +96,27 @@ class BIFPN(Backbone):
             normalizer_fn = None
 
         padding = 'SAME'
-        kernel_size = 3
         weight_decay = 1e-4
 
         if use_depthwise:
             conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1,
                                         normalizer_fn=normalizer_fn,
+                                        activation_fn=self.activation_fn,
                                         padding=padding)
         else:
             conv_op = functools.partial(slim.conv2d,
                                         weights_regularizer=slim.l2_regularizer(weight_decay),
                                         normalizer_fn=normalizer_fn,
+                                        activation_fn=self.activation_fn,
                                         padding=padding)
 
         with tf.name_scope(self.scope,"BIFPN"):
             for i,net in enumerate(image_features):
-                net = conv_op(net,depth,kernel_size=kernel_size,scope=f"projection_{i}")
+                net = slim.conv2d(net,depth,
+                                  kernel_size=1,
+                                  normalizer_fn=None,
+                                  activation_fn=None,
+                                  scope=f"projection_{i}")
                 feature_maps.append(net)
             feature_maps.reverse()
             repeat = self.cfg.MODEL.BIFPN.REPEAT
@@ -155,6 +161,26 @@ def build_shufflenetv2_bifpn_backbone(cfg,*args,**kwargs):
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
     bottom_up = build_shufflenetv2_backbone(cfg,*args,**kwargs)
+    in_features = cfg.MODEL.BIFPN.IN_FEATURES
+    out_channels = cfg.MODEL.BIFPN.OUT_CHANNELS
+    backbone = BIFPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        fuse_type=cfg.MODEL.BIFPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
+def build_any_bifpn_backbone(cfg,*args,**kwargs):
+    """
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_backbone_by_name(cfg.MODEL.BIFPN.BACKBONE,cfg, *args,**kwargs)
     in_features = cfg.MODEL.BIFPN.IN_FEATURES
     out_channels = cfg.MODEL.BIFPN.OUT_CHANNELS
     backbone = BIFPN(

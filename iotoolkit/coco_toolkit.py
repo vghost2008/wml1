@@ -7,6 +7,8 @@ import numpy as np
 from pycocotools import mask
 import tensorflow as tf
 import iotoolkit.label_map_util as label_map_util
+import sys
+
 ID_TO_COMPRESSED_ID = {}
 COMPRESSED_ID_TO_ID = {}
 
@@ -187,7 +189,7 @@ class COCOData:
 
             is_crowd.append(object_annotations['iscrowd'])
             category_ids.append(category_id)
-            category_names.append(self.category_index[category_id]['name'].encode('utf8'))
+            category_names.append(str(self.category_index[category_id]['name'].encode('utf8'),encoding='utf-8'))
             area.append(object_annotations['area'])
 
             if self.include_masks:
@@ -206,19 +208,23 @@ class COCOData:
             binary_masks = None
 
         if len(category_ids)==0:
-            print(full_path)
-            return None,None,None,None,None,None,None,None
+            print("No annotation: ", full_path)
+            sys.stdout.flush()
+            return None,None,None,None,None,None,None,None,None
         return full_path,[image_height,image_height],category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
 
     def get_items(self):
         for image in self.images:
-            yield self.get_image_annotation(image)
+            res = self.get_image_annotation(image)
+            if res[0] is not None:
+                yield res
 
     def get_boxes_items(self):
         for image in self.images:
             full_path,img_size,category_ids,category_names,boxes,binary_mask,area,is_crowd,num_annotations_skipped = \
             self.get_image_annotation(image)
-            yield full_path,img_size,category_ids,boxes,is_crowd
+            if full_path is not None:
+                yield full_path,img_size,category_ids,boxes,is_crowd
 
 if __name__ == "__main__":
     import img_utils as wmli

@@ -27,6 +27,17 @@ def build_backbone(cfg, *args,**kwargs):
     assert isinstance(backbone, Backbone)
     return backbone
 
+def build_backbone_by_name(backbone_name,cfg,*args,**kwargs):
+    """
+    Build a backbone from `cfg.MODEL.BACKBONE.NAME`.
+
+    Returns:
+        an instance of :class:`Backbone`
+    """
+    backbone = BACKBONE_REGISTRY.get(backbone_name)(cfg,*args,**kwargs)
+    assert isinstance(backbone, Backbone)
+    return backbone
+
 def build_backbone_hook(cfg, *args,**kwargs):
     """
     cfg: only child part

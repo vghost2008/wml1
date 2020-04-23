@@ -13,6 +13,7 @@ from iotoolkit.coco_toolkit import COCOData
 from iotoolkit.labelme_toolkit import LabelMeData
 import object_detection2.bboxes as odb 
 import pandas as pd
+import wml_utils as wmlu
 
 def statistics_boxes(boxes,nr=100,name=""):
     sizes = [math.sqrt((x[2]-x[0])*(x[3]-x[1])) for x in boxes]
@@ -278,7 +279,8 @@ def pascal_voc_dataset():
 
 def coco_dataset():
     data = COCOData()
-    data.read_data("/data/mldata/coco/annotations/instances_train2014.json", image_dir="/data/mldata/coco/train2014")
+    data.read_data(wmlu.home_dir("ai/mldata/coco/annotations/instances_train2014.json"), 
+                   image_dir=wmlu.home_dir("ai/mldata/coco/train2014"))
 
     return data.get_items()
 

@@ -11,4 +11,4 @@ class DatasetRegistry(object):
     def __getitem__(self,name):
         return self.dict[name]
 
-DATASETS_REGISTRY = DatasetRegistry("DATASETS")  # noqa F401 isort:skip
+DATASETS_REGISTRY = DatasetRegistry("DATASETS")

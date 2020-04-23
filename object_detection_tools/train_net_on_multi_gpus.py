@@ -7,6 +7,7 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 gpus = [0,1,2]
+gpus = [3,7]
 gpus_str=""
 for g in gpus:
     gpus_str+=str(g)+","
@@ -57,9 +58,9 @@ def main(_):
 
     trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)
     if len(cfg.MODEL.WEIGHTS) > 3:
-        kwargs = {
-            "only_scope": "FeatureExtractor/resnet_v1_50",
-        }
+        kwargs = {}
+        if cfg.MODEL.ONLY_SCOPE != "":
+            kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
     else:
         kwargs = {'extend_vars': trainer.global_step}
     trainer.resume_or_load(**kwargs)

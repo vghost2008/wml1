@@ -10,6 +10,10 @@ slim = tf.contrib.slim
 
 class ResNet(Backbone):
     def __init__(self,cfg,*args,**kwargs):
+        if cfg.MODEL.PREPROCESS != "subimagenetmean":
+            print("--------------------WARNING--------------------")
+            print(f"Preprocess for resnet should be subimagenetmean not {cfg.MODEL.PREPROCESS}.")
+            print("------------------END WARNING------------------")
         super().__init__(cfg,*args,**kwargs)
 
     def forward(self, x):

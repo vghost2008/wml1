@@ -314,13 +314,13 @@ def show_list(values,fmt=None):
     print("[")
     if fmt is None:
         for v in values:
-            if isinstance(v,Iterable):
+            if isinstance(v,(list,tuple)):
                 show_list(v)
             else:
                 print(v)
     else:
         for v in values:
-            if isinstance(v,Iterable):
+            if isinstance(v,(list,tuple)):
                 show_list(v)
             else:
                 print(fmt%v)

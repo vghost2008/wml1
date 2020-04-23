@@ -3,7 +3,7 @@ import tensorflow as tf
 import wmodule
 import functools
 from .backbone import Backbone
-from .build import BACKBONE_REGISTRY
+from .build import BACKBONE_REGISTRY,build_backbone_by_name
 from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
@@ -273,6 +273,55 @@ def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
     bottom_up = build_shufflenetv2_backbone(cfg,*args,**kwargs)
+    in_features = cfg.MODEL.FPN.IN_FEATURES
+    out_channels = cfg.MODEL.FPN.OUT_CHANNELS
+    backbone = FPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        top_block=LastLevelMaxPool(cfg,*args,**kwargs),
+        fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+
+@BACKBONE_REGISTRY.register()
+def build_retinanet_any_fpn_backbone(cfg, *args,**kwargs):
+    """
+    Args:
+        cfg: a CfgNode
+
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_backbone_by_name(cfg.MODEL.FPN.BACKBONE,cfg, *args,**kwargs)
+    in_features = cfg.MODEL.FPN.IN_FEATURES
+    out_channels = cfg.MODEL.FPN.OUT_CHANNELS
+    backbone = FPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        top_block=LastLevelP6P7(out_channels,cfg,*args,**kwargs),
+        fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
+def build_any_fpn_backbone(cfg,*args,**kwargs):
+    """
+    Args:
+        cfg: a CfgNode
+
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_backbone_by_name(cfg.MODEL.FPN.BACKBONE,cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
     backbone = FPN(

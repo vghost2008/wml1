@@ -35,6 +35,15 @@ def main(_):
 
     is_training = True
     data_loader = DataLoader(cfg=cfg,is_training=is_training)
+    #'''
+    data_loader.trans_on_single_img = [trans.MaskNHW2HWN(),
+                                trans.ResizeToFixedSize([256,256]),
+                                trans.MaskHWN2NHW(),
+                                trans.AddBoxLens(),
+                                trans.UpdateHeightWidth(),
+                                ]
+    data_loader.trans_on_batch_img = [trans.FixDataInfo()]
+    #'''
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)
@@ -49,7 +58,13 @@ def main(_):
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model)
-    trainer.resume_or_load()
+    if len(cfg.MODEL.WEIGHTS) > 3:
+        kwargs = {}
+        if cfg.MODEL.ONLY_SCOPE != "":
+            kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
+    else:
+        kwargs = {'extend_vars': trainer.global_step}
+    trainer.resume_or_load(**kwargs)
     return trainer.train()
 
 if __name__ == "__main__":

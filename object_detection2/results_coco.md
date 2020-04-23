@@ -32,10 +32,23 @@
 - FPN normal:GN
 - Head normal: GN
 - iterator: 120k
-- train time: 
-- eval time: 
+- train time: 37h
+- eval time: 0.1365s/img
 
 ```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.274
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.494
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.276
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.046
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.218
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.368
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.258
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.411
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.439
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.113
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.401
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.561
+
 ```
 
 ##coco/RetinaNet.yaml EvoNormS
