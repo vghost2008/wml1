@@ -42,7 +42,7 @@ class DataLoader(wmodule.WModule):
                                         #trans.ResizeToFixedSize(),
                                         trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TEST,
                                                                  max_size=self.cfg.INPUT.MAX_SIZE_TEST,
-                                                                 align=self.cfg.INPUT.SIZE_ALIGN),
+                                                                 align=self.cfg.INPUT.SIZE_ALIGN_FOR_TEST),
                                         trans.MaskHWN2NHW(),
                                         trans.BBoxesRelativeToAbsolute(),
                                         trans.AddBoxLens(),

@@ -115,6 +115,10 @@ class FPN(Backbone):
                                             activation_fn=self.activation_fn)
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
+                '''
+                NEED TODO: normalizer_fn改为与output一样
+                output时， Detectron没有使用激活函数
+                '''
                 prev_features = slim.conv2d(
                     image_features[-1],
                     depth, [1, 1], activation_fn=None, normalizer_fn=None,

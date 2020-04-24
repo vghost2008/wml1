@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from functools import partial
 
 import functools
 import os
@@ -27,9 +28,9 @@ import tensorflow as tf
 
 from .efficientnet_model import *
 slim=tf.contrib.slim
+batch_norm = slim.batch_norm
 MEAN_RGB = [0.485 * 255, 0.456 * 255, 0.406 * 255]
 STDDEV_RGB = [0.229 * 255, 0.224 * 255, 0.225 * 255]
-
 
 def efficientnet_params(model_name):
   """Get efficientnet params based on model name."""
@@ -187,7 +188,7 @@ def efficientnet(width_coefficient=None,
       relu_fn=tf.nn.swish,
       # The default is TPU-specific batch norm.
       # The alternative is tf.layers.BatchNormalization.
-      batch_norm=slim.batch_norm,  # TPU-specific requirement.
+      batch_norm=batch_norm,  # TPU-specific requirement.
       use_se=True,
       clip_projection_output=False)
   decoder = BlockDecoder()
@@ -250,7 +251,7 @@ def build_model(images,
   if not training or fine_tuning:
     if not override_params:
       override_params = {}
-    override_params['batch_norm'] = slim.batch_norm
+    override_params['batch_norm'] = batch_norm
     if fine_tuning:
       override_params['relu_fn'] = functools.partial(swish, use_native=False)
   blocks_args, global_params = get_model_params(model_name, override_params)

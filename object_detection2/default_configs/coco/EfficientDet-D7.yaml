@@ -5,7 +5,6 @@ MODEL:
   EFFICIENTNETS:
     TYPE: 7
     FROZEN_BN: False
-    MAKE_C6C7: True
   BIFPN:
     IN_FEATURES: ["C3","C4", "C5","C6","C7"]
     REPEAT: 8

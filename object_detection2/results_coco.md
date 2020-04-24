@@ -25,6 +25,19 @@
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.557
 ```
 
+##coco/RetinaNet.yaml BN
+
+- batch_size: 4 on 1 gpu
+- backbone resnet50, FrozenBN
+- FPN normal:GN
+- Head normal: BN
+- iterator: 120k
+- train time: 
+- eval time: 
+
+```
+```
+
 ##coco/RetinaNet.yaml GN
 
 - batch_size: 4 on 3 gpu
@@ -56,6 +69,75 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.561
 - batch_size: 4 on 3 gpu
 - backbone resnet50, FrozenBN
 - FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 36.5h
+- eval time: 0.1375s/img
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.278
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.501
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.280
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.048
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.218
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.376
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.261
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.413
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.442
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.119
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.406
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.560
+```
+
+##coco/RetinaNet.yaml EvoNormS
+
+- batch_size: 4 on 1 gpu
+- backbone resnet50, FrozenBN
+- FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 
+- eval time: 
+
+```
+```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 
+- eval time: 
+
+```
+```
+
+##coco/RetinaNet.yaml MobileNetV3 + EvoNormS + GIOU
+
+- back bone: MobileNetV3
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 
+- eval time: 
+
+```
+```
+
+##coco/EfficientDet-D0.yaml EvoNormS
+
+- No pretrain weights
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- BIFPN normal: EvoNormS
 - Head normal: EvoNormS
 - iterator: 120k
 - train time: 

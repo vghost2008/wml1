@@ -42,6 +42,7 @@ _C.INPUT.MIN_SIZE_TEST = 224
 # Maximum size of the side of the image during testing
 _C.INPUT.MAX_SIZE_TEST = 1333
 _C.INPUT.SIZE_ALIGN = 1
+_C.INPUT.SIZE_ALIGN_FOR_TEST = 1
 
 # `True` if cropping is used for data augmentation during training
 _C.INPUT.CROP = CN({"ENABLED": False})
@@ -632,7 +633,7 @@ _C.MODEL.EFFICIENTNETS = CN()
 # Options: FrozenBN, GN, "SyncBN", "BN"
 _C.MODEL.EFFICIENTNETS.TYPE = 0
 _C.MODEL.EFFICIENTNETS.FROZEN_BN = False
-_C.MODEL.EFFICIENTNETS.MAKE_C6C7 = False
+_C.MODEL.EFFICIENTNETS.MAKE_C6C7 = "C6"
 _C.MODEL.EFFICIENTNETS.NORM = "BN"
 _C.MODEL.EFFICIENTNETS.ACTIVATION_FN = "relu"
 

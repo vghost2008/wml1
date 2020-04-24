@@ -306,7 +306,7 @@ def show_member(obj,name=None):
     for name,var in vars(obj).items():
         print("%s : "%(name),var)
 
-def show_list(values,fmt=None):
+def show_list(values,fmt=None,recurse=False):
     if values is None:
         return
     if isinstance(values,str):
@@ -314,13 +314,13 @@ def show_list(values,fmt=None):
     print("[")
     if fmt is None:
         for v in values:
-            if isinstance(v,(list,tuple)):
+            if recurse and isinstance(v,(list,tuple)):
                 show_list(v)
             else:
                 print(v)
     else:
         for v in values:
-            if isinstance(v,(list,tuple)):
+            if recurse and isinstance(v,(list,tuple)):
                 show_list(v)
             else:
                 print(fmt%v)

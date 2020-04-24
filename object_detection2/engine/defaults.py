@@ -31,7 +31,7 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-SSD.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-YOLACT.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=CONFIG_DIR+"Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet_4.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet_2.yaml", metavar="FILE", help="path to config file")
     parser.add_argument("--config-file", default=COCOCONFIG_DIR+"EfficientDet-D0.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",

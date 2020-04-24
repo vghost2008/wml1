@@ -1,11 +1,11 @@
 _BASE_: "../Base-EfficientDet.yaml"
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  #WEIGHTS: "/home/vghost/ai/mldata/mobilenet/v3-large_224_1.0_float/ema"
+  #WEIGHTS: "/home/vghost/ai/mldata/efficidentdet/efficientdet-d0"
+  #ONLY_SCOPE: "efficientdet-d0"
   EFFICIENTNETS:
     TYPE: 0
     FROZEN_BN: False
-    MAKE_C6C7: True
   BIFPN:
     IN_FEATURES: ["C3","C4", "C5","C6","C7"]
     REPEAT: 2
@@ -30,7 +30,8 @@ SOLVER:
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)
   MAX_SIZE_TRAIN: 800
-  MIN_SIZE_TEST: 512
+  #MIN_SIZE_TEST: 512
+  MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
 VERSION: 2
 GLOBAL:

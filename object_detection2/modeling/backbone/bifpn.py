@@ -101,20 +101,22 @@ class BIFPN(Backbone):
         if use_depthwise:
             conv_op = functools.partial(slim.separable_conv2d, depth_multiplier=1,
                                         normalizer_fn=normalizer_fn,
-                                        activation_fn=self.activation_fn,
                                         padding=padding)
         else:
             conv_op = functools.partial(slim.conv2d,
                                         weights_regularizer=slim.l2_regularizer(weight_decay),
                                         normalizer_fn=normalizer_fn,
-                                        activation_fn=self.activation_fn,
                                         padding=padding)
 
         with tf.name_scope(self.scope,"BIFPN"):
             for i,net in enumerate(image_features):
+                '''
+                FPN的官方实现没有使用norm与激活函数，但EfficientDet的官方实现中使用了BN,没有使用激活函数
+                kernel都为 1 x 1
+                '''
                 net = slim.conv2d(net,depth,
                                   kernel_size=1,
-                                  normalizer_fn=None,
+                                  normalizer_fn=normalizer_fn,
                                   activation_fn=None,
                                   scope=f"projection_{i}")
                 feature_maps.append(net)
@@ -122,7 +124,10 @@ class BIFPN(Backbone):
             repeat = self.cfg.MODEL.BIFPN.REPEAT
 
             for i in range(repeat):
-                feature_maps = odat.BiFPN(feature_maps,conv_op=conv_op,scope=f"BiFPN{i}")
+                feature_maps = odat.BiFPN(feature_maps,
+                                          conv_op=conv_op,
+                                          activation_fn=self.activation_fn,
+                                          scope=f"cell_{i}")
             feature_maps.reverse()
 
             res = collections.OrderedDict()
