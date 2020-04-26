@@ -541,6 +541,31 @@ class WTransLabels(WTransform):
         labels = wop.int_hash(labels,self.id_to_label)
         data_item[GT_LABELS] = labels
         return data_item
+
+'''
+Mask必须为NHW格式
+'''
+class WRemoveCrowdInstance(WTransform):
+    def __init__(self,remove_crowd=True):
+        self.remove_crowd = remove_crowd
+
+    def __call__(self, data_item):
+
+        if (IS_CROWD not in data_item) or not self.remove_crowd:
+            return data_item
+
+        is_crowd = data_item[IS_CROWD]
+        indices = tf.squeeze(tf.where(tf.equal(is_crowd,0)),axis=-1)
+        labels = tf.gather(data_item[GT_LABELS],indices)
+        bboxes = tf.gather(data_item[GT_BOXES],indices)
+        is_crowd = tf.gather(data_item[IS_CROWD],indices)
+        data_item[GT_BOXES] = bboxes
+        data_item[GT_LABELS] = labels
+        data_item[IS_CROWD] = is_crowd
+        if GT_MASKS in data_item:
+            masks = tf.gather(data_item[GT_MASKS],indices)
+            data_item[GT_MASKS] = masks
+        return data_item
 '''
 operator on batch
 '''

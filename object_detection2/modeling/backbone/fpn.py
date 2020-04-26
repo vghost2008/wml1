@@ -73,6 +73,7 @@ class FPN(Backbone):
 
     def forward(self, x):
         """
+        Detectron2 实现时默认没有使用normalizer及activation, 这里使用的是tf models复现的配置
         Args:
             input (dict[str->Tensor]): mapping feature map name (e.g., "res5") to
                 feature map tensor for each feature level in high to low resolution order.
@@ -84,7 +85,6 @@ class FPN(Backbone):
                 paper convention: "p<stage>", where stage has stride = 2 ** stage e.g.,
                 ["p2", "p3", ..., "p6"].
         """
-        # Reverse feature maps into top-down order (from low to high resolution)
         bottom_up_features = self.bottom_up(x)
         if self.hook_before is not None:
             bottom_up_features = self.hook_before(bottom_up_features,x)
@@ -115,10 +115,6 @@ class FPN(Backbone):
                                             activation_fn=self.activation_fn)
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
-                '''
-                NEED TODO: normalizer_fn改为与output一样
-                output时， Detectron没有使用激活函数
-                '''
                 prev_features = slim.conv2d(
                     image_features[-1],
                     depth, [1, 1], activation_fn=None, normalizer_fn=None,

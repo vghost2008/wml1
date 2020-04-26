@@ -20,6 +20,7 @@ class DataLoader(wmodule.WModule):
                                                                  align=self.cfg.INPUT.SIZE_ALIGN),
                                         trans.MaskHWN2NHW(),
                                         trans.BBoxesRelativeToAbsolute(),
+                                        trans.WRemoveCrowdInstance(self.cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
                                         trans.AddBoxLens(),
                                         trans.UpdateHeightWidth(),
                                         ]

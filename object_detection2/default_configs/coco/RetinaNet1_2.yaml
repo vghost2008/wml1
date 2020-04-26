@@ -1,8 +1,8 @@
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
   WEIGHTS: "/home/vghost/ai/mldata/ssd_resnet50_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03"
-  ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
+  ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   BACKBONE:
     #NAME: "build_retinanet_shufflenetv2_fpn_backbone"
     NAME: "build_retinanet_resnet_fpn_backbone"
@@ -12,21 +12,24 @@ MODEL:
     SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952], [256, 322.53978877308754, 406.37466930385904], [512, 645.0795775461751, 812.7493386077181]]
     #SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
   FPN:
-    NORM: "GNV0"
+    #IN_FEATURES: ["C2", "C3", "C4"]
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
     IN_FEATURES: ["C3","C4", "C5"]
   RETINANET:
     #IN_FEATURES: ["P2","P3","P4"]
     IN_FEATURES: ["P3","P4","P5","P6","P7"]
     IOU_THRESHOLDS: [0.4, 0.5]
     IOU_LABELS: [0, -1, 1]
-    NORM: "BN"
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
 DATASETS:
   TRAIN: "coco_2014_train"
   TEST: "coco_2014_eval"
   #TRAIN: "mnistod_train"
   #TEST: "mnistod_eval"
 SOLVER:
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 2
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
@@ -38,5 +41,5 @@ INPUT:
   MAX_SIZE_TEST: 1333
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinNetCOCODemon_1_test2"
+  PROJ_NAME: "RetinNetCOCODemonS2_1"
   LOG_STEP: 200

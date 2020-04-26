@@ -226,6 +226,8 @@ class SimpleTrainer(TrainerBase):
             inference: whether in inference mode
             debug_tf: whether debug tensorflow
         """
+        print(f"Batch size = {cfg.SOLVER.IMS_PER_BATCH}, gpus={gpus}, steps={cfg.SOLVER.STEPS}, BASE LR={cfg.SOLVER.BASE_LR}")
+        print("Config:\n",cfg)
         super().__init__(cfg=cfg)
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',
@@ -419,7 +421,7 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = all_loss_dict
 
         config = tf.ConfigProto(allow_soft_placement=True)
-        #config.gpu_options.allow_growth = True
+        config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
         if self.debug_tf:

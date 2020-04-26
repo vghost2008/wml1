@@ -87,6 +87,7 @@ _C.DATASETS.PROPOSAL_FILES_TEST = ()
 # Number of top scoring precomputed proposals to keep for test
 _C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
 _C.DATASETS.NUM_CLASSES= 90
+_C.DATASETS.SKIP_CROWD_DURING_TRAINING = False
 
 # -----------------------------------------------------------------------------
 # DataLoader
@@ -150,7 +151,6 @@ _C.MODEL.BIFPN.ACTIVATION_FN = "relu"
 _C.MODEL.BIFPN.REPEAT= 1
 
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
-_C.MODEL.BIFPN.FUSE_TYPE = "sum"
 _C.MODEL.BIFPN.BACKBONE_HOOK = ("","")
 
 # ---------------------------------------------------------------------------- #

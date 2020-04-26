@@ -144,7 +144,8 @@ def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
     with tf.variable_scope(scope):
         N,H,W,C = btf.combined_static_and_dynamic_shape(x)
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
-        beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
+        if offset:
+            beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
@@ -171,7 +172,8 @@ def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
     with tf.variable_scope(scope):
         N,H,W,C = btf.combined_static_and_dynamic_shape(x)
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
-        beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
+        if offset:
+            beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
         gamma = tf.reshape(gamma,[1,1,1,G,C//G])
         beta = tf.reshape(beta,[1,1,1,G,C//G])
         if weights_regularizer is not None:
@@ -198,7 +200,8 @@ def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer())
-        beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer())
+        if offset:
+            beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer())
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N,G, C // G,])

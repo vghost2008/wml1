@@ -3,6 +3,7 @@ import tensorflow as tf
 import cv2
 import basic_tftools as btf
 import image_visualization as imv
+import semantic.visualization_utils as smv
 
 isSingleValueTensor = btf.isSingleValueTensor
 
@@ -248,5 +249,37 @@ def feature_map_summary(feature_map,name="feature_map",max_outputs=None):
     data = (data-min)/(max-min+1e-8)
     tf.summary.image(name,data,max_outputs=max_outputs)
 
-
-
+def summary_image_with_box(image,
+                                bboxes,
+                                classes,
+                                scores=None,
+                                category_index=None,
+                                max_boxes_to_draw=100,
+                                name='summary_image_with_box',scale=True):
+    with tf.name_scope(name):
+        if scale:
+            if (image.dtype==tf.float32) or (image.dtype==tf.float16) or (image.dtype==tf.float64):
+                #floatpoint data value range is [-1,1]
+                image = (image+1.0)*127.5
+                image = tf.clip_by_value(image,clip_value_min=0.,clip_value_max=255.)
+                image = tf.cast(image,dtype=tf.uint8)
+        if image.get_shape().ndims == 3:
+            image = tf.expand_dims(image,axis=0)
+        if image.dtype is not tf.uint8:
+            image = tf.cast(image,tf.uint8)
+        if bboxes.get_shape().ndims == 2:
+            bboxes = tf.expand_dims(bboxes, 0)
+        if scores is None:
+            scores = tf.ones(shape=tf.shape(bboxes)[:2],dtype=tf.float32)
+        elif scores.get_shape().ndims ==1:
+            scores = tf.expand_dims(scores,axis=0)
+        if category_index is None:
+            category_index = {}
+            for i in range(100):
+                category_index[i] = {"name":f"{i}"}
+        if classes.get_shape().ndims == 1:
+            classes = tf.expand_dims(classes,axis=0)
+        image_with_box = smv.draw_bounding_boxes_on_image_tensors(image,bboxes,classes,scores,
+                                                              category_index=category_index,
+                                                              max_boxes_to_draw=max_boxes_to_draw)
+        tf.summary.image(name, image_with_box)

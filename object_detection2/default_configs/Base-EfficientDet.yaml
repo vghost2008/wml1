@@ -2,7 +2,7 @@ MODEL:
   META_ARCHITECTURE: "RetinaNet"
   INPUT_ALIGN: 128
   BACKBONE:
-    NAME: "build_any_bifpn_backbone"
+    NAME: "build_efficientnet_bifpn_backbone"
   EFFICIENTNETS:
     TYPE: 0
     FROZEN_BN: False
@@ -14,7 +14,6 @@ MODEL:
     SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
   BIFPN:
     IN_FEATURES: ["C2", "C3", "C4"]
-    BACKBONE: "build_efficientnet_backbone"
     REPEAT: 1
     NORM: "GN"
     ACTIVATION_FN: "swish"
@@ -39,4 +38,4 @@ INPUT:
   SIZE_ALIGN_FOR_TEST: 128
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinNetDemon"
+  PROJ_NAME: "EfficientDet"

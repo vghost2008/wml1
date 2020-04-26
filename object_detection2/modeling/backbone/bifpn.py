@@ -6,6 +6,7 @@ from .backbone import Backbone
 from .build import BACKBONE_REGISTRY,build_backbone_hook,build_backbone_by_name
 from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
+from .efficientnet import build_efficientnet_backbone
 import collections
 import object_detection2.od_toolkit as odt
 import object_detection2.architectures_tools as odat
@@ -19,7 +20,7 @@ class BIFPN(Backbone):
     """
 
     def __init__(
-        self, cfg,bottom_up, in_features, out_channels, fuse_type="sum",
+        self, cfg,bottom_up, in_features, out_channels,
             parent=None,*args,**kwargs
     ):
         """
@@ -33,17 +34,6 @@ class BIFPN(Backbone):
                 backbone produces ["res2", "res3", "res4"], any *contiguous* sublist
                 of these may be used; order must be from high to low resolution.
             out_channels (int): number of channels in the output feature maps.
-            norm (str): the normalization to use.
-            top_block (nn.Module or None): if provided, an extra operation will
-                be performed on the output of the last (smallest resolution)
-                BIFPN output, and the result will extend the result list. The top_block
-                further downsamples the feature map. It must have an attribute
-                "num_levels", meaning the number of extra BIFPN levels added by
-                this block, and "in_feature", which is a string representing
-                its input feature (e.g., p5).
-            fuse_type (str): types for fusing the top down features and the lateral
-                ones. It can be "sum" (default), which sums up element-wise; or "avg",
-                which takes the element-wise mean of the two.
         """
         stage = int(in_features[-1][1:])
         super(BIFPN, self).__init__(cfg,parent=parent,*args,**kwargs)
@@ -54,8 +44,6 @@ class BIFPN(Backbone):
         self.in_features = in_features
         self.bottom_up = bottom_up
         self.out_channels = out_channels
-        assert fuse_type in {"avg", "sum"}
-        self._fuse_type = fuse_type
         self.scope = "BIFPN"
         self.use_depthwise = False
         self.interpolate_op=tf.image.resize_nearest_neighbor
@@ -108,7 +96,7 @@ class BIFPN(Backbone):
                                         normalizer_fn=normalizer_fn,
                                         padding=padding)
 
-        with tf.name_scope(self.scope,"BIFPN"):
+        with tf.variable_scope(self.scope,"BIFPN"):
             for i,net in enumerate(image_features):
                 '''
                 FPN的官方实现没有使用norm与激活函数，但EfficientDet的官方实现中使用了BN,没有使用激活函数
@@ -140,6 +128,25 @@ class BIFPN(Backbone):
 
 
 @BACKBONE_REGISTRY.register()
+def build_efficientnet_bifpn_backbone(cfg,*args,**kwargs):
+    """
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_efficientnet_backbone(cfg,*args,**kwargs)
+    in_features = cfg.MODEL.BIFPN.IN_FEATURES
+    out_channels = cfg.MODEL.BIFPN.OUT_CHANNELS
+    backbone = BIFPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
 def build_resnet_bifpn_backbone(cfg,*args,**kwargs):
     """
     Returns:
@@ -152,7 +159,6 @@ def build_resnet_bifpn_backbone(cfg,*args,**kwargs):
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
-        fuse_type=cfg.MODEL.BIFPN.FUSE_TYPE,
         cfg=cfg,
         *args,
         **kwargs
@@ -172,7 +178,6 @@ def build_shufflenetv2_bifpn_backbone(cfg,*args,**kwargs):
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
-        fuse_type=cfg.MODEL.BIFPN.FUSE_TYPE,
         cfg=cfg,
         *args,
         **kwargs
@@ -192,7 +197,6 @@ def build_any_bifpn_backbone(cfg,*args,**kwargs):
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
-        fuse_type=cfg.MODEL.BIFPN.FUSE_TYPE,
         cfg=cfg,
         *args,
         **kwargs

@@ -47,7 +47,6 @@ class PredictModel(object):
         cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
         cfg.DATASETS.NUM_CLASSES = num_classes
         cfg.freeze()
-        print(cfg)
         config.set_global_cfg(cfg)
         model = SimpleTrainer.build_model(cfg, is_training=is_training)
         self.cfg = cfg
