@@ -32,6 +32,7 @@ import PIL.ImageFont as ImageFont
 import six
 import tensorflow as tf
 import cv2 as cv
+import cv2
 
 _TITLE_LEFT_MARGIN = 10
 _TITLE_TOP_MARGIN = 10
@@ -486,6 +487,9 @@ def draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
   pil_mask = Image.fromarray(np.uint8(255.0*alpha*mask)).convert('L')
   pil_image = Image.composite(pil_solid_color, pil_image, pil_mask)
   np.copyto(image, np.array(pil_image.convert('RGB')))
+  mask = mask*200
+  contours,hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+  cv2.drawContours(image,contours,-1,rgb,2)
   return image
 
 
@@ -505,8 +509,8 @@ def tf_draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
     return tf.reshape(res,shape)
 
 '''
-image:[height,width,3]
-mask:[N,height,width]
+image:[height,width,3] value range [0,255]
+mask:[N,height,width] value range [0,1]
 colors:[N], string
 alpha:
 '''

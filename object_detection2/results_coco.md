@@ -229,3 +229,82 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.041
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.218
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.352
 ```
+
+##coco/EfficientDet-D0.yaml EvoNormS
+
+- resnet-50 backbone
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- BIFPN normal: swish
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 32.0h
+- eval time: 0.1250s/img
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.235
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.395
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.242
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.036
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.176
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.319
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.251
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.409
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.433
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.108
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.389
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.549
+
+```
+
+
+##coco/RetinaNet.yaml SN + GIOUOutputs
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- FPN normal: SN
+- Head normal: SN
+- iterator: 120k
+- train time: 30.7h
+- eval time: 0.1262s/img
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.306
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.492
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.323
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.050
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.232
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.414
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.287
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.455
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.481
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.115
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.441
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.616
+```
+
+##coco/RetinaNet.yaml SN
+
+- batch_size: 4 on 1 gpu
+- backbone resnet50, FrozenBN
+- FPN normal: SN
+- Head normal: SN
+- iterator: 120k
+- train time: 19.9h
+- eval time: 0.1253
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.188
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.354
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.181
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.025
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.142
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.254
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.215
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.354
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.375
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.071
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.326
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.491
+```

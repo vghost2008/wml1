@@ -77,6 +77,10 @@ def trans_id(category_id):
     return ID_TO_COMPRESSED_ID[category_id]
     #return category_id
 
+def reverse_trans_id(category_id):
+    return COMPRESSED_ID_TO_ID[category_id]
+    #return category_id
+
 def create_tf_example(image,
                       annotations_list,
                       image_dir,
@@ -154,7 +158,7 @@ def create_tf_example(image,
     ymax.append(float(y + height) / image_height)
     is_crowd.append(object_annotations['iscrowd'])
     category_ids.append(category_id)
-    category_names.append(category_index[category_id]['name'].encode('utf8'))
+    category_names.append(category_index[reverse_trans_id(category_id)]['name'].encode('utf8'))
     area.append(object_annotations['area'])
 
     if include_masks:
@@ -276,8 +280,8 @@ def main(_):
 
   if not tf.gfile.IsDirectory(FLAGS.output_dir):
     tf.gfile.MakeDirs(FLAGS.output_dir)
-  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train0.tfrecord')
-  val_output_path = os.path.join(FLAGS.output_dir, 'coco_train1.tfrecord')
+  train_output_path = os.path.join(FLAGS.output_dir, 'coco_train.tfrecord')
+  val_output_path = os.path.join(FLAGS.output_dir, 'coco_val.tfrecord')
 
   _create_tf_record_from_coco_annotations(
       FLAGS.train_annotations_file,
@@ -286,27 +290,19 @@ def main(_):
       FLAGS.include_masks,
       is_train_data=True)
 
-  with open("/home/vghost/ai/work/gnms/data/mscoco_minival_ids.txt") as f:
-      ids = f.readlines()
-  ids = [int(x) for x in ids]
-
-  def filter(image):
-      return image["id"] not in ids
-
   _create_tf_record_from_coco_annotations(
       FLAGS.val_annotations_file,
       FLAGS.val_image_dir,
       val_output_path,
       FLAGS.include_masks,
-      img_filter=filter,
       is_train_data=False)
 
 
 if __name__ == '__main__':
-    SCRATCH_DIR=wmlu.home_dir("ai/mldata/coco")
-    FLAGS.train_image_dir = os.path.join(SCRATCH_DIR,"train2014")
-    FLAGS.val_image_dir =  os.path.join(SCRATCH_DIR,"val2014")
-    FLAGS.train_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_train2014.json")
-    FLAGS.val_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_val2014.json")
-    FLAGS.output_dir = output_dir = os.path.join(SCRATCH_DIR,"tfdata1")
+    SCRATCH_DIR=wmlu.home_dir("ai/mldata2/coco")
+    FLAGS.train_image_dir = os.path.join(SCRATCH_DIR,"train2017")
+    FLAGS.val_image_dir =  os.path.join(SCRATCH_DIR,"val2017")
+    FLAGS.train_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_train2017.json")
+    FLAGS.val_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_val2017.json")
+    FLAGS.output_dir = output_dir = os.path.join(SCRATCH_DIR,"tfdata_2017")
     tf.app.run()

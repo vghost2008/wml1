@@ -65,6 +65,14 @@ class WTransform(object):
         return res
     def __str__(self):
         return type(self).__name__
+
+    @staticmethod
+    def select(pred,true_v,false_v):
+        return tf.cond(pred,lambda:true_v,lambda:false_v)
+
+    @staticmethod
+    def cond_set(dict_data,key,pred,v):
+        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
 '''
 img:[H,W,C]
 '''
@@ -525,6 +533,48 @@ class SampleDistortedBoundingBox(WTransform):
                 mask = tf.slice(mask,bbox_begin,bbox_size)
                 return mask
             data_item = self.apply_to_masks(func,data_item)
+
+        return data_item
+
+class RandomSampleDistortedBoundingBox(WTransform):
+    def __init__(self,
+                 min_object_covered=0.3,
+                 aspect_ratio_range=(0.9, 1.1),
+                 area_range=(0.1, 1.0),
+                 max_attempts=100,
+                 filter_threshold=0.3,
+                 probability=0.5,
+                 ):
+        self.min_object_covered = min_object_covered
+        self.aspect_ratio_range = aspect_ratio_range
+        self.area_range = area_range
+        self.max_attempts = max_attempts
+        self.filter_threshold = filter_threshold
+        self.probability = probability
+
+    def __call__(self, data_item):
+        labels = data_item[GT_LABELS]
+        data_item[GT_LABELS] = labels
+        image = data_item[IMAGE]
+        bboxes = data_item[GT_BOXES]
+        distored = tf.less_equal(tf.random_uniform(shape=()),self.probability)
+        dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
+            distorted_bounding_box_crop(image, labels, bboxes,
+                                        area_range=self.area_range,
+                                        min_object_covered=self.min_object_covered,
+                                        aspect_ratio_range=self.aspect_ratio_range,
+                                        max_attempts=self.max_attempts,
+                                        filter_threshold=self.filter_threshold,
+                                        scope="distorted_bounding_box_crop")
+        self.cond_set(data_item,IMAGE,distored,dst_image)
+        self.cond_set(data_item,GT_LABELS,distored,labels)
+        self.cond_set(data_item,GT_BOXES,distored,bboxes)
+
+        if GT_MASKS in data_item:
+            mask = data_item[GT_MASKS]
+            mask = tf.boolean_mask(mask,bboxes_mask)
+            mask = tf.slice(mask,bbox_begin,bbox_size)
+            self.cond_set(data_item, GT_MASKS, distored, mask)
 
         return data_item
 

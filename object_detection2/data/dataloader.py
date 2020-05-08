@@ -3,53 +3,13 @@ import wmodule
 import iotoolkit.transform as trans
 import wsummary
 import tensorflow as tf
+from .build_dataprocess import DATAPROCESS_REGISTRY
 
 class DataLoader(wmodule.WModule):
     category_index = None
     def __init__(self,cfg,*args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
-        if self.is_training:
-            self.trans_on_single_img = [trans.MaskNHW2HWN(),
-                                        #trans.ResizeToFixedSize(),
-                                        trans.RandomFlipLeftRight(),
-                                        #trans.RandomFlipUpDown(),
-                                        #trans.RandomRotate(clockwise=True),
-                                        #trans.RandomRotate(clockwise=False), 因为已经有了上下及左右翻转的辅助，已经可以覆盖每一个角度
-                                        trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TRAIN,
-                                                                 max_size=self.cfg.INPUT.MAX_SIZE_TRAIN,
-                                                                 align=self.cfg.INPUT.SIZE_ALIGN),
-                                        trans.MaskHWN2NHW(),
-                                        trans.BBoxesRelativeToAbsolute(),
-                                        trans.WRemoveCrowdInstance(self.cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
-                                        trans.AddBoxLens(),
-                                        trans.UpdateHeightWidth(),
-                                        ]
-            if cfg.MODEL.INPUT_ALIGN > 1:
-                self.trans_on_batch_img = [trans.PadtoAlign(align=cfg.MODEL.INPUT_ALIGN),
-                                           trans.BBoxesAbsoluteToRelative(),
-                                           trans.FixDataInfo()]
-            else:
-                self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
-                                           trans.FixDataInfo()]
-            '''self.trans_on_single_img = [trans.MaskNHW2HWN(),
-                                        trans.ResizeToFixedSize(),
-                                        trans.MaskHWN2NHW(),
-                                        trans.AddBoxLens(),
-                                        trans.UpdateHeightWidth(),
-                                        ]
-            self.trans_on_batch_img = [trans.FixDataInfo()]'''
-        else:
-            self.trans_on_single_img = [trans.MaskNHW2HWN(),
-                                        #trans.ResizeToFixedSize(),
-                                        trans.ResizeShortestEdge(short_edge_length=self.cfg.INPUT.MIN_SIZE_TEST,
-                                                                 max_size=self.cfg.INPUT.MAX_SIZE_TEST,
-                                                                 align=self.cfg.INPUT.SIZE_ALIGN_FOR_TEST),
-                                        trans.MaskHWN2NHW(),
-                                        trans.BBoxesRelativeToAbsolute(),
-                                        trans.AddBoxLens(),
-                                        ]
-            self.trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
-                                       trans.FixDataInfo()]
+        self.trans_on_single_img,self.trans_on_batch_img = DATAPROCESS_REGISTRY.get(self.cfg.INPUT.DATAPROCESS)(cfg,self.is_training)
 
     @staticmethod
     def get_pad_shapes(dataset):

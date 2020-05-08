@@ -4,6 +4,8 @@ from .backbone import Backbone
 from .build import BACKBONE_REGISTRY
 from thirdparty.nets.resnet_v1 import *
 import collections
+import wmodule
+import object_detection2.od_toolkit as odt
 
 slim = tf.contrib.slim
 
@@ -41,6 +43,8 @@ class ResNet(Backbone):
         for i,k in enumerate(keys2):
             res[values2[i]] = end_points["FeatureExtractor/resnet_v1_50/"+keys2[i]]
 
+        if self.cfg.MODEL.RESNETS.MAKE_C6:
+            res[f"C{6}"] = slim.avg_pool2d(res["C5"],kernel_size=1, stride=2, padding="SAME")
         return res
 
 

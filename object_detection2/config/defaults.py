@@ -55,6 +55,7 @@ _C.INPUT.CROP.TYPE = "relative_range"
 # Size of crop in range (0, 1] if CROP.TYPE is "relative" or "relative_range" and in number of
 # pixels if CROP.TYPE is "absolute"
 _C.INPUT.CROP.SIZE = [0.9, 0.9]
+_C.INPUT.DATAPROCESS = "coco"
 
 
 # Whether the model needs RGB, YUV, HSV etc.
@@ -87,7 +88,7 @@ _C.DATASETS.PROPOSAL_FILES_TEST = ()
 # Number of top scoring precomputed proposals to keep for test
 _C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
 _C.DATASETS.NUM_CLASSES= 90
-_C.DATASETS.SKIP_CROWD_DURING_TRAINING = False
+_C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 
 # -----------------------------------------------------------------------------
 # DataLoader
@@ -617,6 +618,7 @@ _C.MODEL.RESNETS.DEFORM_MODULATED = False
 _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 _C.MODEL.RESNETS.batch_norm_decay = 0.999
 _C.MODEL.RESNETS.FROZEN_BN = False
+_C.MODEL.RESNETS.MAKE_C6 = False
 
 
 _C.MODEL.MOBILENETS = CN()

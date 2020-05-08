@@ -38,18 +38,17 @@ def __draw_detection_image_summary(images,
     4D image tensor of type uint8, with boxes drawn on top.
   """
   if classes is None and scores is None  and instance_masks is None and keypoints is None:
-      if images.dtype == tf.float32 or images.dtype == tf.float64:
+      if images.dtype == tf.float32 or images.dtype==tf.float64:
           min = tf.reduce_min(images)
           max = tf.reduce_max(images)
           images = (images-min)/(max-min+1e-8)
+      else:
+          images = tf.cast(images,dtype=tf.float32)
+          images =images/255.0
       return tf.image.draw_bounding_boxes(images,boxes)
 
-  if images.dtype == tf.float32 or images.dtype == tf.float64:
-    min = tf.reduce_min(images)
-    max = tf.reduce_max(images)
-    images = (images-min)*255/(max-min+1e-8)
-    images = tf.clip_by_value(images,0,255)
-    images = tf.cast(images,tf.uint8)
+  assert images.dtype==tf.uint8,"error image type"
+
 
   if images.get_shape().as_list()[-1] == 1:
       images = tf.tile(images,[1,1,1,3])
@@ -87,20 +86,42 @@ def draw_detection_image_summary(images,
                                  lengths=None,
                                  max_boxes_to_draw=20,
                                  min_score_thresh=0.2):
+
+    if images.dtype == tf.float32 or images.dtype == tf.float64:
+        min = tf.reduce_min(images)
+        max = tf.reduce_max(images)
+        images = (images - min) * 255 / (max - min + 1e-8)
+        images = tf.clip_by_value(images, 0, 255)
+        images = tf.cast(images, tf.uint8)
+
+    elif images.dtype != tf.uint8:
+        images = tf.cast(images, tf.uint8)
+
     if instance_masks is not None:
-        def fn(image,mask,len):
+        def fn0(image,mask,score,len):
+            mask = mask[:len]
+            score = score[:len]
+            index = tf.greater(score,min_score_thresh)
+            mask = tf.boolean_mask(mask,index)
+            return draw_mask_on_image(image,mask)
+        def fn1(image,mask,len):
             mask = mask[:len]
             return draw_mask_on_image(image,mask)
         if lengths is None:
             batch_size,nr,H,W = btf.combined_static_and_dynamic_shape(instance_masks)
             lengths = tf.ones([batch_size],dtype=tf.int32)*nr
+        lengths = tf.minimum(lengths,max_boxes_to_draw)
         if images.dtype is not tf.uint8:
             min = tf.reduce_min(images)
             max = tf.reduce_max(images)
             value_range = (max-min)
             images = tf.cond(tf.less(value_range,127.5),lambda:tf.cast(tf.clip_by_value((images+1.0)*127.5,0,255),tf.uint8),
                              lambda:tf.cast(images,tf.uint8))
-        images = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=[images,instance_masks,lengths],dtype=tf.uint8)
+        if scores is not None:
+            images = tf.map_fn(lambda x:fn0(x[0],x[1],x[2],x[3]),elems=[images,instance_masks,scores,lengths],dtype=tf.uint8)
+        else:
+            images = tf.map_fn(lambda x: fn1(x[0], x[1], x[2]), elems=[images, instance_masks, lengths],
+                               dtype=tf.uint8)
         return draw_detection_image_summary(images,boxes,classes,scores=scores,
                                             category_index=category_index,
                                             instance_masks=None,

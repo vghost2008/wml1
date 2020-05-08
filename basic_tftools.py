@@ -145,7 +145,14 @@ indices:[batch_size,...]
 如果indices:[batch_size]那么返回[batch_size,...]
 '''
 def batch_gather(params,indices,name=None):
-    if indices.get_shape().ndims <= 2:
+    if indices.get_shape().ndims <= 1:
+        with tf.name_scope(name=name, default_name="batch_gather"):
+            indices_shape = combined_static_and_dynamic_shape(indices)
+            batch_indices = tf.range(indices_shape[0])
+            indices = tf.reshape(indices,[-1])
+            indices = tf.stack([batch_indices,indices],axis=1)
+            return tf.gather_nd(params,indices)
+    elif indices.get_shape().ndims <= 2:
         with tf.name_scope(name=name,default_name="batch_gather"):
             return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
     else:

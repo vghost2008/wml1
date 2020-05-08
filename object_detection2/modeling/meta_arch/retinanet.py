@@ -163,9 +163,11 @@ class RetinaNetHead(wmodule.WChildModule):
                         net = slim.conv2d(net,channels,[3,3],
                                           activation_fn=None,
                                           normalizer_fn=None,
+                                          biases_initializer=None if self.normalizer_fn is not None else tf.zeros_initializer(),
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
-                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                            with tf.variable_scope(f"conv2d_{i}"):
+                                net = self.normalizer_fn(net, scope=f'BatchNorm/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
@@ -177,9 +179,11 @@ class RetinaNetHead(wmodule.WChildModule):
                         net = slim.conv2d(net,channels,[3,3],
                                           activation_fn=None,
                                           normalizer_fn=None,
+                                          biases_initializer=None if self.normalizer_fn is not None else tf.zeros_initializer(),
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
-                            net = self.normalizer_fn(net, scope=f'conv2d_{i}/BatchNorm/feature_{j}',**self.norm_params)
+                            with tf.variable_scope(f"conv2d_{i}"):
+                                net = self.normalizer_fn(net, scope=f'BatchNorm/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
                 _logits = slim.conv2d(net, self.num_anchors* num_classes, [3, 3], activation_fn=None,

@@ -9,6 +9,8 @@ from tensorflow.python.ops import nn
 from tensorflow.contrib.layers.python.layers import initializers
 from tensorflow.contrib.layers.python.layers import utils
 import nlp.wlayers as nlpl
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import math_ops
 import numpy as np
 import time
 from tensorflow.contrib.framework.python.ops import add_arg_scope
@@ -172,17 +174,21 @@ def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
     with tf.variable_scope(scope):
         N,H,W,C = btf.combined_static_and_dynamic_shape(x)
         gamma = tf.get_variable(name="gamma",shape=[1,1,1,C],initializer=tf.ones_initializer())
-        if offset:
-            beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
         gamma = tf.reshape(gamma,[1,1,1,G,C//G])
+
+        beta = tf.get_variable(name="beta",shape=[1,1,1,C],initializer=tf.zeros_initializer())
         beta = tf.reshape(beta,[1,1,1,G,C//G])
+
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
 
         gain = tf.math.rsqrt(var + epsilon)
-        offset_value = -mean * gain
+        if offset:
+            offset_value = -mean * gain
+        else:
+            offset_value = tf.zeros_like(beta)
 
         if scale:
             gain *= gamma
@@ -306,6 +312,55 @@ def evo_norm_s0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope=
 
         x = x * tf.nn.sigmoid(x*v1)*gain + beta
         x = wmlt.reshape(x, [N,H,W,C])
+        return x
+
+@add_arg_scope
+def spectral_norm_for_conv(x,is_training=True,scope=None):
+    #用于normalizer的conv2d, full_connected的权重名为weights并且需要与本函数在同一个value_scope中
+    def get_weights():
+        ws = tf.trainable_variables(tf.get_variable_scope().name)
+        res = None
+        total_nr = 0
+        for w in ws:
+            if w.name.endswith("weights:0"):
+                res = w
+                total_nr += 1
+        assert total_nr==1,"error weights nr."
+        return res
+
+    w = get_weights()
+    B,H,W,C = x.get_shape().as_list()
+
+    with tf.variable_scope(scope,"spectral_norm"):
+        beta = tf.get_variable(name="beta", shape=[1, 1, 1, C], initializer=tf.ones_initializer())
+        gamma = tf.get_variable(name="gamma", shape=[1, 1, 1, C], initializer=tf.ones_initializer())
+        s_sigma = tf.get_variable("sigma", (), initializer=tf.ones_initializer(), trainable=not is_training)
+
+        if is_training:
+            w_shape = w.shape.as_list()
+            w = tf.reshape(w, [-1, w_shape[-1]])
+            u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+            with tf.name_scope("get_sigma"):
+                u_hat = u
+                #one iterator
+                v_ = tf.matmul(u_hat, tf.transpose(w))
+                v_hat = tf.nn.l2_normalize(v_)
+
+                u_ = tf.matmul(v_hat, w)
+                u_hat = tf.nn.l2_normalize(u_)
+
+                u_hat = tf.stop_gradient(u_hat)
+                v_hat = tf.stop_gradient(v_hat)
+
+                sigma = tf.reshape(tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat)),())
+
+            with tf.control_dependencies([u.assign(u_hat),s_sigma.assign(sigma)]):
+                v = gamma/sigma
+                x = x*v+beta
+        else:
+            v = gamma /s_sigma
+            x = x * v+beta
+
         return x
 
 @add_arg_scope
@@ -585,7 +640,7 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
 
 def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
-                      gamma_initializer=tf.constant_initializer(0.0)):
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None):
     def reshape_net(net):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         new_shape = [shape[0],shape[1]*shape[2],shape[3]]
@@ -601,7 +656,7 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
     if len(inner_dims_multiplier) == 1:
         inner_dims_multiplier = inner_dims_multiplier*3
 
-    with tf.variable_scope(scope,default_name="non_local"):
+    with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         channel = shape[-1]
         m_channelq = channel//inner_dims_multiplier[0]
@@ -991,3 +1046,19 @@ def deform_conv2dv2(inputs,
 '''
 
 
+def swish(features):
+  # pylint: disable=g-doc-args
+  """Computes the Swish activation function: `x * sigmoid(x)`.
+
+  Source: "Searching for Activation Functions" (Ramachandran et al. 2017)
+  https://arxiv.org/abs/1710.05941
+
+  Args:
+    features: A `Tensor` representing preactivation values.
+    name: A name for the operation (optional).
+
+  Returns:
+    The activation value.
+  """
+  features = ops.convert_to_tensor(features, name="features")
+  return features * math_ops.sigmoid(features)

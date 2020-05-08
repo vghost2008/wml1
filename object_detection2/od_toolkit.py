@@ -80,6 +80,11 @@ def get_norm(name:str,is_training):
             "scope":"group_norm"
         }
         return wnnl.group_norm_4d_v0, norm_params
+    elif name == "SN":
+        norm_params = {
+            'is_training': is_training
+        }
+        return wnnl.spectral_norm_for_conv, norm_params
     else:
         raise NotImplementedError()
 def get_activation_fn(name):

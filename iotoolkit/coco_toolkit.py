@@ -100,6 +100,7 @@ for i in range(1,81):
         j += 1
     ID_TO_COMPRESSED_ID[j] = i
     COMPRESSED_ID_TO_ID[i] = j
+    j += 1
 
 for k,v in COMPRESSED_ID_TO_ID.items():
     COMPRESSED_ID_TO_TEXT[k] = ID_TO_TEXT[v]['name']

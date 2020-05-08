@@ -18,6 +18,8 @@ import os
 import copy
 import functools
 from collections import Iterable
+from tensorflow.python.framework import graph_util
+
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -633,17 +635,17 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         index = v.find(':')
         if index>0:
             variables[i] = variables[i][:index]
-    if not silent:
-        unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
-        unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
-        if not verbose:
-            def v_filter(x:str):
-                #return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
-                return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("Momentum"))
-            unrestored_variables = filter(v_filter,unrestored_variables)
-            unrestored_variables0 = filter(v_filter,unrestored_variables0)
-        show_values(unrestored_variables, "Unrestored variables in ckpt")
-        show_values(unrestored_variables0, "Unrestored variables of global variables")
+
+    unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
+    unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
+    if not verbose:
+        def v_filter(x:str):
+            #return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("/u"))
+            return (not x.endswith("ExponentialMovingAverage")) and (not x.endswith("Momentum"))
+        unrestored_variables = filter(v_filter,unrestored_variables)
+        unrestored_variables0 = filter(v_filter,unrestored_variables0)
+    show_values(unrestored_variables, "Unrestored variables in ckpt")
+    show_values(unrestored_variables0, "Unrestored variables of global variables")
     return True
 
 def log_moving_variable():

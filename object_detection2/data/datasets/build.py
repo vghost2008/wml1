@@ -1,5 +1,4 @@
 #coding=utf-8
-from thirdparty.registry import Registry
 class DatasetRegistry(object):
     def __init__(self,name):
         self.name = name
@@ -12,3 +11,5 @@ class DatasetRegistry(object):
         return self.dict[name]
 
 DATASETS_REGISTRY = DatasetRegistry("DATASETS")
+
+

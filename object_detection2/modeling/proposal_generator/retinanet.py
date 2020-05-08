@@ -38,14 +38,16 @@ class RetinaNet(wmodule.WChildModule):
         self.fast_mode = cfg.MODEL.RETINANET_PG.FAST_MODE
         # fmt: on
         self.anchor_generator = build_anchor_generator(cfg,parent=self,*args,**kwargs)
-        self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET_PG, num_anchors=self.anchor_generator.num_cell_anchors,parent=self,
+        self.head = RetinaNetHead(cfg=cfg.MODEL.RETINANET_PG, num_anchors=self.anchor_generator.num_cell_anchors,
+                                  parent=self,
                                   *args,**kwargs)
 
         # Matching and loss
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RETINANET_PG.BBOX_REG_WEIGHTS)
         self.anchor_matcher = Matcher(
             cfg.MODEL.RETINANET_PG.IOU_THRESHOLDS,
-            same_pos_label=1,
+            #NUM_CLASSES==1表示仅分背景与前景，否则为完整普通的分类
+            same_pos_label=1 if self.cfg.MODEL.RETINANET_PG.NUM_CLASSES==1 else None,
             allow_low_quality_matches=True,
             cfg=cfg,
             parent=self,

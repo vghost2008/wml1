@@ -7,6 +7,15 @@ import semantic.visualization_utils as smv
 
 isSingleValueTensor = btf.isSingleValueTensor
 
+'''
+images: [batch_size,H,W,C]
+masks:shape=[batch_size,N,h,w]
+boxes:shape=[batch_size,N,4]
+size:[H,W]
+mask_bg_value:mask background value
+return:
+shape=[batch_size,N,H,W]
+'''
 def detection_image_summary_with_croped_mask(images,
                            boxes,
                            *args,
@@ -14,12 +23,15 @@ def detection_image_summary_with_croped_mask(images,
                            **kwargs):
     if instance_masks is not None:
         shape = btf.combined_static_and_dynamic_shape(images)
-        if instance_masks.dtype != tf.uint8 and instance_masks.dtype != tf.bool:
-            instance_masks = tf.cast(instance_masks > 0.5, tf.float32)
+        assert len(instance_masks.get_shape()) == 4,"error mask dims"
+        assert len(boxes.get_shape()) == 3,"error boxes dims"
+        assert len(images.get_shape()) == 4,"error images dims"
         instance_masks = imv.batch_tf_get_fullsize_mask(boxes=boxes,
                                                         masks=instance_masks,
                                                         size=shape[1:3]
                                                         )
+        if instance_masks.dtype != tf.uint8 and instance_masks.dtype != tf.bool:
+            instance_masks = tf.cast(instance_masks > 0.5, tf.float32)
     return detection_image_summary(images,boxes,*args,instance_masks=instance_masks,**kwargs)
 
 def detection_image_summary_by_logmask(images,

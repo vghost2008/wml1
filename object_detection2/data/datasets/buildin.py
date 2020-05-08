@@ -32,8 +32,8 @@ def register_all_pascal_voc(root="datasets"):
 def register_all_coco(root="datasets"):
     #名字，tfrecord文件路径,解码函数，num_classes(不包含背景)
     SPLITS = [
-        ("coco_2017_train", os.path.join(dataset_root_path,"coco17_train_tfdata"),coco_get_data,80,coco_compressed_id_to_text),
-        ("coco_2017_val", os.path.join(dataset_root_path,"coco17_val_tfdata"),coco_get_data,80,coco_compressed_id_to_text),
+        ("coco_2017_train", os.path.join(dataset_root_path,"coco/tfdata_2017_train"),coco_get_data,80,coco_compressed_id_to_text),
+        ("coco_2017_eval", os.path.join(dataset_root_path,"coco/tfdata_2017_val"),coco_get_data,80,coco_compressed_id_to_text),
         ("coco_2014_train", os.path.join(dataset_root_path,"coco/tfdata1"),coco_get_data,90,coco_category_index),
         ("coco_2014_eval", os.path.join(dataset_root_path,"coco/tfdata_val"),coco_get_data,90,coco_category_index),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3,mod_category_index),

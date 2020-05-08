@@ -7,7 +7,7 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '7'
+os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 
 slim = tf.contrib.slim
 
@@ -47,6 +47,7 @@ def main(_):
 
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
     trainer = SimpleTrainer(cfg,data=data,model=model)
+    #global_scopes = ".*/sigma"
     trainer.resume_or_load()
     res = trainer.test(cfg, model)
     return res

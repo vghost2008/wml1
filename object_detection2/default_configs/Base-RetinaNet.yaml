@@ -1,7 +1,7 @@
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
   #WEIGHTS: "/home/vghost/ai/mldata/mobilenet/v3-large_224_1.0_float/ema"
-  ONLY_SCOPE: "MobilenetV3"
+  #ONLY_SCOPE: "MobilenetV3"
   BACKBONE:
     NAME: "build_retinanet_shufflenetv2_fpn_backbone"
     #NAME: "build_mobile_backbone"
@@ -12,25 +12,26 @@ MODEL:
     SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
   FPN:
     IN_FEATURES: ["C2", "C3", "C4"]
+    NORM: "SN"
   RETINANET:
     IN_FEATURES: ["P2","P3","P4"]
     IOU_THRESHOLDS: [0.4, 0.5]
     IOU_LABELS: [0, -1, 1]
+    NORM: "SN"
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"
   #TRAIN: "coco_2014_train"
   #TEST: "coco_2014_eval"
-  SKIP_CROWD_DURING_TRAINING: True
+  SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 16
   BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
   STEPS: (6000,8000,10000)
   MAX_ITER: 90000
 INPUT:
-  #MIN_SIZE_TRAIN: (96,128,160,256)
-  MIN_SIZE_TRAIN: (512,544,576,608,640)
-  #MIN_SIZE_TRAIN: (224,256,288)
+  #MIN_SIZE_TRAIN: (512,544,576,608,640)
+  MIN_SIZE_TRAIN: (224,256,288)
   MIN_SIZE_TEST: 224
 VERSION: 2
 GLOBAL:
