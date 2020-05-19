@@ -214,15 +214,22 @@ def crop_img(img,box):
     box = np.array(box)
     box = np.minimum(box,1.0)
     box = np.maximum(box,0.0)
-    ymin = int((shape[0]-1)*box[0]+0.5)
-    ymax = int((shape[0]-1)*box[2]+1+0.5)
-    xmin = int((shape[1]-1)*box[1]+0.5)
-    xmax = int((shape[1]-1)*box[3]+1+0.5)
+    ymin = int((shape[0])*box[0]+0.5)
+    ymax = int((shape[0])*box[2]+1+0.5)
+    xmin = int((shape[1])*box[1]+0.5)
+    xmax = int((shape[1])*box[3]+1+0.5)
     if len(shape)==2:
         return img[ymin:ymax,xmin:xmax]
     else:
         return img[ymin:ymax,xmin:xmax,:]
 
+'''
+box:ymin,xmin,ymax,xmax, absolute corrdinate
+'''
+def crop_img_absolute(img,box):
+    shape = img.shape
+    box = [box[0]/shape[0],box[1]/shape[1],box[2]/shape[0],box[3]/shape[1]]
+    return crop_img(img,box)
 '''
 box:[ymin,xmin,ymax,xmax], relative coordinate
 crop_size:[heigh,width] absolute pixel size.

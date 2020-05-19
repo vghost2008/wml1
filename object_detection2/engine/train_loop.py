@@ -3,6 +3,7 @@ import tensorflow as tf
 import logging
 import wml_utils as wmlu
 import numpy as np
+import image_visualization as imv
 from object_detection2.modeling.meta_arch.build import build_model
 from object_detection2.data.dataloader import DataLoader
 import time
@@ -277,6 +278,32 @@ class SimpleTrainer(TrainerBase):
 
         self.res_data_for_eval = self.res_data
         self.res_data_for_eval.update(self.input_data)
+        self.category_index = None
+
+    def add_full_size_mask(self):
+        if RD_MASKS not in self.res_data:
+            return
+        if RD_FULL_SIZE_MASKS in self.res_data:
+            return
+
+        boxes = self.res_data[RD_BOXES]
+        instance_masks = self.res_data[RD_MASKS]
+        shape = wmlt.combined_static_and_dynamic_shape(self.data)
+        self.res_data[RD_FULL_SIZE_MASKS] = imv.batch_tf_get_fullsize_mask(boxes=boxes,
+                                                        masks=instance_masks,
+                                                        size=shape[1:3]
+                                                        )
+    def draw_on_image(self):
+        self.add_full_size_mask()
+        images = imv.draw_detection_image_summary(images=self.data,
+                                                  boxes=self.res_data[RD_BOXES],
+                                                  classes=self.res_data[RD_LABELS],
+                                                  category_index=self.category_index,
+                                                  instance_masks=self.res_data.get(RD_FULL_SIZE_MASKS,None),
+                                                  lengths=self.res_data[RD_LENGTH],
+                                                  max_boxes_to_draw=200,
+                                                  min_score_thresh=0)
+        self.res_data[RD_RESULT_IMAGE] = images
 
     def __del__(self):
         if self.sess is not None:

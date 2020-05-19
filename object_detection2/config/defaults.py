@@ -1,14 +1,11 @@
 from .config import CfgNode as CN
-# The version number, to upgrade from old configs to new ones if any
-# changes happen. It's recommended to keep a VERSION in your config file.
+
 _C = CN()
 _C.VERSION = 2
 
 _C.MODEL = CN()
-_C.MODEL.LOAD_PROPOSALS = False
 _C.MODEL.MASK_ON = False
 _C.MODEL.KEYPOINT_ON = False
-_C.MODEL.DEVICE = "cuda"
 _C.MODEL.META_ARCHITECTURE = "GeneralizedRCNN"
 _C.MODEL.MIN_BOXES_AREA_TEST = 0.
 _C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
@@ -16,25 +13,12 @@ _C.MODEL.WEIGHTS = ""
 _C.MODEL.ONLY_SCOPE = ""
 _C.MODEL.INPUT_ALIGN = 1
 
-# Values to be used for image normalization (BGR order, since INPUT.FORMAT defaults to BGR).
-# To train on images of different number of channels, just set different mean & std.
-# Default values are the mean pixel value from ImageNet: [103.53, 116.28, 123.675]
-_C.MODEL.PIXEL_MEAN = [103.530, 116.280, 123.675]
-# When using pre-trained models in Detectron1 or any MSRA models,
-# std has been absorbed into its conv1 weights, so the std needs to be set 1.
-# Otherwise, you can use [57.375, 57.120, 58.395] (ImageNet std)
-_C.MODEL.PIXEL_STD = [1.0, 1.0, 1.0]
-
-
 # -----------------------------------------------------------------------------
 # INPUT
 # -----------------------------------------------------------------------------
 _C.INPUT = CN()
 # Size of the smallest side of the image during training
 _C.INPUT.MIN_SIZE_TRAIN = (224,256,288)
-# Sample size of smallest side by choice or random selection from range give by
-# INPUT.MIN_SIZE_TRAIN
-_C.INPUT.MIN_SIZE_TRAIN_SAMPLING = "choice"
 # Maximum size of the side of the image during training
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
@@ -44,30 +28,13 @@ _C.INPUT.MAX_SIZE_TEST = 1333
 _C.INPUT.SIZE_ALIGN = 1
 _C.INPUT.SIZE_ALIGN_FOR_TEST = 1
 
-# `True` if cropping is used for data augmentation during training
-_C.INPUT.CROP = CN({"ENABLED": False})
-# Cropping type:
-# - "relative" crop (H * CROP.SIZE[0], W * CROP.SIZE[1]) part of an input of size (H, W)
-# - "relative_range" uniformly sample relative crop size from between [CROP.SIZE[0], [CROP.SIZE[1]].
-#   and  [1, 1] and use it as in "relative" scenario.
-# - "absolute" crop part of an input with absolute size: (CROP.SIZE[0], CROP.SIZE[1]).
-_C.INPUT.CROP.TYPE = "relative_range"
-# Size of crop in range (0, 1] if CROP.TYPE is "relative" or "relative_range" and in number of
-# pixels if CROP.TYPE is "absolute"
-_C.INPUT.CROP.SIZE = [0.9, 0.9]
+_C.INPUT.CROP = CN()
+_C.INPUT.CROP.SIZE = [0.1, 1.0]
+_C.INPUT.CROP.ASPECT_RATIO = [0.5, 2.0]
+_C.INPUT.CROP.MIN_OBJECT_COVERED = 0.5
+_C.INPUT.CROP.PROBABILITY = 0.5
+_C.INPUT.CROP.FILTER_THRESHOLD = 0.3
 _C.INPUT.DATAPROCESS = "coco"
-
-
-# Whether the model needs RGB, YUV, HSV etc.
-# Should be one of the modes defined here, as we use PIL to read the image:
-# https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-modes
-# with BGR being the one exception. One can set image format to BGR, we will
-# internally use RGB for conversion and flip the channels over
-_C.INPUT.FORMAT = "BGR"
-# The ground truth mask format that the model will use.
-# Mask R-CNN supports either "polygon" or "bitmask" as ground truth.
-_C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
-
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -75,18 +42,8 @@ _C.INPUT.MASK_FORMAT = "polygon"  # alternative: "bitmask"
 _C.DATASETS = CN()
 # List of the dataset names for training. Must be registered in DatasetCatalog
 _C.DATASETS.TRAIN = ""
-# List of the pre-computed proposal files for training, which must be consistent
-# with datasets listed in DATASETS.TRAIN.
-_C.DATASETS.PROPOSAL_FILES_TRAIN = ()
-# Number of top scoring precomputed proposals to keep for training
-_C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TRAIN = 2000
 # List of the dataset names for testing. Must be registered in DatasetCatalog
 _C.DATASETS.TEST = ""
-# List of the pre-computed proposal files for test, which must be consistent
-# with datasets listed in DATASETS.TEST.
-_C.DATASETS.PROPOSAL_FILES_TEST = ()
-# Number of top scoring precomputed proposals to keep for test
-_C.DATASETS.PRECOMPUTED_PROPOSAL_TOPK_TEST = 1000
 _C.DATASETS.NUM_CLASSES= 90
 _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 
@@ -96,14 +53,6 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATALOADER = CN()
 # Number of data loading threads
 _C.DATALOADER.NUM_WORKERS = 4
-# If True, each batch should contain only images for which the aspect ratio
-# is compatible. This groups portrait images together, and landscape images
-# are not batched with portrait images.
-_C.DATALOADER.ASPECT_RATIO_GROUPING = True
-# Options: TrainingSampler, RepeatFactorTrainingSampler
-_C.DATALOADER.SAMPLER_TRAIN = "TrainingSampler"
-# Repeat threshold for RepeatFactorTrainingSampler
-_C.DATALOADER.REPEAT_THRESHOLD = 0.0
 # if True, the dataloader will filter out images that have no associated
 # annotations at train time.
 _C.DATALOADER.FILTER_EMPTY_ANNOTATIONS = True
@@ -114,9 +63,6 @@ _C.DATALOADER.FILTER_EMPTY_ANNOTATIONS = True
 _C.MODEL.BACKBONE = CN()
 
 _C.MODEL.BACKBONE.NAME = "build_resnet_backbone"
-# Add StopGrad at a specified stage so the bottom layers are frozen
-_C.MODEL.BACKBONE.FREEZE_AT = 2
-
 
 # ---------------------------------------------------------------------------- #
 # FPN options
@@ -185,15 +131,6 @@ _C.MODEL.ANCHOR_GENERATOR.SIZES = [[32, 64, 128, 256, 512]]
 # or len(ASPECT_RATIOS) == 1 is true and aspect ratio list ASPECT_RATIOS[0] is used
 # for all IN_FEATURES.
 _C.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS = [[0.5, 1.0, 2.0]]
-# Anchor angles.
-# list[float], the angle in degrees, for each input feature map.
-# ANGLES[i] specifies the list of angles for IN_FEATURES[i].
-_C.MODEL.ANCHOR_GENERATOR.ANGLES = [[-90, 0, 90]]
-# Relative offset between the center of the first anchor and the top-left corner of the image
-# Units: fraction of feature map stride (e.g., 0.5 means half stride)
-# Allowed values are floats in [0, 1) range inclusive.
-# Recommended value is 0.5, although it is not expected to affect model accuracy.
-_C.MODEL.ANCHOR_GENERATOR.OFFSET = 0.0
 
 # ---------------------------------------------------------------------------- #
 # RPN options
@@ -682,13 +619,6 @@ _C.SOLVER.WEIGHT_DECAY_BIAS = _C.SOLVER.WEIGHT_DECAY
 # Specific test options
 # ---------------------------------------------------------------------------- #
 _C.TEST = CN()
-# For end-to-end tests to verify the expected accuracy.
-# Each item is [task, metric, value, tolerance]
-# e.g.: [['bbox', 'AP', 38.5, 0.2]]
-_C.TEST.EXPECTED_RESULTS = []
-# The period (in terms of steps) to evaluate the model during training.
-# Set to 0 to disable.
-_C.TEST.EVAL_PERIOD = 0
 # The sigmas used to calculate keypoint OKS.
 # When empty it will use the defaults in COCO.
 # Otherwise it should have the same length as ROI_KEYPOINT_HEAD.NUM_KEYPOINTS.
@@ -696,32 +626,6 @@ _C.TEST.KEYPOINT_OKS_SIGMAS = []
 # Maximum number of detections to return per image during inference (100 is
 # based on the limit established for the COCO dataset).
 _C.TEST.DETECTIONS_PER_IMAGE = 100
-
-_C.TEST.AUG = CN({"ENABLED": False})
-_C.TEST.AUG.MIN_SIZES = (400, 500, 600, 700, 800, 900, 1000, 1100, 1200)
-_C.TEST.AUG.MAX_SIZE = 4000
-_C.TEST.AUG.FLIP = True
-
-_C.TEST.PRECISE_BN = CN({"ENABLED": False})
-_C.TEST.PRECISE_BN.NUM_ITER = 200
-
-# ---------------------------------------------------------------------------- #
-# Misc options
-# ---------------------------------------------------------------------------- #
-# Directory where output files are written
-_C.OUTPUT_DIR = "./output"
-# Set seed to negative to fully randomize everything.
-# Set seed to positive to use a fixed seed. Note that a fixed seed does not
-# guarantee fully deterministic behavior.
-_C.SEED = -1
-# Benchmark different cudnn algorithms.
-# If input images have very different sizes, this option will have large overhead
-# for about 10k iterations. It usually hurts total time, but can benefit for certain models.
-# If input images have the same or similar sizes, benchmark is often helpful.
-_C.CUDNN_BENCHMARK = False
-# The period (in terms of steps) for minibatch visualization at train time.
-# Set to 0 to disable.
-_C.VIS_PERIOD = 0
 
 # global config is for quick hack purposes.
 # You can set them in command line or config files,
@@ -732,7 +636,6 @@ _C.VIS_PERIOD = 0
 #
 # Do not commit any configs into it.
 _C.GLOBAL = CN()
-_C.GLOBAL.HACK = 1.0
 _C.GLOBAL.DEBUG = True
 _C.GLOBAL.PROJ_NAME = "Demon"
 _C.GLOBAL.SUMMARY_LEVEL = 0

@@ -327,7 +327,7 @@ def get_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
 '''
 主要用于同时在不同的GPU上训练同一个网络
 '''
-def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
+def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None,show_not_train_variable=True):
     '''
     opt = get_optimizer(global_step,learning_rate=.5,batch_size=1)
     for i in range(2):
@@ -353,7 +353,8 @@ def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None):
         show_values(variables_to_train,"variables_to_train",fn=logging.info)
         logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
         variables_not_to_train = get_variables_not_to_train(variables_to_train)
-        show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
+        if show_not_train_variable:
+            show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
         logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
 
         if not isinstance(loss,Iterable):
@@ -405,8 +406,8 @@ def apply_gradientsv3(grads,global_step,optimizer,clip_norm=None):
             op = optimizer.apply_gradients(grads,global_step=global_step)
         return op
 
-def average_grads(tower_grads,clip_norm=None):
-    with tf.name_scope("average_grads"):
+def average_grads(tower_grads,clip_norm=None,scope=None):
+    with tf.name_scope(scope,"average_grads"):
         average_grads = []
         for grad_and_vars in zip(*tower_grads):
             grads = []

@@ -13,7 +13,6 @@ import os
 import sys
 from object_detection2.datadef import *
 from object_detection2.standard_names import *
-import iotoolkit.pascal_voc_toolkit as pvt
 
 import wml_utils as wmlu
 import shutil
@@ -48,13 +47,18 @@ class PredictModel(object):
         cfg.DATASETS.NUM_CLASSES = num_classes
         cfg.freeze()
         config.set_global_cfg(cfg)
+        data_args = DATASETS_REGISTRY[cfg.DATASETS.TEST]
         model = SimpleTrainer.build_model(cfg, is_training=is_training)
         self.cfg = cfg
         self.trainer = SimpleTrainer(cfg, data=self.input_imgs, model=model,inference=True)
+        self.trainer.category_index = data_args[3]
         self.log_step = 100
         #self.have_mask = cfg.MODEL.MASK_ON
         self.have_mask = False
         self.timer = wmlu.AvgTimeThis(skip_nr=5)
+        if RD_MASKS in self.trainer.res_data:
+            self.trainer.draw_on_image()
+            self.trainer.add_full_size_mask()
 
     def restoreVariables(self,ckpt_path):
         self.trainer.resume_or_load(sess=self.sess)
@@ -73,7 +77,7 @@ class PredictModel(object):
         feed_dict = {self.input_imgs:imgs}
         print(imgs.shape,imgs.dtype)
         if self.step % self.log_step == 0:
-            res_data = self.trainer.res_data_for_eval
+            res_data = dict(self.trainer.res_data_for_eval)
             summary_dict = {"summary": self.merged}
             res_data.update(summary_dict)
             res_data = self.sess.run(res_data,feed_dict=feed_dict)
@@ -95,20 +99,7 @@ class PredictModel(object):
         self.trainer.res_data_for_eval[RD_BOXES] = data[RD_BOXES][0][:len]
         self.trainer.res_data_for_eval[RD_LABELS] = data[RD_LABELS][0][:len]
         self.trainer.res_data_for_eval[RD_PROBABILITY] = data[RD_PROBABILITY][0][:len]
-
-def main():
-    args = default_argument_parser().parse_args()
-    test_dir = args.test_data_dir
-    save_dir = args.save_data_dir
-    wmlu.create_empty_dir(save_dir,remove_if_exists=True)
-    files =  glob.glob(os.path.join(test_dir,"*.jpg"))
-    m = PredictModel()
-    m.remove_batch()
-    for file in files:
-        img = wmli.imread(file)
-        img = np.expand_dims(img,axis=0)
-        m.predictImages(img)
-        save_path = os.path.join(save_dir,os.path.basename(file))
-        xml_path = wmlu.change_suffix(save_path,"xml")
-        shutil.copy(file,save_path)
-        pvt.writeVOCXml(xml_path,m.res_data[RD_BOXES],m.res_data[RD_LABELS])
+        if RD_FULL_SIZE_MASKS in self.trainer.res_data_for_eval:
+            self.trainer.res_data_for_eval[RD_FULL_SIZE_MASKS] = data[RD_FULL_SIZE_MASKS][0][:len]
+        if RD_RESULT_IMAGE in self.trainer.res_data_for_eval:
+            self.trainer.res_data_for_eval[RD_RESULT_IMAGE] = data[RD_RESULT_IMAGE][0]

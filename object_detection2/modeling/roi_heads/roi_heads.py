@@ -372,7 +372,6 @@ class Res5ROIHeads(ROIHeads):
                         net, blocks)
         return net
 
-
     def _shared_roi_transform(self, features, boxes,img_size,reuse=None):
         '''
         返回的batch_size与box nr 合并到了新的batch_size这一维

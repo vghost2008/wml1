@@ -490,6 +490,52 @@ def conv2d_with_sn(inputs,
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
 
 @add_arg_scope
+def conv2d_with_sn_v2(inputs,
+                   num_outputs,
+                   kernel_size,
+                   stride=1,
+                   padding='SAME',
+                   activation_fn=nn.relu,
+                   weights_initializer=initializers.xavier_initializer(),
+                   weights_regularizer=None,
+                   biases_initializer=init_ops.zeros_initializer(),
+                   biases_regularizer=None,
+                   normalizer_fn=None,
+                   normalizer_params=None,
+                   outputs_collections=None,
+                   rate=1,
+                   reuse=None,
+                   scope=None,sn_iteration=1):
+    del rate
+    with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
+        if isinstance(kernel_size,list):
+            shape = kernel_size+[inputs.get_shape().as_list()[-1],num_outputs]
+        else:
+            shape = [kernel_size,kernel_size,inputs.get_shape().as_list()[-1],num_outputs]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        if biases_initializer is not None and normalizer_fn is None:
+            b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        else:
+            b = None
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+        if b is not None and biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration), strides=[1, stride, stride, 1],padding=padding)
+        if b is not None:
+            outputs = outputs + b
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+        if activation_fn is not None:
+            outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
+            outputs = activation_fn(outputs)
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
 def depthwise_conv2d_with_sn(inputs,
                    kernel_size,
                    stride=1,

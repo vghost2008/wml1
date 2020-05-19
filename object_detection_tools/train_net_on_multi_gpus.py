@@ -16,10 +16,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
 
 slim = tf.contrib.slim
 
-FLAGS = tf.app.flags.FLAGS
-CHECK_POINT_FILE_NAME = "data.ckpt"
-
-
 def setup(args):
     """
     Create configs and perform basic setups.

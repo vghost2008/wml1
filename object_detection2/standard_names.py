@@ -40,7 +40,9 @@ RD_LABELS = LABELS
 RD_PROBABILITY = PROBABILITY
 RD_INDICES = INDICES
 RD_LENGTH = "length"
-RD_MASKS = "masks"  #标准格式为[batch_size,N,H,W]
+RD_MASKS = "masks"  #标准格式为[batch_size,N,h,w]
+RD_FULL_SIZE_MASKS = "full_size_masks"  #标准格式为[batch_size,N,H,W]
+RD_RESULT_IMAGE = "result_image"
 RD_KEYPOINT = "keypoint"
 RD_MASK_AREA = MASK_AREA
 

@@ -11,6 +11,19 @@ import random
 import matplotlib.pyplot as plt
 import sys
 import cv2
+from object_detection2.standard_names import *
+import glob
+
+def trans_odresult_to_annotations_list(data):
+    labels = data[RD_LABELS]
+    res = []
+    for i in range(len(labels)):
+        annotation = {}
+        annotation["category_id"] = labels[i]
+        annotation["segmentation"] = data[RD_FULL_SIZE_MASKS]
+        res.append(annotation)
+
+    return res
 
 def get_files(data_dir, img_suffix="jpg"):
     files = wmlu.recurse_get_filepath_in_dir(data_dir, suffix=".json")
@@ -142,8 +155,9 @@ def get_image_size(image):
     height = image["height"]
     return (height,width)
 
-def save_labelme_datav1(file_path,image_path,image,image_data,annotations_list,label_to_text=lambda x:str(x)):
+def save_labelme_datav1(file_path,image_path,image_data,annotations_list,label_to_text=lambda x:str(x)):
     wmli.imsave(image_path,image_data)
+    image = {"width":image_data.shape[1],"height":image_data.shape[0]}
     save_labelme_data(file_path,image_path,image,annotations_list,label_to_text)
 
 '''
@@ -300,7 +314,7 @@ def cut(annotations_list,img_data,bbox,threshold=0.15,return_none_if_no_ann=True
     else:
         return None,None,None
 
-def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=None,alpha=0.4):
+def view_data(image_file,json_file,label_text_to_id=None,color_fn=None,alpha=0.4):
     image,annotation_list = read_labelme_data(json_file,label_text_to_id)
     image_data = wmli.imread(image_file)
     do_scale = False
@@ -330,6 +344,11 @@ def view_data(image_file,json_file,label_text_to_id=lambda x:int(x),color_fn=Non
     plt.figure(figsize=(10, 10))
     plt.imshow(image_data)
     plt.show()
+
+def view_data_in_dir(dir_path):
+    files = get_files(dir_path)
+    for img_file,json_file in files:
+        view_data(img_file,json_file)
 
 class LabelMeData(object):
     def __init__(self,label_text2id=None,shuffle=False):
