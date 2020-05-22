@@ -17,6 +17,9 @@ class ResNet(Backbone):
             print(f"Preprocess for resnet should be subimagenetmean not {cfg.MODEL.PREPROCESS}.")
             print("------------------END WARNING------------------")
         super().__init__(cfg,*args,**kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.RESNETS.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.RESNETS.ACTIVATION_FN)
+        self.out_channels = cfg.MODEL.RESNETS.OUT_CHANNELS
 
     def forward(self, x):
         res = collections.OrderedDict()
@@ -43,8 +46,18 @@ class ResNet(Backbone):
         for i,k in enumerate(keys2):
             res[values2[i]] = end_points["FeatureExtractor/resnet_v1_50/"+keys2[i]]
 
-        if self.cfg.MODEL.RESNETS.MAKE_C6:
+        if self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6":
             res[f"C{6}"] = slim.avg_pool2d(res["C5"],kernel_size=1, stride=2, padding="SAME")
+        elif self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6C7":
+            with tf.variable_scope("FeatureExtractor"):
+                last_feature = res["C5"]
+                for i in range(2):
+                    last_feature = slim.conv2d(last_feature, self.out_channels, [3, 3], stride=2,
+                                               activation_fn=self.activation_fn,
+                                               normalizer_fn=self.normalizer_fn,
+                                               normalizer_params=self.norm_params,
+                                               scope=f"conv{i + 1}")
+                    res[f"C{6+i}"] = last_feature
         return res
 
 

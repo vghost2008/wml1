@@ -7,7 +7,7 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 gpus = [0,1,5]
-gpus = [2,3,4]
+gpus = [1]
 gpus_str=""
 for g in gpus:
     gpus_str+=str(g)+","

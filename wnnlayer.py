@@ -124,23 +124,25 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
     return output
 
 @add_arg_scope
-def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
     assert scale==True or offset==True
     if x.get_shape().ndims == 4:
-        return group_norm_4d(x,G,epsilon,weights_regularizer=weights_regularizer,
+        return group_norm_4d_v1(x,G,epsilon,weights_regularizer=weights_regularizer,
                              scale=scale,
                              offset=offset,
+                             sub_mean=sub_mean,
                              scope=scope)
     elif x.get_shape().ndims == 2:
         return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,
                              scale=scale,
                              offset=offset,
+                             sub_mean=sub_mean,
                              scope=scope)
     else:
         raise NotImplementedError
 
 @add_arg_scope
-def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope(scope):
@@ -154,16 +156,64 @@ def group_norm_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
 
         gain = tf.math.rsqrt(var + epsilon)
-        offset_value = -mean * gain
+        if sub_mean:
+            offset_value = -mean * gain
+        else:
+            offset_value = None
 
         if scale:
             gain *= gamma
-            offset_value *= gamma
+            if offset_value is not None:
+                offset_value *= gamma
 
         if offset:
-            offset_value += beta
+            if offset_value is None:
+                offset_value = beta
+            else:
+                offset_value += beta
 
-        x = x * gain + offset_value
+        if offset_value is not None:
+            x = x * gain + offset_value
+        else:
+            x =  offset_value
+        x = wmlt.reshape(x, [N,H,W,C])
+        return x
+
+@add_arg_scope
+def group_norm_4d_v2(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
+    with tf.variable_scope(scope):
+        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
+        gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
+        if offset:
+            beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N, H, W, G, C // G,])
+        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+        gain = tf.math.rsqrt(var + epsilon)
+
+        if sub_mean:
+            offset_value = -mean * gain
+        else:
+            offset_value = None
+
+        if scale:
+            gain *= gamma
+            if offset_value is not None:
+                offset_value *= gamma
+
+        if offset:
+            if offset_value is None:
+                offset_value = beta
+            else:
+                offset_value += beta
+
+        if offset_value is not None:
+            x = x * gain + offset_value
+        else:
+            x =  offset_value
         x = wmlt.reshape(x, [N,H,W,C])
         return x
 
@@ -202,7 +252,7 @@ def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
         return x
 
 @add_arg_scope
-def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
+def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
         gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer())
@@ -213,12 +263,19 @@ def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offs
         x = wmlt.reshape(x, [N,G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
         gain = tf.math.rsqrt(var+epsilon)
-        offset_value = -mean*gain
+        if sub_mean:
+            offset_value = -mean*gain
+        else:
+            offset_value = None
         if scale:
             gain *= gamma
-            offset_value *= gamma
+            if offset_value is not None:
+                offset_value *= gamma
         if offset:
-            offset += beta
+            if offset_value is not None:
+                offset_value += beta
+            else:
+                offset_value = beta
         x = x*gain+offset_value
         x = wmlt.reshape(x, [N,C])
         return x
@@ -1108,3 +1165,19 @@ def swish(features):
   """
   features = ops.convert_to_tensor(features, name="features")
   return features * math_ops.sigmoid(features)
+
+# Minibatch standard deviation layer.
+
+@add_arg_scope
+def minibatch_stddev_layer(x, group_size=4, num_new_features=1,scope=None):
+    with tf.name_scope(scope,"minibatch_stddev_layer"):
+        group_size = tf.minimum(group_size, tf.shape(x)[0])     # Minibatch must be divisible by (or smaller than) group_size.
+        s = wmlt.combined_static_and_dynamic_shape(x)
+        y = tf.reshape(x, [group_size, -1, s[1],s[2],num_new_features, s[3]//num_new_features])   # [GMncHW] Split minibatch into M groups of size G. Split channels into n channel groups c.
+        y -= tf.reduce_mean(y, axis=0, keepdims=True)
+        y = tf.reduce_mean(tf.square(y), axis=0)
+        y = tf.sqrt(y + 1e-8)
+        y = tf.reduce_mean(y, axis=[1,2,4], keepdims=True)      # [Mn111]  Take average over fmaps and pixels.
+        y = tf.squeeze(y,axis=4)
+        y = tf.tile(y, [group_size,s[1], s[2],1])             # [NnHW]  Replicate over group and pixels.
+        return tf.concat([x, y], axis=3)                        # [NCHW]  Append as new fmap.

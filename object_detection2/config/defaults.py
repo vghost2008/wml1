@@ -84,6 +84,41 @@ _C.MODEL.FPN.LAST_LEVEL_NUM_CONV = 2
 _C.MODEL.FPN.FUSE_TYPE = "sum"
 _C.MODEL.FPN.BACKBONE_HOOK = ("","")
 
+_C.MODEL.TWOWAYFPN = CN()
+# Names of the input feature maps to be used by TWOWAYFPN
+# They must have contiguous power of 2 strides
+# e.g., ["res2", "res3", "res4", "res5"]
+_C.MODEL.TWOWAYFPN.IN_FEATURES = []
+_C.MODEL.TWOWAYFPN.OUT_CHANNELS = 256
+_C.MODEL.TWOWAYFPN.BACKBONE = ""
+
+# Options: "" (no norm), "GN", "BN"
+_C.MODEL.TWOWAYFPN.NORM = ""
+_C.MODEL.TWOWAYFPN.ACTIVATION_FN = "relu"
+_C.MODEL.TWOWAYFPN.LAST_LEVEL_NUM_CONV = 2
+
+# Types for fusing the TWOWAYFPN top-down and lateral features. Can be either "sum" or "avg"
+_C.MODEL.TWOWAYFPN.FUSE_TYPE = "sum"
+_C.MODEL.TWOWAYFPN.BACKBONE_HOOK = ("","")
+
+_C.MODEL.PCONV = CN()
+# Names of the input feature maps to be used by PCONV
+# They must have contiguous power of 2 strides
+# e.g., ["res2", "res3", "res4", "res5"]
+_C.MODEL.PCONV.IN_FEATURES = []
+_C.MODEL.PCONV.OUT_CHANNELS = 256
+_C.MODEL.PCONV.BACKBONE = ""
+
+# Options: "" (no norm), "GN", "BN"
+_C.MODEL.PCONV.NORM = ""
+_C.MODEL.PCONV.ACTIVATION_FN = "relu"
+_C.MODEL.PCONV.LAST_LEVEL_NUM_CONV = 2
+
+# Types for fusing the PCONV top-down and lateral features. Can be either "sum" or "avg"
+_C.MODEL.PCONV.FUSE_TYPE = "sum"
+_C.MODEL.PCONV.BACKBONE_HOOK = ("","")
+_C.MODEL.PCONV.NUM_CONVS = 3
+
 _C.MODEL.BIFPN = CN()
 # Names of the input feature maps to be used by FPN
 # They must have contiguous power of 2 strides
@@ -555,7 +590,11 @@ _C.MODEL.RESNETS.DEFORM_MODULATED = False
 _C.MODEL.RESNETS.DEFORM_NUM_GROUPS = 1
 _C.MODEL.RESNETS.batch_norm_decay = 0.999
 _C.MODEL.RESNETS.FROZEN_BN = False
-_C.MODEL.RESNETS.MAKE_C6 = False
+_C.MODEL.RESNETS.MAKE_C6C7 = ""
+#for C6C7
+_C.MODEL.RESNETS.NORM = "evo_norm_s0"
+_C.MODEL.RESNETS.ACTIVATION_FN = "NA"
+_C.MODEL.RESNETS.OUT_CHANNELS = 256
 
 
 _C.MODEL.MOBILENETS = CN()

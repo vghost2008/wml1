@@ -124,8 +124,8 @@ def create_tf_example(image,
   full_path = os.path.join(image_dir, filename)
   with tf.gfile.GFile(full_path, 'rb') as fid:
     encoded_jpg = fid.read()
-  encoded_jpg_io = io.BytesIO(encoded_jpg)
-  image = PIL.Image.open(encoded_jpg_io)
+  #encoded_jpg_io = io.BytesIO(encoded_jpg)
+  #image = PIL.Image.open(encoded_jpg_io)
   key = hashlib.sha256(encoded_jpg).hexdigest()
 
   xmin = []
