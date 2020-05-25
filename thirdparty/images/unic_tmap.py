@@ -111,6 +111,10 @@ class TMAP(object):
         fun_ImgSize = GetImageInfoEx_fun(self.handle,c_int32(etype))
         return fun_ImgSize
 
+    @staticmethod
+    def get_label_img_by_path(path):
+        return TMAP(path).get_label_img()
+
     def get_label_img(self):
         img = self.get_image_data(TMAP.uImageLabel)
         if img is None:
@@ -136,12 +140,7 @@ class TMAP(object):
 
         W=fun_ImgSize.width
         H=fun_ImgSize.height
-        pic = TMAP.buffer_to_ndarray(buffer,H*W*3)
-        if pic is None:
-            return None
-
-        pic = pic.reshape((H,W,3))
-        pic = np.asarray(pic[:,:,::-1], dtype=np.uint8)
+        pic = TMAP.buffer2img(buffer,W,H,3)
 
         return pic
 
@@ -195,9 +194,7 @@ class TMAP(object):
 
         f = GetCropImageDataEx_fun(self.handle,1, nLeft, nTop, nRight, nBottom, scale, buffer_size)
 
-        pic = TMAP.buffer_to_ndarray(f,width*height*3)
-        pic = pic.reshape((height,width,3))
-        pic = np.asarray(pic[:,:,::-1], dtype=np.uint8)
+        pic = TMAP.buffer2img(f,width,height,3)
 
         return pic
 
@@ -215,15 +212,18 @@ class TMAP(object):
                     yield img
 
     @staticmethod
-    def buffer_to_ndarray(buffer,length,buffer_length=None,type=np.uint8):
+    def buffer2img(buffer,width,height,channel=3,buffer_length=None,type=np.uint8):
         addr = addressof(buffer.contents)
         if addr == 0:
             return None
+        length = width*height*channel
         if buffer_length is None:
             buffer_length = length
         ArrayTypeLen = c_uint8 * buffer_length
         array = np.frombuffer(ArrayTypeLen.from_address(addr), type, length)
-        return array
+        pic = array.reshape((height,width,3))
+        pic = np.asarray(pic[:,:,::-1], dtype=type)
+        return pic
 
     def get_focus_prefix(self):
         nr = self.get_focus_number()

@@ -88,13 +88,13 @@ class TwoWayFPN(Backbone):
             conv_op = functools.partial(slim.separable_conv2d,
                                         depth_multiplier=1,
                                         normalizer_fn=self.normalizer_fn,
-                                        normzlier_params=self.normalizer_params,
+                                        normalizer_params=self.normalizer_params,
                                         activation_fn=self.activation_fn)
         else:
             conv_op = functools.partial(slim.conv2d,
                                         weights_regularizer=slim.l2_regularizer(weight_decay),
                                         normalizer_fn=self.normalizer_fn,
-                                        normzlier_params=self.normalizer_params,
+                                        normalizer_params=self.normalizer_params,
                                         activation_fn=self.activation_fn)
 
         mid_feature_maps_td = []
@@ -125,8 +125,7 @@ class TwoWayFPN(Backbone):
                     with tf.variable_scope(f"up_node{i}"):
                         net = conv_op(feature_maps[i],depths,[1,1])
                         if last is not None:
-                            # TODO max_pool2d to avg_pool2d
-                            last = slim.max_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"max_pool{i}")
+                            last = slim.avg_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"max_pool{i}")
                             last = odt.fusion([last, net], depth=depths, scope=f"bu_fusion{i}")
                         else:
                             last = net
@@ -135,8 +134,7 @@ class TwoWayFPN(Backbone):
             with tf.variable_scope("output_smooth"):
                 for i,net0,net1 in zip(count(),mid_feature_maps_td,mid_feature_maps_bu):
                     net = net0+net1
-                    #TODO 去掉point分支
-                    net = slim.separable_conv2d(net,256,[3,3],
+                    net = slim.separable_conv2d(net,None,[3,3],
                                                 activation_fn=self.activation_fn,
                                                 normalizer_fn=self.normalizer_fn,
                                                 normalizer_params=self.normalizer_params,

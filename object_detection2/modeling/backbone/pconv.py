@@ -94,32 +94,35 @@ class PConv(Backbone):
             nets = []
             if net0 is not None:
                 net0 = conv_op(net0, depths, [1, 1],
-                          activation_fn=self.activation_fn,
-                          normalizer_fn=self.normalizer_fn,
-                          normalizer_params=self.normalizer_params,
+                          activation_fn=None,
+                          normalizer_fn=None,
                           rate=2,
                           scope="conv1"
                           )
                 net0 = slim.avg_pool2d(net0, [2, 2], padding='SAME', stride=2, scope=f"avg_pool")
                 nets.append(net0)
             net1 = conv_op(net1, depths, [1, 1],
-                           activation_fn=self.activation_fn,
-                           normalizer_fn=self.normalizer_fn,
-                           normalizer_params=self.normalizer_params,
+                           activation_fn=None,
+                           normalizer_fn=None,
                            scope="conv2"
                            )
             nets.append(net1)
             if net2 is not None:
                 net2 = conv_op(net2, depths, [1, 1],
-                           activation_fn=self.activation_fn,
-                           normalizer_fn=self.normalizer_fn,
-                           normalizer_params=self.normalizer_params,
+                           activation_fn=None,
+                           normalizer_fn=None,
                            scope="conv3"
                            )
                 shape = wmlt.combined_static_and_dynamic_shape(net1)
                 net2 = self.interpolate_op(net2,shape[1:3],name="upsample")
                 nets.append(net2)
-            return tf.add_n(nets)
+            net = tf.add_n(nets)
+            if self.normalizer_fn is not None:
+                net = self.normalizer_fn(net,**self.normalizer_params)
+            if self.activation_fn is not None:
+                net = self.activation_fn(net)
+
+            return net
 
         with tf.variable_scope("PConv"):
             mid_feature_maps = []
