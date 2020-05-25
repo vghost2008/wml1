@@ -111,7 +111,8 @@ class TwoWayFPN(Backbone):
                         if last is not None:
                             shape = tf.shape(feature_maps[i])[1:3]
                             last = self.interpolate_op(last, size=shape, name=f"upsample{i}")
-                            last = odt.fusion([last, net], depth=depths, scope=f"td_fusion{i}")
+                            last = last+net
+                            #last = odt.fusion([last, net], depth=depths, scope=f"td_fusion{i}")
                         else:
                             last = net
                         mid_feature_maps_td.append(last)
@@ -126,7 +127,8 @@ class TwoWayFPN(Backbone):
                         net = conv_op(feature_maps[i],depths,[1,1])
                         if last is not None:
                             last = slim.avg_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"max_pool{i}")
-                            last = odt.fusion([last, net], depth=depths, scope=f"bu_fusion{i}")
+                            last = last+net
+                            #last = odt.fusion([last, net], depth=depths, scope=f"bu_fusion{i}")
                         else:
                             last = net
                         mid_feature_maps_bu.append(last)
@@ -134,7 +136,7 @@ class TwoWayFPN(Backbone):
             with tf.variable_scope("output_smooth"):
                 for i,net0,net1 in zip(count(),mid_feature_maps_td,mid_feature_maps_bu):
                     net = net0+net1
-                    net = slim.separable_conv2d(net,None,[3,3],
+                    net = slim.separable_conv2d(net,256,[3,3],
                                                 activation_fn=self.activation_fn,
                                                 normalizer_fn=self.normalizer_fn,
                                                 normalizer_params=self.normalizer_params,

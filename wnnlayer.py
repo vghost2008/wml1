@@ -1181,3 +1181,70 @@ def minibatch_stddev_layer(x, group_size=4, num_new_features=1,scope=None):
         y = tf.squeeze(y,axis=4)
         y = tf.tile(y, [group_size,s[1], s[2],1])             # [NnHW]  Replicate over group and pixels.
         return tf.concat([x, y], axis=3)                        # [NCHW]  Append as new fmap.
+
+@add_arg_scope
+def group_conv2d(inputs,
+                 num_outputs,
+                 kernel_size,
+                 stride=1,
+                 padding='SAME',
+                 activation_fn=nn.relu,
+                 weights_initializer=initializers.xavier_initializer(),
+                 weights_regularizer=None,
+                 biases_initializer=init_ops.zeros_initializer(),
+                 biases_regularizer=None,
+                 normalizer_fn=None,
+                 normalizer_params=None,
+                 outputs_collections=None,
+                 groups=32,
+                 rate=1,
+                 reuse=None,
+                 scope=None):
+
+    with variable_scope.variable_scope(scope, 'group_conv2d', [inputs], reuse=reuse) as sc:
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(inputs)
+        if not isinstance(kernel_size,Iterable):
+            kernel_size = [kernel_size,kernel_size]
+        assert C%groups==0,f"Input num must exactly divisible ty groups"
+        shape = [groups]+list(kernel_size)+[C//groups,num_outputs//groups]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        if normalizer_fn is None:
+            b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        else:
+            b = None
+
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+
+        if b is not None and biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        outputs = []
+        inputs = tf.reshape(inputs,[B,H,W,groups,C//groups])
+        inputs = tf.unstack(inputs,axis=-2)
+
+        if not isinstance(rate,Iterable):
+            rate = [rate,rate]
+
+        for i in range(groups):
+            net = tf.nn.conv2d(input=inputs[i], filter=w[i],
+                                   strides=[1, stride, stride, 1], padding=padding,dilations=[1]+rate+[1])
+            outputs.append(net)
+
+        outputs = tf.stack(outputs,axis=3)
+        B,H,W,G,C = wmlt.combined_static_and_dynamic_shape(outputs)
+        outputs = tf.reshape(outputs,[B,H,W,G*C])
+
+        if b is not None:
+            outputs = outputs+b
+
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+
+        if activation_fn is not None:
+            outputs = activation_fn(outputs)
+
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)

@@ -17,7 +17,7 @@ class TMAP(object):
     uImageAll = 7
 
     def __init__(self,path=None):
-        self.path = None
+        self.path = path
         self.handle = None
         self._width = None
         self._height = None
@@ -48,11 +48,10 @@ class TMAP(object):
         h = lib.OpenTmapFile(p, len(pstr))
 
         if h == 0:
-            print("open faild.")
+            print(f"open {pstr} faild.")
             return False
 
         self.handle = c_void_p(h)
-        print("open success")
 
         lib.GetScanScale.restype = c_int32
         img_size = self.__GetImageInfoEx(self.uImageWhole)
@@ -116,7 +115,7 @@ class TMAP(object):
         return TMAP(path).get_label_img()
 
     def get_label_img(self):
-        img = self.get_image_data(TMAP.uImageLabel)
+        img = self.get_image(TMAP.uImageLabel)
         if img is None:
             img = self.get_macro_label_img()
             if img is None:
@@ -126,7 +125,7 @@ class TMAP(object):
         return img
 
     def get_macro_label_img(self):
-        return self.get_image_data(TMAP.uImageMacroLabel)
+        return self.get_image(TMAP.uImageMacroLabel)
 
     def get_image(self,etype):
         fun_ImgSize = self.__GetImageInfoEx(etype)
@@ -213,17 +212,20 @@ class TMAP(object):
 
     @staticmethod
     def buffer2img(buffer,width,height,channel=3,buffer_length=None,type=np.uint8):
-        addr = addressof(buffer.contents)
-        if addr == 0:
+        try:
+            addr = addressof(buffer.contents)
+            if addr == 0:
+                return None
+            length = width*height*channel
+            if buffer_length is None:
+                buffer_length = length
+            ArrayTypeLen = c_uint8 * buffer_length
+            array = np.frombuffer(ArrayTypeLen.from_address(addr), type, length)
+            pic = array.reshape((height,width,3))
+            pic = np.asarray(pic[:,:,::-1], dtype=type)
+            return pic
+        except:
             return None
-        length = width*height*channel
-        if buffer_length is None:
-            buffer_length = length
-        ArrayTypeLen = c_uint8 * buffer_length
-        array = np.frombuffer(ArrayTypeLen.from_address(addr), type, length)
-        pic = array.reshape((height,width,3))
-        pic = np.asarray(pic[:,:,::-1], dtype=type)
-        return pic
 
     def get_focus_prefix(self):
         nr = self.get_focus_number()
@@ -240,4 +242,3 @@ class TMAP(object):
         if self.handle is None:
             return
         lib.CloseTmapFile(self.handle)
-        print("close tmap file.")
