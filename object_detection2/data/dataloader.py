@@ -10,6 +10,8 @@ class DataLoader(wmodule.WModule):
     def __init__(self,cfg,*args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
         self.trans_on_single_img,self.trans_on_batch_img = DATAPROCESS_REGISTRY.get(self.cfg.INPUT.DATAPROCESS)(cfg,self.is_training)
+        if self.cfg.INPUT.STITCH > 0.001:
+            self.trans_on_batch_img = [trans.Stitch(self.cfg.INPUT.STITCH)]+self.trans_on_batch_img
 
     @staticmethod
     def get_pad_shapes(dataset):

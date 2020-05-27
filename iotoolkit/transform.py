@@ -389,10 +389,10 @@ class DelHeightWidth(WTransform):
 class UpdateHeightWidth(WTransform):
     def __call__(self, data_item):
         shape = tf.shape(data_item[IMAGE])
-        if 'height' in data_item:
-            data_item['height'] = shape[0]
-        if 'width' in data_item:
-            data_item['width'] = shape[1]
+        if HEIGHT in data_item:
+            data_item[HEIGHT] = shape[0]
+        if WIDTH in data_item:
+            data_item[WIDTH] = shape[1]
         return data_item
 
 class AddSize(WTransform):

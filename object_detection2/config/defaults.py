@@ -34,6 +34,7 @@ _C.INPUT.CROP.MIN_OBJECT_COVERED = 0.5
 _C.INPUT.CROP.PROBABILITY = 0.5
 _C.INPUT.CROP.FILTER_THRESHOLD = 0.3
 _C.INPUT.DATAPROCESS = "coco"
+_C.INPUT.STITCH = 0.0
 
 # -----------------------------------------------------------------------------
 # Dataset
