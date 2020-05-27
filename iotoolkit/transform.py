@@ -1,4 +1,6 @@
 #coding=utf-8
+from itertools import count
+import copy
 import tensorflow as tf
 import img_utils as wmli
 import wtfop.wtfop_ops as wop
@@ -6,7 +8,7 @@ from collections import Iterable
 import object_detection2.bboxes as wml_bboxes
 import time
 from functools import partial
-import wml_tfutils as wmlt
+import basic_tftools as btf
 from object_detection2.standard_names import *
 import numpy as np
 
@@ -625,7 +627,7 @@ class FixDataInfo(WTransform):
 
     def __call__(self, data_item):
         def func(x):
-            batch_size,H,W,C = wmlt.combined_static_and_dynamic_shape(x)
+            batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
             return tf.reshape(x,[batch_size,H,W,self.channel])
         return self.apply_to_images(func,data_item)
 
@@ -646,19 +648,286 @@ class PadtoAlign(WTransform):
 
 
         def func4img(x):
-            batch_size,H,W,C = wmlt.combined_static_and_dynamic_shape(x)
+            batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
             padd_H = get_pad_value(H)
             padd_W = get_pad_value(W)
             return tf.pad(x,paddings=[[0,0,],[0,padd_H],[0,padd_W],[0,0]])
 
         def func4mask(x):
-            batch_size, N,H, W = wmlt.combined_static_and_dynamic_shape(x)
+            batch_size, N,H, W = btf.combined_static_and_dynamic_shape(x)
             padd_H = get_pad_value(H)
             padd_W = get_pad_value(W)
             return tf.pad(x, paddings=[[0, 0, ], [0,0],[0, padd_H], [0, padd_W]])
 
         data_item = self.apply_to_images(func4img,data_item)
         return self.apply_to_masks(func4mask,data_item)
+
+'''
+image: [B,H,W,C]
+如果有Mask分支，Mask必须为[B,N,H,W]
+bboxes:absolute coordinate
+'''
+class Stitch(WTransform):
+    def __init__(self,nr=1):
+        if nr<1:
+            self.nr = 1
+            self.probability = nr
+        else:
+            self.nr = nr
+            self.probability = None
+
+    def __call__(self, data_item):
+        B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        indexs = tf.range((B//2)*2)
+        indexs = tf.random_shuffle(indexs,seed=time.time())
+        indexs = tf.reshape(indexs,[B//2,2])
+        if self.probability is None:
+            nr = tf.minimum(B//2,self.nr)
+        else:
+            p = tf.less(tf.random_uniform(shape=()),self.probability)
+            nr = tf.cond(p,lambda:1,lambda:0)
+        indexs = indexs[:nr]
+        old_img_shape = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        B,H,W,C = old_img_shape
+        B,_,BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
+        if GT_MASKS in data_item:
+            mask = tf.transpose(data_item[GT_MASKS],perm=[0,2,3,1])
+            is_h, image, mask, bboxes, labels,length,_ = tf.py_func(Stitch.process_with_masks,[indexs,
+                                                                                      data_item[IMAGE],
+                                                                                      mask,
+                                                                                      data_item[GT_BOXES],
+                                                                                      data_item[GT_LABELS],
+                                                                                      data_item[WIDTH],
+                                                                                      data_item[HEIGHT],
+                                                                                      data_item[GT_LENGTH]],
+                                                           (tf.bool,data_item[IMAGE].dtype,
+                                                            data_item[GT_MASKS].dtype,
+                                                            tf.float32,
+                                                            data_item[GT_LABELS].dtype,
+                                                            data_item[GT_LENGTH].dtype,
+                                                            tf.int64))
+            mask = tf.transpose(mask,perm=[0,3,1,2])
+            mask = tf.reshape(mask,[B,-1,H,W])
+            data_item[GT_MASKS] = mask
+        else:
+            is_h, image, bboxes, labels,length,_ = tf.py_func(Stitch.process,[indexs,
+                                                                                      data_item[IMAGE],
+                                                                                      data_item[GT_BOXES],
+                                                                                      data_item[GT_LABELS],
+                                                                                      data_item[WIDTH],
+                                                                                      data_item[HEIGHT],
+                                                                                      data_item[GT_LENGTH]],
+                                                           (tf.bool,data_item[IMAGE].dtype,
+                                                            tf.float32,
+                                                            data_item[GT_LABELS].dtype,
+                                                            data_item[GT_LENGTH].dtype,
+                                                            tf.int64))
+
+        image = tf.reshape(image, old_img_shape)
+        bboxes = tf.reshape(bboxes, [B, -1, BOX_DIM])
+        labels = tf.reshape(labels, [B, -1])
+        data_item[IMAGE] = image
+        data_item[GT_BOXES] = bboxes
+        data_item[GT_LABELS] = labels
+        data_item[GT_LENGTH] = length
+
+        return data_item
+
+    @staticmethod
+    def fitto(width,height,target_w,target_h):
+        if width<1 or height<1:
+            return (target_w,target_h)
+        if width*target_h>=height*target_w:
+            res_w = target_w
+            res_h = int(height* res_w / width)
+        else:
+            res_h=target_h
+            res_w = int(width*res_h/height)
+
+        return (res_w,res_h)
+
+    @staticmethod
+    def is_h(W,H,widths,heights):
+        TW = W
+        TH = H/2
+        ws = []
+        hs = []
+        for w,h in zip(widths,heights):
+            w0,h0 = Stitch.fitto(w,h,TW,TH)
+            ws.append(w0)
+            hs.append(h0)
+        int_h = W*H-ws[0]*hs[0]-ws[1]*hs[1]
+        TW = W//2
+        TH = H
+        ws = []
+        hs = []
+        for w,h in zip(widths,heights):
+            w0,h0 = Stitch.fitto(w,h,TW,TH)
+            ws.append(w0)
+            hs.append(h0)
+        int_v = W*H-ws[0]*hs[0]-ws[1]*hs[1]
+
+        return int_h<=int_v
+
+    @staticmethod
+    def get_sizes(W,H,widths,heights,is_h):
+        if is_h:
+            TW = W
+            TH = H//2
+        else:
+            TW = W//2
+            TH = H
+
+        ws = []
+        hs = []
+        for w,h in zip(widths,heights):
+            w0,h0 = Stitch.fitto(w,h,TW,TH)
+            ws.append(w0)
+            hs.append(h0)
+        return ws,hs
+
+    @staticmethod
+    def get_scales(W,H,TW,TH):
+        return TW/W,TH/H
+
+    @staticmethod
+    def concat_img(imgs,widths,heights,W,H,is_h):
+        ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
+        timgs = []
+        for i,img,width,height,tw,th in zip(count(),imgs,widths,heights,ws,hs):
+            img = img[:height,:width]
+            img = wmli.resize_img(img,(tw,th),keep_aspect_ratio=False)
+            timgs.append(img)
+        if is_h:
+            timgs = Stitch.pad_imgs_to(timgs,[[H//2,W],[H-H//2,W]])
+            return np.concatenate(timgs,axis=0)
+        else:
+            timgs = Stitch.pad_imgs_to(timgs,[[H,W//2],[H,W-W//2]])
+            return np.concatenate(timgs,axis=1)
+
+    @staticmethod
+    def pad_imgs_to(imgs,shapes):
+        res = []
+        for i,x,shape in zip(count(),imgs,shapes):
+            res.append(np.pad(x,[(0,shape[0]-x.shape[0]),(0,shape[1]-x.shape[1]),(0,0)],'constant', constant_values=(0,0)))
+        return res
+
+    @staticmethod
+    def pad_img_to(img,shape):
+        return np.pad(img,[(0,shape[0]-img.shape[0]),(0,shape[1]-img.shape[1]),(0,0)],'constant', constant_values=(0,0))
+
+    @staticmethod
+    def concat_mask(imgs,widths,heights,W,H,is_h):
+        ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
+        timgs = []
+        for i,img,width,height,tw,th in zip(count(),imgs,widths,heights,ws,hs):
+            img = img[:height,:width]
+            img = wmli.resize_img(img,(tw,th),keep_aspect_ratio=False)
+            if len(img.shape) == 2:
+                img = np.expand_dims(img,axis=-1)
+            if is_h:
+                img = Stitch.pad_img_to(img,[H//2,W])
+                if i == 0:
+                    img = np.pad(img,[(0,H-H//2),(0,0),(0,0)],'constant', constant_values=(0,0))
+                else:
+                    img = np.pad(img, [(H-H // 2,0), (0, 0), (0, 0)], 'constant', constant_values=(0, 0))
+            else:
+                img = Stitch.pad_img_to(img, [H, W//2])
+                if i == 0:
+                    img = np.pad(img, [(0,0),(0, W - W // 2), (0, 0)], 'constant', constant_values=(0, 0))
+                else:
+                    img = np.pad(img, [(0,0),(W - W // 2, 0), (0, 0)], 'constant', constant_values=(0, 0))
+            timgs.append(img)
+        if is_h:
+            return np.concatenate(timgs,axis=2)
+        else:
+            return np.concatenate(timgs,axis=2)
+
+    @staticmethod
+    def scale_bboxes(bboxes,sw,sh):
+        return np.array([[sh,sw,sh,sw]])*bboxes
+
+    @staticmethod
+    def concat_bboxes(bboxes,widths,heights,W,H,is_h):
+        ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
+        sw0,sh0 = Stitch.get_scales(widths[0],heights[0],ws[0],hs[0])
+        sw1,sh1 = Stitch.get_scales(widths[1],heights[1],ws[1],hs[1])
+        bboxes0 = Stitch.scale_bboxes(bboxes[0],sw0,sh0)
+        bboxes1 = Stitch.scale_bboxes(bboxes[1],sw1,sh1)
+
+        if is_h:
+            offset = [0,H//2]
+        else:
+            offset = [W//2,0]
+        bboxes1 = bboxes1+np.array([[offset[1],offset[0],offset[1],offset[0]]])
+        return np.concatenate([bboxes0,bboxes1],axis=0)
+
+    @staticmethod
+    def concat_labels(labels):
+        return np.concatenate(labels,axis=0)
+
+    @staticmethod
+    def process(indexs,image,bboxes,labels,width,height,length):
+        is_h = []
+        H,W = image.shape[1:3]
+        max_length = bboxes.shape[1]
+        type = length.dtype
+        for i,inds in enumerate(indexs):
+            id0 = inds[0]
+            id1 = inds[1]
+            c_len = length[id0]+length[id1]
+            if c_len > max_length:
+                max_length = c_len
+        if max_length> bboxes.shape[1]:
+            nr = max_length - bboxes.shape[1]
+            bboxes = np.pad(bboxes,[(0,0),(0,nr),(0,0)],'constant', constant_values=(0,0))
+            labels = np.pad(labels, [(0, 0), (0, nr)], 'constant', constant_values=(0, 0))
+
+        res_length = copy.deepcopy(length)
+        for i,inds in enumerate(indexs):
+            id0 = inds[0]
+            id1 = inds[1]
+            widths = []
+            heights = []
+            for id in inds:
+                widths.append(width[id])
+                heights.append(height[id])
+            ih = Stitch.is_h(W,H,widths,heights)
+            len0 = length[id0]
+            len1 = length[id1]
+            img = Stitch.concat_img([image[id0],image[id1]],widths,heights,W,H,ih)
+            bbox = Stitch.concat_bboxes([bboxes[id0][:len0],bboxes[id1][:len1]],widths,heights,W,H,ih)
+            label = Stitch.concat_labels([labels[id0][:len0],labels[id1][:len1]])
+            bbox = np.pad(bbox,[(0,max_length-len0-len1),(0,0)],'constant', constant_values=(0,0))
+            label = np.pad(label,[(0,max_length-len0-len1)],'constant', constant_values=(0,0))
+            res_length[id0] = len0+len1
+            image[id0] = img
+            bboxes[id0] = bbox
+            labels[id0] = label
+            is_h.append(ih)
+        return np.array(is_h,dtype=np.bool),image,bboxes,labels,res_length.astype(type),int(max_length)
+
+    @staticmethod
+    def process_with_masks(indexs,image,mask,bboxes,labels,width,height,length):
+        H,W = image.shape[1:3]
+        old_length = mask.shape[3]
+        is_h,image,bboxes,labels,res_length,max_length = Stitch.process(indexs,image,bboxes,labels,width,height,length)
+        mask = np.pad(mask,[(0,0),(0,0),(0,0),[0,max_length-old_length]],'constant', constant_values=(0,0))
+        for i,inds in enumerate(indexs):
+            id0 = inds[0]
+            id1 = inds[1]
+            ih = is_h[i]
+            widths = []
+            heights = []
+            len0 = length[id0]
+            len1 = length[id1]
+            for id in inds:
+                widths.append(width[id])
+                heights.append(height[id])
+            m = Stitch.concat_mask([mask[id0][:,:,:len0],mask[id1][:,:,:len1]],widths,heights,W,H,ih)
+            m = np.pad(m,[(0,0),(0,0),(0,max_length-len0-len1)],'constant', constant_values=(0,0))
+            mask[id0] = m
+        return is_h,image,mask,bboxes,labels,res_length,int(max_length)
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):

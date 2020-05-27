@@ -62,12 +62,14 @@ class DataLoader(wmodule.WModule):
                                              lengths=lengths,category_index=DataLoader.category_index,
                                              max_boxes_to_draw=max_boxes_to_draw,
                                              min_score_thresh=min_score_thresh,
+                                             max_outputs=max_outputs,
                                              name=name)
         else:
             wsummary.detection_image_summary(image,boxes,classes,
                                              lengths=lengths,category_index=DataLoader.category_index,
                                              max_boxes_to_draw=max_boxes_to_draw,
                                              min_score_thresh=min_score_thresh,
+                                             max_outputs=max_outputs,
                                              name=name)
 
 

@@ -450,8 +450,8 @@ def mish(x):
         return x*tf.tanh(tf.nn.softplus(x))
 
 @add_arg_scope
-def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True):
-    with tf.variable_scope("spectral_norm"):
+def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True,scope=None):
+    with tf.variable_scope(scope,"spectral_norm"):
        w_shape = w.shape.as_list()
        if debug:
            w = tf.reshape(w, [-1, w_shape[-1]])
@@ -1195,6 +1195,8 @@ def group_conv2d(inputs,
                  biases_regularizer=None,
                  normalizer_fn=None,
                  normalizer_params=None,
+                 weights_normalizer_fn=None,
+                 weights_normalizer_params=None,
                  outputs_collections=None,
                  groups=32,
                  rate=1,
@@ -1221,20 +1223,22 @@ def group_conv2d(inputs,
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
         outputs = []
-        inputs = tf.reshape(inputs,[B,H,W,groups,C//groups])
-        inputs = tf.unstack(inputs,axis=-2)
+        inputs = tf.split(inputs,groups,axis=-1)
 
         if not isinstance(rate,Iterable):
             rate = [rate,rate]
 
         for i in range(groups):
-            net = tf.nn.conv2d(input=inputs[i], filter=w[i],
+            wi = w[i]
+            if weights_normalizer_fn is not None:
+                if weights_normalizer_params is None:
+                    weights_normalizer_params = {}
+                wi = weights_normalizer_fn(wi,**weights_normalizer_params)
+            net = tf.nn.conv2d(input=inputs[i], filter=wi,
                                    strides=[1, stride, stride, 1], padding=padding,dilations=[1]+rate+[1])
             outputs.append(net)
 
-        outputs = tf.stack(outputs,axis=3)
-        B,H,W,G,C = wmlt.combined_static_and_dynamic_shape(outputs)
-        outputs = tf.reshape(outputs,[B,H,W,G*C])
+        outputs = tf.concat(outputs,axis=-1)
 
         if b is not None:
             outputs = outputs+b
@@ -1247,4 +1251,121 @@ def group_conv2d(inputs,
         if activation_fn is not None:
             outputs = activation_fn(outputs)
 
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
+def group_conv2d_with_sn(inputs,
+                 num_outputs,
+                 kernel_size,
+                 stride=1,
+                 padding='SAME',
+                 activation_fn=nn.relu,
+                 weights_initializer=initializers.xavier_initializer(),
+                 weights_regularizer=None,
+                 biases_initializer=init_ops.zeros_initializer(),
+                 biases_regularizer=None,
+                 normalizer_fn=None,
+                 normalizer_params=None,
+                 outputs_collections=None,
+                 groups=32,
+                 rate=1,
+                 reuse=None,
+                 scope=None):
+
+    with variable_scope.variable_scope(scope, 'group_conv2d', [inputs], reuse=reuse) as sc:
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(inputs)
+        if not isinstance(kernel_size,Iterable):
+            kernel_size = [kernel_size,kernel_size]
+        assert C%groups==0,f"Input num must exactly divisible ty groups"
+        shape = [groups]+list(kernel_size)+[C//groups,num_outputs//groups]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        if normalizer_fn is None:
+            b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        else:
+            b = None
+
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+
+        if b is not None and biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        outputs = []
+        inputs = tf.split(inputs,groups,axis=-1)
+
+        if not isinstance(rate,Iterable):
+            rate = [rate,rate]
+
+        for i in range(groups):
+            net = tf.nn.conv2d(input=inputs[i], filter=spectral_norm(w[i],scope=f"spectral_norm{i}"),
+                               strides=[1, stride, stride, 1], padding=padding,dilations=[1]+rate+[1])
+            outputs.append(net)
+
+        outputs = tf.concat(outputs,axis=-1)
+
+        if b is not None:
+            outputs = outputs+b
+
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+
+        if activation_fn is not None:
+            outputs = activation_fn(outputs)
+
+        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+@add_arg_scope
+def conv2d(inputs,
+           num_outputs,
+           kernel_size,
+           stride=1,
+           padding='SAME',
+           activation_fn=nn.relu,
+           weights_initializer=initializers.xavier_initializer(),
+           weights_regularizer=None,
+           biases_initializer=init_ops.zeros_initializer(),
+           biases_regularizer=None,
+           weights_normalizer_fn=None,
+           weights_normalizer_params=None,
+           normalizer_fn=None,
+           normalizer_params=None,
+           outputs_collections=None,
+           rate=1,
+           reuse=None,
+           scope=None):
+    del rate
+    with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
+        if isinstance(kernel_size,list):
+            shape = kernel_size+[inputs.get_shape().as_list()[-1],num_outputs]
+        else:
+            shape = [kernel_size,kernel_size,inputs.get_shape().as_list()[-1],num_outputs]
+        w = tf.get_variable("kernel", shape=shape,
+                            initializer=weights_initializer)
+        if biases_initializer is not None and normalizer_fn is None:
+            b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+        else:
+            b = None
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
+        if b is not None and biases_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+
+        if weights_normalizer_fn is not None:
+            if weights_normalizer_params is None:
+                weights_normalizer_params = {}
+            w = weights_normalizer_fn(w,**weights_normalizer_params)
+
+        outputs = tf.nn.conv2d(input=inputs, filter=w, strides=[1, stride, stride, 1],padding=padding)
+        if b is not None:
+            outputs = outputs + b
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            outputs = normalizer_fn(outputs,**normalizer_params)
+        if activation_fn is not None:
+            outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
+            outputs = activation_fn(outputs)
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)

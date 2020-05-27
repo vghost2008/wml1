@@ -9,14 +9,12 @@ import numpy as np
 import logging
 import wsummary
 import basic_tftools as btf
-from iotoolkit.transform import  distort_color as _distort_color
 from wtfop.wtfop_ops import set_value
 
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"
 _MEAN_RGB = [123.15, 115.90, 103.06]
 
-distort_color = _distort_color
 isSingleValueTensor = btf.isSingleValueTensor
 static_or_dynamic_map_fn = btf.static_or_dynamic_map_fn
 variable_summaries = wsummary.variable_summaries

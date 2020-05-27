@@ -126,7 +126,7 @@ class TwoWayFPN(Backbone):
                     with tf.variable_scope(f"up_node{i}"):
                         net = conv_op(feature_maps[i],depths,[1,1])
                         if last is not None:
-                            last = slim.avg_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"max_pool{i}")
+                            last = slim.avg_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"avg_pool{i}")
                             last = last+net
                             #last = odt.fusion([last, net], depth=depths, scope=f"bu_fusion{i}")
                         else:

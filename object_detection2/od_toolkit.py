@@ -116,3 +116,10 @@ def fusion(feature_maps,depth=None,scope=None):
             out_feature_maps.append(net*ws[i]/sum_w)
         return tf.add_n(out_feature_maps)
 
+def sum_fusion(feature_maps,*args,scope=None,**kwargs):
+    if len(feature_maps) == 2:
+        return tf.add(feature_maps[0],feature_maps[1],name=scope)
+    else:
+        return tf.add_n(feature_maps,name=scope)
+
+

@@ -27,8 +27,9 @@ class TMAP(object):
             TMAP.load_lib()
         if path is None or not os.path.exists(path):
             print(f"Error path {path}.")
-            raise ValueError(f"Error path {path}")
-        self.__open(path)
+            self.is_open = False
+        else:
+            self.is_open = self.__open()
 
     @staticmethod
     def load_lib():
@@ -41,26 +42,39 @@ class TMAP(object):
         else:
             print(f'load {lib} faild.')
 
-    def __open(self,pstr):
-        lib = self.tmap_libs
-        lib.OpenTmapFile.restype = c_void_p
-        p = c_char_p(bytes(pstr, "UTF-8"))
-        h = lib.OpenTmapFile(p, len(pstr))
+    def __open(self):
+        try:
+            lib = self.tmap_libs
+            lib.OpenTmapFile.restype = c_void_p
+            p = c_char_p(bytes(self.path, "UTF-8"))
+            h = lib.OpenTmapFile(p, len(self.path))
 
-        if h == 0:
-            print(f"open {pstr} faild.")
+            if h == 0:
+                print(f"open {self.path} faild.")
+                return False
+
+            self.handle = c_void_p(h)
+
+            lib.GetScanScale.restype = c_int32
+            img_size = self.__GetImageInfoEx(self.uImageWhole)
+            self.scan_scale = lib.GetScanScale(self.handle);
+            self._width = img_size.width
+            self._height = img_size.height
+            self._depth = img_size.depth
+            if self._width>0 and self._height>0 and self._depth>0:
+                return True
+            else:
+                print(f"Error size {self._width,self._height,self._depth}")
+                return False
+        except:
+            print(f"open {self.path} faild.")
             return False
 
-        self.handle = c_void_p(h)
-
-        lib.GetScanScale.restype = c_int32
-        img_size = self.__GetImageInfoEx(self.uImageWhole)
-        self.scan_scale = lib.GetScanScale(self.handle);
-        self._width = img_size.width
-        self._height = img_size.height
-        self._depth = img_size.depth
-
-        return True
+    def __len__(self):
+        if self.is_open:
+            return self._width*self._height*self._depth
+        else:
+            return 0
 
     def width(self,scale=-1):
         if scale<=0 or scale>=self.scan_scale:
@@ -197,18 +211,24 @@ class TMAP(object):
 
         return pic
 
-    def get_all_img_crops(self,width,height,scale=-1):
+    def get_all_img_crops(self,width,height,scale=-1,with_pos_info=False):
 
         for y in range(0,self.height(scale),height):
             for x in range(0, self.width(scale), width):
-                yield self.crop_img(x,y,width,height,scale)
+                if with_pos_info:
+                    yield self.crop_img(x,y,width,height,scale),x,y
+                else:
+                    yield self.crop_img(x,y,width,height,scale)
 
-    def get_all_img_crops_in_all_focus(self, width, height, scale=-1):
-
+    def get_all_img_crops_in_all_focus(self, width, height, scale=-1,with_pos_info=False):
+        nr = self.get_focus_number()
         for y in range(0, self.height(scale), height):
             for x in range(0, self.width(scale), width):
-                for img in self.crop_img_in_all_focus(x, y, width, height, scale):
-                    yield img
+                for z,img in enumerate(self.crop_img_in_all_focus(x, y, width, height, scale)):
+                    if with_pos_info:
+                        yield img,x,y,z-nr
+                    else:
+                        yield img
 
     @staticmethod
     def buffer2img(buffer,width,height,channel=3,buffer_length=None,type=np.uint8):

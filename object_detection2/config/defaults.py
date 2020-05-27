@@ -11,7 +11,6 @@ _C.MODEL.MIN_BOXES_AREA_TEST = 0.
 _C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
 _C.MODEL.WEIGHTS = ""
 _C.MODEL.ONLY_SCOPE = ""
-_C.MODEL.INPUT_ALIGN = 1
 
 # -----------------------------------------------------------------------------
 # INPUT
