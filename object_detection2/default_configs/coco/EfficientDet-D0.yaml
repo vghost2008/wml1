@@ -2,10 +2,10 @@ _BASE_: "../Base-EfficientDet.yaml"
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
   #WEIGHTS: "/home/vghost/ai/mldata/efficidentdet/efficientdet-d0"
-  #ONLY_SCOPE: "efficientdet-d0"
+  ONLY_SCOPE: "efficientnet-b0"
   EFFICIENTNETS:
     TYPE: 0
-    FROZEN_BN: False
+    FROZEN_BN: True
   BIFPN:
     IN_FEATURES: ["C3","C4", "C5","C6","C7"]
     REPEAT: 2

@@ -653,6 +653,8 @@ _C.SOLVER.IMS_PER_BATCH = 16
 # desired.
 _C.SOLVER.BIAS_LR_FACTOR = 1.0
 _C.SOLVER.WEIGHT_DECAY_BIAS = _C.SOLVER.WEIGHT_DECAY
+_C.SOLVER.LR_DECAY_TYPE = "piecewise"
+_C.SOLVER.LR_DECAY_FACTOR = 0.1
 
 # ---------------------------------------------------------------------------- #
 # Specific test options

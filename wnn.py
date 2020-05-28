@@ -74,7 +74,7 @@ def build_learning_rate(initial_lr,
       elif lr_decay_type == 'cosine':
         assert total_steps is not None
         lr = 0.5 * initial_lr * (
-            1 + tf.cos(np.pi * tf.cast(global_step, tf.float32) / total_steps))
+            1 + tf.cos(np.pi * tf.cast(global_step-warmup_steps, tf.float32) / (total_steps-warmup_steps)))
       elif lr_decay_type == 'constant':
         lr = initial_lr
       elif lr_decay_type == "piecewise":
@@ -594,23 +594,28 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
         if "moving_mean" in v.name or "moving_variance" in v.name:
             tf.add_to_collection(tf.GraphKeys.MOVING_AVERAGE_VARIABLES,v)
     variables = []
+    variables_restored_in_ckpt = []
     variables0 = restore_variables_by_key(sess,file_path,exclude,only_scope,key=tf.GraphKeys.TRAINABLE_VARIABLES,name="train",silent=silent,value_key=value_key)
 
     if len(variables0)>1:
         if isinstance(variables0[1],list):
             for v in variables0[1]:
                 variables.append(v.name)
+                variables_restored_in_ckpt.append(v.name)
         else:
-            for v in variables0[1]:
-                variables.append(v)
+            for k,v in variables0[1].items():
+                variables.append(v.name)
+                variables_restored_in_ckpt.append(k)
     variables1 = restore_variables_by_key(sess,file_path,exclude,only_scope,key=tf.GraphKeys.MOVING_AVERAGE_VARIABLES,name='moving',silent=silent,value_key=value_key)
     if len(variables1)>1:
         if isinstance(variables1[1],list):
             for v in variables1[1]:
                 variables.append(v.name)
+                variables_restored_in_ckpt.append(v.name)
         else:
-            for v in variables1[1]:
-                variables.append(v)
+            for k,v in variables1[1].items():
+                variables.append(v.name)
+                variables_restored_in_ckpt.append(k)
 
     if global_scopes is not None:
         variables2 = restore_variables_by_key(sess,file_path,None,global_scopes,key=tf.GraphKeys.GLOBAL_VARIABLES,name='global_variables',silent=silent,value_key=value_key)
@@ -618,9 +623,11 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
             if isinstance(variables2[1],list):
                 for v in variables2[1]:
                     variables.append(v.name)
+                    variables_restored_in_ckpt.append(v.name)
             else:
-                for v in variables2[1]:
-                    variables.append(v)
+                for k,v in variables2[1].items():
+                    variables.append(v.name)
+                    variables_restored_in_ckpt.append(k)
 
     if extend_vars is not None:
         variables2 = restore_variables_by_var_list(sess,file_path,extend_vars)
@@ -628,16 +635,23 @@ def restore_variables(sess,path,exclude=None,only_scope=None,silent=False,restor
             if isinstance(variables2[1],list):
                 for v in variables2[1]:
                     variables.append(v.name)
+                    variables_restored_in_ckpt.append(v.name)
             else:
-                for v in variables2[1]:
-                    variables.append(v)
+                for k,v in variables2[1].items():
+                    variables.append(v.name)
+                    variables_restored_in_ckpt.append(k)
 
     for i,v in enumerate(variables):
         index = v.find(':')
         if index>0:
             variables[i] = variables[i][:index]
+    for i,v in enumerate(variables_restored_in_ckpt):
+        index = v.find(':')
+        if index>0:
+            variables_restored_in_ckpt[i] = variables_restored_in_ckpt[i][:index]
 
-    unrestored_variables = wmlt.get_variables_unrestored(variables,file_path,exclude_var="Adam")
+    unrestored_variables = wmlt.get_variables_unrestored(variables_restored_in_ckpt,file_path,
+                                                         exclude_var="Adam")
     unrestored_variables0 = wmlt.get_variables_unrestoredv1(variables,exclude_var="Adam")
     if not verbose:
         def v_filter(x:str):

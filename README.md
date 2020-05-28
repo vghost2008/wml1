@@ -18,12 +18,12 @@ Inspired by [detectron2](https://github.com/facebookresearch/detectron2)
 
 Train example
 ```
-python object_detection_tools/train_net_on_multi_gpus.py --config-file object_detection2/default_configs/Base-Mask-RCNN-FPN-C4.yaml
+python object_detection_tools/train_net_on_multi_gpus.py --config-file object_detection2/default_configs/coco/RetinaNet.yaml
 ```
 
 Eval example
 ```
-python object_detection_tools/eval_net.py --config-file object_detection2/default_configs/Base-Mask-RCNN-FPN-C4.yaml
+python object_detection_tools/eval_net.py --config-file object_detection2/default_configs/coco/RetinaNet.yaml
 ```
 
 ##Authors

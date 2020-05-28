@@ -678,6 +678,9 @@ class Stitch(WTransform):
 
     def __call__(self, data_item):
         B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        if B<2:
+            return data_item
+
         indexs = tf.range((B//2)*2)
         indexs = tf.random_shuffle(indexs,seed=time.time())
         indexs = tf.reshape(indexs,[B//2,2])
@@ -686,6 +689,7 @@ class Stitch(WTransform):
         else:
             p = tf.less(tf.random_uniform(shape=()),self.probability)
             nr = tf.cond(p,lambda:1,lambda:0)
+        need_trans = tf.greater(nr,0)
         indexs = indexs[:nr]
         old_img_shape = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
         B,H,W,C = old_img_shape
@@ -708,15 +712,15 @@ class Stitch(WTransform):
                                                             tf.int64))
             mask = tf.transpose(mask,perm=[0,3,1,2])
             mask = tf.reshape(mask,[B,-1,H,W])
-            data_item[GT_MASKS] = mask
+            self.cond_set(data_item,GT_MASKS,need_trans,mask)
         else:
             is_h, image, bboxes, labels,length,_ = tf.py_func(Stitch.process,[indexs,
-                                                                                      data_item[IMAGE],
-                                                                                      data_item[GT_BOXES],
-                                                                                      data_item[GT_LABELS],
-                                                                                      data_item[WIDTH],
-                                                                                      data_item[HEIGHT],
-                                                                                      data_item[GT_LENGTH]],
+                                                                             data_item[IMAGE],
+                                                                             data_item[GT_BOXES],
+                                                                             data_item[GT_LABELS],
+                                                                             data_item[WIDTH],
+                                                                             data_item[HEIGHT],
+                                                                             data_item[GT_LENGTH]],
                                                            (tf.bool,data_item[IMAGE].dtype,
                                                             tf.float32,
                                                             data_item[GT_LABELS].dtype,
@@ -726,10 +730,10 @@ class Stitch(WTransform):
         image = tf.reshape(image, old_img_shape)
         bboxes = tf.reshape(bboxes, [B, -1, BOX_DIM])
         labels = tf.reshape(labels, [B, -1])
-        data_item[IMAGE] = image
-        data_item[GT_BOXES] = bboxes
-        data_item[GT_LABELS] = labels
-        data_item[GT_LENGTH] = length
+        self.cond_set(data_item, IMAGE, need_trans, image)
+        self.cond_set(data_item, GT_BOXES, need_trans, bboxes)
+        self.cond_set(data_item, GT_LABELS, need_trans, labels)
+        self.cond_set(data_item, GT_LENGTH, need_trans, length)
 
         return data_item
 

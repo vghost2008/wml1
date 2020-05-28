@@ -11,9 +11,9 @@ slim = tf.contrib.slim
 
 class EfficientNet(Backbone):
     def __init__(self,cfg,*args,**kwargs):
-        if cfg.MODEL.PREPROCESS != "ton1p1":
+        if cfg.MODEL.PREPROCESS != "m0v1":
             print("--------------------WARNING--------------------")
-            print(f"Preprocess for efficientnet should be ton1p1 not {cfg.MODEL.PREPROCESS}.")
+            print(f"Preprocess for efficientnet should be m0v1 not {cfg.MODEL.PREPROCESS}.")
             print("------------------END WARNING------------------")
 
         super().__init__(cfg,*args,**kwargs)

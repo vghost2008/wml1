@@ -109,7 +109,10 @@ class BIFPN(Backbone):
                                   scope=f"projection_{i}")
                 feature_maps.append(net)
             feature_maps.reverse()
-            repeat = self.cfg.MODEL.BIFPN.REPEAT
+            '''
+            原文写的D0重复两次，D3重复5次，但实际相应的实现D0重复了3次，D3重复了6次，这里按作者的源码保持一致
+            '''
+            repeat = self.cfg.MODEL.BIFPN.REPEAT+1
 
             for i in range(repeat):
                 feature_maps = odat.BiFPN(feature_maps,

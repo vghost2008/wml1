@@ -35,7 +35,10 @@ class TMAP(object):
     def load_lib():
         ll = ctypes.cdll.LoadLibrary
         #lib = ll("libiViewerSDK67.so")
-        lib = ll("/usr/lib/libiViewerSDK67.so")
+        lib_path = "/usr/lib/libiViewerSDK67.so"
+        if not os.path.exists(lib_path):
+            lib_path = "libiViewerSDK67.so"
+        lib = ll(lib_path)
         if lib is not None:
             print(f'load {lib} success')
             TMAP.tmap_libs = lib
@@ -141,6 +144,12 @@ class TMAP(object):
     def get_macro_label_img(self):
         return self.get_image(TMAP.uImageMacroLabel)
 
+    def get_macro_img(self):
+        return self.get_image(TMAP.uImageMacro)
+
+    def get_whole_img(self,scale=1,layer=None):
+        return self.crop_img(scale=scale,layer=layer)
+
     def get_image(self,etype):
         fun_ImgSize = self.__GetImageInfoEx(etype)
         lib = self.tmap_libs
@@ -184,9 +193,9 @@ class TMAP(object):
         elif scale<=0:
             scale = self.scan_scale
         if width<=0:
-            width = self.width()
+            width = self.width(scale)
         if height<=0:
-            height = self.height()
+            height = self.height(scale)
 
         if layer is not None:
             self.set_focus_layer(layer)
@@ -194,10 +203,10 @@ class TMAP(object):
         GetCropImageDataEx_fun = lib.GetCropImageDataEx
         GetCropImageDataEx_fun.restype = POINTER(c_ubyte)
 
-        nLeft = left*scale/self.scan_scale
-        nRight = (left+width)*scale/self.scan_scale
-        nTop = top*scale/self.scan_scale
-        nBottom = (top+height)*scale/self.scan_scale
+        nLeft = left*self.scan_scale/scale
+        nRight = (left+width)*self.scan_scale/scale
+        nTop = top*self.scan_scale/scale
+        nBottom = (top+height)*self.scan_scale/scale
         nLeft = c_int32(int(max(0,nLeft)))
         nTop = c_int32(int(max(0,nTop)))
         nBottom = c_int32(int(min(self.height()-1,nBottom)))

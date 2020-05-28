@@ -25,10 +25,11 @@ import re
 from absl import logging
 import numpy as np
 import tensorflow as tf
+import functools
 
 from .efficientnet_model import *
 slim=tf.contrib.slim
-batch_norm = slim.batch_norm
+batch_norm = functools.partial(slim.batch_norm,scale=True)
 MEAN_RGB = [0.485 * 255, 0.456 * 255, 0.406 * 255]
 STDDEV_RGB = [0.229 * 255, 0.224 * 255, 0.225 * 255]
 

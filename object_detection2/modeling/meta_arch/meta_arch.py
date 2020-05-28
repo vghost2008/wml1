@@ -12,7 +12,23 @@ import wsummary
 class MetaArch(wmodule.WModule):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-
+        
+    @staticmethod
+    def m0v1(image):
+        """Normalize the image to zero mean and unit variance."""
+        # The image normalization is identical to Cloud TPU ResNet.
+        image = image/255.0
+        offset = tf.constant([0.485, 0.456, 0.406])
+        offset = tf.expand_dims(offset, axis=0)
+        offset = tf.expand_dims(offset, axis=0)
+        image -= offset
+    
+        scale = tf.constant([0.229, 0.224, 0.225])
+        scale = tf.expand_dims(scale, axis=0)
+        scale = tf.expand_dims(scale, axis=0)
+        image /= scale
+        return image
+    
     def preprocess_image(self, batched_inputs):
         """
         Normalize, pad and batch the input images.
@@ -21,6 +37,8 @@ class MetaArch(wmodule.WModule):
             b_img = batched_inputs[IMAGE]
             if self.cfg.MODEL.PREPROCESS == "ton1p1":
                 b_img = (b_img-127.5)/127.5
+            elif self.cfg.MODEL.PREPROCESS == "m0v1":
+                b_img = MetaArch.m0v1(b_img)
             elif self.cfg.MODEL.PREPROCESS == "subimagenetmean":
                 channel_means = [123.68, 116.779, 103.939]
                 b_img = b_img-[[[channel_means]]]
