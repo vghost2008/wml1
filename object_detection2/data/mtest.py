@@ -13,6 +13,7 @@ import iotoolkit.transform as trans
 from object_detection2.config.config import CfgNode as CN
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 from object_detection2.data.dataloader import *
+from wml_utils import  AvgTimeThis
 
 
 NUM_CLASSES = 91
@@ -34,8 +35,7 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATASETS.TRAIN = "coco_2014_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
-_C.INPUT.STITCH = 0.0
-
+_C.INPUT.STITCH = 0.5
 
 def main(_):
     cfg = _C
@@ -55,11 +55,12 @@ def main(_):
         initializer = tf.global_variables_initializer()
     sess.run(initializer)
     step = 0
+    tt = AvgTimeThis()
     while True:
-        begin_t = time.time()
-        summary = sess.run(merged)
+        with tt:
+            summary = sess.run(merged)
         summary_writer.add_summary(summary, step)
-        print("step %5d, %f secs/batch" % (step,time.time() - begin_t))
+        print("step %5d, %f secs/batch" % (step,tt.get_time()))
         step += 1
     sess.close()
     summary_writer.close()

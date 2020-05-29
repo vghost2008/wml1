@@ -8,7 +8,6 @@ import tensorflow as tf
 import os
 gpus = [0,1,5]
 gpus = [2,3,4]
-gpus = [2]
 gpus_str=""
 for g in gpus:
     gpus_str+=str(g)+","
@@ -64,7 +63,7 @@ def main(_):
             if "BatchNorm" in name:
                 name = name.replace("BatchNorm","tpu_batch_normalization")
             return name
-        kwargs['value_key'] = func
+        #kwargs['value_key'] = func
     else:
         kwargs = {'extend_vars': trainer.global_step}
     trainer.resume_or_load(**kwargs)

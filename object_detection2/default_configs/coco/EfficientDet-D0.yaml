@@ -1,7 +1,7 @@
 _BASE_: "../Base-EfficientDet.yaml"
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  #WEIGHTS: "/home/vghost/ai/mldata/efficidentdet/efficientdet-d0"
+  WEIGHTS: "/home/vghost/ai/mldata/efficidentdet/efficientdet-d0"
   ONLY_SCOPE: "efficientnet-b0"
   EFFICIENTNETS:
     TYPE: 0

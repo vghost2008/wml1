@@ -31,6 +31,7 @@ show_return_type = btf.show_return_shape
 add_name_scope = btf.add_name_scope
 add_variable_scope = btf.add_variable_scope
 probability_case = btf.probability_case
+indices_to_dense_vector = btf.indices_to_dense_vector
 
 def add_to_hash_table_collection(value):
     tf.add_to_collection(_HASH_TABLE_COLLECTION,value)
@@ -718,36 +719,6 @@ def fixed_padding(inputs, kernel_size, rate=1):
                                   [pad_beg, pad_end], [0, 0]])
   return padded_inputs
 
-def indices_to_dense_vector(indices,
-                            size,
-                            indices_value=1.,
-                            default_value=0,
-                            dtype=tf.float32):
-  """Creates dense vector with indices set to specific value and rest to zeros.
-
-  This function exists because it is unclear if it is safe to use
-    tf.sparse_to_dense(indices, [size], 1, validate_indices=False)
-  with indices which are not ordered.
-  This function accepts a dynamic size (e.g. tf.shape(tensor)[0])
-
-  Args:
-    indices: 1d Tensor with integer indices which are to be set to
-        indices_values.
-    size: scalar with size (integer) of output Tensor.
-    indices_value: values of elements specified by indices in the output vector
-    default_value: values of other elements in the output vector.
-    dtype: data type.
-
-  Returns:
-    dense 1D Tensor of shape [size] with indices set to indices_values and the
-        rest set to default_value.
-  """
-  size = tf.to_int32(size)
-  zeros = tf.ones([size], dtype=dtype) * default_value
-  values = tf.ones_like(indices, dtype=dtype) * indices_value
-
-  return tf.dynamic_stitch([tf.range(size), tf.to_int32(indices)],
-                           [zeros, values])
 '''
 mask0:[X]
 mask1:[Y]

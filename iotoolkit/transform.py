@@ -75,6 +75,13 @@ class WTransform(object):
     @staticmethod
     def cond_set(dict_data,key,pred,v):
         dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+
+    @staticmethod
+    def pad(dict_data,key,paddings):
+        data = dict_data[key]
+        if len(paddings)<len(data.get_shape()):
+            paddings = paddings+[[0,0]]*(len(data.get_shape())-len(paddings))
+        dict_data[key] = tf.pad(data,paddings=paddings)
 '''
 img:[H,W,C]
 '''
@@ -685,55 +692,82 @@ class Stitch(WTransform):
         indexs = tf.random_shuffle(indexs,seed=time.time())
         indexs = tf.reshape(indexs,[B//2,2])
         if self.probability is None:
-            nr = tf.minimum(B//2,self.nr)
+            nr = tf.minimum(B//2,int(self.nr+0.5))
         else:
             p = tf.less(tf.random_uniform(shape=()),self.probability)
             nr = tf.cond(p,lambda:1,lambda:0)
         need_trans = tf.greater(nr,0)
         indexs = indexs[:nr]
-        old_img_shape = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
-        B,H,W,C = old_img_shape
+        B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
         B,_,BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
+        indexs = tf.transpose(indexs, [1, 0])
+        o_indexs = indexs[0]
+        #get maxlength
+        l0 = tf.gather(data_item[GT_LENGTH],indexs[0])
+        l1 = tf.gather(data_item[GT_LENGTH],indexs[1])
+        sum_l = l0+l1
+        max_length = tf.maximum(tf.reduce_max(sum_l),tf.shape(data_item[GT_LABELS])[1])
+        pad_value = max_length-tf.shape(data_item[GT_LABELS])[1]
+        WTransform.pad(data_item,GT_BOXES,[[0,0],[0,pad_value]])
+        WTransform.pad(data_item,GT_LABELS,[[0,0],[0,pad_value]])
         if GT_MASKS in data_item:
-            mask = tf.transpose(data_item[GT_MASKS],perm=[0,2,3,1])
-            is_h, image, mask, bboxes, labels,length,_ = tf.py_func(Stitch.process_with_masks,[indexs,
-                                                                                      data_item[IMAGE],
-                                                                                      mask,
-                                                                                      data_item[GT_BOXES],
-                                                                                      data_item[GT_LABELS],
-                                                                                      data_item[WIDTH],
-                                                                                      data_item[HEIGHT],
-                                                                                      data_item[GT_LENGTH]],
+            WTransform.pad(data_item,GT_MASKS,[[0,0],[0,pad_value]])
+        #
+        indexs = tf.reshape(indexs, [-1])
+
+        i_image = tf.gather(data_item[IMAGE],indexs)
+        i_bboxes = tf.gather(data_item[GT_BOXES],indexs)
+        i_labels = tf.gather(data_item[GT_LABELS],indexs)
+        i_width = tf.gather(data_item[WIDTH],indexs)
+        i_height = tf.gather(data_item[HEIGHT],indexs)
+        i_length = tf.gather(data_item[GT_LENGTH],indexs)
+
+        def cond_set_value(data_dict,key,pred,value,indexs):
+            org_v = data_dict[key]
+            shape = btf.combined_static_and_dynamic_shape(org_v)
+            cond_v = tf.scatter_nd(tf.reshape(indexs,[-1,1]),value,shape)
+            is_set = tf.cast(btf.indices_to_dense_vector(indexs,size=shape[0]),tf.bool)
+            cond_v = tf.where(is_set,cond_v,org_v)
+            WTransform.cond_set(data_dict,key,pred,cond_v)
+            pass
+
+        if GT_MASKS in data_item:
+            mask = tf.gather(data_item[GT_MASKS],indexs)
+            mask = tf.transpose(mask,perm=[0,2,3,1])
+            is_h, image, mask, bboxes, labels,length = tf.py_func(Stitch.process_with_masks,[i_image,
+                                                                                           mask,
+                                                                                           i_bboxes,
+                                                                                           i_labels,
+                                                                                           i_width,
+                                                                                           i_height,
+                                                                                           i_length],
                                                            (tf.bool,data_item[IMAGE].dtype,
                                                             data_item[GT_MASKS].dtype,
                                                             tf.float32,
                                                             data_item[GT_LABELS].dtype,
-                                                            data_item[GT_LENGTH].dtype,
-                                                            tf.int64))
+                                                            data_item[GT_LENGTH].dtype))
             mask = tf.transpose(mask,perm=[0,3,1,2])
-            mask = tf.reshape(mask,[B,-1,H,W])
-            self.cond_set(data_item,GT_MASKS,need_trans,mask)
+            mask = tf.reshape(mask, [nr,max_length,H,W])
+            cond_set_value(data_item,GT_MASKS,need_trans,mask,o_indexs)
         else:
-            is_h, image, bboxes, labels,length,_ = tf.py_func(Stitch.process,[indexs,
-                                                                             data_item[IMAGE],
-                                                                             data_item[GT_BOXES],
-                                                                             data_item[GT_LABELS],
-                                                                             data_item[WIDTH],
-                                                                             data_item[HEIGHT],
-                                                                             data_item[GT_LENGTH]],
+            is_h, image, bboxes, labels,length = tf.py_func(Stitch.process,[i_image,
+                                                                              i_bboxes,
+                                                                              i_labels,
+                                                                              i_width,
+                                                                              i_height,
+                                                                              i_length],
                                                            (tf.bool,data_item[IMAGE].dtype,
                                                             tf.float32,
                                                             data_item[GT_LABELS].dtype,
-                                                            data_item[GT_LENGTH].dtype,
-                                                            tf.int64))
+                                                            data_item[GT_LENGTH].dtype))
 
-        image = tf.reshape(image, old_img_shape)
-        bboxes = tf.reshape(bboxes, [B, -1, BOX_DIM])
-        labels = tf.reshape(labels, [B, -1])
-        self.cond_set(data_item, IMAGE, need_trans, image)
-        self.cond_set(data_item, GT_BOXES, need_trans, bboxes)
-        self.cond_set(data_item, GT_LABELS, need_trans, labels)
-        self.cond_set(data_item, GT_LENGTH, need_trans, length)
+        image = tf.reshape(image, [nr,H,W,C])
+        bboxes = tf.reshape(bboxes, [nr, max_length, BOX_DIM])
+        labels = tf.reshape(labels, [nr, max_length])
+        cond_set_value(data_item, IMAGE, need_trans, image,o_indexs)
+        cond_set_value(data_item, GT_BOXES, need_trans, bboxes,o_indexs)
+        cond_set_value(data_item, GT_LABELS, need_trans, labels,o_indexs)
+        cond_set_value(data_item, GT_LENGTH, need_trans, length,o_indexs)
 
         return data_item
 
@@ -871,21 +905,15 @@ class Stitch(WTransform):
         return np.concatenate(labels,axis=0)
 
     @staticmethod
-    def process(indexs,image,bboxes,labels,width,height,length):
+    def process(image,bboxes,labels,width,height,length):
+        B,H,W = image.shape[:3]
+        res_nr = B//2
+        indexs0 = range(B//2)
+        indexs1 = range(B//2,B)
+        indexs = zip(indexs0,indexs1)
         is_h = []
-        H,W = image.shape[1:3]
         max_length = bboxes.shape[1]
         type = length.dtype
-        for i,inds in enumerate(indexs):
-            id0 = inds[0]
-            id1 = inds[1]
-            c_len = length[id0]+length[id1]
-            if c_len > max_length:
-                max_length = c_len
-        if max_length> bboxes.shape[1]:
-            nr = max_length - bboxes.shape[1]
-            bboxes = np.pad(bboxes,[(0,0),(0,nr),(0,0)],'constant', constant_values=(0,0))
-            labels = np.pad(labels, [(0, 0), (0, nr)], 'constant', constant_values=(0, 0))
 
         res_length = copy.deepcopy(length)
         for i,inds in enumerate(indexs):
@@ -909,14 +937,17 @@ class Stitch(WTransform):
             bboxes[id0] = bbox
             labels[id0] = label
             is_h.append(ih)
-        return np.array(is_h,dtype=np.bool),image,bboxes,labels,res_length.astype(type),int(max_length)
+        return np.array(is_h,dtype=np.bool),image[:res_nr],bboxes[:res_nr],labels[:res_nr],res_length.astype(type)[:res_nr]
 
     @staticmethod
-    def process_with_masks(indexs,image,mask,bboxes,labels,width,height,length):
-        H,W = image.shape[1:3]
-        old_length = mask.shape[3]
-        is_h,image,bboxes,labels,res_length,max_length = Stitch.process(indexs,image,bboxes,labels,width,height,length)
-        mask = np.pad(mask,[(0,0),(0,0),(0,0),[0,max_length-old_length]],'constant', constant_values=(0,0))
+    def process_with_masks(image,mask,bboxes,labels,width,height,length):
+        B,H,W = image.shape[:3]
+        res_nr = B//2
+        indexs0 = range(B//2)
+        indexs1 = range(B//2,B)
+        indexs = zip(indexs0,indexs1)
+        max_length = bboxes.shape[1]
+        is_h,image,bboxes,labels,res_length = Stitch.process(image,bboxes,labels,width,height,length)
         for i,inds in enumerate(indexs):
             id0 = inds[0]
             id1 = inds[1]
@@ -931,7 +962,7 @@ class Stitch(WTransform):
             m = Stitch.concat_mask([mask[id0][:,:,:len0],mask[id1][:,:,:len1]],widths,heights,W,H,ih)
             m = np.pad(m,[(0,0),(0,0),(0,max_length-len0-len1)],'constant', constant_values=(0,0))
             mask[id0] = m
-        return is_h,image,mask,bboxes,labels,res_length,int(max_length)
+        return is_h,image,mask[:res_nr],bboxes,labels,res_length
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):

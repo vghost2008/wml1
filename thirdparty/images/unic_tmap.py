@@ -207,16 +207,20 @@ class TMAP(object):
         nRight = (left+width)*self.scan_scale/scale
         nTop = top*self.scan_scale/scale
         nBottom = (top+height)*self.scan_scale/scale
-        nLeft = c_int32(int(max(0,nLeft)))
-        nTop = c_int32(int(max(0,nTop)))
-        nBottom = c_int32(int(min(self.height()-1,nBottom)))
-        nRight = c_int32(int(min(self.width()-1,nRight)))
+        r_left = int(max(0,nLeft))
+        r_top = int(max(0,nTop))
+        r_bottom = int(min(self.height(),nBottom))
+        r_right = int(min(self.width(),nRight))
+        nLeft = c_int32(r_left)
+        nTop = c_int32(r_top)
+        nBottom = c_int32(r_bottom)
+        nRight = c_int32(r_right)
         buffer_size = c_int32(int(width*height*3))
-        scale = c_float(scale)
+        nScale = c_float(scale)
 
-        f = GetCropImageDataEx_fun(self.handle,1, nLeft, nTop, nRight, nBottom, scale, buffer_size)
+        f = GetCropImageDataEx_fun(self.handle,1, nLeft, nTop, nRight, nBottom, nScale, buffer_size)
 
-        pic = TMAP.buffer2img(f,width,height,3)
+        pic = TMAP.buffer2img(f,(r_right-r_left)*scale//self.scan_scale,(r_bottom-r_top)*scale//self.scan_scale,3)
 
         return pic
 
