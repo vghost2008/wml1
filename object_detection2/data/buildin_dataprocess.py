@@ -37,6 +37,9 @@ def coco(cfg,is_training):
                                     trans.MaskHWN2NHW(),
                                     trans.BBoxesRelativeToAbsolute(),
                                     trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                                    trans.RandomRotateAnyAngle(max_angle=cfg.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE,
+                                                               rotate_probability=cfg.INPUT.ROTATE_ANY_ANGLE.PROBABILITY,
+                                                               enable=cfg.INPUT.ROTATE_ANY_ANGLE.ENABLE),
                                     trans.AddBoxLens(),
                                     trans.UpdateHeightWidth(),
                                     ]

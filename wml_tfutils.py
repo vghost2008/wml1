@@ -1025,6 +1025,11 @@ def get_pad_shapes_for_padded_batch(dataset):
         res[k] = shape
     return res
 
+def show_graph_info(graph=None):
+    flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+    params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
+    print('FLOPs: {};    Trainable params: {}'.format(flops.total_float_ops, params.total_parameters))
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
 

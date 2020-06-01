@@ -4,6 +4,7 @@ import iotoolkit.transform as trans
 import wsummary
 import tensorflow as tf
 from .build_dataprocess import DATAPROCESS_REGISTRY
+import socket
 
 class DataLoader(wmodule.WModule):
     category_index = None
@@ -23,8 +24,14 @@ class DataLoader(wmodule.WModule):
         return res
 
     def load_data(self,path,func,num_classes,category_index,batch_size=None,is_training=True):
+        if "vghost" in socket.gethostname():
+            num_parallel = 8
+        else:
+            num_parallel = 12
+        print(f"Num parallel {num_parallel}")
+
         print("Trans on single img:",self.trans_on_single_img)
-        data = func(path,transforms=self.trans_on_single_img)
+        data = func(path,transforms=self.trans_on_single_img,num_parallel=num_parallel)
         if is_training:
             data = data.repeat()
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH
@@ -37,9 +44,9 @@ class DataLoader(wmodule.WModule):
         if len(self.trans_on_batch_img) == 1:
             data = data.map(self.trans_on_batch_img[0])
         elif len(self.trans_on_batch_img) > 1:
-            data = data.map(trans.WTransformList(self.trans_on_batch_img))
+            data = data.map(trans.WTransformList(self.trans_on_batch_img),num_parallel_calls=num_parallel)
         if batch_size>0:
-            data = data.prefetch(4)
+            data = data.prefetch(8)
         return data.make_one_shot_iterator(),num_classes
 
     @staticmethod

@@ -63,7 +63,7 @@ def main(_):
             if "BatchNorm" in name:
                 name = name.replace("BatchNorm","tpu_batch_normalization")
             return name
-        #kwargs['value_key'] = func
+        kwargs['value_key'] = func
     else:
         kwargs = {'extend_vars': trainer.global_step}
     trainer.resume_or_load(**kwargs)

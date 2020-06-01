@@ -296,6 +296,34 @@ class RandomRotate(WTransform):
         return data_item
 
 '''
+Mask: [Nr,H,W]
+bboxes: absolute coordinate
+'''
+class RandomRotateAnyAngle(WTransform):
+    def __init__(self,max_angle=60,rotate_probability=0.5,enable=True):
+        self.max_angle = max_angle
+        self.rotate_probability = rotate_probability
+        self.enable = enable
+
+    def __call__(self, data_item):
+        if not self.enable:
+            return data_item
+        is_rotate = tf.less(tf.random_uniform(shape=[]),self.rotate_probability)
+        if self.max_angle is not None:
+            angle = tf.random_uniform(shape=(),minval=-self.max_angle,maxval=self.max_angle)
+        else:
+            angle = tf.random_uniform(shape=(), minval=-180,maxval=180)
+
+        r_image = wop.tensor_rotate(image=data_item[IMAGE],angle=angle)
+        WTransform.cond_set(data_item, IMAGE, is_rotate, r_image)
+
+        if GT_MASKS in data_item:
+            r_mask,r_bboxes = wop.mask_rotate(image=data_item[GT_MASKS],angle=angle)
+            WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
+            WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
+
+        return data_item
+'''
 mask:H,W,N format
 '''
 class ResizeShortestEdge(WTransform):

@@ -5,6 +5,7 @@
 - 在batch size较小时EvoNormS比BN更有优势
 - 在batch size特别小时BN可能不收敛，但EvoNormS会收敛的更好
 - GIOU有稳定的提升
+- Stitch有稳定的提升
 
 ##基本配置
 
@@ -175,6 +176,33 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.136
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.453
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.634
 ```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU + Stitch
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 66.1h
+- eval time: 0.1319/img
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.323
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.506
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.343
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.060
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.252
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.433
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.299
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.474
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.502
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.143
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.456
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.638
+```
+
 ##coco/RetinaNet.yaml TwoWayFPN+EvoNormS + GIOU
 
 - batch_size: 4 on 3 gpu
