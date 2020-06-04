@@ -324,7 +324,7 @@ class Res5ROIHeads(ROIHeads):
     def __init__(self, cfg,parent,**kwargs):
         super().__init__(cfg,parent,**kwargs)
 
-        assert len(self.in_features) == 1
+        assert len(self.in_features) == 1, "Res5ROIHeads only support one feature map input."
 
         # fmt: off
         pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION

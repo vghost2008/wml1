@@ -32,8 +32,6 @@ class GeneralizedRCNN(MetaArch):
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
         self.proposal_generator = build_proposal_generator(cfg,parent=self,*args,**kwargs)
         self.roi_heads = build_roi_heads(cfg,parent=self,*args,**kwargs)
-        self.vis_period = cfg.VIS_PERIOD
-        self.input_format = cfg.INPUT.FORMAT
 
     def forward(self, batched_inputs):
         """

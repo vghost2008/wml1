@@ -126,6 +126,8 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
 @add_arg_scope
 def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
     assert scale==True or offset==True
+    C = x.get_shape().as_list()[-1]
+    assert C%G==0,f"Unmatch channel {C} and group {G} size"
     if x.get_shape().ndims == 4:
         return group_norm_4d_v1(x,G,epsilon,weights_regularizer=weights_regularizer,
                              scale=scale,

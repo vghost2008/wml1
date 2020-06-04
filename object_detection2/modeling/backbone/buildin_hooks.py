@@ -21,6 +21,9 @@ class NonLocalBackboneHook(wmodule.WChildModule):
                 if k[0] not in ["C","P"]:
                     continue
                 level = int(k[1:])
+                if level<=3:
+                    res[k] = v
+                    continue
                 res[k] = wnnl.non_local_blockv1(v,scope=f"Non_Local{level}",
                                                     normalizer_fn=wnnl.group_norm)
             return res
