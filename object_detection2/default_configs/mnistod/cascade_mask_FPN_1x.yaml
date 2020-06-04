@@ -1,4 +1,4 @@
-_BASE_: "./Base-RCNN-FPN.yaml"
+_BASE_: "../Base-RCNN-FPN.yaml"
 MODEL:
   MASK_ON: False
   RESNETS:
@@ -9,5 +9,9 @@ MODEL:
     CLS_AGNOSTIC_BBOX_REG: True
   RPN:
     POST_NMS_TOPK_TRAIN: 1000
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
 GLOBAL:
-  PROJ_NAME: "CascadeRCNNDemon2"
+  PROJ_NAME: "CascadeRCNNDemon"

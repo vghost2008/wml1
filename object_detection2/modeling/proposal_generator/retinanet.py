@@ -13,6 +13,7 @@ from object_detection2.modeling.box_regression import Box2BoxTransform
 from object_detection2.modeling.matcher import Matcher
 import math
 from object_detection2.datadef import *
+from object_detection2.modeling.build_matcher import build_matcher
 '''
 Use retinanet as a proposal generator
 '''
@@ -44,7 +45,7 @@ class RetinaNet(wmodule.WChildModule):
 
         # Matching and loss
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RETINANET_PG.BBOX_REG_WEIGHTS)
-        self.anchor_matcher = Matcher(
+        self.anchor_matcher = build_matcher(cfg.MODEL.RETINANET_PG.MATCHER,
             cfg.MODEL.RETINANET_PG.IOU_THRESHOLDS,
             #NUM_CLASSES==1表示仅分背景与前景，否则为完整普通的分类
             same_pos_label=1 if self.cfg.MODEL.RETINANET_PG.NUM_CLASSES==1 else None,

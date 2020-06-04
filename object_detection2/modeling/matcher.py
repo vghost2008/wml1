@@ -3,7 +3,9 @@ import wtfop.wtfop_ops as wop
 import wmodule
 import tensorflow as tf
 import basic_tftools as btf
+from .build_matcher import MATCHER
 
+@MATCHER.register()
 class Matcher(wmodule.WChildModule):
     def __init__(self,thresholds,allow_low_quality_matches=False,same_pos_label=None,*args,**kwargs):
         '''

@@ -1,4 +1,4 @@
-_BASE_: "./Base-RCNN-FPN.yaml"
+_BASE_: "../Base-RCNN-FPN.yaml"
 MODEL:
   MASK_ON: True
   RESNETS:
@@ -15,7 +15,10 @@ MODEL:
     IN_FEATURES: ["P2","P3","P4"]
 SOLVER:
   IMS_PER_BATCH: 8
-
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
 GLOBAL:
   PROJ_NAME: "MaskRCNNRPGUIODemon"
   LOG_STEP: 100

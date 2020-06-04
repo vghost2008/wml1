@@ -10,6 +10,7 @@
 ##基本配置
 
 - dataset: coco2014
+- GPU: NVIDIA 1080TI
 - lr=0.02 (部分配置可能因为学习率过大而batch size过小没有收敛)
 - warmup steps=1000
 - steps = (80000,100000,120000)

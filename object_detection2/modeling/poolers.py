@@ -98,14 +98,14 @@ class ROIPooler(wmodule.WChildModule):
     def forward(self, x, bboxes,img_size):
         """
         Args:
-            x (list[Tensor]): tensorshape is [batch_size,H,W,C] resolution from high to low
+            x (list[Tensor]): tensor shape is [batch_size,H,W,C] resolution from high to low
             bboxes:[batch_size,box_nr,4]
             img_size:[2],(H,W)
 
         Returns:
             Tensor:
                 A tensor of shape (M, output_size, output_size,C) where M is the total number of
-                boxes aggregated over all N batch images and C is the number of channels in `x`.
+                boxes aggregated over all batch images and C is the number of channels in `x`.
                 which means M = batch_size*box_nr
         """
         assert isinstance(x, list),"Arguments to pooler must be lists"
