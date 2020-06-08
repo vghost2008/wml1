@@ -149,6 +149,8 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
         super(MaskRCNNConvUpsampleHead, self).__init__(cfg,**kwargs)
         #Detectron2默认没有使用normalizer, 使用测试数据发现是否使用normalizer并没有什么影响
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_MASK_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_MASK_HEAD.ACTIVATION_FN)
+
 
     def forward(self, x):
         cfg = self.cfg
@@ -163,12 +165,15 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
         with tf.variable_scope("MaskHead"):
             for k in range(num_conv):
                 x = slim.conv2d(x,conv_dims,[3,3],padding="SAME",
-                                    activation_fn=tf.nn.relu,
+                                    activation_fn=self.activation_fn,
                                     normalizer_fn=self.normalizer_fn,
                                     normalizer_params=self.norm_params,
                                     scope=f"Conv{k}")
             x = slim.conv2d_transpose(x,conv_dims,kernel_size=2,
-                                    stride=2,activation_fn=tf.nn.relu,
+                                    stride=2,
+                                    activation_fn=self.activation_fn,
+                                    normalizer_fn=self.normalizer_fn,
+                                    normalizer_params=self.norm_params,
                                     scope="Upsample")
             x = slim.conv2d(x,num_mask_classes,kernel_size=1,activation_fn=None,normalizer_fn=None,
                             scope="predictor")

@@ -14,8 +14,8 @@ MODEL:
     NAME: "Res5ROIHeads"
     IN_FEATURES: ["P3"]
     BATCH_SIZE_PER_IMAGE: 128
-    SCORE_THRESH_TEST: 0.3
-    NMS_THRESH_TEST: 0.15
+    SCORE_THRESH_TEST: 0.05
+    NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
     OUTPUTS: "RPNGIOUOutputs"
   ROI_BOX_HEAD:
@@ -32,17 +32,17 @@ MODEL:
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
   ANCHOR_GENERATOR:
-    SIZES: [[120],[240], [480], [512]]  # One size for each in feature map
+    SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
-    PRE_NMS_TOPK_TEST: 3000 # Per FPN level
+    PRE_NMS_TOPK_TEST: 6000 # Per FPN level
     # Detectron1 uses 2000 proposals per-batch,
     # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
     # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
     POST_NMS_TOPK_TRAIN: 1000
-    POST_NMS_TOPK_TEST: 512
+    POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
 DATASETS:
   TRAIN: "coco_2017_train"

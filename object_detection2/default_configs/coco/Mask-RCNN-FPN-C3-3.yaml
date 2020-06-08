@@ -12,7 +12,7 @@ MODEL:
   ROI_HEADS:
     OUTPUTS: "FastRCNNOutputs"
     NAME: "Res5ROIHeads"
-    IN_FEATURES: ["P3"]
+    IN_FEATURES: ["F3"]
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
@@ -32,7 +32,7 @@ MODEL:
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
     #BACKBONE_HOOK: ("NonLocalBackboneHook","FusionBackboneHook")
-    BACKBONE_HOOK: ("NonLocalBackboneHook","")
+    BACKBONE_HOOK: ("","FusionBackboneHook")
   ANCHOR_GENERATOR:
     SIZES: [[64],[128], [256], [512]]  # One size for each in feature map
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -63,5 +63,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-C3-2"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-C3-3"
   LOG_STEP: 200

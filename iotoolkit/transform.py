@@ -10,6 +10,8 @@ from functools import partial
 import basic_tftools as btf
 from object_detection2.standard_names import *
 import numpy as np
+from .autoaugment import *
+from thirdparty.aug.autoaugment import distort_image_with_autoaugment
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -73,6 +75,11 @@ class WTransform(object):
 
     @staticmethod
     def cond_set(dict_data,key,pred,v):
+        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+
+    @staticmethod
+    def probability_set(dict_data,key,prob,v):
+        pred = tf.less_equal(tf.random_uniform(shape=()),prob)
         dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
 
     @staticmethod
@@ -275,6 +282,17 @@ class RandomFlipUpDown(WTransform):
         data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
         return data_item
 
+class AutoAugment(WTransform):
+    def __init__(self,augmentation_name="v0"):
+        self.augmentation_name = augmentation_name
+    def __call__(self, data_item:dict):
+        if GT_MASKS in data_item:
+            data_item.pop(GT_MASKS)
+        image,bbox = distort_image_with_autoaugment(data_item[IMAGE],data_item[GT_BOXES],self.augmentation_name)
+        data_item[IMAGE] = image
+        data_item[GT_BOXES] = bbox
+
+        return data_item
 '''
 Boxes: relative coordinate
 mask:H,W,N format
@@ -325,6 +343,7 @@ class RandomRotateAnyAngle(WTransform):
         return data_item
 '''
 mask:H,W,N format
+bbox: relative coordinate
 '''
 class ResizeShortestEdge(WTransform):
     def __init__(self,short_edge_length=range(640,801,32),align=1,resize_method=tf.image.ResizeMethod.BILINEAR,
@@ -477,6 +496,37 @@ class ResizeToFixedSize(WTransform):
                 func = partial(tf.reshape,shape=self.size+[self.channels])
                 items = self.apply_to_images(func,items)
             return items
+
+class NoTransform(WTransform):
+    def __init__(self,id=None):
+        self.id = id
+    def __call__(self, data_item):
+        if self.id is None:
+            return data_item
+        else:
+            data_item[IMAGE] = tf.Print(data_item[IMAGE],["id:",self.id])
+            return data_item
+
+class RandomSelectSubTransform(WTransform):
+    def __init__(self,trans,probs=None):
+        self.trans = [WTransformList(v) if isinstance(v,Iterable) else v for v in trans]
+        if probs is None:
+            self.probs = [1.0/len(trans)]*len(trans)
+        else:
+            self.probs = probs
+
+    def __call__(self, data_item:dict):
+        all_items = []
+        for t in self.trans:
+            all_items.append(t(data_item))
+        res_data_items = {}
+        index = tf.random_uniform(shape=(),maxval=len(self.trans),dtype=tf.int32)
+        for k in data_item.keys():
+            datas = []
+            for i,v in enumerate(all_items):
+                datas.append(v[k])
+            res_data_items[k] = tf.stack(datas,axis=0)[index]
+        return res_data_items
 
 class AddBoxLens(WTransform):
     def __init__(self,box_key="gt_boxes",gt_len_key="gt_length"):
@@ -993,6 +1043,67 @@ class Stitch(WTransform):
                                 width=width,
                                 height=height,
                                 length=length)
+
+class WRandomEqualize(WTransform):
+    def __init__(self,prob=0.8):
+        self.prob = prob
+
+    def __call__(self, data_item):
+        image = equalize(data_item[IMAGE])
+        self.probability_set(data_item,IMAGE,self.prob,image)
+        return data_item
+
+class WRandomCutout(WTransform):
+    def __init__(self,pad_size=8,prob=0.8):
+        self.prob = prob
+        self.pad_size = pad_size
+
+    def __call__(self, data_item):
+        image = cutout(data_item[IMAGE],pad_size=self.pad_size)
+        self.probability_set(data_item,IMAGE,self.prob,image)
+        return data_item
+
+'''
+Image: [H,W,C]
+Mask: [Nr,H,W]
+bbox: absolute value
+'''
+class WRandomTranslateX(WTransform):
+    def __init__(self,prob=0.6,pixels=60,image_fill_value=127):
+        self.prob = prob
+        self.pixels = pixels
+        self.image_fill_value = image_fill_value
+    def __call__(self, data_item):
+        is_trans = tf.less_equal(tf.random_uniform(shape=()),self.prob)
+        image = self.image_offset(data_item[IMAGE])
+        self.cond_set(data_item,IMAGE,is_trans,image)
+        if GT_MASKS in data_item:
+            mask = self.mask_offset(data_item[GT_MASKS])
+            self.cond_set(data_item,GT_MASKS,is_trans,mask)
+        if GT_BOXES in data_item:
+            bbox = self.box_offset(data_item[GT_BOXES])
+            self.cond_set(data_item,GT_BOXES,is_trans,bbox)
+        return data_item
+
+    def image_offset(self,image):
+        padding = [[0,0],[self.pixels,0],[0,0]]
+        return tf.pad(image,paddings=padding,constant_values=self.image_fill_value)
+
+    def mask_offset(self,mask):
+        padding = [[0,0],[0,0],[self.pixels,0]]
+        return tf.pad(mask,paddings=padding)
+
+    def box_offset(self,bbox):
+        offset = tf.convert_to_tensor([[0,self.pixels,0,self.pixels]],dtype=tf.float32)
+        return bbox+offset
+
+class WColor(WTransform):
+    def __init__(self,factor=1.18):
+        self.factor = factor
+    def __call__(self, data_item):
+        image = color(data_item[IMAGE],factor=self.factor)
+        data_item[IMAGE] = image
+        return data_item
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):

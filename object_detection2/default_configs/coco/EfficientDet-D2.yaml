@@ -1,7 +1,6 @@
 _BASE_: "../Base-EfficientDet.yaml"
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  #WEIGHTS: "/home/vghost/ai/mldata/mobilenet/v3-large_224_1.0_float/ema"
   EFFICIENTNETS:
     TYPE: 2
     FROZEN_BN: False

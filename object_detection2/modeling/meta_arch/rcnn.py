@@ -133,13 +133,17 @@ class GeneralizedRCNN(MetaArch):
                                          boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                          lengths=results[RD_LENGTH],
                                          scores=results[RD_PROBABILITY],
-                                         instance_masks=instance_masks,name="RCNN_result")
+                                         instance_masks=instance_masks,name="RCNN_result",
+                                         category_index=DataLoader.category_index)
+
         if instance_masks is not None:
             wsummary.detection_image_summary(images=tf.zeros_like(batched_inputs[IMAGE]),
                                              boxes=results[RD_BOXES],classes=results[RD_LABELS],
                                              lengths=results[RD_LENGTH],
                                              instance_masks=instance_masks,
-                                             name="RCNN_Mask_result")
+                                             name="RCNN_Mask_result",
+                                             category_index=DataLoader.category_index)
+
         if do_postprocess:
             return self._postprocess(results, batched_inputs),None
         else:

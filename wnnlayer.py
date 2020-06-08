@@ -941,26 +941,39 @@ def se_block(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=
         net = tf.expand_dims(net,axis=1)
         return net*org_net
 
+def get_dropblock_keep_prob(step,total_step,max_keep_prob):
+    return 1.0-tf.minimum(tf.cast(step,tf.float32)/total_step,1.0)*(1-max_keep_prob)
+
 def dropblock(inputs,keep_prob,is_training,block_size=7,scope=None,seed=int(time.time()),all_channel=False):
     with tf.variable_scope(scope,default_name="dropblock"):
         if not is_training:
             return tf.identity(inputs)
-        drop_prob = (1.0-keep_prob)/(block_size*block_size)
+        _,width,height,_ = btf.combined_static_and_dynamic_shape(inputs)
+        drop_prob = (1.0 - keep_prob) * tf.to_float(width * height) / block_size ** 2 / tf.to_float((
+                width - block_size + 1)*(height-block_size+1))
+        h_i,w_i = tf.meshgrid(tf.range(height), tf.range(width))
+        valid_block_center = tf.logical_and(
+            tf.logical_and(w_i >= int(block_size // 2),
+                           w_i < width - (block_size - 1) // 2),
+            tf.logical_and(h_i >= int(block_size // 2),
+                           h_i < height- (block_size - 1) // 2))
+        valid_block_center = tf.expand_dims(valid_block_center, 0)
+        valid_block_center = tf.expand_dims(valid_block_center, -1)
         if all_channel:
             mask = tf.random_uniform(shape=tf.shape(inputs)[:-1],minval=0.,maxval=1.0,dtype=tf.float32,seed=seed)
             mask = tf.expand_dims(mask,axis=-1)
         else:
             mask = tf.random_uniform(shape=tf.shape(inputs),minval=0.,maxval=1.0,dtype=tf.float32,seed=seed)
+        mask = mask+(1.0-tf.to_float(valid_block_center))
         bin_mask = tf.greater(mask,drop_prob)
         bin_mask = tf.cast(bin_mask,tf.float32)
+        bin_mask = -tf.nn.max_pool(-bin_mask,ksize=[1,block_size,block_size,1],strides=[1,1,1,1],padding="SAME")
         nozero = tf.reduce_sum(bin_mask)
         allsize = tf.cast(tf.reduce_prod(tf.shape(bin_mask)),tf.float32)
         ratio = allsize/nozero
-        bin_mask = -tf.nn.max_pool(-bin_mask,ksize=[1,block_size,block_size,1],strides=[1,1,1,1],padding="SAME")
         bin_mask = bin_mask*ratio
         bin_mask = tf.stop_gradient(bin_mask)
         return inputs*bin_mask
-
 
 def min_pool2d(inputs,*args,**kwargs):
     return -slim.max_pool2d(-inputs,*args,**kwargs)

@@ -408,8 +408,7 @@ class Res5ROIHeads(ROIHeads):
         if self.is_training:
             del features
             losses = outputs.losses()
-            #if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-            if False:
+            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 pred_instances = outputs.inference(
                     self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
                     proposal_boxes=proposals.boxes

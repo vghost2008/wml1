@@ -87,6 +87,9 @@ _C.MODEL.FPN.LAST_LEVEL_NUM_CONV = 2
 # Types for fusing the FPN top-down and lateral features. Can be either "sum" or "avg"
 _C.MODEL.FPN.FUSE_TYPE = "sum"
 _C.MODEL.FPN.BACKBONE_HOOK = ("","")
+_C.MODEL.FPN.ENABLE_DROPBLOCK = False
+_C.MODEL.FPN.DROPBLOCK_SIZE = 7
+_C.MODEL.FPN.KEEP_PROB = 0.9
 
 _C.MODEL.TWOWAYFPN = CN()
 # Names of the input feature maps to be used by TWOWAYFPN
@@ -104,24 +107,6 @@ _C.MODEL.TWOWAYFPN.LAST_LEVEL_NUM_CONV = 2
 # Types for fusing the TWOWAYFPN top-down and lateral features. Can be either "sum" or "avg"
 _C.MODEL.TWOWAYFPN.FUSE_TYPE = "sum"
 _C.MODEL.TWOWAYFPN.BACKBONE_HOOK = ("","")
-
-_C.MODEL.PCONV = CN()
-# Names of the input feature maps to be used by PCONV
-# They must have contiguous power of 2 strides
-# e.g., ["res2", "res3", "res4", "res5"]
-_C.MODEL.PCONV.IN_FEATURES = []
-_C.MODEL.PCONV.OUT_CHANNELS = 256
-_C.MODEL.PCONV.BACKBONE = ""
-
-# Options: "" (no norm), "GN", "BN"
-_C.MODEL.PCONV.NORM = ""
-_C.MODEL.PCONV.ACTIVATION_FN = "relu"
-_C.MODEL.PCONV.LAST_LEVEL_NUM_CONV = 2
-
-# Types for fusing the PCONV top-down and lateral features. Can be either "sum" or "avg"
-_C.MODEL.PCONV.FUSE_TYPE = "sum"
-_C.MODEL.PCONV.BACKBONE_HOOK = ("","")
-_C.MODEL.PCONV.NUM_CONVS = 3
 
 _C.MODEL.BIFPN = CN()
 # Names of the input feature maps to be used by FPN
@@ -378,7 +363,8 @@ _C.MODEL.ROI_MASK_HEAD.CONV_DIM = 256
 _C.MODEL.ROI_MASK_HEAD.bin_size = (2,2)
 # Normalization method for the convolution layers.
 # Options: "" (no norm), "GN", "SyncBN".
-_C.MODEL.ROI_MASK_HEAD.NORM = ""
+_C.MODEL.ROI_MASK_HEAD.NORM = "BN"
+_C.MODEL.ROI_MASK_HEAD.ACTIVATION_FN = "relu"
 # Whether to use class agnostic for mask prediction
 _C.MODEL.ROI_MASK_HEAD.CLS_AGNOSTIC_MASK = False
 # Type of pooling operation applied to the incoming feature map for each RoI

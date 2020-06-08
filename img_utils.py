@@ -1,5 +1,7 @@
 #coding=utf-8
 #import pydicom as dcm
+import PIL.Image
+import io
 import scipy.misc
 import matplotlib.image as mpimg
 import numpy as np
@@ -519,3 +521,14 @@ def tf_img_info(img):
         img = tf.cast(img,tf.float32)
     mean,variance = tf.nn.moments(img,list(range(len(img.get_shape()))))
     return variance
+
+'''
+img: np.ndarray, [H,W,3], RGB order
+return:
+bytes of jpeg string
+'''
+def encode_img(img,quality=95):
+    pil_image = PIL.Image.fromarray(img)
+    output_io = io.BytesIO()
+    pil_image.save(output_io, format='JPEG',quality=quality)
+    return output_io.getvalue()

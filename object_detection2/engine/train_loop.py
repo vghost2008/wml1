@@ -16,6 +16,7 @@ import wsummary
 import object_detection2.metrics.toolkit as mt
 from object_detection2.standard_names import *
 from tensorflow.python import debug as tfdbg
+import datetime
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -176,7 +177,7 @@ class TrainerBase:
                 self.after_step()
         except Exception:
             evaler.show()
-            print(f"Total eval time {(time.time()-self.time_stamp)/3600}")
+            print(f"Total eval time {(time.time()-self.time_stamp)/3600}h.")
             logger.exception("Exception during eval:")
         finally:
             self.after_train()
@@ -514,7 +515,9 @@ class SimpleTrainer(TrainerBase):
             sys.stdout.flush()
 
         if self.step%self.save_step == 0 and self.step>2:
-            print("save check point file.")
+            left_time = ((time.time()-self.time_stamp)/(self.step+1))*(self.max_train_step-self.step)
+            d = datetime.datetime.now()+datetime.timedelta(seconds=left_time)
+            print(f"save check point file, already use {(time.time()-self.time_stamp)/3600:.3f}h, {left_time/3600:.3f}h left, expected to be finished at {str(d)}.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
         if self.max_train_step>1 and self.step>self.max_train_step:
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
@@ -548,7 +551,7 @@ class SimpleTrainer(TrainerBase):
         self.step += 1
 
         t_cost = time.perf_counter() - start
-        print(f"{self.name} step={self.step}, time_cost={t_cost}, avg_time_cost={self.timer.get_time()}")
+        print(f"{self.name} step={self.step}, time_cost={t_cost}, avg_time_cost={self.timer.get_time():.4f}")
 
         return res_data
 

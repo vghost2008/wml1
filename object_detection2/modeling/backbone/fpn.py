@@ -9,6 +9,8 @@ from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
 import object_detection2.od_toolkit as odt
 from .build import build_backbone_hook
+import wnnlayer as wnnl
+from object_detection2.datadef import *
 
 slim = tf.contrib.slim
 
@@ -113,6 +115,13 @@ class FPN(Backbone):
                                             weights_regularizer=slim.l2_regularizer(weight_decay),
                                             normalizer_fn=normalizer_fn,
                                             activation_fn=self.activation_fn)
+            if self.cfg.MODEL.FPN.ENABLE_DROPBLOCK and self.is_training:
+                keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                         max_keep_prob=self.cfg.MODEL.FPN.KEEP_PROB)
+                if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                    tf.summary.scalar(name="fpn_keep_prob",tensor=keep_prob)
+                image_features = [wnnl.dropblock(x,keep_prob,self.is_training,block_size=self.cfg.MODEL.FPN.DROPBLOCK_SIZE) for x in image_features]
+
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
                 prev_features = slim.conv2d(

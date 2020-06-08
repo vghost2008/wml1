@@ -5,12 +5,15 @@ import wsummary
 import tensorflow as tf
 from .build_dataprocess import DATAPROCESS_REGISTRY
 import socket
+from collections import Iterable
 
 class DataLoader(wmodule.WModule):
     category_index = None
     def __init__(self,cfg,*args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
         self.trans_on_single_img,self.trans_on_batch_img = DATAPROCESS_REGISTRY.get(self.cfg.INPUT.DATAPROCESS)(cfg,self.is_training)
+        if not isinstance(self.trans_on_batch_img,Iterable):
+            self.trans_on_batch_img = [self.trans_on_batch_img]
         if self.cfg.INPUT.STITCH > 0.001:
             self.trans_on_batch_img = [trans.Stitch(self.cfg.INPUT.STITCH)]+self.trans_on_batch_img
 

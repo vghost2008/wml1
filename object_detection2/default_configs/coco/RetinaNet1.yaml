@@ -1,6 +1,6 @@
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  WEIGHTS: "/home/vghost/ai/mldata/ssd_resnet50_v1_fpn_shared_box_predictor_640x640_coco14_sync_2018_07_03"
+  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:

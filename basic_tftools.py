@@ -4,6 +4,7 @@ from functools import wraps
 from collections import Iterable
 import time
 import math
+from collections import OrderedDict
 
 def static_or_dynamic_map_fn(fn, elems, dtype=None,
                              parallel_iterations=32, back_prop=True):
@@ -225,16 +226,19 @@ def add_variable_scope(func):
             return func(*args,**kwargs)
     return wraps_func
 
-def probability_case(prob_fn_pairs,scope=None,seed=int(time.time())):
+def probability_case(prob_fn_pairs,scope=None,seed=int(time.time()),prob=None):
     '''
     :param prob_fn_pairs:[(probs0,fn0),(probs1,fn1),...]
     :param scope:
     :return:
     '''
     with tf.variable_scope(name_or_scope=scope,default_name=f"probability_cond{len(prob_fn_pairs)}"):
-        pred_fn_pairs={}
+        pred_fn_pairs=OrderedDict()
         last_prob = 0.
-        p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32,seed=seed)
+        if prob is None:
+            p = tf.random_uniform(shape=(),minval=0.,maxval=1.,dtype=tf.float32,seed=seed)
+        else:
+            p = prob
         for pf in prob_fn_pairs:
             fn = pf[1]
             cur_prob = last_prob+pf[0]
