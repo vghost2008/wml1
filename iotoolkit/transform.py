@@ -12,6 +12,7 @@ from object_detection2.standard_names import *
 import numpy as np
 from .autoaugment import *
 from thirdparty.aug.autoaugment import distort_image_with_autoaugment
+import object_detection2.bboxes as odb
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -313,6 +314,21 @@ class RandomRotate(WTransform):
         data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_rotate)
         return data_item
 
+class RemoveZeroAreaBBox(WTransform):
+    def __init__(self,mini_area=1e-4):
+        self.mini_area = mini_area
+
+    def __call__(self, data_item):
+        area = odb.box_area(data_item[GT_BOXES])
+        keep = tf.greater_equal(area,self.mini_area)
+        data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
+        data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep)
+        if GT_MASKS in data_item:
+            data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep)
+
+        return data_item
+
+
 '''
 Mask: [Nr,H,W]
 bboxes: absolute coordinate
@@ -467,6 +483,7 @@ class BBoxesRelativeToAbsolute(WTransform):
 
 '''
 prossed batched data
+bboxes: [batch_size,N,4] / [N,4]
 '''
 class BBoxesAbsoluteToRelative(WTransform):
     def __init__(self,img_key='image'):
@@ -474,9 +491,14 @@ class BBoxesAbsoluteToRelative(WTransform):
 
     def __call__(self, data_item):
         with tf.name_scope("BBoxesRelativeToAbsolute"):
-            size = tf.shape(data_item[self.img_key])[1:3]
-            func = partial(wml_bboxes.tfbatch_absolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
-            return self.apply_to_bbox(func,data_item)
+            if len(data_item[IMAGE].get_shape()) == 4:
+                size = tf.shape(data_item[self.img_key])[1:3]
+                func = partial(wml_bboxes.tfbatch_absolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
+                return self.apply_to_bbox(func,data_item)
+            else:
+                size = tf.shape(data_item[self.img_key])[:2]
+                func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
+                return self.apply_to_bbox(func,data_item)
 
 '''
 如果有Mask分支，Mask必须先转换为HWN的模式
@@ -518,15 +540,25 @@ class RandomSelectSubTransform(WTransform):
     def __call__(self, data_item:dict):
         all_items = []
         for t in self.trans:
-            all_items.append(t(data_item))
+            all_items.append(t(dict(data_item)))
         res_data_items = {}
         index = tf.random_uniform(shape=(),maxval=len(self.trans),dtype=tf.int32)
         for k in data_item.keys():
             datas = []
             for i,v in enumerate(all_items):
                 datas.append(v[k])
-            res_data_items[k] = tf.stack(datas,axis=0)[index]
+            if self.is_same(datas,data_item[k]):
+                res_data_items[k] = data_item[k]
+            else:
+                res_data_items[k] = btf.select_in_list(datas,index)
         return res_data_items
+
+    @staticmethod
+    def is_same(datas,ref_data):
+        for d in datas:
+            if d != ref_data:
+                return False
+        return True
 
 class AddBoxLens(WTransform):
     def __init__(self,box_key="gt_boxes",gt_len_key="gt_length"):
@@ -1068,11 +1100,13 @@ Image: [H,W,C]
 Mask: [Nr,H,W]
 bbox: absolute value
 '''
-class WRandomTranslateX(WTransform):
-    def __init__(self,prob=0.6,pixels=60,image_fill_value=127):
+class WRandomTranslate(WTransform):
+    def __init__(self,prob=0.6,pixels=60,image_fill_value=127,translate_horizontal=True):
         self.prob = prob
         self.pixels = pixels
         self.image_fill_value = image_fill_value
+        self.translate_horizontal = translate_horizontal
+
     def __call__(self, data_item):
         is_trans = tf.less_equal(tf.random_uniform(shape=()),self.prob)
         image = self.image_offset(data_item[IMAGE])
@@ -1086,15 +1120,24 @@ class WRandomTranslateX(WTransform):
         return data_item
 
     def image_offset(self,image):
-        padding = [[0,0],[self.pixels,0],[0,0]]
+        if self.translate_horizontal:
+            padding = [[0,0],[self.pixels,0],[0,0]]
+        else:
+            padding = [[self.pixels, 0], [0, 0], [0, 0]]
         return tf.pad(image,paddings=padding,constant_values=self.image_fill_value)
 
     def mask_offset(self,mask):
-        padding = [[0,0],[0,0],[self.pixels,0]]
+        if self.translate_horizontal:
+            padding = [[0,0],[0,0],[self.pixels,0]]
+        else:
+            padding = [[0, 0], [self.pixels, 0], [0, 0]]
         return tf.pad(mask,paddings=padding)
 
     def box_offset(self,bbox):
-        offset = tf.convert_to_tensor([[0,self.pixels,0,self.pixels]],dtype=tf.float32)
+        if self.translate_horizontal:
+            offset = tf.convert_to_tensor([[0,self.pixels,0,self.pixels]],dtype=tf.float32)
+        else:
+            offset = tf.convert_to_tensor([[self.pixels, 0, self.pixels,0]], dtype=tf.float32)
         return bbox+offset
 
 class WColor(WTransform):
@@ -1104,6 +1147,31 @@ class WColor(WTransform):
         image = color(data_item[IMAGE],factor=self.factor)
         data_item[IMAGE] = image
         return data_item
+
+'''
+mask: [Nr,H,W]
+bboxes: absolute coordinate
+'''
+class WShear(WTransform):
+    def __init__(self,shear_horizontal=False,level=0.06,replace=[128,128,128]):
+        self.shear_horizontal = shear_horizontal
+        self.level = level
+        self.replace = replace
+
+    def __call__(self, data_item):
+        image = data_item[IMAGE]
+        bboxes = data_item[GT_BOXES]
+        mask = data_item.get(GT_MASKS,None)
+        level = self.level
+        replace = self.replace
+        image,bboxes,mask = shear_with_bboxes(image, bboxes, mask, level, replace, self.shear_horizontal)
+        data_item[IMAGE] = image
+        data_item[GT_BOXES] = bboxes
+        if GT_MASKS in data_item:
+            data_item[GT_MASKS] = mask
+
+        return data_item
+
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):

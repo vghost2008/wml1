@@ -62,24 +62,29 @@ def AA(cfg,is_training):
 @DATAPROCESS_REGISTRY.register()
 def WAA(cfg,is_training):
     if is_training:
-        trans0 = [trans.WRandomTranslateX(),trans.WRandomEqualize()]
-        trans1 = [trans.WRandomCutout()]
-        trans2 = [trans.RandomRotateAnyAngle(max_angle=30, #max angle=30
+        trans0 = [trans.WRandomTranslate(translate_horizontal=True),trans.WRandomEqualize()]
+        trans1 = [trans.WRandomTranslate(pixels=40,translate_horizontal=False),trans.WRandomCutout()]
+        trans2 = [trans.WShear(shear_horizontal=False),trans.WRandomTranslate(pixels=40,translate_horizontal=False)]
+        trans3 = [trans.RandomRotateAnyAngle(max_angle=30, #max angle=30
                                              rotate_probability=0.6, #prob = 0.6
                                              enable=True),trans.WColor()]
-        trans3 = [trans.NoTransform()]
-        aa = trans.RandomSelectSubTransform([trans0,trans1,trans2,trans3])
+        trans4 = [trans.NoTransform()]
+        aa = trans.RandomSelectSubTransform([trans0,trans1,trans2,trans3,trans4])
 
-        trans_on_single_img = [trans.MaskNHW2HWN(),trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
-                                                        max_size=cfg.INPUT.MAX_SIZE_TRAIN,
-                                                        align=cfg.INPUT.SIZE_ALIGN),
-                               trans.RandomFlipLeftRight(),
-                               trans.MaskHWN2NHW(),
-                               trans.BBoxesRelativeToAbsolute(),
-                               aa,
-                               trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
-                               trans.AddBoxLens(),
-                               trans.UpdateHeightWidth(),
+        trans_on_single_img = [
+                                trans.BBoxesRelativeToAbsolute(),
+                                aa,
+                                trans.BBoxesAbsoluteToRelative(),
+                                trans.MaskNHW2HWN(), trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
+                                                                              max_size=cfg.INPUT.MAX_SIZE_TRAIN,
+                                                                              align=cfg.INPUT.SIZE_ALIGN),
+                                trans.RandomFlipLeftRight(),
+                                trans.BBoxesRelativeToAbsolute(),
+                                trans.MaskHWN2NHW(),
+                                trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                                trans.RemoveZeroAreaBBox(2),
+                                trans.AddBoxLens(),
+                                trans.UpdateHeightWidth(),
                                ]
         if cfg.INPUT.SIZE_ALIGN > 1:
             trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
@@ -155,6 +160,7 @@ def coco_nodirection(cfg, is_training):
                                trans.MaskHWN2NHW(),
                                trans.BBoxesRelativeToAbsolute(),
                                trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                               trans.RemoveZeroAreaBBox(2),
                                trans.AddBoxLens(),
                                trans.UpdateHeightWidth(),
                                ]

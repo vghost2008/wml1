@@ -45,5 +45,5 @@ INPUT:
   DATAPROCESS: "WAA"
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinaNetCOCODemon"
+  PROJ_NAME: "RetinaNetCOCODemon-waa"
   LOG_STEP: 200

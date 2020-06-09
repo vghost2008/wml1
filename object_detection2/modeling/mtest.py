@@ -15,6 +15,7 @@ from wml_utils import *
 import object_detection.bboxes as bboxes
 import img_utils as wmli
 from object_detection2.modeling.poolers import ROIPooler
+from object_detection2.modeling.box_regression import Box2BoxTransform
 import object_detection2.config.config as config
 import wmodule
 
@@ -42,6 +43,63 @@ class WMLTest(tf.test.TestCase):
             features = pooler.forward(features,tf.convert_to_tensor(boxes,dtype=tf.float32),img_size=img_size)
             features = sess.run(features)
             self.assertAllClose(t_features,features,atol=1e-3)
+
+    def testBox2BoxTransform(self):
+        with self.test_session() as sess:
+            # 人工核算
+            np_gboxes = np.array(
+                [[0.0, 0.0, 0.2, 0.2], [0.3, 0.3, 0.5, 0.6], [0.1, 0.1, 0.4, 0.4], [0.7, 0.7, 0.9, 0.8]]);
+            np_labels = np.array([0,1, 2, 3, 0,4])
+            np_boxes = np.array(
+                [[0.0, 0.0, 0.2, 0.1], [0.0, 0.0, 0.2, 0.2], [0.101, 0.1, 0.44, 0.4], [0.73, 0.71, 0.91, 0.81],
+                 [0.7, 0.1, 0.9, 0.5], [0.3, 0.481, 0.5, 0.7]]);
+            gboxes = tf.constant(np_gboxes, dtype=tf.float32)
+            labels = tf.constant(np_labels);
+            boxes = tf.constant(np_boxes, dtype=tf.float32)
+
+            trans = Box2BoxTransform(weights=[10, 10, 5, 5])
+            indices = np.array([[0, 0, 2, 3, 0, 1]])
+
+            out_boxes = trans.get_deltas(tf.expand_dims(boxes, 0),
+                                         tf.expand_dims(gboxes, 0),
+                                         tf.expand_dims(labels, 0),
+                                         indices)
+            r_boxes = sess.run(out_boxes)
+            target_out_boxes = np.array([[[0,0,0,0],
+                                          [0., 0., 0., 0.],
+                                          [-0.6047199, 0., -0.61108774, 0.],
+                                          [-1.1111111, -1., 0.5268025782891318, 0.],
+                                          [0., 0., 0., 0.],
+                                          [0., -6.4155245, 0., 1.573553724198501]]])
+            self.assertAllClose(a=target_out_boxes, b=r_boxes, atol=1e-4, rtol=0.)
+
+    def testBox2BoxTransform2(self):
+        with self.test_session() as sess:
+            #人工核算
+            np_boxes = np.array([[0.0, 0.0, 0.2, 0.1], [0.0, 0.0, 0.2, 0.2], [0.101, 0.1, 0.44, 0.4], [0.73, 0.71, 0.91, 0.81],
+                                 [0.7, 0.1, 0.9, 0.5], [0.3, 0.481, 0.5, 0.7]])
+            boxes = tf.constant(np_boxes,dtype=tf.float32)
+            trans = Box2BoxTransform(weights=[10, 10, 5, 5])
+            target_out_boxes = tf.constant(np.array([[0.,0.,0.,0.],
+                                          [0.,0.,0.,0.],
+                                          [-0.6047199,0.,-0.61108774,0.],
+                                          [-1.1111111,-1.,0.5268025782891318,0.],
+                                          [0.,0.,0.,0.],
+                                          [0.,-6.4155245,0.,1.573553724198501]]),dtype=tf.float32)
+            target_out_scores = np.array([0.,1.,0.87941164,0.67400867,0.,0.29750007])
+            target_out_remove_indices = np.array([True,False,False,False,False,False])
+            keep_indices = tf.logical_and(tf.logical_not(target_out_remove_indices),tf.greater(target_out_scores,0.1))
+            boxes = tf.boolean_mask(boxes,keep_indices)
+            out_boxes = tf.boolean_mask(target_out_boxes,keep_indices)
+
+            with tf.device("/gpu:0"):
+                new_boxes = trans.apply_deltas(boxes=boxes,deltas=out_boxes)
+            out_new_boxes= new_boxes.eval()
+            target_new_boxes = np.array([[0.,0.,0.2,0.2],
+                                         [0.09999999,0.09999999,0.4,0.4],
+                                         [0.6999999,0.7,0.9,0.8],
+                                         [0.3,0.3,0.5,0.6]])
+            self.assertAllClose(a=out_new_boxes,b=target_new_boxes,atol=1e-5,rtol=0.)
 
 
 if __name__ == "__main__":

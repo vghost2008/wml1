@@ -131,6 +131,8 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
         if isinstance(transforms,Iterable):
             transforms = WTransformList(transforms)
         dataset = dataset.map(transforms,num_parallel_calls=num_parallel)
+    #处理后有的bbox可能消失了
+    dataset = dataset.filter(filter_func)
     with tf.name_scope('data_provider'):
         pass
     return dataset

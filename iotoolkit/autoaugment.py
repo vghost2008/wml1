@@ -1,5 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
+import wtfop.wtfop_ops as wop
 
 contrib_image = tf.contrib.image
 
@@ -325,3 +326,127 @@ def cutout(image, pad_size, replace=0):
       tf.ones_like(image, dtype=image.dtype) * replace,
       image)
   return image
+
+def shear_x(image, level, replace):
+  """Equivalent of PIL Shearing in X dimension."""
+  # Shear parallel to x axis is a projective transform
+  # with a matrix form of:
+  # [1  level
+  #  0  1].
+  if replace is not None:
+    image = contrib_image.transform(
+      wrap(image), [1., level, 0., 0., 1., 0., 0., 0.])
+    return unwrap(image, replace)
+  else:
+    image = contrib_image.transform(
+      image, [1., level, 0., 0., 1., 0., 0., 0.])
+    return image
+
+
+def shear_y(image, level, replace):
+  """Equivalent of PIL Shearing in Y dimension."""
+  # Shear parallel to y axis is a projective transform
+  # with a matrix form of:
+  # [1  0
+  #  level  1].
+  if replace is not None:
+    image = contrib_image.transform(
+        wrap(image), [1., 0., 0., level, 1., 0., 0., 0.])
+    return unwrap(image, replace)
+  else:
+    image = contrib_image.transform(
+      image, [1., 0., 0., level, 1., 0., 0., 0.])
+    return image
+
+def _shear_bbox(bbox, image_height, image_width, level, shear_horizontal):
+  """Shifts the bbox according to how the image was sheared.
+
+  Args:
+    bbox: 1D Tensor that has 4 elements (min_y, min_x, max_y, max_x), absolute coordinate
+    image_height: Int, height of the image.
+    image_width: Int, height of the image.
+    level: Float. How much to shear the image.
+    shear_horizontal: If true then shear in X dimension else shear in
+      the Y dimension.
+
+  Returns:
+    A tensor of the same shape as bbox, but now with the shifted coordinates.
+  """
+  image_height, image_width = (
+      tf.to_float(image_height), tf.to_float(image_width))
+
+  # Change bbox coordinates to be pixels.
+  min_y = bbox[0]
+  min_x = bbox[1]
+  max_y = bbox[2]
+  max_x = bbox[3]
+  coordinates = tf.stack(
+      [[min_y, min_x], [min_y, max_x], [max_y, min_x], [max_y, max_x]])
+  coordinates = coordinates
+
+  # Shear the coordinates according to the translation matrix.
+  if shear_horizontal:
+    translation_matrix = tf.stack(
+        [[1, 0], [-level, 1]])
+  else:
+    translation_matrix = tf.stack(
+        [[1, -level], [0, 1]])
+  translation_matrix = tf.cast(translation_matrix, tf.float32)
+  new_coords = tf.cast(
+      tf.matmul(translation_matrix, tf.transpose(coordinates)), tf.int32)
+
+  # Find min/max values and convert them back to floats.
+  min_y = tf.to_float(tf.reduce_min(new_coords[0, :]))
+  min_x = tf.to_float(tf.reduce_min(new_coords[1, :]))
+  max_y = tf.to_float(tf.reduce_max(new_coords[0, :]))
+  max_x = tf.to_float(tf.reduce_max(new_coords[1, :]))
+
+  # Clip the bboxes to be sure the fall between [0, 1].
+  min_y = tf.clip_by_value(min_y,clip_value_min=0,clip_value_max=image_height-1)
+  max_y = tf.clip_by_value(max_y,clip_value_min=0,clip_value_max=image_height-1)
+  min_x = tf.clip_by_value(min_x,clip_value_min=0,clip_value_max=image_width-1)
+  max_x = tf.clip_by_value(max_x,clip_value_min=0,clip_value_max=image_width-1)
+  return tf.stack([min_y, min_x, max_y, max_x])
+
+def shear_with_bboxes(image, bboxes, mask,level, replace, shear_horizontal):
+  """Applies Shear Transformation to the image and shifts the bboxes.
+
+  Args:
+    image: 3D uint8 Tensor.
+    bboxes: 2D Tensor that is a list of the bboxes in the image. Each bbox
+      has 4 elements (min_y, min_x, max_y, max_x) of type float with values
+      between [0, 1].
+    level: Float. How much to shear the image. This value will be between
+      -0.3 to 0.3.
+    replace: A one or three value 1D tensor to fill empty pixels.
+    shear_horizontal: Boolean. If true then shear in X dimension else shear in
+      the Y dimension.
+
+  Returns:
+    A tuple containing a 3D uint8 Tensor that will be the result of shearing
+    image by level. The second element of the tuple is bboxes, where now
+    the coordinates will be shifted to reflect the sheared image.
+  """
+  if shear_horizontal:
+    image = shear_x(image, level, replace)
+  else:
+    image = shear_y(image, level, replace)
+
+  if mask is not None:
+    mask = tf.transpose(mask,[1,2,0])
+    if shear_horizontal:
+      mask = shear_x(mask,level,None)
+    else:
+      mask = shear_y(mask,level,None)
+    mask = tf.transpose(mask,[2,0,1])
+    bboxes = wop.get_bboxes_from_mask(mask)
+  else:
+    # Convert bbox coordinates to pixel values.
+    image_height = tf.shape(image)[0]
+    image_width = tf.shape(image)[1]
+    # pylint:disable=g-long-lambda
+    wrapped_shear_bbox = lambda bbox: _shear_bbox(
+        bbox, image_height, image_width, level, shear_horizontal)
+    # pylint:enable=g-long-lambda
+    bboxes = tf.map_fn(wrapped_shear_bbox, bboxes)
+  return image, bboxes, mask

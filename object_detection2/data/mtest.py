@@ -26,18 +26,22 @@ FLAGS = tf.app.flags.FLAGS
 slim = tf.contrib.slim
 from object_detection2.data.buildin_dataprocess import DATAPROCESS_REGISTRY
 
-aa = trans.RandomSelectSubTransform([trans.NoTransform(id=1), trans.NoTransform(id=2), trans.NoTransform(id=3), trans.NoTransform(id=4)])
+aa = trans.RandomSelectSubTransform([
+    [trans.WRandomTranslate(prob=1,pixels=20),trans.WRandomTranslate(prob=0.5,pixels=20)],
+    [trans.WRandomTranslate(prob=1, pixels=20,translate_horizontal=False), trans.WRandomTranslate(prob=0.5, pixels=20,translate_horizontal=False)]
+])
 
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
-    return [trans.BBoxesRelativeToAbsolute(),aa,
-            trans.AddBoxLens(),
+    return [trans.BBoxesRelativeToAbsolute(),
+            aa,
             trans.UpdateHeightWidth(),
+            trans.AddBoxLens(),
             ],\
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
 _C = CN()
 _C.INPUT = CN()
-_C.INPUT.DATAPROCESS = "WAA"
+_C.INPUT.DATAPROCESS = "test"
 _C.INPUT.MIN_SIZE_TRAIN = (512,576,640)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
@@ -46,7 +50,7 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATASETS.TRAIN = "coco_2017_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
-_C.INPUT.STITCH = 0
+_C.INPUT.STITCH = 0.5
 _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = True
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6

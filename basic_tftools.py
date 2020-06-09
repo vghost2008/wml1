@@ -1,6 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
-from functools import wraps
+from functools import wraps,partial
 from collections import Iterable
 import time
 import math
@@ -247,6 +247,14 @@ def probability_case(prob_fn_pairs,scope=None,seed=int(time.time()),prob=None):
             last_prob = cur_prob
         assert math.fabs(last_prob-1.)<1e-2,"Error probabiliby distribultion"
 
+        return tf.case(pred_fn_pairs,exclusive=True)
+def _identity(x):
+    return x
+def select_in_list(datas,index,scope=None):
+    with tf.name_scope(scope,default_name=f"select_in_list{len(datas)}"):
+        pred_fn_pairs = OrderedDict()
+        for i,d in enumerate(datas):
+            pred_fn_pairs[tf.equal(index,i)] = partial(_identity,d)
         return tf.case(pred_fn_pairs,exclusive=True)
 
 @add_name_scope
