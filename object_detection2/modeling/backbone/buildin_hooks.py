@@ -35,24 +35,23 @@ class FusionBackboneHook(wmodule.WChildModule):
         super().__init__(cfg, parent, *args, **kwargs)
 
     def forward(self, features, batched_inputs):
+        normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=self.is_training)
         with tf.variable_scope("FusionBackboneHook"):
             del batched_inputs
             end_points = list(features.items())
             k0,v0 = end_points[0]
             mfeatures = []
-            depth = 64
             shape0 = wmlt.combined_static_and_dynamic_shape(v0)
             for k, v in end_points[1:]:
-                level = int(k[1:])
-                net = slim.conv2d(v,depth,[1,1],activation_fn=None,normalizer_fn=None,
-                                   scope=f"smooth{level}")
-                net = tf.image.resize_nearest_neighbor(net,shape0[1:3])
+                net = tf.image.resize_bilinear(v,shape0[1:3])
                 mfeatures.append(net)
             net = tf.add_n(mfeatures)/float(len(mfeatures))
             net = tf.concat([v0,net],axis=-1)
             level0 = int(k0[1:])
-            net = slim.conv2d(net, net.get_shape().as_list()[-1], [1, 1],
-                              activation_fn=None, normalizer_fn=None,
+            net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
+                              activation_fn=None,
+                              normalizer_fn=normalizer_fn,
+                              normalizer_params=normalizer_params,
                               scope=f"smooth{level0}")
             res = features
             res[f'F{level0}'] = net

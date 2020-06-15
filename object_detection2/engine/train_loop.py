@@ -17,6 +17,7 @@ import object_detection2.metrics.toolkit as mt
 from object_detection2.standard_names import *
 from tensorflow.python import debug as tfdbg
 import datetime
+import socket
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -228,8 +229,11 @@ class SimpleTrainer(TrainerBase):
             inference: whether in inference mode
             debug_tf: whether debug tensorflow
         """
+        print("\n\n------------------------------------------------------------------------")
+        print(f"Host name {socket.gethostname()}, pid={os.getpid()}, ppid={os.getppid()}")
         print(f"Batch size = {cfg.SOLVER.IMS_PER_BATCH}, gpus={gpus}, steps={cfg.SOLVER.STEPS}, BASE LR={cfg.SOLVER.BASE_LR}")
         print("Config:\n",cfg)
+        print("------------------------------------------------------------------------\n\n")
         super().__init__(cfg=cfg)
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',
@@ -244,6 +248,7 @@ class SimpleTrainer(TrainerBase):
         self.save_step = cfg.GLOBAL.SAVE_STEP
         self.show_eval_results_step = 100
         self.step = 1
+        self.begin_step = None
         self.total_loss = None
         self.variables_to_train = None
         self.summary = None
@@ -357,7 +362,8 @@ class SimpleTrainer(TrainerBase):
 
         self.loss_dict = loss_dict
         config = tf.ConfigProto(allow_soft_placement=True)
-        # config.gpu_options.allow_growth = True
+        if not self.model.is_training:
+            config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         self.top_variable_name_scope = "Model"
 
@@ -407,11 +413,14 @@ class SimpleTrainer(TrainerBase):
                                      steps=steps,
                                      decay_factor=self.cfg.SOLVER.LR_DECAY_FACTOR,
                                      total_steps=steps[-1],
+                                     min_lr=1e-6,
                                      warmup_steps=self.cfg.SOLVER.WARMUP_ITERS)
         tf.summary.scalar("lr",lr)
         self.max_train_step = steps[-1]
         opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)
         tower_grads = []
+        if len(self.gpus) == 0:
+            self.gpus = [0]
         for i in range(len(self.gpus)):
             scope = tf.get_variable_scope()
             if i>0:
@@ -455,7 +464,7 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = all_loss_dict
 
         config = tf.ConfigProto(allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
+        #config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
         if self.debug_tf:
@@ -507,6 +516,9 @@ class SimpleTrainer(TrainerBase):
             self.summary_writer.add_run_metadata(run_metadata, f"setp{self.step}")
         else:
             _,total_loss,self.step = self.sess.run([self.train_op,self.total_loss,self.global_step])
+        
+        if self.begin_step is None:
+            self.begin_step = self.step
 
         t_cost = time.perf_counter() - start
         print(f"{self.name} step={self.step}, loss={total_loss}, time_cost={t_cost}")
@@ -515,7 +527,7 @@ class SimpleTrainer(TrainerBase):
             sys.stdout.flush()
 
         if self.step%self.save_step == 0 and self.step>2:
-            left_time = ((time.time()-self.time_stamp)/(self.step+1))*(self.max_train_step-self.step)
+            left_time = ((time.time()-self.time_stamp)/max(self.step-self.begin_step+1,1))*(self.max_train_step-self.step)
             d = datetime.datetime.now()+datetime.timedelta(seconds=left_time)
             print(f"save check point file, already use {(time.time()-self.time_stamp)/3600:.3f}h, {left_time/3600:.3f}h left, expected to be finished at {str(d)}.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)

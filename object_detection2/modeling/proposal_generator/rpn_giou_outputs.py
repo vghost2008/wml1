@@ -97,7 +97,7 @@ class RPNGIOUOutputs(object):
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
 
-        gt_anchor_deltas = wmlt.batch_gather(self.gt_boxes,indices)
+        gt_anchor_deltas = wmlt.batch_gather(self.gt_boxes,tf.maximum(indices,0))
         #gt_objectness_logits_i为相应anchor box的标签
         return gt_objectness_logits_i, gt_anchor_deltas
 
@@ -136,10 +136,11 @@ class RPNGIOUOutputs(object):
             pred_objectness_logits = tf.boolean_mask(pred_objectness_logits,valid_mask)
             
             gt_anchor_deltas = tf.reshape(gt_anchor_deltas,[-1,box_dim])
-            gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
             
+            gt_anchor_deltas = tf.boolean_mask(gt_anchor_deltas,pos_idx)
             pred_anchor_deltas = tf.boolean_mask(pred_anchor_deltas,pos_idx)
             anchors = tf.boolean_mask(anchors,pos_idx)
+            
             pred_anchor_deltas = self.box2box_transform.apply_deltas(deltas=pred_anchor_deltas,boxes=anchors)
             objectness_loss, localization_loss = rpn_losses_giou(
                 gt_objectness_logits,

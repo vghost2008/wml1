@@ -333,6 +333,7 @@ _C.MODEL.ROI_BOX_HEAD.CONV_DIM = 256
 # Normalization method for the convolution layers.
 # Options: "" (no norm), "GN", "SyncBN".
 _C.MODEL.ROI_BOX_HEAD.NORM = ""
+_C.MODEL.ROI_BOX_HEAD.ACTIVATION_FN = "relu"
 # Whether to use class agnostic for bbox regression
 _C.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG = False
 # If true, RoI heads use bounding boxes predicted by the box head rather than proposal boxes.

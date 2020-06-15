@@ -30,7 +30,7 @@ class Matcher(wmodule.WChildModule):
         :return:
         labels: [batch_size,X,4], the label of boxes, -1 indict ignored box
         scores: [batch_size,X], the overlap score with boxes' match gt box
-        indices: [batch_size,X] the index of matched gt boxes
+        indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
         '''
         labels,scores,indices = wop.matcher(bboxes=boxes,gboxes=gboxes,
                            glabels=glabels,

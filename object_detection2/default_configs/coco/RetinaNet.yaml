@@ -1,6 +1,6 @@
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
-  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
@@ -16,6 +16,7 @@ MODEL:
     ACTIVATION_FN: "NA"
     IN_FEATURES: ["C3","C4", "C5"]
     ENABLE_DROPBLOCK: True
+    FUSE_TYPE: "wsum"
   RETINANET:
     #IN_FEATURES: ["P2","P3","P4"]
     IN_FEATURES: ["P3","P4","P5","P6","P7"]
@@ -35,7 +36,7 @@ SOLVER:
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
-  STEPS: (80000,100000,120000)
+  STEPS: (80000,100000,240000)
   LR_DECAY_TYPE: "cosine"
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)

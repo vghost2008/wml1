@@ -57,7 +57,6 @@ class FPN(Backbone):
         self.in_features = in_features
         self.bottom_up = bottom_up
         self.out_channels = out_channels
-        assert fuse_type in {"avg", "sum"}
         self._fuse_type = fuse_type
         self.scope = "FPN"
         self.use_depthwise = False
@@ -93,6 +92,7 @@ class FPN(Backbone):
         image_features = [bottom_up_features[f] for f in self.in_features]
         use_depthwise = self.use_depthwise
         depth = self.out_channels
+        fusion_fn = odt.get_fusion_fn(self._fuse_type)
 
         with tf.variable_scope(self.scope, 'top_down'):
             num_levels = len(image_features)
@@ -139,7 +139,8 @@ class FPN(Backbone):
                         scope='projection_%d' % (level + 1))
                     shape = tf.shape(lateral_features)[1:3]
                     top_down = self.interpolate_op(prev_features, shape)
-                    prev_features = top_down + lateral_features
+                    #prev_features = top_down + lateral_features
+                    prev_features = fusion_fn([top_down,lateral_features])
                     output_feature_maps_list.append(conv_op(
                         prev_features,
                         depth, [kernel_size, kernel_size],

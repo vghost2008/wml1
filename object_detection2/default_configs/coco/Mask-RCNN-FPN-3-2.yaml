@@ -1,7 +1,7 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: True
-  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
@@ -13,7 +13,7 @@ MODEL:
     OUTPUTS: "FastRCNNOutputs"
     NAME: "StandardROIHeads"
     #IN_FEATURES: ["P3","P4","P5","P6"]
-    IN_FEATURES: ["P3"]
+    IN_FEATURES: ["F3"]
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
@@ -31,6 +31,7 @@ MODEL:
     NUM_CONV: 4
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
+    BACKBONE_HOOK: ("NonLocalBackboneHook","FusionBackboneHook")
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
@@ -55,7 +56,7 @@ SOLVER:
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
-  STEPS: (80000,100000,120000)
+  STEPS: (80000,100000,240000)
   LR_DECAY_TYPE: "cosine"
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)
@@ -65,5 +66,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-3"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-3-2"
   LOG_STEP: 200

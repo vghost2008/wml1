@@ -7,29 +7,28 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 gpus = [0,1,2]
-#gpus = [2,3,4]
-#gpus = [5,6,7]
-#gpus = [7]
-gpus_str=""
+gpus = [2,3,4]
+gpus = [1,5,6]
+#gpus = [3,6,7]
+gpus_str = ""
 for g in gpus:
     gpus_str+=str(g)+","
 gpus_str = gpus_str[:-1]
 os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
 
 slim = tf.contrib.slim
-
 def setup(args):
     """
     Create configs and perform basic setups.
     """
     cfg = config.get_cfg()
+    config_path = config.get_config_file(args.config_file)
     print(f"Config file {args.config_file}")
-    cfg.merge_from_file(args.config_file)
+    cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
     cfg.log_dir = args.log_dir
     cfg.ckpt_dir = args.ckpt_dir
     return cfg
-
 
 def main(_):
     args = default_argument_parser().parse_args()

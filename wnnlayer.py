@@ -350,7 +350,16 @@ def group_norm_2d_with_sn(x, G=32, epsilon=1e-5,scope="group_norm_with_sn",sn_it
         return x*spectral_norm(gamma,sn_iteration,max_sigma=max_sigma)+ beta
 
 @add_arg_scope
-def evo_norm_s0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope="evo_norm_s0"):
+def evo_norm_s0(x,*args,**kwargs):
+    if len(x.get_shape()) == 4:
+        return evo_norm_s0_4d(x,*args,**kwargs)
+    elif len(x.get_shape())==2:
+        return evo_norm_s0_2d(x,*args,**kwargs)
+    else:
+        raise NotImplementedError(f"Input dims must be 2 or 4.")
+
+@add_arg_scope
+def evo_norm_s0_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope="evo_norm_s0"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale with shape [1,1,1,C] # G: number of groups for GN
     # WARNING: after evo_norm_s0, there is no need to append a activation fn.
@@ -371,6 +380,30 @@ def evo_norm_s0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope=
 
         x = x * tf.nn.sigmoid(x*v1)*gain + beta
         x = wmlt.reshape(x, [N,H,W,C])
+        return x
+
+@add_arg_scope
+def evo_norm_s0_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope="evo_norm_s0"):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale with shape [1,1,1,C] # G: number of groups for GN
+    # WARNING: after evo_norm_s0, there is no need to append a activation fn.
+    with tf.variable_scope(scope):
+        N,C = btf.combined_static_and_dynamic_shape(x)
+        gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer())
+        beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer())
+        v1 = tf.get_variable(name="v1",shape=[1,G,C//G],initializer=tf.ones_initializer())
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N, G, C // G,])
+        mean, var = tf.nn.moments(x, [2], keep_dims=True)
+
+        gain = tf.math.rsqrt(var + epsilon)
+
+        if scale:
+            gain *= gamma
+
+        x = x * tf.nn.sigmoid(x*v1)*gain + beta
+        x = wmlt.reshape(x, [N,C])
         return x
 
 @add_arg_scope
@@ -781,7 +814,10 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
         out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
                                         use_mask=False)
         out = restore_shape(out,shape,m_channelv)
-        out = conv_op(out,channel,[1,1],activation_fn=None,normalizer_fn=None,scope="attn_conv")
+        out = conv_op(out,channel,[1,1],
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      scope="attn_conv")
         normalizer_params  = normalizer_params or {}
         if normalizer_fn is not None:
             out = normalizer_fn(out+net,**normalizer_params)

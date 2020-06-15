@@ -94,10 +94,24 @@ def get_activation_fn(name):
                        "swish":tf.nn.swish,
                        "sigmoid":tf.nn.sigmoid,
                        "tanh":tf.nn.tanh}
+    if len(name) == 0:
+        return None
     if name in activation_dict:
         return activation_dict[name]
     else:
         raise KeyError(f"Can't find activation fn {name}.")
+
+def get_fusion_fn(name):
+    fusion_dict = {"concat":concat_fusion,
+                   "sum":sum_fusion,
+                   "avg":avg_fusion,
+                   "wsum":fusion}
+    if len(name) == 0:
+        return sum_fusion
+    if name in fusion_dict:
+        return fusion_dict[name]
+    else:
+        raise KeyError(f"Can't find fusion fn {name}.")
 
 def fusion(feature_maps,depth=None,scope=None):
     with tf.variable_scope(scope,"fusion"):
@@ -122,4 +136,11 @@ def sum_fusion(feature_maps,*args,scope=None,**kwargs):
     else:
         return tf.add_n(feature_maps,name=scope)
 
+def avg_fusion(feature_maps,*args,scope=None,**kwargs):
+    if len(feature_maps) == 2:
+        return tf.add(feature_maps[0],feature_maps[1],name=scope)/len(feature_maps)
+    else:
+        return tf.add_n(feature_maps,name=scope)/len(feature_maps)
 
+def concat_fusion(feature_maps,*args,scope=None,**kwargs):
+    return tf.concat(feature_maps,axis=-1,name=scope)

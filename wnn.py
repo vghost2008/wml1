@@ -64,6 +64,7 @@ def build_learning_rate(initial_lr,
                         decay_epochs=2.4,
                         total_steps=None,
                         steps=None,
+                        min_lr = 1e-8,
                         warmup_steps=1):
   with tf.name_scope("build_learning_rate"):
       if lr_decay_type == 'exponential':
@@ -73,8 +74,8 @@ def build_learning_rate(initial_lr,
             initial_lr, global_step, decay_steps, decay_factor, staircase=True)
       elif lr_decay_type == 'cosine':
         assert total_steps is not None
-        lr = 0.5 * initial_lr * (
-            1 + tf.cos(np.pi * tf.cast(global_step-warmup_steps, tf.float32) / (total_steps-warmup_steps)))
+        lr = 0.5 * (initial_lr-min_lr) * (
+            1 + tf.cos(np.pi * tf.cast(tf.minimum(global_step,total_steps)-warmup_steps, tf.float32) / (total_steps-warmup_steps)))+min_lr
       elif lr_decay_type == 'constant':
         lr = initial_lr
       elif lr_decay_type == "piecewise":

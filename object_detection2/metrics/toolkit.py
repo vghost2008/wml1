@@ -20,7 +20,6 @@ import img_utils as wmli
 import copy
 
 
-
 def __safe_persent(v0,v1):
     if v1==0:
         return 100.
@@ -372,7 +371,21 @@ class GeneralCOCOEvaluation(object):
         return self.coco_evaluator.evaluate()
     def show(self):
         print(f"Test size {self.num_examples()}")
-        self.coco_evaluator.evaluate()
+        res = self.coco_evaluator.evaluate()
+        str0 = "|配置|"
+        str1 = "|---|"
+        str2 = "||"
+        for k,v in res.items():
+            index = k.find("/")
+            if index>0:
+                k = k[index+1:]
+            str0 += f"{k}|"
+            str1 += "---|"
+            str2 += f"{v:.3f}|"
+        print(str0)
+        print(str1)
+        print(str2)
+        return res
 
 class COCOBoxEvaluation(GeneralCOCOEvaluation):
     def __init__(self,categories_list=None,num_classes=None):

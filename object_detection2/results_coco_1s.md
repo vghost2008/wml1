@@ -7,6 +7,8 @@
 - GIOU有稳定的提升
 - Stitch有稳定的提升
 - cosine lr decay 有明显提升
+- dropblock有稳定轻微提升
+- WAA+Stitch有明显稳定提升
 
 ##基本配置
 
@@ -17,6 +19,29 @@
 - steps = (80000,100000,120000)
 - input size for train: (512,544,576,608,640)
 - input size for eval: 576
+
+##结果汇总
+
+###bbox
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|RetinaNet+BN+FPN GN|0.273|0.494|0.275|0.046|0.221|0.366|0.257|0.410|0.440|0.124|0.408|0.557|
+|RetinaNet+GN+FPN GN|0.274|0.494|0.276|0.046|0.218|0.368|0.258|0.411|0.439|0.113|0.401|0.561|
+|1)-GIOUOutput|0.278|0.501|0.280|0.048|0.218|0.376|0.261|0.413|0.442|0.119|0.406|0.560|
+|1) |0.319|0.502|0.339|0.057|0.246|0.429|0.297|0.469|0.497|0.136|0.453|0.630|
+|1)+Stitch|0.323|0.506|0.343|0.060|0.252|0.433|0.299|0.474|0.502|0.143|0.456|0.638|
+|1)+cosine|0.333|0.524|0.354|0.058|0.260|0.447|0.302|0.473|0.502|0.130|0.460|0.640|
+|1)+FPN DB+cosine|0.335|0.525|0.358|0.060|0.262|0.454|0.302|0.476|0.504|0.142|0.463|0.641|
+|1)+FPN DB,WSum+cosine|0.334|0.526|0.356|0.061|0.262|0.450|0.302|0.475|0.504|0.147|0.462|0.643|
+|2)|0.339|0.531|0.362|0.063|0.270|0.455|0.304|0.481|0.510|0.145|0.473|0.648|
+|EfficientDet-D0|0.329|0.558|0.347|0.049|0.259|0.433|0.284|0.443|0.470|0.117|0.419|0.588|
+
+
+
+```
+1) RetinaNet+EvoNormS0+FPN EvoNormS0+GIOUOutput
+2) 1+AA+Stitch+cosine
+```
 
 ##coco/RetinaNet.yaml BN
 
@@ -214,6 +239,93 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.640
 - batch_size: 4 on 3 gpu
 - backbone resnet50, FrozenBN
 - Loss: GIOU loss
+- FPN normal: EvoNormS + dropblock
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 31.3h
+- eval time: 0.1340s/img
+- lr decay: cosine
+
+```
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.335
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.525
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.358
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.060
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.262
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.454
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.302
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.476
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.504
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.142
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.463
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.641
+```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU
+
+```
+FPN中使用wsum好像没有太多用处
+```
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- FPN normal: EvoNormS + dropblock
+- FPN: wsum fusion
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 35.9h
+- eval time: 0.1389/img
+- lr decay: cosine
+
+```
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.334
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.526
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.356
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.061
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.262
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.450
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.302
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.475
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.504
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.147
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.462
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.643
+```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
+- FPN normal: EvoNormS
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 54.5h
+- eval time: 0.1419s/img
+- DA: WAA+Stitch
+- lr decay: cosine
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.339
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.531
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.362
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.063
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.270
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.455
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.304
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.481
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.510
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.145
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.473
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.648
+```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
 - FPN normal: EvoNormS
 - Head normal: EvoNormS
 - iterator: 120k
@@ -235,6 +347,7 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.124
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.440
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.625
 ```
+
 
 ##coco/RetinaNet.yaml EvoNormS + GIOU + Stitch
 
