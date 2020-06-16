@@ -3,8 +3,10 @@ from object_detection_tools.statistics_tools import *
 import sys
 import pickle
 
-data_path = sys.argv[-1]
-data_path = wmlu.home_dir("ai/mldata2/0day/test.dat")
+if len(sys.argv)>=2:
+    data_path = sys.argv[-1]
+else:
+    data_path = wmlu.home_dir("ai/mldata2/0day/bbox.dat")
 print(f"Data path {data_path}")
 
 if __name__ == "__main__":

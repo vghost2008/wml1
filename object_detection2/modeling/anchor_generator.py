@@ -30,6 +30,9 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
         #sizes = [[128,256],[256,384]]
         self.sizes         = cfg.MODEL.ANCHOR_GENERATOR.SIZES
         #aspect_ratios = [[1/2,1:1,2/1],...]
+        '''
+        w/h
+        '''
         self.aspect_ratios = cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS
         if len(self.aspect_ratios) == 1 and len(self.sizes)>1:
             self.aspect_ratios = self.aspect_ratios*len(self.sizes)

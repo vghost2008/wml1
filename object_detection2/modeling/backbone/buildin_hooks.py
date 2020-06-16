@@ -59,6 +59,36 @@ class FusionBackboneHook(wmodule.WChildModule):
             return res
         
 @BACKBONE_HOOK_REGISTRY.register()
+class BalanceBackboneHook(wmodule.WChildModule):
+    def __init__(self, cfg, parent, *args, **kwargs):
+        super().__init__(cfg, parent, *args, **kwargs)
+
+    def forward(self, features, batched_inputs):
+        normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=self.is_training)
+        res = OrderedDict()
+        with tf.variable_scope("BalanceBackboneHook"):
+            del batched_inputs
+            end_points = list(features.items())
+            k0,v0 = end_points[1]
+            mfeatures = []
+            shape0 = wmlt.combined_static_and_dynamic_shape(v0)
+            for k, v in end_points:
+                net = tf.image.resize_bilinear(v,shape0[1:3])
+                mfeatures.append(net)
+            net = tf.add_n(mfeatures)/float(len(mfeatures))
+            net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
+                              activation_fn=None,
+                              normalizer_fn=normalizer_fn,
+                              normalizer_params=normalizer_params,
+                              scope=f"smooth")
+            for k,v in end_points:
+                shape = wmlt.combined_static_and_dynamic_shape(v)
+                v0 = tf.image.resize_bilinear(net,shape[1:3])
+                res[k] = v+v0
+                
+            return res
+
+@BACKBONE_HOOK_REGISTRY.register()
 class DeformConvBackboneHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)

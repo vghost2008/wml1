@@ -14,11 +14,15 @@ from iotoolkit.labelme_toolkit import LabelMeData
 import object_detection2.bboxes as odb 
 import pandas as pd
 import wml_utils as wmlu
+from sklearn.cluster import KMeans
 
+'''
+ratio: h/w
+'''
 def statistics_boxes(boxes,nr=100,name=""):
     sizes = [math.sqrt((x[2]-x[0])*(x[3]-x[1])) for x in boxes]
     ratios = [(x[2]-x[0])/(x[3]-x[1]+1e-8) for x in boxes]
-    print(f"Min area size {min(sizes)}, max area size {max(sizes)}.")
+    print(f"Min area size {min(sizes)}, max area size {max(sizes)} (pixel).")
     print(f"Min ratio {min(ratios)}, max ratios {max(ratios)}.")
     '''plt.figure(2,figsize=(10,10))
     n, bins, patches = plt.hist(sizes, nr, normed=None, facecolor='blue', alpha=0.5)
@@ -129,6 +133,16 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
 
     return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)
 
+def trans_img_short_size_to(img_size,short_size=512):
+    img_short_size = min(img_size[0],img_size[1])
+    scale = short_size/img_short_size
+    return [x*scale for x in img_size]
+
+def trans_img_long_size_to(img_size,long_size=512):
+    img_long_size = max(img_size[0],img_size[1])
+    scale = long_size/img_long_size
+    return [x*scale for x in img_size]
+
 def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_to_remove=None,max_aspect=None,absolute_size=False,
                                 trans_img_size=None):
     all_boxes = []
@@ -141,6 +155,9 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
 
     for data in datas:
         file, img_size,category_ids, labels_text, bboxes, binary_mask, area, is_crowd, _ = data
+        if bboxes.shape[0]<1:
+            print(f"{file} no annotation, skip")
+            continue
         if absolute_size:
             if trans_img_size is not None:
                 img_size = trans_img_size(img_size)
@@ -286,8 +303,11 @@ def coco_dataset():
 
 def labelme_dataset():
     data = LabelMeData(label_text2id=None)
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv8")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv9")
     return data.get_items()
+
+
+
 
 if __name__ == "__main__":
     nr = 100
