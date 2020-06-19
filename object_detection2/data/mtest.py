@@ -14,6 +14,7 @@ from object_detection2.config.config import CfgNode as CN
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 from object_detection2.data.dataloader import *
 from wml_utils import  AvgTimeThis
+from object_detection2.standard_names import *
 
 
 NUM_CLASSES = 91
@@ -41,7 +42,7 @@ def test(cfg,is_training):
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
 _C = CN()
 _C.INPUT = CN()
-_C.INPUT.DATAPROCESS = "test"
+_C.INPUT.DATAPROCESS = "WAA"
 _C.INPUT.MIN_SIZE_TRAIN = (512,576,640)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
@@ -50,7 +51,7 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATASETS.TRAIN = "coco_2017_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
-_C.INPUT.STITCH = 0.5
+_C.INPUT.STITCH = 0.0
 _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = True
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
@@ -74,13 +75,19 @@ def main(_):
     with tf.control_dependencies([tf.group(wmlt.get_hash_table_collection())]):
         initializer = tf.global_variables_initializer()
     sess.run(initializer)
+    log_step = 1
     step = 0
     tt = AvgTimeThis()
+    att = AvgTimeThis()
     while True:
-        with tt:
+        if step%log_step == 0:
             summary = sess.run(merged)
-        summary_writer.add_summary(summary, step)
-        print("step %5d, %f secs/batch" % (step,tt.get_time()))
+            summary_writer.add_summary(summary, step)
+        else:
+            with tt:
+                with att:
+                    image,bbox,mask = sess.run([res[IMAGE],res[GT_MASKS],res[GT_BOXES]])
+        print("step %5d, %f %f secs/batch" % (step,tt.get_time(),att.get_time()))
         step += 1
     sess.close()
     summary_writer.close()

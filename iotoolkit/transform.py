@@ -352,7 +352,7 @@ class RandomRotateAnyAngle(WTransform):
         WTransform.cond_set(data_item, IMAGE, is_rotate, r_image)
 
         if GT_MASKS in data_item:
-            r_mask,r_bboxes = wop.mask_rotate(image=data_item[GT_MASKS],angle=angle)
+            r_mask,r_bboxes = wop.mask_rotate(mask=data_item[GT_MASKS],angle=angle,get_bboxes_stride=4)
             WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
 
@@ -543,14 +543,20 @@ class RandomSelectSubTransform(WTransform):
             all_items.append(t(dict(data_item)))
         res_data_items = {}
         index = tf.random_uniform(shape=(),maxval=len(self.trans),dtype=tf.int32)
+
         for k in data_item.keys():
             datas = []
             for i,v in enumerate(all_items):
                 datas.append(v[k])
             if self.is_same(datas,data_item[k]):
                 res_data_items[k] = data_item[k]
-            else:
-                res_data_items[k] = btf.select_in_list(datas,index)
+        for k in res_data_items.keys():
+            for x in all_items:
+                x.pop(k)
+
+        if len(all_items[0])>0:
+            selected_data = btf.select_in_list(all_items,index)
+            res_data_items.update(selected_data)
         return res_data_items
 
     @staticmethod

@@ -20,7 +20,9 @@ def get_ratios(bboxes):
     w = bboxes[3]-bboxes[1]
     h = bboxes[2]-bboxes[0]
     ratios = w/(h+1e-8)
-    return np.mean(ratios)
+    ratios = np.log(ratios)
+    r = np.mean(ratios)
+    return math.exp(r)
 
 '''
 ratio使用w/h与statistics_tools中相反
@@ -112,9 +114,7 @@ ratio使用w/h与statistics_tools中相反
 使用聚类的方法自动确定最佳的anchor box配置
 与v1的差别为不同的size使用不同的ratio
 '''
-
-
-def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3):
+def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3,group_size=None):
     org_bboxes = copy.deepcopy(bboxes)
     bboxes = np.array(bboxes)
     bboxes = np.transpose(bboxes, axes=[1, 0])
@@ -149,7 +149,7 @@ def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3):
 
     threshold_for_size = 2.0
     threshold_for_ratio = 0.01
-    max_loop = 1000
+    max_loop = 500
     step = 0
 
     while True:
@@ -201,29 +201,68 @@ def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3):
         d.sort()
         vis_data.append((new_sizes[i],d))
     vis_data.sort(key=lambda x:x[0])
-    str0,str1 = get_formated_string(vis_data)
+    str0,str1 = get_formated_string(vis_data,group_size)
     print(str0)
     print(str1)
     sizes,ratios = zip(*vis_data)
     return sizes,ratios
 
-def list_to_str(data):
+'''
+ratio使用w/h与statistics_tools中相反
+使用聚类的方法自动确定最佳的anchor box配置
+与v2的差别为增加了一组宽高颠倒的boxes
+'''
+def get_bboxes_sizes_and_ratios_by_kmeans_v3(bboxes, size_nr=3, ratio_nr=3,group_size=None):
+    bboxes = np.array(bboxes)
+    ymin = bboxes[:,0]
+    xmin = bboxes[:,1]
+    ymax = bboxes[:,2]
+    xmax = bboxes[:,3]
+    new_ymin = np.concatenate([ymin,xmin],axis=0)
+    new_xmin = np.concatenate([xmin,ymin],axis=0)
+    new_ymax = np.concatenate([ymax,xmax],axis=0)
+    new_xmax = np.concatenate([xmax,ymax],axis=0)
+    new_bboxes = np.stack([new_ymin,new_xmin,new_ymax,new_xmax],axis=-1)
+    return get_bboxes_sizes_and_ratios_by_kmeans_v2(new_bboxes,size_nr=size_nr,ratio_nr=ratio_nr,group_size=group_size)
+
+def list_to_str(data,add_brackets=False):
     res = "["
     for d in data:
-        res+=f"{d:.2f},"
+        if add_brackets:
+            res+=f"[{d:.2f}],"
+        else:
+            res+=f"{d:.2f},"
     res = res[:-1]
     res += "]"
     return res
     
-    
-def get_formated_string(vis_data):
-    sizes,ratios = zip(*vis_data)
-    str0 = list_to_str(sizes)
+def list2d_to_str(data):
     str1 = "["
-    for d in ratios:
-        str1 += list_to_str(d)+","
+    for d in data:
+        str1 += list_to_str(d) + ","
     str1 = str1[:-1]
     str1 += "]"
+    return str1
+
+def list3d_to_str(data):
+    str1 = "["
+    for d in data:
+        str1 += list2d_to_str(d) + ","
+    str1 = str1[:-1]
+    str1 += "]"
+    return str1
+
+def get_formated_string(vis_data,group_size=None):
+    sizes,ratios = zip(*vis_data)
+    if group_size is None:
+        str0 = list_to_str(sizes,add_brackets=True)
+        str1 = list2d_to_str(ratios)
+    else:
+        sizes = wmlu.list_to_2dlist(sizes,group_size)
+        ratios = wmlu.list_to_2dlist(ratios,group_size)
+        str0 = list2d_to_str(sizes)
+        str1 = list3d_to_str(ratios)
+
     return str0,str1
 
 if len(sys.argv)>=2:
@@ -231,7 +270,9 @@ if len(sys.argv)>=2:
 else:
     data_path = wmlu.home_dir("ai/mldata2/0day/bbox1.dat")
     data_path = wmlu.home_dir("ai/mldata2/0day/coco_statics.dat")
-    data_path = wmlu.home_dir("ai/mldata2/0day/ocr_statics.dat")
+    #data_path = wmlu.home_dir("ai/mldata2/0day/ocr_statics.dat")
+    # data_path = wmlu.home_dir("ai/mldata2/0day/qc_statics.dat")
+
 print(f"Data path {data_path}")
 
 if __name__ == "__main__":
@@ -239,4 +280,4 @@ if __name__ == "__main__":
         statics = pickle.load(file)
     nr = 100
     boxes = statics[0]
-    new_sizes,new_ratios = get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes=boxes,size_nr=4,ratio_nr=3)
+    new_sizes,new_ratios = get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes=boxes,size_nr=10,ratio_nr=3,group_size=2)

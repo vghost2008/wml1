@@ -294,10 +294,17 @@ def pascal_voc_dataset():
 
     return data.get_items()
 
-def coco_dataset():
+def coco2014_dataset():
     data = COCOData()
     data.read_data(wmlu.home_dir("ai/mldata/coco/annotations/instances_train2014.json"), 
                    image_dir=wmlu.home_dir("ai/mldata/coco/train2014"))
+
+    return data.get_items()
+
+def coco2014_val_dataset():
+    data = COCOData()
+    data.read_data(wmlu.home_dir("ai/mldata/coco/annotations/instances_val2014.json"),
+                   image_dir=wmlu.home_dir("ai/mldata/coco/val2014"))
 
     return data.get_items()
 

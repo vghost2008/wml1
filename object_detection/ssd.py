@@ -15,6 +15,8 @@ import wml_utils as wmlu
 import wnnlayer as wnnl
 import wml_tfutils as wmlt
 import logging
+from object_detection2.modeling.anchor_generator import DefaultAnchorGenerator
+from object_detection2.config.config import CfgNode
 
 slim = tf.contrib.slim
 
@@ -132,6 +134,18 @@ class SSD(object):
         shapes = [tf.shape(fm)[1:3] for fm in features_map]
         self.feature_maps_shape = shapes
         return self.getAnchorBoxesV4(min_level,max_level,aspect_ratios,anchor_scale,scales_per_octave,size)
+
+    def getAnchorBoxesV5(self,anchor_scale,anchor_ratios,inputs,feature_maps):
+        cfg = CfgNode()
+        cfg.MODEL = CfgNode()
+        cfg.MODEL.ANCHOR_GENERATOR = CfgNode()
+        cfg.MODEL.ANCHOR_GENERATOR.SIZES = anchor_scale
+        cfg.MODEL.ANCHOR_GENERATOR.ACPECT_RATIOS = anchor_ratios
+        cfg.GLOBAL = CfgNode()
+        cfg.GLOBAL.SUMMARY_LEVE = 0
+
+        generator = DefaultAnchorGenerator(cfg=cfg,parent=self)
+        return generator.forward({"image":inputs},feature_maps)
 
     def encodeBoxes(self,gbboxes, glabels,lens,pos_threshold=0.7,neg_threshold=0.3):
         '''

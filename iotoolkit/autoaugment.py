@@ -439,7 +439,7 @@ def shear_with_bboxes(image, bboxes, mask,level, replace, shear_horizontal):
     else:
       mask = shear_y(mask,level,None)
     mask = tf.transpose(mask,[2,0,1])
-    bboxes = wop.get_bboxes_from_mask(mask)
+    bboxes = wop.get_bboxes_from_mask(mask,stride=4)
   else:
     # Convert bbox coordinates to pixel values.
     image_height = tf.shape(image)[0]
