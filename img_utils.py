@@ -347,6 +347,11 @@ def imwrite(filename, img):
         cv2.cvtColor(img, cv2.COLOR_RGB2BGR,img)
     cv2.imwrite(filename, img)
 
+def imshow(winname,img):
+    img = copy.deepcopy(img)
+    cv2.cvtColor(img,cv2.COLOR_RGB2BGR,img)
+    cv2.imshow(winname,img)
+
 def np_resize_to_range(img,min_dimension,max_dimension=-1):
     new_shape = list(img.shape[:2])
     if img.shape[0]<img.shape[1]:

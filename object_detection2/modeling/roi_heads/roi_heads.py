@@ -17,6 +17,7 @@ from object_detection2.datadef import *
 from .keypoint_head import build_keypoint_head
 from object_detection2.odtools import *
 from object_detection2.modeling.meta_arch.build import build_outputs
+from .build import *
 
 slim = tf.contrib.slim
 
@@ -85,7 +86,7 @@ class ROIHeads(wmodule.WChildModule):
             cfg=cfg,
             parent=self,
         )
-
+        self.roi_hook = build_roi_heads_hook(cfg,parent=self)
         # Box2BoxTransform for bounding box regression
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS)
 
@@ -377,6 +378,8 @@ class Res5ROIHeads(ROIHeads):
         返回的batch_size与box nr 合并到了新的batch_size这一维
         '''
         x = self.pooler(features, boxes,img_size=img_size)
+        if self.roi_hook is not None:
+            x = self.roi_hook(x,self.inputs)
         x = self.res5_block(x,reuse=reuse)
         return x
 
@@ -384,6 +387,7 @@ class Res5ROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
+        self.inputs = inputs
         img_size = get_img_size_from_batched_inputs(inputs)
         proposal_boxes = proposals[PD_BOXES]
         if self.is_training:
@@ -634,6 +638,8 @@ class StandardROIHeads(ROIHeads):
         else:
             proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
+        if self.roi_hook is not None:
+            box_features = self.roi_hook(box_features,self.inputs)
         box_features = self.box_head(box_features)
         pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
         del box_features
@@ -686,6 +692,8 @@ class StandardROIHeads(ROIHeads):
             fg_selection_mask = select_foreground_proposals(instances)
             proposal_boxes = instances.boxes
             mask_features = self.mask_pooler(features, proposal_boxes,img_size=img_size)
+            if self.roi_hook is not None:
+                mask_features = self.roi_hook(mask_features, self.inputs)
             fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
             mask_features = tf.boolean_mask(mask_features, fg_selection_mask)
             mask_logits = self.mask_head(mask_features)
@@ -694,6 +702,8 @@ class StandardROIHeads(ROIHeads):
             #when inference instances is RCNNResultsData
             pred_boxes = instances[RD_BOXES]
             mask_features = self.mask_pooler(features, pred_boxes,img_size=img_size)
+            if self.roi_hook is not None:
+                mask_features = self.roi_hook(mask_features, self.inputs)
             mask_logits = self.mask_head(mask_features)
             mask_rcnn_inference(mask_logits, instances)
             return instances

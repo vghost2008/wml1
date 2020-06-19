@@ -268,6 +268,7 @@ _C.MODEL.RETINANET_PG.ACTIVATION_FN = "relu"
 # ---------------------------------------------------------------------------- #
 _C.MODEL.ROI_HEADS = CN()
 _C.MODEL.ROI_HEADS.NAME = "Res5ROIHeads"
+_C.MODEL.ROI_HEADS.HOOK = ""
 # Number of foreground classes
 _C.MODEL.ROI_HEADS.NUM_CLASSES = 80
 # Names of the input feature maps to be used by ROI heads

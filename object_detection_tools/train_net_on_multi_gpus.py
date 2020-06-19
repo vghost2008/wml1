@@ -8,7 +8,7 @@ import tensorflow as tf
 import os
 gpus = [0,1,2]
 gpus = [2,3,4]
-gpus = [1,5,6]
+#gpus = [1,5,6]
 #gpus = [3,6,7]
 #gpus = [5]
 gpus_str = ""

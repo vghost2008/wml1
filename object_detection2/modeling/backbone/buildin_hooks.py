@@ -68,23 +68,29 @@ class BalanceBackboneHook(wmodule.WChildModule):
         res = OrderedDict()
         with tf.variable_scope("BalanceBackboneHook"):
             del batched_inputs
+            ref_index = 1
             end_points = list(features.items())
-            k0,v0 = end_points[1]
+            k0,v0 = end_points[ref_index]
             mfeatures = []
-            shape0 = wmlt.combined_static_and_dynamic_shape(v0)
-            for k, v in end_points:
-                net = tf.image.resize_bilinear(v,shape0[1:3])
-                mfeatures.append(net)
-            net = tf.add_n(mfeatures)/float(len(mfeatures))
-            net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
-                              activation_fn=None,
-                              normalizer_fn=normalizer_fn,
-                              normalizer_params=normalizer_params,
-                              scope=f"smooth")
-            for k,v in end_points:
-                shape = wmlt.combined_static_and_dynamic_shape(v)
-                v0 = tf.image.resize_bilinear(net,shape[1:3])
-                res[k] = v+v0
+            with tf.name_scope("fusion"):
+                shape0 = wmlt.combined_static_and_dynamic_shape(v0)
+                for i,(k, v) in enumerate(end_points):
+                    if i == ref_index:
+                        net = v
+                    else:
+                        net = tf.image.resize_bilinear(v,shape0[1:3],name=f"resize{i}")
+                    mfeatures.append(net)
+                net = tf.add_n(mfeatures)/float(len(mfeatures))
+                net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
+                                  activation_fn=None,
+                                  normalizer_fn=normalizer_fn,
+                                  normalizer_params=normalizer_params,
+                                  scope=f"smooth")
+            for i,(k,v) in enumerate(end_points):
+                with tf.name_scope(f"merge{i}"):
+                    shape = wmlt.combined_static_and_dynamic_shape(v)
+                    v0 = tf.image.resize_bilinear(net,shape[1:3])
+                    res[k] = v+v0
                 
             return res
 

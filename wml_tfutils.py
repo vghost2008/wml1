@@ -219,7 +219,8 @@ def top_k_mask_1d(value,k=1):
     values, indics = tf.nn.top_k(value, k)
     indics, _ = tf.nn.top_k(-indics, k)
     indics = -indics
-    res = tf.cast(tf.sparse_to_dense(indics, value.shape, 1), tf.bool)
+    shape = btf.combined_static_and_dynamic_shape(value)
+    res = tf.cast(tf.sparse_to_dense(indics, shape, 1), tf.bool)
     return res,indics
 
 def top_k_mask(value,k=1,shape=None,return_indices=False):
