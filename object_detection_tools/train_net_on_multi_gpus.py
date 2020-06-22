@@ -6,25 +6,33 @@ from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
+import sys
+import datetime
+import time
+
 gpus = [0,1,2]
 gpus = [2,3,4]
 #gpus = [1,5,6]
 #gpus = [3,6,7]
-#gpus = [5]
-gpus_str = ""
-for g in gpus:
-    gpus_str+=str(g)+","
-gpus_str = gpus_str[:-1]
-os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
 
 slim = tf.contrib.slim
 def setup(args):
+    global gpus
     """
     Create configs and perform basic setups.
     """
     cfg = config.get_cfg()
+    if args.gpus is not None:
+        gpus = args.gpus
+        
+    gpus_str = ""
+    for g in gpus:
+        gpus_str += str(g) + ","
+    gpus_str = gpus_str[:-1]
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
+
     config_path = config.get_config_file(args.config_file)
-    print(f"Config file {args.config_file}")
+    print(f"Config file {args.config_file}, gpus={os.environ['CUDA_VISIBLE_DEVICES']}")
     cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
     cfg.log_dir = args.log_dir
@@ -52,6 +60,23 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
+    '''
+    用于指定在将来的某个时间点执行任务
+    '''
+    if len(args.runtime) > 12:
+        target_datetime = datetime.datetime.strptime(args.runtime, "%Y-%m-%d %H:%M:%S")
+        while True:
+            wait_time = (target_datetime - datetime.datetime.now()).total_seconds() / 3600.0
+            sys.stdout.write(
+                f"\rRumtime is {target_datetime}, current datetime is {datetime.datetime.now()}, need to wait for {wait_time:.2f}h", )
+            sys.stdout.flush()
+
+            if datetime.datetime.now() >= target_datetime:
+                break
+            else:
+                time.sleep(30)
+                
+    print("")
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)

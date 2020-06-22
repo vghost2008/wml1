@@ -32,11 +32,11 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-SSD.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-YOLACT.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=CONFIG_DIR+"Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"EfficientDet-DR.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=MODCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
@@ -54,4 +54,10 @@ def default_argument_parser():
     parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to ckpt dir")
     parser.add_argument("--test_data_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to test data dir")
     parser.add_argument("--save_data_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to save data dir")
+    '''
+    begin training datetime:
+    format: YY-MM-dd HH:MM:SS如20-06-22 15:12:00
+    '''
+    parser.add_argument("--runtime", default="", type=str, help="datetime to begin tarning.")
+    parser.add_argument("--gpus", nargs='+',type=int, help="gpus for training.")
     return parser

@@ -16,7 +16,7 @@ MODEL:
     ACTIVATION_FN: "NA"
     IN_FEATURES: ["C3","C4", "C5"]
     ENABLE_DROPBLOCK: True
-    BACKBONE_HOOK: ("","BalanceBackboneHook")
+    BACKBONE_HOOK: ("NonLocalBackboneHook","")
   RETINANET:
     #IN_FEATURES: ["P2","P3","P4"]
     IN_FEATURES: ["P3","P4","P5","P6","P7"]
@@ -36,7 +36,7 @@ SOLVER:
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
-  STEPS: (80000,100000,240000)
+  STEPS: (80000,100000,120000)
   LR_DECAY_TYPE: "cosine"
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)
@@ -46,5 +46,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinaNetCOCODemon-db"
+  PROJ_NAME: "RetinaNetCOCODemon-nl"
   LOG_STEP: 200
