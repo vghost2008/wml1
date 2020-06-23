@@ -64,6 +64,10 @@
 |P3output+cosine|0.283|0.471|0.299|0.031|0.210|0.412|0.258|0.386|0.401|0.035|0.354|0.556|
 |1)|0.280|0.468|0.299|0.035|0.214|0.403|0.254|0.385|0.400|0.039|0.359|0.550|
 |1) x2|0.285|0.474|0.305|0.032|0.220|0.408|0.255|0.386|0.402|0.036|0.366|0.548|
+|seph+BN|0.070|0.129|0.068|0.000|0.030|0.109|0.114|0.165|0.168|0.000|0.078|0.267|
+|seph+cosine+EnvNormS0 box head|0.296|0.471|0.322|0.030|0.220|0.429|0.267|0.400|0.414|0.032|0.367|0.575|
+|sephv2|0.133|0.236|0.133|0.001|0.078|0.203|0.166|0.244|0.250|0.001|0.157|0.382|
+|sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|
 
 
 
@@ -76,43 +80,15 @@
 |P3output+cosine|0.262|0.494|0.252|0.032|0.388|0.482|0.241|0.378|0.391|0.183|0.388|0.482|
 |1)|0.260|0.496|0.249|0.034|0.387|0.477|0.237|0.377|0.390|0.193|0.386|0.477|
 |1) x2|0.263|0.499|0.251|0.035|0.388|0.476|0.237|0.376|0.389|0.184|0.388|0.476|
+|seph + BN|0.077|0.159|0.066|0.006|0.184|0.289|0.144|0.212|0.216|0.093|0.183|0.288|
+|seph + cosine+EnvNormS0 box head|0.270|0.496|0.267|0.031|0.396|0.493|0.247|0.384|0.398|0.177|0.396|0.493|
+|sephv2|0.136|0.272|0.122|0.013|0.246|0.361|0.176|0.269|0.275|0.116|0.245|0.361|
+|sephv2+cosine+EvoNormS head|0.274|0.501|0.269|0.031|0.401|0.496|0.248|0.388|0.402|0.183|0.400|0.496|
 
 
 ```
 - 1) use nonlocal and fusebackbone+cosine
 ```
-
-###coco/Mask-RCNN-FPN-seph.yaml
-
-- batch_size: 4 on 3 gpu
-- ROIHeads: StandardROIHeads
-- backbone resnet50, FrozenBN
-- FPN normal: EnvNormS0
-- Head normal: BN
-- iterator: 120k
-- train time: 37.1h
-- eval time: 0.2397s/img
-- ANCHOR SIZES: [[64],[128], [256], [512]] 
-
-####bbox
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|base line|0.070|0.129|0.068|0.000|0.030|0.109|0.114|0.165|0.168|0.000|0.078|0.267|
-|cosine+EnvNormS0 box head|0.296|0.471|0.322|0.030|0.220|0.429|0.267|0.400|0.414|0.032|0.367|0.575|
-|sephv2|0.133|0.236|0.133|0.001|0.078|0.203|0.166|0.244|0.250|0.001|0.157|0.382|
-
-
-
-
-####segm
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|base line|0.077|0.159|0.066|0.006|0.184|0.289|0.144|0.212|0.216|0.093|0.183|0.288|
-|cosine+EnvNormS0 box head|0.270|0.496|0.267|0.031|0.396|0.493|0.247|0.384|0.398|0.177|0.396|0.493|
-|sephv2|0.136|0.272|0.122|0.013|0.246|0.361|0.176|0.269|0.275|0.116|0.245|0.361|
-
-
-
 
 ##coco/Mask-RCNN-FPN-C3.yaml 
 
@@ -553,4 +529,51 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.275
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.116
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.245
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.361
+```
+
+##coco/Mask-RCNN-FPN-sephv2.yaml
+
+- batch_size: 4 on 3 gpu
+- ROIHeads: StandardROIHeads
+- backbone resnet50, FrozenBN
+- FPN normal: EnvNormS0
+- Head normal: EnvNormS0
+- iterator: 120k
+- train time: 34.8h
+- eval time: 0.2229s/img
+- ANCHOR SIZES: [[64],[128], [256], [512]] 
+
+###bbox
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.300
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.479
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.328
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.036
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.223
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.437
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.270
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.406
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.421
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.039
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.376
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.581
+```
+
+##segm
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.274
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.501
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.269
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.031
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.401
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.496
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.248
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.388
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.402
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.183
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.400
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.496
+
 ```

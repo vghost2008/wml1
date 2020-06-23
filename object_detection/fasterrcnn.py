@@ -14,6 +14,7 @@ import logging
 import wnnlayer as wnnl
 import functools
 import wsummary
+from collections import Iterable
 slim = tf.contrib.slim
 
 '''
@@ -211,21 +212,38 @@ class FasterRCNN(object):
         with tf.variable_scope("SecondStageBoxPredictor"):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
-            ssbp_net = tf.reduce_mean(self.ssbp_net,axis=[1,2],keepdims=False)
+            if isinstance(self.ssbp_net,Iterable):
+                assert len(self.ssbp_net)==2,"error ssbp_net length"
+                ssbp_net_cls,ssbp_net_bbox = self.ssbp_net
+                if len(ssbp_net_bbox.shape)==4:
+                    ssbp_net_bbox = tf.reduce_mean(ssbp_net_bbox,axis=[1,2],keepdims=False)
+                    
+                if len(ssbp_net_cls.shape) == 4:
+                    ssbp_net_cls = tf.reduce_mean(ssbp_net_cls, axis=[1, 2], keepdims=False)
+            else:
+                ssbp_net_bbox = tf.reduce_mean(self.ssbp_net,axis=[1,2],keepdims=False)
+                ssbp_net_cls = ssbp_net_bbox
             #分类子网络
-            rcn_logits = slim.fully_connected(ssbp_net, self.num_classes,
+            rcn_logits = slim.fully_connected(ssbp_net_cls, self.num_classes,
                                               activation_fn = None,
                                               weights_regularizer=None, biases_regularizer=None,
                                               scope="ClassPredictor")
             rcn_logits = tf.reshape(rcn_logits,[batch_size,box_nr,self.num_classes])
 
             #回归子网络
-            pos_num_classes = self.num_classes-1
-            rcn_regs = slim.fully_connected(ssbp_net, 4 * pos_num_classes,
-                                            scope="BoxEncodingPredictor",
-                                            weights_regularizer=None, biases_regularizer=None,
-                                            activation_fn=None)
-            rcn_regs = tf.reshape(rcn_regs,[batch_size,box_nr,pos_num_classes,4])
+            if self.pred_rcn_bboxes_classwise:
+                pos_num_classes = self.num_classes-1
+                rcn_regs = slim.fully_connected(ssbp_net_bbox, 4 * pos_num_classes,
+                                                scope="BoxEncodingPredictor",
+                                                weights_regularizer=None, biases_regularizer=None,
+                                                activation_fn=None)
+                rcn_regs = tf.reshape(rcn_regs,[batch_size,box_nr,pos_num_classes,4])
+            else:
+                rcn_regs = slim.fully_connected(ssbp_net_bbox, 4,
+                                                scope="BoxEncodingPredictor",
+                                                weights_regularizer=None, biases_regularizer=None,
+                                                activation_fn=None)
+                rcn_regs = tf.reshape(rcn_regs,[batch_size,box_nr,4])
 
             return rcn_regs,rcn_logits
 

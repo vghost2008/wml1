@@ -1,7 +1,8 @@
 #coding=utf-8
 import tensorflow as tf
 import wmodule
-from .build import META_ARCH_REGISTRY,build_outputs
+from .build import META_ARCH_REGISTRY
+from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.backbone.build import build_backbone
 from object_detection2.modeling.anchor_generator import build_anchor_generator
 from object_detection2.modeling.box_regression import Box2BoxTransform

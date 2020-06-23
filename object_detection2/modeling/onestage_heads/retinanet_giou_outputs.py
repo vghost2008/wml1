@@ -11,7 +11,7 @@ from object_detection2.modeling.onestage_heads.onestage_tools import *
 from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
 import object_detection2.wlayers as odl
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 from object_detection2.data.dataloader import DataLoader
 import wsummary
 

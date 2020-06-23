@@ -1,6 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 import wsummary
 import wml_tfutils as wmlt
 import wnn

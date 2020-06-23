@@ -1,7 +1,7 @@
 #coding=utf-8
 from object_detection2.modeling.onestage_heads.retinanet_giou_outputs import RetinaNetGIOUOutputs as _RetinaNetOutputs
 from object_detection2.datadef import *
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 
 '''
 相比PGRetinaNetGIOUOutputs用于处理在RPN阶段就要多个类别的情况

@@ -9,7 +9,7 @@ from object_detection2.modeling.box_regression import *
 from .rpn_outputs import find_top_rpn_proposals
 from object_detection2.datadef import *
 import wsummary
-from object_detection2.modeling.meta_arch.build import build_outputs
+from object_detection2.modeling.build import build_outputs
 
 slim = tf.contrib.slim
 

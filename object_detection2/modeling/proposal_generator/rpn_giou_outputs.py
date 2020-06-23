@@ -2,7 +2,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import wtfop.wtfop_ops as wop
 from object_detection2.config.config import global_cfg
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 import itertools
 import logging
 import numpy as np

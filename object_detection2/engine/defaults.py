@@ -35,8 +35,8 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"EfficientDet-DR.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default=MODCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",

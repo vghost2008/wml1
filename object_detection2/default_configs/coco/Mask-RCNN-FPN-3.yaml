@@ -12,13 +12,17 @@ MODEL:
   ROI_HEADS:
     OUTPUTS: "FastRCNNOutputs"
     NAME: "StandardROIHeads"
-    #IN_FEATURES: ["P3","P4","P5","P6"]
-    IN_FEATURES: ["P3"]
+    IN_FEATURES: ["P3","P4","P5","P6"]
+    #IN_FEATURES: ["P3"]
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    OUTPUTS: "RPNGIOUOutputs"
+    NAME: "RetinaNet"
+    OUTPUTS: "PGRetinaNetGIOUOutputs"
+  RETINANET_PG:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
   ROI_BOX_HEAD:
     NAME: "FastRCNNConvFCHead"
     NUM_FC: 2
@@ -27,7 +31,8 @@ MODEL:
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
-    NORM: "BN"
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
     NUM_CONV: 4
   FPN:
     IN_FEATURES: ["C3","C4","C5"]

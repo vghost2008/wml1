@@ -10,7 +10,7 @@ import wmodule
 from .onestage_tools import *
 from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 import wsummary
 import semantic.toolkit as smt
 from object_detection2.data.dataloader import DataLoader

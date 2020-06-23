@@ -9,7 +9,7 @@ import wsummary
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
 import wnn
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from object_detection2.modeling.build import HEAD_OUTPUTS
 from .rpn_toolkit import *
 
 logger = logging.getLogger(__name__)

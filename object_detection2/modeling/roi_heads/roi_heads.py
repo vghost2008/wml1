@@ -8,7 +8,6 @@ from thirdparty.nets.resnet_v1 import *
 from object_detection2.modeling.poolers import ROIPooler
 from .fast_rcnn import *
 from .mask_head import *
-from .box_head import build_box_head
 import object_detection2.od_toolkit as od
 import object_detection2.bboxes as bboxes
 from object_detection2.standard_names import *
@@ -16,29 +15,9 @@ from wtfop.wtfop_ops import wpad
 from object_detection2.datadef import *
 from .keypoint_head import build_keypoint_head
 from object_detection2.odtools import *
-from object_detection2.modeling.meta_arch.build import build_outputs
 from .build import *
 
 slim = tf.contrib.slim
-
-
-ROI_HEADS_REGISTRY = Registry("ROI_HEADS")
-ROI_HEADS_REGISTRY.__doc__ = """
-Registry for ROI heads in a generalized R-CNN model.
-ROIHeads take feature maps and region proposals, and
-perform per-region computation.
-
-The registered object will be called with `obj(cfg, input_shape)`.
-The call is expected to return an :class:`ROIHeads`.
-"""
-
-
-def build_roi_heads(cfg, *args,**kwargs):
-    """
-    Build ROIHeads defined by `cfg.MODEL.ROI_HEADS.NAME`.
-    """
-    name = cfg.MODEL.ROI_HEADS.NAME
-    return ROI_HEADS_REGISTRY.get(name)(cfg, *args,**kwargs)
 
 
 def select_foreground_proposals(proposals:EncodedData):

@@ -2,7 +2,7 @@
 from object_detection2.modeling.meta_arch.retinanet import RetinaNetHead as RetinaNetHead
 from object_detection2.modeling.proposal_generator.rpn_outputs import find_top_rpn_proposals
 from object_detection2.standard_names import *
-from object_detection2.modeling.meta_arch.build import build_outputs
+from object_detection2.modeling.build import build_outputs
 import wml_tfutils as wmlt
 import wsummary
 from .build import PROPOSAL_GENERATOR_REGISTRY

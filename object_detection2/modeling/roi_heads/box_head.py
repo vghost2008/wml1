@@ -6,16 +6,9 @@ import wml_tfutils as wmlt
 import wnnlayer as wnnl
 import object_detection2.od_toolkit as odt
 from collections import Iterable
+from .build import ROI_BOX_HEAD_REGISTRY
 
 slim = tf.contrib.slim
-
-ROI_BOX_HEAD_REGISTRY = Registry("ROI_BOX_HEAD")
-ROI_BOX_HEAD_REGISTRY.__doc__ = """
-Registry for box heads, which make box predictions from per-region features.
-
-The registered object will be called with `obj(cfg, input_shape)`.
-"""
-
 
 @ROI_BOX_HEAD_REGISTRY.register()
 class FastRCNNConvFCHead(wmodule.WChildModule):
@@ -161,8 +154,8 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
 
 
-    def forward(self, x,scope="FastRCNNConvFCHead"):
-        with tf.variable_scope(scope):
+    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
+        with tf.variable_scope(scope,reuse=reuse):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
             num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
@@ -200,10 +193,3 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                         normalizer_params=self.norm_params)
 
             return cls_x,box_x
-
-def build_box_head(cfg, *args,**kwargs):
-    """
-    Build a box head defined by `cfg.MODEL.ROI_BOX_HEAD.NAME`.
-    """
-    name = cfg.MODEL.ROI_BOX_HEAD.NAME
-    return ROI_BOX_HEAD_REGISTRY.get(name)(cfg, *args,**kwargs)

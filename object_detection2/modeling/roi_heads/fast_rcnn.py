@@ -9,7 +9,7 @@ from object_detection2.datadef import *
 import numpy as np
 import wnn
 import wsummary
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from .build import HEAD_OUTPUTS
 from collections import Iterable
 
 slim = tf.contrib.slim

@@ -7,7 +7,7 @@ BATCH_NORM_MOMENTUM = 0.997
 BATCH_NORM_EPSILON = 1e-3
 
 
-def shufflenetv2(images, is_training, num_classes=1000, depth_multiplier='1.0',use_max_pool=False):
+def shufflenetv2(images, is_training, num_classes=1000, depth_multiplier='1.0',use_max_pool=False,later_max_pool=False):
     """
     This is an implementation of ShuffleNet v2:
     https://arxiv.org/abs/1807.11164
@@ -50,6 +50,8 @@ def shufflenetv2(images, is_training, num_classes=1000, depth_multiplier='1.0',u
 
             x = block(x, num_units=4, out_channels=initial_depth, scope='Stage2')
             end_points[sc.name+"/Stage2"] = x
+            if later_max_pool:
+                x = slim.max_pool2d(x, (3, 3), stride=2, padding='SAME', scope='MaxPool')
             x = block(x, num_units=8, scope='Stage3')
             end_points[sc.name+"/Stage3"] = x
             x = block(x, num_units=4, scope='Stage4')

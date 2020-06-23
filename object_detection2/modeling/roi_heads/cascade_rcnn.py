@@ -2,7 +2,7 @@
 from ..box_regression import Box2BoxTransform
 from ..matcher import Matcher
 from ..poolers import ROIPooler
-from .box_head import build_box_head
+from .build import build_box_head,build_outputs
 from .fast_rcnn import FastRCNNOutputLayers, FastRCNNOutputs
 from .roi_heads import ROI_HEADS_REGISTRY, StandardROIHeads
 from object_detection2.datadef import *
@@ -10,7 +10,6 @@ import wml_tfutils as wmlt
 import wnnlayer as wnnl
 import wsummary
 from object_detection2.odtools import *
-from object_detection2.modeling.meta_arch.build import build_outputs
 
 
 @ROI_HEADS_REGISTRY.register()

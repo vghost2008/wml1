@@ -3,7 +3,7 @@ import tensorflow as tf
 import wmodule
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
-from object_detection2.modeling.meta_arch.build import HEAD_OUTPUTS
+from .build import HEAD_OUTPUTS
 import wtfop.wtfop_ops as wop
 import functools
 from object_detection2.datadef import *
