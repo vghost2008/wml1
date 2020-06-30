@@ -73,7 +73,11 @@ class RetinaNet(MetaArch):
         batched_inputs = self.preprocess_image(batched_inputs)
 
         features = self.backbone(batched_inputs)
-        features = [features[f] for f in self.in_features]
+        if len(self.in_features) == 0:
+            print(f"Error no input features for retinanet, use all features {features.keys()}")
+            features = list(features.values())
+        else:
+            features = [features[f] for f in self.in_features]
         pred_logits, pred_anchor_deltas= self.head(features)
         anchors = self.anchor_generator(batched_inputs,features)
         gt_boxes = batched_inputs[GT_BOXES]
@@ -131,6 +135,7 @@ class RetinaNetHead(wmodule.WChildModule):
         # Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
+        self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
 
     def forward(self, features):
         """
@@ -168,7 +173,7 @@ class RetinaNetHead(wmodule.WChildModule):
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
                             with tf.variable_scope(f"conv2d_{i}"):
-                                net = self.normalizer_fn(net, scope=f'BatchNorm/feature_{j}',**self.norm_params)
+                                net = self.normalizer_fn(net, scope=f'{self.norm_scope_name}/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
@@ -184,7 +189,7 @@ class RetinaNetHead(wmodule.WChildModule):
                                           scope=f"conv2d_{i}")
                         if self.normalizer_fn is not None:
                             with tf.variable_scope(f"conv2d_{i}"):
-                                net = self.normalizer_fn(net, scope=f'BatchNorm/feature_{j}',**self.norm_params)
+                                net = self.normalizer_fn(net, scope=f'{self.norm_scope_name}/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
                 _logits = slim.conv2d(net, self.num_anchors* num_classes, [3, 3], activation_fn=None,

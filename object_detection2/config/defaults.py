@@ -503,7 +503,25 @@ _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 _C.MODEL.RETINANET.NORM = "BN"
 _C.MODEL.RETINANET.ACTIVATION_FN = "relu"
 
+# ---------------------------------------------------------------------------- #
+# CornerNet Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.CENTERNET = CN()
 
+# This is the number of foreground classes.
+_C.MODEL.CENTERNET.NUM_CLASSES = 80
+
+_C.MODEL.CENTERNET.IN_FEATURES = ["P3"]
+
+_C.MODEL.CENTERNET.SCORE_THRESH_TEST = 0.05
+_C.MODEL.CENTERNET.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.CENTERNET.NMS_THRESH_TEST = 0.5
+
+# Loss parameters
+_C.MODEL.CENTERNET.OUTPUTS = "CenterNetOutputs"
+_C.MODEL.CENTERNET.NORM = "BN"
+_C.MODEL.CENTERNET.ACTIVATION_FN = "relu"
+_C.MODEL.CENTERNET.K = 100
 # ---------------------------------------------------------------------------- #
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #

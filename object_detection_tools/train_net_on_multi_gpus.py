@@ -14,6 +14,7 @@ gpus = [0,1,2]
 gpus = [2,3,4]
 #gpus = [1,5,6]
 #gpus = [3,6,7]
+gpus = [3]
 
 slim = tf.contrib.slim
 def setup(args):
@@ -53,10 +54,11 @@ def main(_):
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
+    cfg.MODEL.CENTERNET.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
-    
+
     cfg.freeze()
     config.set_global_cfg(cfg)
 

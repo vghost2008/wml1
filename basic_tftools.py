@@ -334,3 +334,11 @@ def indices_to_dense_vector(indices,
 
   return tf.dynamic_stitch([tf.range(size), tf.to_int32(indices)],
                            [zeros, values])
+
+def channel(x,format="NHWC"):
+    if format == "NHWC":
+        return x.get_shape().as_list()[-1]
+    elif format == "NCHW":
+        return x.get_shape().as_list()[1]
+    else:
+        raise NotImplementedError("Error")

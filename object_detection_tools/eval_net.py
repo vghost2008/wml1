@@ -7,8 +7,6 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
 import os
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
-
 slim = tf.contrib.slim
 
 FLAGS = tf.app.flags.FLAGS
@@ -20,8 +18,18 @@ def setup(args):
     Create configs and perform basic setups.
     """
     cfg = config.get_cfg()
+    if args.gpus is not None:
+        gpus = args.gpus
+        
+    gpus_str = ""
+    for g in gpus:
+        gpus_str += str(g) + ","
+    gpus_str = gpus_str[:-1]
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
+
     print(f"Config file {args.config_file}")
-    cfg.merge_from_file(args.config_file)
+    config_path = config.get_config_file(args.config_file)
+    cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
     cfg.log_dir = args.log_dir
     cfg.ckpt_dir = args.ckpt_dir
@@ -40,6 +48,7 @@ def main(_):
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
+    cfg.MODEL.CORNERNET.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
     cfg.freeze()

@@ -370,6 +370,7 @@ def evo_norm_s0_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,sco
         v1 = tf.get_variable(name="v1",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        assert C%G==0,f"Error C={C}, G={G}"
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
         mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
 
@@ -394,6 +395,7 @@ def evo_norm_s0_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,sco
         v1 = tf.get_variable(name="v1",shape=[1,G,C//G],initializer=tf.ones_initializer())
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        assert C%G==0,f"Error C={C}, G={G}"
         x = wmlt.reshape(x, [N, G, C // G,])
         mean, var = tf.nn.moments(x, [2], keep_dims=True)
 

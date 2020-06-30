@@ -94,3 +94,139 @@ class Box2BoxTransform(AbstractBox2BoxTransform):
         else:
             raise Exception("Error batch size")
 
+class CenterBox2BoxTransform(AbstractBox2BoxTransform):
+    '''
+    '''
+    def __init__(self,num_classes,k,nms_threshold=0.3,gaussian_iou=0.7,dis_threshold=1):
+        self.num_classes = num_classes
+        self.gaussian_iou = gaussian_iou
+        self.k = k
+        self.nms_threshold = nms_threshold
+        self.dis_threshold = dis_threshold
+
+
+    def get_deltas(self,gboxes,glabels,glength,output_size):
+        """
+        gboxes:[batch_size,M,4]
+        glabels:[batch_size,M]
+        output:
+        output_heatmaps_tl: top left heatmaps [B,OH,OW,C]
+        output_heatmaps_br: bottom right heatmaps [B,OH,OW,C]
+        output_heatmaps_c: center heatmaps [B,OH,OW,C]
+        output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
+        output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
+        """
+        g_heatmaps_tl, g_heatmaps_br, g_heatmaps_c, g_offset, g_tags = wop.center_boxes_encode(gboxes,
+                                                                                           glabels,
+                                                                                           glength,
+                                                                                           output_size,
+                                                                                           self.num_classes,
+                                                                                           max_box_nr=-1,
+                                                                                           gaussian_iou=self.gaussian_iou)
+        outputs = {}
+        outputs['g_heatmaps_tl'] = g_heatmaps_tl
+        outputs['g_heatmaps_br'] = g_heatmaps_br
+        outputs['g_heatmaps_ct'] = g_heatmaps_c
+        outputs['g_offset'] = g_offset
+        outputs['g_index'] = g_tags
+        max_box_nr = tf.reduce_max(glength)
+        outputs['g_index_mask']= tf.sequence_mask(glength,maxlen=max_box_nr)
+
+        return outputs
+
+
+    @staticmethod
+    def pixel_nms(heat,kernel=[3,3],threshold=0.3):
+        hmax=tf.nn.max_pool(heat,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
+        mask=tf.cast(tf.logical_and(tf.equal(hmax,heat),tf.greater(hmax,threshold)),tf.float32)
+        return mask*heat
+
+    @staticmethod
+    @wmlt.add_name_scope
+    def _topk(scores,k=100):
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(scores)
+        scores = tf.reshape(scores,[B,-1])
+        topk_scores,topk_inds = tf.nn.top_k(scores,k=k)
+        topk_classes = topk_inds%C
+        topk_inds = topk_inds//C
+        topk_ys = tf.cast(topk_inds//W,tf.float32)
+        topk_xs = tf.cast(topk_inds%W,tf.float32)
+        return topk_scores,topk_inds,topk_classes,topk_ys,topk_xs
+
+
+    @wmlt.add_name_scope
+    def apply_deltas(self,datas,num_dets,img_size=None):
+        '''
+        '''
+        h_tl = tf.nn.sigmoid(datas['heatmaps_tl'])
+        h_br  = tf.nn.sigmoid(datas['heatmaps_br'])
+        h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
+
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(h_tl)
+
+        h_tl = self.pixel_nms(h_tl, threshold=self.nms_threshold)
+        h_br = self.pixel_nms(h_br, threshold=self.nms_threshold)
+        h_ct = self.pixel_nms(h_ct, threshold=self.nms_threshold)
+        tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = self._topk(h_tl, K=self.k)
+        br_scores, br_inds, br_clses, br_ys, br_xs = self._topk(h_br, K=self.k)
+        ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, K=self.k)
+        K = self.k
+        tl_ys = tf.tile(tf.reshape(tl_ys,[B,K,1]),[1,1,K])
+        tl_xs = tf.tile(tf.reshape(tl_xs,[B,K,1]),[1,1,K])
+        br_ys = tf.tile(tf.reshape(br_ys,[B,1,K]),[1,K,1])
+        br_xs = tf.tile(tf.reshape(br_xs,[B,1,K]),[1,K,1])
+        ct_ys = tf.reshape(ct_ys,[B,K])
+        ct_xs = tf.reshape(ct_xs,[B,K])
+        tl_regr = wmlt.batch_gather(datas['offset_tl'],tl_inds)
+        br_regr = wmlt.batch_gather(datas['offset_br'],br_inds)
+        ct_regr = wmlt.batch_gather(datas['offset_ct'],br_inds)
+        tl_regr = tf.reshape(tl_regr,[B,K,1,2])
+        br_regr = tf.reshape(br_regr,[B,1,K,2])
+        ct_regr = tf.reshape(ct_regr,[B,K,2])
+        tl_xs = tl_xs + tl_regr[...,0]
+        tl_ys = tl_ys + tl_regr[...,1]
+        br_xs = br_xs + br_regr[...,0]
+        br_ys = br_ys + br_regr[...,1]
+        ct_xs = ct_xs + ct_regr[...,0]
+        ct_ys = ct_ys + ct_regr[...,1]
+
+        bboxes = tf.stack([tl_ys,tl_xs,br_ys,br_xs],axis=-1)
+        tl_tag = wmlt.batch_gather(datas['tag_tl'],tl_inds)
+        br_tag = wmlt.batch_gather(datas['tag_br'],br_inds)
+        dists = tf.abs(tl_tag-br_tag)
+        dis_inds = (dists>self.dis_threshold)
+
+        tl_scores = tf.tile(tf.reshape(tl_scores,K,1),[1,1,K])
+        br_scores = tf.tile(tf.reshape(br_scores,K,1),[1,1,K])
+        scores = (tl_scores+br_scores)/2
+
+        tl_clses = tf.tile(tf.reshape(tl_clses,K,1),[1,1,K])
+        br_clses = tf.tile(tf.reshape(br_clses,K,1),[1,1,K])
+        cls_inds = tf.not_equal(tl_clses,br_clses)
+
+        width_inds = (br_xs<tl_xs)
+        height_inds = (br_ys<tl_ys)
+
+        ct = tf.stack([ct_xs, ct_ys], axis=-1)
+        center_inds = wop.center_filter(bboxes,ct,sizes=[],nr=[3,5])
+
+        all_inds = tf.logical_or(cls_inds,dis_inds)
+        all_inds = tf.logical_or(all_inds,width_inds)
+        all_inds = tf.logical_or(all_inds,height_inds)
+        scores = tf.where(all_inds,tf.zeros_like(scores),scores)
+        scores,inds = tf.nn.top_k(tf.reshape(scores,[B,-1]),num_dets)
+
+        bboxes = tf.reshape(bboxes,[B,-1,4])
+        bboxes = wmlt.batch_gather(bboxes,inds)
+
+        clses = tf.reshape(tl_clses,[B,-1,1])
+        clses = wmlt.batch_gather(clses,inds)
+
+        tl_scores = tf.reshape(tl_scores,[B,-1,1])
+        tl_scores = wmlt.batch_gather(tl_scores,inds)
+
+        br_scores = tf.reshape(br_scores,[B,-1,1])
+        br_scores = wmlt.batch_gather(br_scores,inds)
+
+        return bboxes,scores,tl_scores,br_scores,clses,
+

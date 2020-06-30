@@ -1,7 +1,7 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: True
-  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:

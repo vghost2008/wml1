@@ -5,6 +5,7 @@ import wmodule
 import wml_tfutils as wmlt
 from collections import OrderedDict
 import object_detection2.od_toolkit as odt
+from object_detection2.config.config import global_cfg
 slim = tf.contrib.slim
 from object_detection2.modeling.backbone.build import BACKBONE_HOOK_REGISTRY
 
@@ -114,3 +115,49 @@ class DeformConvBackboneHook(wmodule.WChildModule):
                                                   normalizer_fn=normalizer_fn,
                                                   normalizer_params=normalizer_params)
             return res
+
+@BACKBONE_HOOK_REGISTRY.register()
+class MakeAnchorsForRetinaNet(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+        self.bh = BalanceBackboneHook(cfg,parent,*args,**kwargs)
+
+    def forward(self,features,batched_inputs):
+        features = self.bh(features,batched_inputs)
+        del batched_inputs
+        res = OrderedDict()
+        featuremap_keys =  ["P3","P4","P5","P6","P7"]
+        anchor_sizes = global_cfg.MODEL.ANCHOR_GENERATOR.SIZES
+        anchor_ratios = global_cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS
+        normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=self.is_training)
+        ref = features[featuremap_keys[1]]
+        ref_shape = wmlt.combined_static_and_dynamic_shape(ref)[1:3]
+        ref_size = anchor_sizes[1][0]
+        nr = 0
+        with tf.name_scope("MakeAnchorsForRetinaNet"):
+            for i,k in enumerate(featuremap_keys):
+                net = features[k]
+                for j,s in enumerate(anchor_sizes[i]):
+                    for k,r in enumerate(anchor_ratios[i][j]):
+                        net = slim.separable_conv2d(net, 32,
+                                            kernel_size=3,
+                                            padding="SAME",
+                                            depth_multiplier=1,
+                                            normalizer_fn=normalizer_fn,
+                                            normalizer_params=normalizer_params,
+                                            scope=f"sep_conv_{i}{j}{k}")
+                        target_shape = self.get_shape(ref_shape,ref_size,s,r)
+                        net = tf.image.resize_nearest_neighbor(net,target_shape)
+                        res[f"P{nr}"] = net
+                        nr += 1
+        return res
+
+    @staticmethod
+    @wmlt.add_name_scope
+    def get_shape(ref_shape,ref_size,size,ratio):
+        ref_size = tf.to_float(ref_size)
+        size = tf.to_float(size)
+        ref_shape = tf.to_float(ref_shape)
+        target_shape = (ref_size/size)*ref_shape*tf.stack([tf.sqrt(ratio),tf.rsqrt(ratio)],axis=0)
+        shape = tf.to_int32(target_shape)
+        return tf.where(shape>0,shape,tf.ones_like(shape))

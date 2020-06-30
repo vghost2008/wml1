@@ -5,6 +5,8 @@ import object_detection2.bboxes as odb
 import sys
 import pickle
 import copy
+import pandas as pd
+from collections import Iterable
 
 def get_size(bboxes):
     bboxes = np.transpose(bboxes,axes=[1,0])
@@ -28,7 +30,7 @@ def get_ratios(bboxes):
 ratio使用w/h与statistics_tools中相反
 使用聚类的方法自动确定最佳的anchor box配置
 '''
-def get_bboxes_sizes_and_ratios_by_kmeans_v1(bboxes,size_nr=3,ratio_nr=3):
+def get_bboxes_sizes_and_ratios_by_kmeans_v1(bboxes,size_nr=3,ratio_nr=3,group_size=None):
     org_bboxes = copy.deepcopy(bboxes)
     bboxes = np.array(bboxes)
     bboxes = np.transpose(bboxes,axes=[1,0])
@@ -101,7 +103,7 @@ def get_bboxes_sizes_and_ratios_by_kmeans_v1(bboxes,size_nr=3,ratio_nr=3):
     for i in range(size_nr):
         vis_data.append((new_sizes[i],new_ratios))
     vis_data.sort(key=lambda x:x[0])
-    str0,str1 = get_formated_string(vis_data)
+    str0,str1 = get_formated_string(vis_data,group_size=group_size)
     print(str0)
     print(str1)
     
@@ -149,7 +151,7 @@ def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3,group
 
     threshold_for_size = 2.0
     threshold_for_ratio = 0.01
-    max_loop = 500
+    max_loop = 1000
     step = 0
 
     while True:
@@ -200,12 +202,62 @@ def get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes, size_nr=3, ratio_nr=3,group
         d = new_ratios[i].tolist()
         d.sort()
         vis_data.append((new_sizes[i],d))
+
     vis_data.sort(key=lambda x:x[0])
     str0,str1 = get_formated_string(vis_data,group_size)
     print(str0)
     print(str1)
     sizes,ratios = zip(*vis_data)
     return sizes,ratios
+
+def show_ious_hist(bboxes,sizes,ratios,nr=200):
+    org_bboxes = copy.deepcopy(bboxes)
+    bboxes = np.array(bboxes)
+    bboxes = np.transpose(bboxes, axes=[1, 0])
+    cx = (bboxes[3] + bboxes[1]) / 2
+    cy = (bboxes[2] + bboxes[0]) / 2
+    boxes_center = np.stack([cy, cx, cy, cx], axis=-1)
+    new_bboxes = org_bboxes - boxes_center
+
+    all_ious = []
+    size_nr = len(sizes)
+
+    assert not isinstance(sizes[0],Iterable),"Sizes elements must be real value."
+
+    if isinstance(ratios[0],Iterable):
+        ratio_nr = len(ratios[0])
+    else:
+        ratio_nr = len(ratios)
+    for i in range(size_nr):
+        for j in range(ratio_nr):
+            size = sizes[i]
+            if not isinstance(ratios[0],Iterable):
+                ratio = ratios[j]
+            else:
+                ratio = ratios[i][j]
+            w = size * math.sqrt(ratio)
+            h = size / math.sqrt(ratio)
+            box = np.array([[-h / 2, -w / 2, h / 2, w / 2]])
+            ious = odb.npbboxes_jaccard(bbox_ref=box, bboxes=new_bboxes)
+            all_ious.append(ious)
+
+    all_ious = np.stack(all_ious, axis=0)
+    all_ious = np.max(all_ious,axis=0)
+    print(all_ious.shape)
+    ious = [0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+    total_size = all_ious.shape[0]
+    for iou in ious:
+        count = np.sum((all_ious>iou).astype(np.float32))
+        print(f"{iou:.2f}: {count*100/total_size:.2f}%")
+
+    pd_ious = pd.Series(np.reshape(all_ious,[-1]))
+    plt.figure(0,figsize=(15,10))
+    pd_ious.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', normed = True, label = "hist")
+    pd_ious.plot(kind = 'kde', color = 'red', label ="kde")
+    plt.grid(axis='y', alpha=0.75)
+    plt.grid(axis='x', alpha=0.75)
+    plt.title("ious")
+    plt.show()
 
 '''
 ratio使用w/h与statistics_tools中相反
@@ -270,8 +322,9 @@ if len(sys.argv)>=2:
 else:
     data_path = wmlu.home_dir("ai/mldata2/0day/bbox1.dat")
     data_path = wmlu.home_dir("ai/mldata2/0day/coco_statics.dat")
+    #data_path = wmlu.home_dir("ai/mldata2/0day/test_data.dat")
     #data_path = wmlu.home_dir("ai/mldata2/0day/ocr_statics.dat")
-    # data_path = wmlu.home_dir("ai/mldata2/0day/qc_statics.dat")
+    #data_path = wmlu.home_dir("ai/mldata2/0day/qc_statics.dat")
 
 print(f"Data path {data_path}")
 
@@ -280,4 +333,14 @@ if __name__ == "__main__":
         statics = pickle.load(file)
     nr = 100
     boxes = statics[0]
-    new_sizes,new_ratios = get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes=boxes,size_nr=10,ratio_nr=3,group_size=2)
+    new_sizes,new_ratios = get_bboxes_sizes_and_ratios_by_kmeans_v2(bboxes=boxes,size_nr=15,ratio_nr=3,group_size=3)
+    '''new_sizes = [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952], [256, 322.53978877308754, 406.37466930385904], [512, 645.0795775461751, 812.7493386077181]]
+    new_sizes = [[32.00,66.29,100.57], [134.86,169.14,203.43], [237.71,272.00,306.29], [340.57,374.86,409.14], [443.43,477.71,512.00]]
+    new_sizes = np.reshape(np.array(new_sizes),[-1]).tolist()
+    new_ratios = [0.5,1.0,2.0]'''
+    '''new_sizes = [[9.44,19.18],[32.20,49.48],[73.80,109.04],[152.43,215.44],[316.52,475.41]]
+    new_sizes = np.reshape(np.array(new_sizes),[-1]).tolist()
+    new_ratios = np.array([[[0.24,0.64,2.01],[0.28,0.76,2.49]],[[0.24,0.62,1.58],[0.36,0.95,3.55]],[[0.27,0.71,1.93],[0.23,0.59,1.42]],[[0.40,0.96,3.91],[0.29,0.69,1.55]],[[0.49,1.01,2.52],[0.85,1.16,1.55]]])
+    new_ratios = np.reshape(new_ratios,[-1,3]).tolist()'''
+
+    show_ious_hist(boxes,new_sizes,new_ratios)

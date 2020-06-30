@@ -1,7 +1,7 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: True
-  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
@@ -13,11 +13,15 @@ MODEL:
     OUTPUTS: "FastRCNNOutputs"
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
+    #IN_FEATURES: ["P3"]
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
     OUTPUTS: "RPNGIOUOutputs"
+  RETINANET_PG:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
   ROI_BOX_HEAD:
     NAME: "FastRCNNConvFCHead"
     NUM_FC: 2
@@ -31,7 +35,6 @@ MODEL:
     NUM_CONV: 4
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
-    BACKBONE_HOOK: ("","BalanceBackboneHook")
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
@@ -66,5 +69,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-3-2"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-30"
   LOG_STEP: 200

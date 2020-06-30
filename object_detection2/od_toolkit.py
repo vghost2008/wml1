@@ -40,6 +40,19 @@ def batched_random_select_boxes(boxes,lens,size):
         indexs = wmlt.reshape(indexs,[batch_size,size])
         return boxes,indexs
 
+def get_norm_scope_name(name:str):
+    scope_name_dict = {'BN':'BatchNorm',
+                       'GN':'GroupNorm',
+                       'evo_norm_s0':'EvoNormS0',
+                       'SN':'SpectralNorm',
+                       'NA':None}
+    if name in scope_name_dict:
+        return scope_name_dict[name]
+
+    if len(name) == 0:
+        return None
+    return "Norm"
+
 def get_norm(name:str,is_training):
     if len(name) == 0:
         return None,None,

@@ -288,6 +288,12 @@ def show_anchor_box(img_file,boxes,size=None):
     plt.show()
     return img
 
+def test_dataset():
+    data = PascalVOCData(label_text2id=None)
+    data.read_data("/home/vghost/ai/mldata2/test_data_0day/test_s")
+
+    return data.get_items()
+
 def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
     data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
