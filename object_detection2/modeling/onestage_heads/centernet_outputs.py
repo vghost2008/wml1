@@ -48,7 +48,8 @@ class CenterNetOutputs(wmodule.WChildModule):
         self.max_detections_per_image = max_detections_per_image
         self.box2box_transform = box2box_transform
         self.head_outputs = head_outputs
-
+        self.k = self.cfg.K
+        self.size_threshold = self.cfg.SIZE_THRESHOLD
         self.gt_boxes = gt_boxes
         self.gt_labels = gt_labels
         self.gt_length = gt_length
@@ -188,3 +189,102 @@ class CenterNetOutputs(wmodule.WChildModule):
         indexs = tf.cond(tf.greater(tf.shape(indexs)[1],0),lambda:wmlt.batch_gather(indexs,nms_indexs),lambda:indexs)
         probs = tf.cond(tf.greater(tf.shape(probs)[1],0),lambda:wmlt.batch_gather(probs,nms_indexs),lambda:probs)
         return bboxes,labels,probs,indexs,len
+
+    @staticmethod
+    def pixel_nms(heat,kernel=[3,3],threshold=0.3):
+        hmax=tf.nn.max_pool(heat,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
+        mask=tf.cast(tf.logical_and(tf.equal(hmax,heat),tf.greater(hmax,threshold)),tf.float32)
+        return mask*heat
+
+    @staticmethod
+    @wmlt.add_name_scope
+    def _topk(scores,k=100):
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(scores)
+        scores = tf.reshape(scores,[B,-1])
+        topk_scores,topk_inds = tf.nn.top_k(scores,k=k)
+        topk_classes = topk_inds%C
+        topk_inds = topk_inds//C
+        topk_ys = tf.cast(topk_inds//W,tf.float32)
+        topk_xs = tf.cast(topk_inds%W,tf.float32)
+        return topk_scores,topk_inds,topk_classes,topk_ys,topk_xs
+
+
+    @wmlt.add_name_scope
+    def get_box_in_a_single_layer(self,datas,num_dets,img_size):
+        '''
+        '''
+        h_tl = tf.nn.sigmoid(datas['heatmaps_tl'])
+        h_br  = tf.nn.sigmoid(datas['heatmaps_br'])
+        h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
+
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(h_tl)
+
+        h_tl = self.pixel_nms(h_tl, threshold=self.nms_threshold)
+        h_br = self.pixel_nms(h_br, threshold=self.nms_threshold)
+        h_ct = self.pixel_nms(h_ct, threshold=self.nms_threshold)
+        tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = self._topk(h_tl, K=self.k)
+        br_scores, br_inds, br_clses, br_ys, br_xs = self._topk(h_br, K=self.k)
+        ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, K=self.k)
+        K = self.k
+        tl_ys = tf.tile(tf.reshape(tl_ys,[B,K,1]),[1,1,K])
+        tl_xs = tf.tile(tf.reshape(tl_xs,[B,K,1]),[1,1,K])
+        br_ys = tf.tile(tf.reshape(br_ys,[B,1,K]),[1,K,1])
+        br_xs = tf.tile(tf.reshape(br_xs,[B,1,K]),[1,K,1])
+        ct_ys = tf.reshape(ct_ys,[B,K])
+        ct_xs = tf.reshape(ct_xs,[B,K])
+        if 'offset_tl' in datas:
+            tl_regr = wmlt.batch_gather(datas['offset_tl'],tl_inds)
+            br_regr = wmlt.batch_gather(datas['offset_br'],br_inds)
+            ct_regr = wmlt.batch_gather(datas['offset_ct'],br_inds)
+            tl_regr = tf.reshape(tl_regr,[B,K,1,2])
+            br_regr = tf.reshape(br_regr,[B,1,K,2])
+            ct_regr = tf.reshape(ct_regr,[B,K,2])
+            tl_xs = tl_xs + tl_regr[...,0]
+            tl_ys = tl_ys + tl_regr[...,1]
+            br_xs = br_xs + br_regr[...,0]
+            br_ys = br_ys + br_regr[...,1]
+            ct_xs = ct_xs + ct_regr[...,0]
+            ct_ys = ct_ys + ct_regr[...,1]
+
+        bboxes = tf.stack([tl_ys,tl_xs,br_ys,br_xs],axis=-1)
+        tl_tag = wmlt.batch_gather(datas['tag_tl'],tl_inds)
+        br_tag = wmlt.batch_gather(datas['tag_br'],br_inds)
+        dists = tf.abs(tl_tag-br_tag)
+        dis_inds = (dists>self.dis_threshold)
+
+        tl_scores = tf.tile(tf.reshape(tl_scores,K,1),[1,1,K])
+        br_scores = tf.tile(tf.reshape(br_scores,K,1),[1,1,K])
+        scores = (tl_scores+br_scores)/2
+
+        tl_clses = tf.tile(tf.reshape(tl_clses,K,1),[1,1,K])
+        br_clses = tf.tile(tf.reshape(br_clses,K,1),[1,1,K])
+        cls_inds = tf.not_equal(tl_clses,br_clses)
+
+        width_inds = (br_xs<tl_xs)
+        height_inds = (br_ys<tl_ys)
+
+        all_inds = tf.logical_or(cls_inds,dis_inds)
+        all_inds = tf.logical_or(all_inds,width_inds)
+        all_inds = tf.logical_or(all_inds,height_inds)
+        scores = tf.where(all_inds,tf.zeros_like(scores),scores)
+        scores,inds = tf.nn.top_k(tf.reshape(scores,[B,-1]),num_dets)
+
+        bboxes = tf.reshape(bboxes,[B,-1,4])
+        bboxes = wmlt.batch_gather(bboxes,inds)
+
+        clses = tf.reshape(tl_clses,[B,-1,1])
+        clses = wmlt.batch_gather(clses,inds)
+
+        tl_scores = tf.reshape(tl_scores,[B,-1,1])
+        tl_scores = wmlt.batch_gather(tl_scores,inds)
+
+        br_scores = tf.reshape(br_scores,[B,-1,1])
+        br_scores = wmlt.batch_gather(br_scores,inds)
+
+        ct = tf.stack([ct_xs, ct_ys], axis=-1)
+        bboxes = odbox.tfabsolutely_boxes_to_relative_boxes(bboxes,width=W,height=H)
+        sizes = tf.convert_to_tensor(self.size_threshold)
+        relative_size = sizes*tf.rsqrt(tf.cast(img_size[0]*img_size[1],tf.float32))
+        center_inds = wop.center_filter(bboxes,ct,sizes=relative_size,nr=[3,5])
+
+        return bboxes,scores,tl_scores,br_scores,clses,

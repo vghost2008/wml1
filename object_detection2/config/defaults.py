@@ -522,6 +522,7 @@ _C.MODEL.CENTERNET.OUTPUTS = "CenterNetOutputs"
 _C.MODEL.CENTERNET.NORM = "BN"
 _C.MODEL.CENTERNET.ACTIVATION_FN = "relu"
 _C.MODEL.CENTERNET.K = 100
+_C.MODEL.CENTERNET.SIZE_THRESHOLD = [100]
 # ---------------------------------------------------------------------------- #
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #

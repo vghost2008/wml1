@@ -48,7 +48,7 @@ def main(_):
     cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
-    cfg.MODEL.CORNERNET.NUM_CLASSES = num_classes
+    cfg.MODEL.CENTERNET.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
     cfg.freeze()

@@ -299,6 +299,22 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.640
 - batch_size: 4 on 3 gpu
 - backbone resnet50, FrozenBN
 - Loss: GIOU loss
+- FPN normal: EvoNormS + dropblock
+- Head normal: EvoNormS
+- iterator: 120k
+- train time: 31.1h
+- eval time: 0.1340s/img
+- lr decay: cosine
+- ANCHOR SIZES: [[32.0, 66.29, 100.57], [134.86, 169.14, 203.43], [237.71, 272.0, 306.29], [340.57, 374.86, 409.14], [443.43, 477.71, 512.0]] 
+
+```
+```
+
+##coco/RetinaNet.yaml EvoNormS + GIOU
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- Loss: GIOU loss
 - FPN normal: EvoNormS + dropblock + BalanceBackboneHook
 - Head normal: EvoNormS
 - iterator: 120k
