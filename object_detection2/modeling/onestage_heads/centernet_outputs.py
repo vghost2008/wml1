@@ -218,13 +218,28 @@ class CenterNetOutputs(wmodule.WChildModule):
             nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold,
                                     classes_wise=True,
                                     k=self.max_detections_per_image)
+            #预测时没有背景, 这里加上1使背景=0
+            clses = clses + 1
+            #bboxes = tf.Print(bboxes,["shape",tf.shape(bboxes),tf.shape(clses),length],summarize=100)
             bboxes, labels, nms_indexs, lens = odl.batch_nms_wrapper(bboxes, clses, length, confidence=None,
                                   nms=nms,
                                   k=self.max_detections_per_image,
                                   sort=True)
             scores = wmlt.batch_gather(scores,nms_indexs)
+        #labels = clses+1
+        #lens = length
 
-        return {RD_BOXES:bboxes,RD_LABELS:labels,RD_PROBABILITY:scores,RD_LENGTH:lens}
+        outdata = {RD_BOXES:bboxes,RD_LABELS:labels,RD_PROBABILITY:scores,RD_LENGTH:lens}
+        if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+            wsummary.detection_image_summary(images=inputs[IMAGE],
+                                             boxes=outdata[RD_BOXES],
+                                             classes=outdata[RD_LABELS],
+                                             lengths=outdata[RD_LENGTH],
+                                             scores=outdata[RD_PROBABILITY],
+                                             name="CenterNetOutput",
+                                             category_index=DataLoader.category_index)
+
+        return outdata
 
     @staticmethod
     def pixel_nms(heat,kernel=[3,3],threshold=0.3):
@@ -249,9 +264,11 @@ class CenterNetOutputs(wmodule.WChildModule):
     def get_box_in_a_single_layer(self,datas,num_dets,img_size):
         '''
         '''
+        #wsummary.variable_summaries_v2(datas['heatmaps_tl'],"hm_tl")
         h_tl = tf.nn.sigmoid(datas['heatmaps_tl'])
         h_br  = tf.nn.sigmoid(datas['heatmaps_br'])
         h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
+        #wsummary.variable_summaries_v2(h_tl,"hm_a_tl")
 
         B,H,W,C = wmlt.combined_static_and_dynamic_shape(h_tl)
 
@@ -307,8 +324,12 @@ class CenterNetOutputs(wmodule.WChildModule):
         all_inds = tf.logical_or(cls_inds,dis_inds)
         all_inds = tf.logical_or(all_inds,width_inds)
         all_inds = tf.logical_or(all_inds,height_inds)
+        #all_inds = cls_inds
         scores = tf.where(all_inds,tf.zeros_like(scores),scores)
         scores,inds = tf.nn.top_k(tf.reshape(scores,[B,-1]),num_dets)
+        wsummary.variable_summaries_v2(scores,"scores")
+        wsummary.variable_summaries_v2(tl_scores,"tl_scores")
+        wsummary.variable_summaries_v2(br_scores,"br_scores")
 
         bboxes = tf.reshape(bboxes,[B,-1,4])
         bboxes = wmlt.batch_gather(bboxes,inds)
@@ -346,5 +367,4 @@ class CenterNetOutputs(wmodule.WChildModule):
         bboxes,scores,clses,length  = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),
                                                 elems=(bboxes,scores,clses,center_mask),
                                                 dtype=(tf.float32,tf.float32,tf.int32,tf.int32))
-
         return bboxes,scores,clses,length

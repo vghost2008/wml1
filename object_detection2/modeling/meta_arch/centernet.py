@@ -85,12 +85,14 @@ class CenterNet(MetaArch):
             max_detections_per_image=self.cfg.TEST.DETECTIONS_PER_IMAGE,
         )
 
+        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+            for i, t_outputs in enumerate(head_outputs):
+                wsummary.feature_map_summary(t_outputs['heatmaps_tl'], f'heatmaps_tl{i}')
+                wsummary.feature_map_summary(t_outputs['heatmaps_br'], f'heatmaps_br{i}')
+                wsummary.feature_map_summary(t_outputs['heatmaps_ct'], f'heatmaps_ct{i}')
+
         if self.is_training:
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-                for i,t_outputs in enumerate(head_outputs):
-                    wsummary.feature_map_summary(t_outputs['heatmaps_tl'],f'heatmaps_tl{i}')
-                    wsummary.feature_map_summary(t_outputs['heatmaps_br'],f'heatmaps_br{i}')
-                    wsummary.feature_map_summary(t_outputs['heatmaps_ct'],f'heatmaps_ct{i}')
                 results = outputs.inference(inputs=batched_inputs,head_outputs=head_outputs)
             else:
                 results = {}
@@ -148,35 +150,35 @@ class CenterNetHead(wmodule.WChildModule):
                 with tf.variable_scope("shared_head",reuse=reuse) as scope:
                     if ind >0:
                         scope.reuse_variables()
-                tl_conv = self.tl_pool(feature)
-                br_conv = self.br_pool(feature)
-                ct_conv = self.center_pool(feature)
-                tl_heat = self.heat(tl_conv,out_dim=num_classes,scope='heat_tl')
-                br_heat = self.heat(br_conv,out_dim=num_classes,scope='heat_br')
-                ct_heat = self.heat(ct_conv,out_dim=num_classes,scope='heat_ct')
-                tl_tag = self.tag(tl_conv,out_dim=1,scope="tl_tag")
-                br_tag = self.tag(br_conv,out_dim=1,scope="br_tag")
+                    tl_conv = self.tl_pool(feature)
+                    br_conv = self.br_pool(feature)
+                    ct_conv = self.center_pool(feature)
+                    tl_heat = self.heat(tl_conv,out_dim=num_classes,scope='heat_tl')
+                    br_heat = self.heat(br_conv,out_dim=num_classes,scope='heat_br')
+                    ct_heat = self.heat(ct_conv,out_dim=num_classes,scope='heat_ct')
+                    tl_tag = self.tag(tl_conv,out_dim=1,scope="tl_tag")
+                    br_tag = self.tag(br_conv,out_dim=1,scope="br_tag")
 
-                tl_regr = self.offset(tl_conv,out_dim=2,scope="tl_regr")
-                br_regr = self.offset(br_conv,out_dim=2,scope="br_regr")
-                ct_regr = self.offset(ct_conv,out_dim=2,scope="ct_regr")
+                    tl_regr = self.offset(tl_conv,out_dim=2,scope="tl_regr")
+                    br_regr = self.offset(br_conv,out_dim=2,scope="br_regr")
+                    ct_regr = self.offset(ct_conv,out_dim=2,scope="ct_regr")
 
-                outs = {}
-                outs["heatmaps_tl"] = tl_heat
-                outs["heatmaps_br"] = br_heat
-                outs["heatmaps_ct"] = ct_heat
-                outs["2d_offset_tl"] = tl_regr
-                outs['2d_offset_br'] = br_regr
-                outs['2d_offset_ct'] = ct_regr
-                outs["2d_tag_tl"] = tl_tag
-                outs['2d_tag_br'] = br_tag
-                shape = wmlt.combined_static_and_dynamic_shape(tl_regr)
-                outs["offset_tl"] = tf.reshape(tl_regr, [shape[0], -1, shape[3]])
-                outs['offset_br'] = tf.reshape(br_regr, [shape[0], -1, shape[3]])
-                outs['offset_ct'] = tf.reshape(ct_regr, [shape[0], -1, shape[3]])
-                shape = wmlt.combined_static_and_dynamic_shape(tl_tag)
-                outs["tag_tl"] = tf.reshape(tl_tag,[shape[0],-1,shape[3]])
-                outs['tag_br'] = tf.reshape(br_tag,[shape[0],-1,shape[3]])
+                    outs = {}
+                    outs["heatmaps_tl"] = tl_heat
+                    outs["heatmaps_br"] = br_heat
+                    outs["heatmaps_ct"] = ct_heat
+                    outs["2d_offset_tl"] = tl_regr
+                    outs['2d_offset_br'] = br_regr
+                    outs['2d_offset_ct'] = ct_regr
+                    outs["2d_tag_tl"] = tl_tag
+                    outs['2d_tag_br'] = br_tag
+                    shape = wmlt.combined_static_and_dynamic_shape(tl_regr)
+                    outs["offset_tl"] = tf.reshape(tl_regr, [shape[0], -1, shape[3]])
+                    outs['offset_br'] = tf.reshape(br_regr, [shape[0], -1, shape[3]])
+                    outs['offset_ct'] = tf.reshape(ct_regr, [shape[0], -1, shape[3]])
+                    shape = wmlt.combined_static_and_dynamic_shape(tl_tag)
+                    outs["tag_tl"] = tf.reshape(tl_tag,[shape[0],-1,shape[3]])
+                    outs['tag_br'] = tf.reshape(br_tag,[shape[0],-1,shape[3]])
 
             all_outs.append(outs)
 

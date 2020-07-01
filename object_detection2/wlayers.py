@@ -199,11 +199,11 @@ def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=Fa
                 r_index = tf.gather(r_index,t_index)
             boxes,labels,nms_indexs = nms(bboxes=sboxes[:lens],classes=sclasses[:lens],confidence=sconfidence[:lens])
             r_len = tf.shape(nms_indexs)[0]
-            boxes = tf.pad(boxes,[[0,k-lens],[0,0]])
-            labels = tf.pad(labels,[[0,k-lens]])
+            boxes = tf.pad(boxes,[[0,k-r_len],[0,0]])
+            labels = tf.pad(labels,[[0,k-r_len]])
             if sort:
                 nms_indexs = tf.gather(r_index,nms_indexs)
-            nms_indexs = tf.pad(nms_indexs,[[0,k-lens]])
+            nms_indexs = tf.pad(nms_indexs,[[0,k-r_len]])
             return [boxes,labels,nms_indexs,r_len]
         boxes,labels,nms_indexs,lens = wmlt.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
                                                                      dtype=(tf.float32,tf.int32,tf.int32,tf.int32))
