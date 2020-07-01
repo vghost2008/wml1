@@ -87,6 +87,10 @@ class CenterNet(MetaArch):
 
         if self.is_training:
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
+                for i,t_outputs in enumerate(head_outputs):
+                    wsummary.feature_map_summary(t_outputs['heatmaps_tl'],f'heatmaps_tl{i}')
+                    wsummary.feature_map_summary(t_outputs['heatmaps_br'],f'heatmaps_br{i}')
+                    wsummary.feature_map_summary(t_outputs['heatmaps_ct'],f'heatmaps_ct{i}')
                 results = outputs.inference(inputs=batched_inputs,head_outputs=head_outputs)
             else:
                 results = {}
@@ -176,7 +180,7 @@ class CenterNetHead(wmodule.WChildModule):
 
             all_outs.append(outs)
 
-        return outs
+        return all_outs
 
     def heat(self,inputs,out_dim,scope='heat'):
         #out_dim=80
@@ -294,11 +298,11 @@ class CenterNetHead(wmodule.WChildModule):
                                     activation_fn=None)
                 return conv2
 
-    def tl_pool(self,x):
-        return self.pool(x,wop.top_pool,wop.left_pool)
+    def tl_pool(self,x,scope="tl_pool"):
+        return self.pool(x,wop.top_pool,wop.left_pool,scope=scope)
 
-    def br_pool(self,x):
-        return self.pool(x,wop.bottom_pool,wop.right_pool)
+    def br_pool(self,x,scope="br_pool"):
+        return self.pool(x,wop.bottom_pool,wop.right_pool,scope=scope)
 
-    def center_pool(self,x):
-        return self.pool_cross(x,wop.top_pool,wop.left_pool,wop.bottom_pool,wop.right_pool)
+    def center_pool(self,x,scope="center_pool"):
+        return self.pool_cross(x,wop.top_pool,wop.left_pool,wop.bottom_pool,wop.right_pool,scope=scope)

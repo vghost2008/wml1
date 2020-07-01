@@ -516,13 +516,14 @@ _C.MODEL.CENTERNET.IN_FEATURES = ["P3"]
 _C.MODEL.CENTERNET.SCORE_THRESH_TEST = 0.05
 _C.MODEL.CENTERNET.TOPK_CANDIDATES_TEST = 1000
 _C.MODEL.CENTERNET.NMS_THRESH_TEST = 0.5
+_C.MODEL.CENTERNET.DIS_THRESHOLD = 1.0
 
 # Loss parameters
 _C.MODEL.CENTERNET.OUTPUTS = "CenterNetOutputs"
 _C.MODEL.CENTERNET.NORM = "BN"
 _C.MODEL.CENTERNET.ACTIVATION_FN = "relu"
 _C.MODEL.CENTERNET.K = 100
-_C.MODEL.CENTERNET.SIZE_THRESHOLD = [100]
+_C.MODEL.CENTERNET.SIZE_THRESHOLD = 130
 # ---------------------------------------------------------------------------- #
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #

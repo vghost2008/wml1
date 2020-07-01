@@ -11,6 +11,7 @@
 - WAA+Stitch有明显稳定提升
 - BalanceBackboneHook有明显提升
 - 仅将retinanet每一层anchor的顺序改变一下性能就有明显的下降
+- 仅将retinanet使用等间隔的anchor size性能出现明显下降
 
 ##基本配置
 
@@ -36,6 +37,7 @@
 |1)+AA+cosine|0.337|0.527|0.360|0.059|0.268|0.453|0.303|0.479|0.507|0.137|0.469|0.646|
 |1)+FPN DB+cosine|0.335|0.525|0.358|0.060|0.262|0.454|0.302|0.476|0.504|0.142|0.463|0.641|
 |1)+FPN DB+cosine+unordered anchor ratio|0.326|0.518|0.347|0.057|0.253|0.439|0.297|0.468|0.495|0.124|0.454|0.633|
+|1)+FPN DB+cosine+等间隔anchor size|0.299|0.464|0.317|0.029|0.198|0.438|0.280|0.432|0.448|0.065|0.352|0.633|
 |1)+FPN DB+cosine+BalanceBackboneHook|0.341|0.533|0.362|0.065|0.270|0.457|0.304|0.481|0.509|0.146|0.466|0.647|
 |1)+FPN DB,WSum+cosine|0.334|0.526|0.356|0.061|0.262|0.450|0.302|0.475|0.504|0.147|0.462|0.643|
 |2)|0.339|0.531|0.362|0.063|0.270|0.455|0.304|0.481|0.510|0.145|0.473|0.648|
@@ -303,11 +305,24 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.640
 - Head normal: EvoNormS
 - iterator: 120k
 - train time: 31.1h
-- eval time: 0.1340s/img
+- eval time: 0.1332s/img
 - lr decay: cosine
 - ANCHOR SIZES: [[32.0, 66.29, 100.57], [134.86, 169.14, 203.43], [237.71, 272.0, 306.29], [340.57, 374.86, 409.14], [443.43, 477.71, 512.0]] 
 
 ```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.299
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.464
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.317
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.029
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.198
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.438
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.280
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.432
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.448
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.065
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.352
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.633
+
 ```
 
 ##coco/RetinaNet.yaml EvoNormS + GIOU

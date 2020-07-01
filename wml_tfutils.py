@@ -1031,6 +1031,47 @@ def show_graph_info(graph=None):
     params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
     print('FLOPs: {};    Trainable params: {}'.format(flops.total_float_ops, params.total_parameters))
 
+def concat_with_length(datas,lengths,axis=0):
+    real_datas = []
+    for i,d in enumerate(datas):
+        if axis==0:
+            d = d[:lengths[i]]
+        elif axis==1:
+            d = d[:,lengths[i]]
+        elif axis==-1:
+            d = d[...,lengths[i]]
+        else:
+            raise NotImplementedError("Error")
+        real_datas.append(d)
+
+    return tf.concat(real_datas,axis=axis)
+
+def batch_concat_with_length(datas,lengths,axis=1):
+    if axis != 1:
+        raise NotImplementedError("Error")
+    masks = []
+    for i,t_len in enumerate(lengths):
+        maxlen = combined_static_and_dynamic_shape(datas[i])[1]
+        masks.append(tf.sequence_mask(t_len, maxlen=maxlen))
+    masks = tf.concat(masks,axis=1)
+    datas = tf.concat(datas,axis=axis)
+    max_len = combined_static_and_dynamic_shape(masks)[1]
+    def fn(data,mask):
+        data = tf.boolean_mask(data,mask)
+        cur_len = combined_static_and_dynamic_shape(data)[0]
+        paddings = [[0,max_len-cur_len]]
+        if len(data.get_shape())>1:
+            paddings += [[0,0]]*(len(data.get_shape())-1)
+        data = tf.pad(data,paddings=paddings)
+        length = tf.reduce_sum(tf.cast(mask,tf.int32))
+        return data,length
+
+    datas,lengths = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(datas,masks),dtype=(datas[0].dtype,tf.int32))
+
+    return datas,lengths
+
+
+
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
 

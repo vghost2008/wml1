@@ -342,3 +342,14 @@ def channel(x,format="NHWC"):
         return x.get_shape().as_list()[1]
     else:
         raise NotImplementedError("Error")
+
+def expand_dim_to(input,axis,repeat=1,name=None):
+    with tf.name_scope(name,default_name=f"expand_dim_to{repeat}"):
+        input = tf.expand_dims(input,axis=axis)
+        assert repeat>0,f"Error repeat {repeat}"
+        if repeat != 1:
+            multiples = [1]*len(input.get_shape())
+            multiples[axis] = repeat
+            return tf.tile(input,multiples=multiples)
+        else:
+            return input
