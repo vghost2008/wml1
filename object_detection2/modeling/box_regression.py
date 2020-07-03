@@ -5,6 +5,7 @@ import wtfop.wtfop_ops as wop
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
 import object_detection2.bboxes as odb
+from basic_tftools import batch_size
 
 _DEFAULT_SCALE_CLAMP = math.log(1000.0 / 16)
 class AbstractBox2BoxTransform(object):

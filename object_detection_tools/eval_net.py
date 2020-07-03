@@ -21,7 +21,7 @@ def setup(args):
     if args.gpus is not None:
         gpus = args.gpus
     else:
-        gpus = [0]
+        gpus = []
         
     gpus_str = ""
     for g in gpus:

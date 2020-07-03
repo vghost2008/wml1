@@ -164,6 +164,7 @@ class CenterNetOutputs(wmodule.WChildModule):
         '''
         with tf.name_scope("pull_loss"):
             num = tf.reduce_sum(tf.cast(mask,tf.float32))+1e-4
+            #num = tf.Print(num,["X",num,tf.shape(tag0),tf.shape(tag1),tf.shape(index),tf.shape(mask)],summarize=100)
             tag0 = wmlt.batch_gather(tag0,index[:,:,0])
             tag1 = wmlt.batch_gather(tag1,index[:,:,1])
             tag_mean = (tag0+tag1)/2
@@ -171,6 +172,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             tag0 = tf.reduce_sum(tf.boolean_mask(tag0,mask))
             tag1 = tf.pow(tag1-tag_mean,2)/num
             tag1 = tf.reduce_sum(tf.boolean_mask(tag1,mask))
+            #tag0 = tf.Print(tag0,["tag01",tag0,tag1],summarize=100)
             pull = tag0+tag1
 
         with tf.name_scope("push_loss"):
@@ -180,7 +182,12 @@ class CenterNetOutputs(wmodule.WChildModule):
             num = tf.reduce_sum(tf.cast(push_mask,tf.float32))+1e-4
             tag0 = wmlt.batch_gather(tag_mean,neg_index[:,:,0])
             tag1 = wmlt.batch_gather(tag_mean,neg_index[:,:,1])
+            #tag0 = tf.Print(tag0,["X2",num,tf.shape(tag0),tf.shape(tag1),tf.shape(neg_index),tf.shape(push_mask)],summarize=100)
+            tag0 = tf.boolean_mask(tag0,push_mask[...,0])
+            tag1 = tf.boolean_mask(tag1,push_mask[...,1])
+            #num = tf.Print(num,["X3",num,tf.shape(tag0),tf.shape(tag1),tf.shape(neg_index),tf.shape(push_mask)],summarize=100)
             push = tf.reduce_sum(tf.nn.relu(1-tf.abs(tag0-tag1)))/num
+            #push = tf.Print(push,["push",push],summarize=100)
 
         return pull+push
 
@@ -197,7 +204,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             RD_PROBABILITY:[ B,N]
             RD_LENGTH:[B]
         """
-
+        self.inputs = inputs
         all_bboxes = []
         all_scores = []
         all_clses = []
@@ -242,9 +249,9 @@ class CenterNetOutputs(wmodule.WChildModule):
         return outdata
 
     @staticmethod
-    def pixel_nms(heat,kernel=[3,3],threshold=0.3):
+    def pixel_nms(heat,kernel=[3,3]):
         hmax=tf.nn.max_pool(heat,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
-        mask=tf.cast(tf.logical_and(tf.equal(hmax,heat),tf.greater(hmax,threshold)),tf.float32)
+        mask=tf.cast(tf.equal(hmax,heat),tf.float32)
         return mask*heat
 
     @staticmethod
@@ -272,9 +279,9 @@ class CenterNetOutputs(wmodule.WChildModule):
 
         B,H,W,C = wmlt.combined_static_and_dynamic_shape(h_tl)
 
-        h_tl = self.pixel_nms(h_tl, threshold=self.nms_threshold)
-        h_br = self.pixel_nms(h_br, threshold=self.nms_threshold)
-        h_ct = self.pixel_nms(h_ct, threshold=self.nms_threshold)
+        h_tl = self.pixel_nms(h_tl)
+        h_br = self.pixel_nms(h_br)
+        h_ct = self.pixel_nms(h_ct)
         tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = self._topk(h_tl, K=self.k)
         br_scores, br_inds, br_clses, br_ys, br_xs = self._topk(h_br, K=self.k)
         ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, K=self.k)
@@ -285,6 +292,7 @@ class CenterNetOutputs(wmodule.WChildModule):
         br_xs = tf.tile(tf.reshape(br_xs,[B,1,K]),[1,K,1])
         ct_ys = tf.reshape(ct_ys,[B,K])
         ct_xs = tf.reshape(ct_xs,[B,K])
+        ct_scores = tf.reshape(ct_scores,[B,K])
         if 'offset_tl' in datas:
             tl_regr = wmlt.batch_gather(datas['offset_tl'],tl_inds)
             br_regr = wmlt.batch_gather(datas['offset_br'],br_inds)
@@ -300,6 +308,10 @@ class CenterNetOutputs(wmodule.WChildModule):
             ct_ys = ct_ys + ct_regr[...,1]
 
         bboxes = tf.stack([tl_ys,tl_xs,br_ys,br_xs],axis=-1)
+        #bboxes = tf.Print(bboxes,["box0",tf.reduce_max(bboxes),tf.reduce_min(bboxes),W,H],summarize=100)
+        #wsummary.detection_image_summary(self.inputs[IMAGE],
+                                         #boxes=odbox.tfabsolutely_boxes_to_relative_boxes(tf.reshape(bboxes,[B,-1,4]),width=W,height=H),
+                                         #name="box0")
         tl_tag = wmlt.batch_gather(datas['tag_tl'],tl_inds)
         br_tag = wmlt.batch_gather(datas['tag_br'],br_inds)
         tl_tag = tf.expand_dims(tl_tag,axis=2)
@@ -333,6 +345,10 @@ class CenterNetOutputs(wmodule.WChildModule):
 
         bboxes = tf.reshape(bboxes,[B,-1,4])
         bboxes = wmlt.batch_gather(bboxes,inds)
+        #bboxes = tf.Print(bboxes,["box1",tf.reduce_max(bboxes),tf.reduce_min(bboxes),W,H],summarize=100)
+        #wsummary.detection_image_summary(self.inputs[IMAGE],
+        #                                 boxes=odbox.tfabsolutely_boxes_to_relative_boxes(tf.reshape(bboxes,[B,-1,4]),width=W,height=H),
+        #                                 name="box1")
 
         clses = tf.reshape(tl_clses,[B,-1])
         clses = wmlt.batch_gather(clses,inds)
@@ -343,18 +359,24 @@ class CenterNetOutputs(wmodule.WChildModule):
         br_scores = tf.reshape(br_scores,[B,-1,1])
         br_scores = wmlt.batch_gather(br_scores,inds)'''
 
-        ct = tf.stack([ct_ys, ct_xs], axis=-1)
+        ct = tf.stack([ct_ys/tf.to_float(H), ct_xs/tf.to_float(W)], axis=-1)
         bboxes = odbox.tfabsolutely_boxes_to_relative_boxes(bboxes,width=W,height=H)
         sizes = tf.convert_to_tensor(self.size_threshold,dtype=tf.float32)
         relative_size = sizes*tf.rsqrt(tf.cast(img_size[0]*img_size[1],tf.float32))
         _,box_nr,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
         length = tf.ones([B],tf.int32)*box_nr
-        center_mask = wop.center_boxes_filter(bboxes=bboxes,center_points=ct,
-                                        size_threshold=relative_size,
-                                        bboxes_length=length,
-                                        nrs=[3,5])
-        def fn(bboxes,scores,clses,mask):
-            mask = tf.logical_and(mask,tf.greater(scores,self.score_threshold))
+        #bboxes = tf.Print(bboxes,["bboxes",tf.reduce_min(bboxes),tf.reduce_max(bboxes),tf.reduce_min(ct),tf.reduce_max(ct)],summarize=100)
+        center_index = wop.center_boxes_filter(bboxes=bboxes,
+                                              bboxes_clses=clses,
+                                              center_points=ct,
+                                              center_clses=ct_clses,
+                                              size_threshold=relative_size,
+                                              bboxes_length=length,
+                                              nrs=[3,5])
+        def fn(bboxes,scores,clses,ct_score,c_index):
+            ct_score = tf.gather(ct_score,tf.nn.relu(c_index))
+            scores = (scores*2+ct_score)/3 #变成三个点的平均
+            mask = tf.logical_and(tf.greater_equal(c_index,0),tf.greater(scores,self.score_threshold))
             bboxes = tf.boolean_mask(bboxes,mask)
             scores = tf.boolean_mask(scores,mask)
             clses = tf.boolean_mask(clses,mask)
@@ -364,7 +386,11 @@ class CenterNetOutputs(wmodule.WChildModule):
             clses = tf.pad(clses,[[0,box_nr-len]])
             return bboxes,scores,clses,len
 
-        bboxes,scores,clses,length  = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3]),
-                                                elems=(bboxes,scores,clses,center_mask),
+        bboxes,scores,clses,length  = tf.map_fn(lambda x:fn(x[0],x[1],x[2],x[3],x[4]),
+                                                elems=(bboxes,scores,clses,ct_scores,center_index),
                                                 dtype=(tf.float32,tf.float32,tf.int32,tf.int32))
+        #bboxes = tf.Print(bboxes,["box2",tf.reduce_max(bboxes),tf.reduce_min(bboxes),W,H],summarize=100)
+        #wsummary.detection_image_summary(self.inputs[IMAGE],
+        #                                 boxes=tf.reshape(bboxes,[B,-1,4]),lengths=length,
+        #                                 name="box2")
         return bboxes,scores,clses,length

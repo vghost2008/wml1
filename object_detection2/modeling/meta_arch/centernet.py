@@ -14,6 +14,8 @@ from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 import object_detection2.od_toolkit as odtk
+import wnnlayer as wnnl
+from functools import partial
 
 slim = tf.contrib.slim
 
@@ -123,6 +125,14 @@ class CenterNetHead(wmodule.WChildModule):
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
+        '''self.left_pool = wop.left_pool
+        self.right_pool = wop.right_pool
+        self.bottom_pool = wop.bottom_pool
+        self.top_pool = wop.top_pool'''
+        self.left_pool = partial(wnnl.cnn_self_hattenation,scope="left_pool")
+        self.right_pool = partial(wnnl.cnn_self_hattenation,scope="right_pool")
+        self.bottom_pool = partial(wnnl.cnn_self_vattenation,scope="bottom_pool")
+        self.top_pool = partial(wnnl.cnn_self_vattenation,scope="top_pool")
 
     def forward(self, features,reuse=None):
         """
@@ -301,10 +311,10 @@ class CenterNetHead(wmodule.WChildModule):
                 return conv2
 
     def tl_pool(self,x,scope="tl_pool"):
-        return self.pool(x,wop.top_pool,wop.left_pool,scope=scope)
+        return self.pool(x,self.top_pool,self.left_pool,scope=scope)
 
     def br_pool(self,x,scope="br_pool"):
-        return self.pool(x,wop.bottom_pool,wop.right_pool,scope=scope)
+        return self.pool(x,self.bottom_pool,self.right_pool,scope=scope)
 
     def center_pool(self,x,scope="center_pool"):
-        return self.pool_cross(x,wop.top_pool,wop.left_pool,wop.bottom_pool,wop.right_pool,scope=scope)
+        return self.pool_cross(x,self.top_pool,self.left_pool,self.bottom_pool,self.right_pool,scope=scope)

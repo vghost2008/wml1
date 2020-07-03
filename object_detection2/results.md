@@ -657,3 +657,14 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.799
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.891
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.954
 ```
+
+##Base-CenterNet.yaml
+
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|base line|0.412|0.694|0.442|0.299|0.510|0.471|0.293|0.605|0.606|0.398|0.678|0.864|
+|base line预测时改为两层输出|0.455|0.758|0.494|0.321|0.552|0.603|0.314|0.606|0.606|0.398|0.678|0.864|
+|base line预测时改为一层输出|0.482|0.789|0.531|0.338|0.576|0.659|0.327|0.603|0.603|0.393|0.676|0.864|
+
+
+

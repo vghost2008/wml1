@@ -11,33 +11,14 @@ def default_argument_parser():
     Returns:
         argparse.ArgumentParser:
     """
-    CONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/"
-    COCOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/coco/"
-    MODCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistod/"
     parser = argparse.ArgumentParser(description="ObjectDetection2 Training")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RPN-FPN_r.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-C4.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-FPN.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-RCNN-FPN_r.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-C4.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-C4_3x.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-GIOU-C4.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-GIOU-C4-2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-RETINARPN-GIOU-C4.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-Mask-RCNN-FPN-RETINARPN-C4.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/cascade_mask_FPN_1x.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/cascade_mask_FPN_3x.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-SSD.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/Base-YOLACT.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=CONFIG_DIR+"Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"EfficientDet-DR.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=COCOCONFIG_DIR+"Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default=MODCONFIG_DIR+"RetinaNet.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="EfficientDet-DR.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
     parser.add_argument("--config-file", default="Base-CenterNet.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",

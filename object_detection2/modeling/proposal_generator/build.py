@@ -1,7 +1,9 @@
 #coding=utf-8
 from thirdparty.registry import Registry
 PROPOSAL_GENERATOR_REGISTRY = Registry("PROPOSAL_GENERATOR")
-
+'''
+Proposal的输入为backborn的输出，输出为outdata（key:PD_BOXES [B,N,4], key:PD_PROBABILITY可选[B,N]), loss
+'''
 def build_proposal_generator(cfg, *args,**kwargs):
     """
     Build a proposal generator from `cfg.MODEL.PROPOSAL_GENERATOR.NAME`.

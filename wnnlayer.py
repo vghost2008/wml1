@@ -899,44 +899,47 @@ def augmented_conv2d(net,Fout,dv,kernel=[3,3],n_head=1,keep_prob=None,is_trainin
         out = tf.concat([conv_out,out],axis=3)
         return out
 
-def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
-    old_channel = net.get_shape().as_list()[-1]
-    if channel is not None:
-        net = slim.conv2d(net,channel,[1,1],scope="projection_0")
-    shape = wmlt.combined_static_and_dynamic_shape(net)
-    new_shape = [shape[0],shape[1]*shape[2],shape[3]]
-    net = tf.reshape(net,new_shape)
-    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
-    if channel is not None:
-        out_shape = [shape[0],shape[1],shape[2],channel]
-        net = tf.reshape(net,out_shape)
-        net = slim.conv2d(net,old_channel,[1,1],scope="projection_1")
-    else:
-        out_shape = [shape[0],shape[1],shape[2],old_channel]
-        net = tf.reshape(net,out_shape)
-    return net
+def cnn_self_attenation(net,channel=None,n_head=1,keep_prob=None,is_training=False,scope=None):
+    with tf.variable_scope(scope,"attenation"):
+        old_channel = net.get_shape().as_list()[-1]
+        if channel is not None:
+            net = slim.conv2d(net,channel,[1,1],scope="projection_0")
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
+        if channel is not None:
+            out_shape = [shape[0],shape[1],shape[2],channel]
+            net = tf.reshape(net,out_shape)
+            net = slim.conv2d(net,old_channel,[1,1],scope="projection_1")
+        else:
+            out_shape = [shape[0],shape[1],shape[2],old_channel]
+            net = tf.reshape(net,out_shape)
+        return net
 
-def cnn_self_hattenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
-    old_channel = net.get_shape().as_list()[-1]
-    if channel is not None:
-        net = slim.conv2d(net,channel,[1,1],scope="projection_0")
-    shape = wmlt.combined_static_and_dynamic_shape(net)
-    new_shape = [shape[0]*shape[1],shape[2],shape[3]]
-    net = tf.reshape(net,new_shape)
-    net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
-    if channel is not None:
-        out_shape = [-1,shape[1],shape[2],channel]
-        net = tf.reshape(net,out_shape)
-        net = slim.conv2d(net,old_channel,[1,1],scope="projection_1")
-    else:
-        out_shape = [-1,shape[1],shape[2],old_channel]
-        net = tf.reshape(net,out_shape)
-    return net
+def cnn_self_hattenation(net,channel=None,n_head=1,keep_prob=None,is_training=False,scope=None):
+    with tf.variable_scope(scope,"hattenation"):
+        old_channel = net.get_shape().as_list()[-1]
+        if channel is not None:
+            net = slim.conv2d(net,channel,[1,1],scope="projection_0")
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0]*shape[1],shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        net = nlpl.self_attenation(net,n_head=n_head,keep_prob=keep_prob,is_training=is_training,use_mask=False)
+        if channel is not None:
+            out_shape = [-1,shape[1],shape[2],channel]
+            net = tf.reshape(net,out_shape)
+            net = slim.conv2d(net,old_channel,[1,1],scope="projection_1")
+        else:
+            out_shape = [-1,shape[1],shape[2],old_channel]
+            net = tf.reshape(net,out_shape)
+        return net
 
-def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=False):
-    net = tf.transpose(net,perm=[0,2,1,3],name="transpose_0")
-    output = cnn_self_hattenation(net,channel,n_head,keep_prob,is_training=is_training)
-    return tf.transpose(output,perm=[0,2,1,3],name="transpose_1")
+def cnn_self_vattenation(net,channel=None,n_head=1,keep_prob=None,is_training=False,scope=None):
+    with tf.variable_scope(scope,"hattenation"):
+        net = tf.transpose(net,perm=[0,2,1,3],name="transpose_0")
+        output = cnn_self_hattenation(net,channel,n_head,keep_prob,is_training=is_training)
+        return tf.transpose(output,perm=[0,2,1,3],name="transpose_1")
 
 '''
 GCNet: Non-local Networks Meet Squeeze-Excitation Networks and Beyond

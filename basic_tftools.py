@@ -343,6 +343,9 @@ def channel(x,format="NHWC"):
     else:
         raise NotImplementedError("Error")
 
+def batch_size(x):
+    return combined_static_and_dynamic_shape(x)[0]
+
 def expand_dim_to(input,axis,repeat=1,name=None):
     with tf.name_scope(name,default_name=f"expand_dim_to{repeat}"):
         input = tf.expand_dims(input,axis=axis)
