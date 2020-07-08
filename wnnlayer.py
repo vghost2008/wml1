@@ -124,7 +124,7 @@ def conv2d_batch_normal(input,decay=0.99,is_training=True,scale=False):
     return output
 
 @add_arg_scope
-def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
+def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm",dtype=None):
     assert scale==True or offset==True
     C = x.get_shape().as_list()[-1]
     assert C%G==0,f"Unmatch channel {C} and group {G} size"
@@ -133,25 +133,25 @@ def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=
                              scale=scale,
                              offset=offset,
                              sub_mean=sub_mean,
-                             scope=scope)
+                             scope=scope,dtype=dtype)
     elif x.get_shape().ndims == 2:
         return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,
                              scale=scale,
                              offset=offset,
                              sub_mean=sub_mean,
-                             scope=scope)
+                             scope=scope,dtype=dtype)
     else:
         raise NotImplementedError
 
 @add_arg_scope
-def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
+def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm",dtype=None):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
     with tf.variable_scope(scope):
         N,H,W,C = btf.combined_static_and_dynamic_shape(x)
-        gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
+        gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer(),dtype=dtype)
         if offset:
-            beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
+            beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer(),dtype=dtype)
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N, H, W, G, C // G,])
@@ -177,7 +177,7 @@ def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
         if offset_value is not None:
             x = x * gain + offset_value
         else:
-            x =  offset_value
+            x = offset_value
         x = wmlt.reshape(x, [N,H,W,C])
         return x
 
@@ -254,12 +254,12 @@ def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
         return x
 
 @add_arg_scope
-def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
+def group_norm_2d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm",dtype=None):
     with tf.variable_scope(scope):
         N,C = x.get_shape().as_list()
-        gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer())
+        gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer(),dtype=dtype)
         if offset:
-            beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer())
+            beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer(),dtype=dtype)
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
         x = wmlt.reshape(x, [N,G, C // G,])
@@ -487,19 +487,19 @@ def mish(x):
         return x*tf.tanh(tf.nn.softplus(x))
 
 @add_arg_scope
-def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True,scope=None):
+def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True,scope=None,dtype=None):
     with tf.variable_scope(scope,"spectral_norm"):
        w_shape = w.shape.as_list()
        if debug:
            w = tf.reshape(w, [-1, w_shape[-1]])
            s0,_,_ = tf.linalg.svd(w)
 
-       s_w = tf.get_variable("sn_weight",w_shape,initializer=tf.zeros_initializer,trainable=False)
+       s_w = tf.get_variable("sn_weight",w_shape,initializer=tf.zeros_initializer,trainable=False,dtype=dtype)
        if is_training:
-           s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False)
+           s_sigma = tf.get_variable("sigma",(),initializer=tf.ones_initializer(),trainable=False,dtype=dtype)
            w_shape = w.shape.as_list()
            w = tf.reshape(w, [-1, w_shape[-1]])
-           u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+           u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False,dtype=dtype)
            u_hat = u
            v_hat = None
            for i in range(iteration):
@@ -558,7 +558,7 @@ def conv2d_with_sn(inputs,
                    outputs_collections=None,
                    rate=1,
                    reuse=None,
-                   scope=None,sn_iteration=1):
+                   scope=None,sn_iteration=1,dtype=None):
     del rate
     with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
         if isinstance(kernel_size,list):
@@ -566,14 +566,14 @@ def conv2d_with_sn(inputs,
         else:
             shape = [kernel_size,kernel_size,inputs.get_shape().as_list()[-1],num_outputs]
         w = tf.get_variable("kernel", shape=shape,
-                            initializer=weights_initializer)
-        b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+                            initializer=weights_initializer,dtype=dtype)
+        b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer,dtype=dtype)
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
         if biases_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
-        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration), strides=[1, stride, stride, 1],padding=padding) + b
+        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration,dtype=dtype), strides=[1, stride, stride, 1],padding=padding) + b
         if normalizer_fn is not None:
             if normalizer_params is None:
                 normalizer_params = {}
@@ -683,25 +683,27 @@ def fully_connected_with_sn(inputs,
                     variables_collections=None,
                     outputs_collections=None,
                     trainable=True,
-                    scope=None,sn_iteration=1):
+                    scope=None,sn_iteration=1,dtype=None):
   with tf.variable_scope(scope,
       'fully_connected', [inputs], reuse=reuse) as sc:
       shape = inputs.get_shape().as_list()
       channels = shape[-1]
-      w = tf.get_variable("weights", [channels, num_outputs], tf.float32, initializer=weights_initializer,
+      w = tf.get_variable("weights", [channels, num_outputs],
+                          initializer=weights_initializer,
                           regularizer=weights_regularizer,trainable=trainable,
-                          collections=variables_collections)
+                          collections=variables_collections,dtype=dtype)
       if weights_regularizer is not None:
           tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
       if biases_initializer is not None:
-          b = tf.get_variable("biases", [num_outputs], tf.float32, initializer=biases_initializer,
-                          regularizer=biases_regularizer,trainable=trainable,
-                              collections=variables_collections)
+          b = tf.get_variable("biases", [num_outputs],
+                              initializer=biases_initializer,
+                              regularizer=biases_regularizer,trainable=trainable,
+                              collections=variables_collections,dtype=dtype)
           if biases_regularizer is not None:
               tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
-          outputs = tf.matmul(inputs,spectral_norm(w,iteration=sn_iteration))+b
+          outputs = tf.matmul(inputs,spectral_norm(w,iteration=sn_iteration,dtype=dtype))+b
       else:
-          outputs = tf.matmul(inputs,spectral_norm(w,iteration=sn_iteration))
+          outputs = tf.matmul(inputs,spectral_norm(w,iteration=sn_iteration,dtype=dtype))
       # Apply normalizer function / layer.
       if normalizer_fn is not None:
           if not normalizer_params:
@@ -1053,12 +1055,14 @@ def orthogonal_regularizerv2(scale=1e-4) :
         with tf.name_scope("orthogonal_regularizerv2"):
             """ Reshaping the matrxi in to 2D tensor for enforcing orthogonality"""
             w = tf.convert_to_tensor(w)
+            if w.dtype == tf.float16:
+                w = tf.cast(w,tf.float32)
             c = w.get_shape().as_list()[-1]
 
             w = tf.reshape(w, [-1, c])
 
             """ Declaring a Identity Tensor of appropriate size"""
-            identity = tf.eye(c)
+            identity = tf.eye(c,dtype=tf.float32)
 
             """ Regularizer Wt*W(1 - I) """
             w_mul = tf.matmul(w, w,transpose_a=True)

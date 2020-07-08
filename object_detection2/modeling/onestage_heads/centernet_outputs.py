@@ -102,11 +102,11 @@ class CenterNetOutputs(wmodule.WChildModule):
             encoded_datas = all_encoded_datas[i]
             head_outputs = self.head_outputs[i]
             loss0 = tf.reduce_mean(self.focal_loss(labels=encoded_datas["g_heatmaps_tl"],
-                                                   logits=head_outputs["heatmaps_tl"]))
+                                                   logits=head_outputs["heatmaps_tl"],scope="tl_loss"))
             loss1 = tf.reduce_mean(self.focal_loss(labels=encoded_datas["g_heatmaps_br"],
-                                                   logits=head_outputs["heatmaps_br"]))
+                                                   logits=head_outputs["heatmaps_br"],scope="br_loss"))
             loss2 = tf.reduce_mean(self.focal_loss(labels=encoded_datas["g_heatmaps_ct"],
-                                                   logits=head_outputs["heatmaps_ct"]))
+                                                   logits=head_outputs["heatmaps_ct"],scope="ct_loss"))
             offset0 = wmlt.batch_gather(head_outputs['offset_tl'],encoded_datas['g_index'][:,:,0])
             offset1 = wmlt.batch_gather(head_outputs['offset_br'],encoded_datas['g_index'][:,:,1])
             offset2 = wmlt.batch_gather(head_outputs['offset_ct'],encoded_datas['g_index'][:,:,2])
@@ -129,6 +129,7 @@ class CenterNetOutputs(wmodule.WChildModule):
         loss2 = tf.add_n(all_loss2)
         offset_loss = tf.add_n(all_offset_loss)
         embeading_loss= tf.add_n(all_embeading_loss)
+        #loss0 = tf.Print(loss0,["loss",loss0,loss1,loss2,offset_loss,embeading_loss],summarize=100)
 
         return {"heatmaps_tl_loss": loss0,
                 "heatmaps_br_loss": loss1,
@@ -137,19 +138,34 @@ class CenterNetOutputs(wmodule.WChildModule):
                 'embeading_loss':embeading_loss}
 
     @staticmethod
-    def focal_loss(labels,logits):
-        zeros = tf.zeros_like(labels)
-        ones = tf.ones_like(labels)
-        num_pos = tf.reduce_sum(tf.where(tf.equal(labels, 1), ones, zeros))
-        loss = 0
-        # loss=tf.reduce_mean(tf.log(logits))
-        logits = tf.nn.sigmoid(logits)
-        pos_weight = tf.where(tf.equal(labels, 1), ones - logits, zeros)
-        neg_weight = tf.where(tf.less(labels, 1), logits, zeros)
-        pos_loss = tf.reduce_sum(tf.log(logits) * tf.pow(pos_weight, 2))
-        neg_loss = tf.reduce_sum(tf.pow((1 - labels), 4) * tf.pow(neg_weight, 2) * tf.log((1 - logits)))
-        loss = loss - (pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
-        return loss
+    def focal_loss(labels,logits,scope=None):
+        with tf.name_scope(scope,"focal_loss"):
+            zeros = tf.zeros_like(labels)
+            ones = tf.ones_like(labels)
+            num_pos = tf.reduce_sum(tf.where(tf.equal(labels, 1), ones, zeros))
+            loss = 0
+            # loss=tf.reduce_mean(tf.log(logits))
+            probs = tf.nn.sigmoid(logits)
+            pos_weight = tf.where(tf.greater_equal(labels, 0.5), ones - probs, zeros)
+            neg_weight = tf.where(tf.less(labels, 0.5), probs, zeros)
+            '''
+            用于保证数值稳定性，log(sigmoid(x)) = log(1/(1+e^-x) = -log(1+e^-x) = x-x-log(1+e^-x) = x-log(e^x +1)
+            pos_loss = tf.where(tf.less(logits,0),logits-tf.log(tf.exp(logits)+1),tf.log(probs))
+            '''
+            pure_pos_loss = tf.minimum(logits,0)-tf.log(1+tf.exp(-tf.abs(logits)))
+            pos_loss = pure_pos_loss*tf.pow(pos_weight, 2)
+            pos_loss = tf.reduce_sum(pos_loss)
+            '''
+            用于保证数值稳定性
+            '''
+            pure_neg_loss = -tf.nn.relu(logits)-tf.log(1+tf.exp(-tf.abs(logits)))
+            neg_loss = tf.pow((1 - labels), 4) * tf.pow(neg_weight, 2) * pure_neg_loss
+            neg_loss = tf.reduce_sum(neg_loss)
+            loss = loss - (pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
+            tf.summary.scalar("neg_loss",neg_loss)
+            tf.summary.scalar("pos_loss",pos_loss)
+            #loss = tf.Print(loss,["mloss",probs,pos_weight,neg_weight,pos_loss,neg_loss,num_pos],summarize=100)
+            return loss
 
     @staticmethod
     @wmlt.add_name_scope
@@ -210,8 +226,10 @@ class CenterNetOutputs(wmodule.WChildModule):
         all_clses = []
         all_length = []
         img_size = tf.shape(inputs[IMAGE])[1:3]
-        for datas in head_outputs:
-            bboxes, scores, clses, length = self.get_box_in_a_single_layer(datas,self.topk_candidates,img_size)
+        for i,datas in enumerate(head_outputs):
+            num_dets = max(self.topk_candidates//(4**i),4)
+            K = max(self.k//(4**i),4)
+            bboxes, scores, clses, length = self.get_box_in_a_single_layer(datas,num_dets,img_size,K)
             all_bboxes.append(bboxes)
             all_scores.append(scores)
             all_clses.append(clses)
@@ -268,7 +286,7 @@ class CenterNetOutputs(wmodule.WChildModule):
 
 
     @wmlt.add_name_scope
-    def get_box_in_a_single_layer(self,datas,num_dets,img_size):
+    def get_box_in_a_single_layer(self,datas,num_dets,img_size,K):
         '''
         '''
         #wsummary.variable_summaries_v2(datas['heatmaps_tl'],"hm_tl")
@@ -282,10 +300,9 @@ class CenterNetOutputs(wmodule.WChildModule):
         h_tl = self.pixel_nms(h_tl)
         h_br = self.pixel_nms(h_br)
         h_ct = self.pixel_nms(h_ct)
-        tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = self._topk(h_tl, K=self.k)
-        br_scores, br_inds, br_clses, br_ys, br_xs = self._topk(h_br, K=self.k)
-        ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, K=self.k)
-        K = self.k
+        tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = self._topk(h_tl, K=K)
+        br_scores, br_inds, br_clses, br_ys, br_xs = self._topk(h_br, K=K)
+        ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, K=K)
         tl_ys = tf.tile(tf.reshape(tl_ys,[B,K,1]),[1,1,K])
         tl_xs = tf.tile(tf.reshape(tl_xs,[B,K,1]),[1,1,K])
         br_ys = tf.tile(tf.reshape(br_ys,[B,1,K]),[1,K,1])
@@ -377,6 +394,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             ct_score = tf.gather(ct_score,tf.nn.relu(c_index))
             scores = (scores*2+ct_score)/3 #变成三个点的平均
             mask = tf.logical_and(tf.greater_equal(c_index,0),tf.greater(scores,self.score_threshold))
+            mask = tf.logical_and(tf.greater_equal(ct_score,0.001),mask)
             bboxes = tf.boolean_mask(bboxes,mask)
             scores = tf.boolean_mask(scores,mask)
             clses = tf.boolean_mask(clses,mask)
