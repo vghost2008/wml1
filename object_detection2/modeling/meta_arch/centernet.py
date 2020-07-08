@@ -21,6 +21,26 @@ slim = tf.contrib.slim
 
 __all__ = ["CenterNet"]
 
+def left_pool(x,kernel=11):
+    x = tf.pad(x,paddings=[[0,0],[0,0],[0,kernel-1],[0,0]])
+    x = slim.max_pool2d(x,[1,kernel],stride=1,padding="VALID")
+    return x
+
+def right_pool(x,kernel=11):
+    x = tf.pad(x,paddings=[[0,0],[0,0],[kernel-1,0],[0,0]])
+    x = slim.max_pool2d(x,[1,kernel],stride=1,padding="VALID")
+    return x
+
+def top_pool(x,kernel=11):
+    x = tf.pad(x,paddings=[[0,0],[kernel-1,0],[0,0],[0,0]])
+    x = slim.max_pool2d(x,[kernel,1],stride=1,padding="VALID")
+    return x
+
+def bottom_pool(x,kernel=11):
+    x = tf.pad(x,paddings=[[0,0],[0,kernel-1],[0,0],[0,0]])
+    x = slim.max_pool2d(x,[kernel,1],stride=1,padding="VALID")
+    return x
+
 @META_ARCH_REGISTRY.register()
 class CenterNet(MetaArch):
     """
@@ -125,14 +145,19 @@ class CenterNetHead(wmodule.WChildModule):
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
+
         '''self.left_pool = wop.left_pool
         self.right_pool = wop.right_pool
         self.bottom_pool = wop.bottom_pool
         self.top_pool = wop.top_pool'''
-        self.left_pool = partial(wnnl.cnn_self_hattenation,scope="left_pool")
+        '''self.left_pool = partial(wnnl.cnn_self_hattenation,scope="left_pool")
         self.right_pool = partial(wnnl.cnn_self_hattenation,scope="right_pool")
         self.bottom_pool = partial(wnnl.cnn_self_vattenation,scope="bottom_pool")
-        self.top_pool = partial(wnnl.cnn_self_vattenation,scope="top_pool")
+        self.top_pool = partial(wnnl.cnn_self_vattenation,scope="top_pool")'''
+        self.left_pool = left_pool
+        self.right_pool = right_pool
+        self.bottom_pool = bottom_pool
+        self.top_pool = top_pool
 
     def forward(self, features,reuse=None):
         """

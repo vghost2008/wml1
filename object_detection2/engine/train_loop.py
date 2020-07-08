@@ -486,12 +486,23 @@ class SimpleTrainer(TrainerBase):
         print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
-    def resume_or_load(self,ckpt_path=None,sess=None,**kwargs):
+    def resume_or_load(self,ckpt_path=None,sess=None,option="auto",**kwargs):
         if ckpt_path is None:
             ckpt_path = self.ckpt_dir
-        if self.model.is_training and self.cfg.MODEL.WEIGHTS != "":
-            print(f"Use {self.cfg.MODEL.WEIGHTS} instead of {ckpt_path}.")
-            ckpt_path = self.cfg.MODEL.WEIGHTS
+        if option == "auto":
+            if self.model.is_training and self.cfg.MODEL.WEIGHTS != "":
+                print(f"Use {self.cfg.MODEL.WEIGHTS} instead of {ckpt_path}.")
+                ckpt_path = self.cfg.MODEL.WEIGHTS
+        elif option == "finetune":
+            if self.model.is_training:
+                print(f"Use {self.cfg.MODEL.WEIGHTS} instead of {ckpt_path}.")
+                ckpt_path = self.cfg.MODEL.WEIGHTS
+        elif option == "ckpt":
+            pass
+        elif option == "none":
+            return
+        else:
+            raise NotImplementedError("Error")
         if sess is None:
             sess = self.sess
         wnn.restore_variables(sess,ckpt_path,**kwargs)

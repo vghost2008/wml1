@@ -206,7 +206,7 @@ def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=Fa
             nms_indexs = tf.pad(nms_indexs,[[0,k-r_len]])
             return [boxes,labels,nms_indexs,r_len]
         boxes,labels,nms_indexs,lens = wmlt.static_or_dynamic_map_fn(lambda x:do_nms(x[0],x[1],x[2],x[3]),elems=[bboxes,classes,confidence,lens],
-                                                                     dtype=(tf.float32,tf.int32,tf.int32,tf.int32))
+                                                                     dtype=[tf.float32,tf.int32,tf.int32,tf.int32])
         return boxes,labels,nms_indexs,lens
 
 '''

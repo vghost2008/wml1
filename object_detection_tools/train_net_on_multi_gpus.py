@@ -82,20 +82,29 @@ def main(_):
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)
-    if len(cfg.MODEL.WEIGHTS) > 3:
-        kwargs = {}
-        if cfg.MODEL.ONLY_SCOPE != "":
-            kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
+    kwargs = {}
+    if args.restore == "auto":
+        if len(cfg.MODEL.WEIGHTS) > 3:
+            if cfg.MODEL.ONLY_SCOPE != "":
+                kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
 
-        def func(v):
-            name = v.name[:-2]
-            if "BatchNorm" in name:
-                name = name.replace("BatchNorm","tpu_batch_normalization")
-            return name
-        #kwargs['value_key'] = func
+            def func(v):
+                name = v.name[:-2]
+                if "BatchNorm" in name:
+                    name = name.replace("BatchNorm","tpu_batch_normalization")
+                return name
+            #kwargs['value_key'] = func
+        else:
+            kwargs = {'extend_vars': trainer.global_step}
+    elif args.restore == "ckpt":
+        pass
+    elif args.restore == "finetune":
+        pass
+    elif args.restore == "none":
+        pass
     else:
-        kwargs = {'extend_vars': trainer.global_step}
-    trainer.resume_or_load(**kwargs)
+        raise NotImplementedError("Error")
+    trainer.resume_or_load(**kwargs,option=args.restore)
     return trainer.train()
 
 if __name__ == "__main__":
