@@ -653,7 +653,9 @@ class SampleDistortedBoundingBox(WTransform):
 
         if GT_MASKS in data_item:
             def func(mask):
+                mask = tf.transpose(mask,perm=[2,0,1])
                 mask = tf.boolean_mask(mask,bboxes_mask)
+                mask = tf.transpose(mask,perm=[1,2,0])
                 mask = tf.slice(mask,bbox_begin,bbox_size)
                 return mask
             data_item = self.apply_to_masks(func,data_item)
@@ -677,6 +679,7 @@ class RandomSampleDistortedBoundingBox(WTransform):
         self.probability = probability
 
     def __call__(self, data_item):
+        #return data_item
         labels = data_item[GT_LABELS]
         data_item[GT_LABELS] = labels
         image = data_item[IMAGE]
@@ -696,9 +699,12 @@ class RandomSampleDistortedBoundingBox(WTransform):
 
         if GT_MASKS in data_item:
             mask = data_item[GT_MASKS]
+            mask = tf.transpose(mask,perm=[2,0,1])
             mask = tf.boolean_mask(mask,bboxes_mask)
+            mask = tf.transpose(mask,perm=[1,2,0])
             mask = tf.slice(mask,bbox_begin,bbox_size)
             self.cond_set(data_item, GT_MASKS, distored, mask)
+            pass
 
         return data_item
 

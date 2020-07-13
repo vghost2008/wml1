@@ -146,18 +146,18 @@ class CenterNetHead(wmodule.WChildModule):
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
 
-        '''self.left_pool = wop.left_pool
+        self.left_pool = wop.left_pool
         self.right_pool = wop.right_pool
         self.bottom_pool = wop.bottom_pool
-        self.top_pool = wop.top_pool'''
+        self.top_pool = wop.top_pool
         '''self.left_pool = partial(wnnl.cnn_self_hattenation,scope="left_pool")
         self.right_pool = partial(wnnl.cnn_self_hattenation,scope="right_pool")
         self.bottom_pool = partial(wnnl.cnn_self_vattenation,scope="bottom_pool")
         self.top_pool = partial(wnnl.cnn_self_vattenation,scope="top_pool")'''
-        self.left_pool = left_pool
+        '''self.left_pool = left_pool
         self.right_pool = right_pool
         self.bottom_pool = bottom_pool
-        self.top_pool = top_pool
+        self.top_pool = top_pool'''
 
     def forward(self, features,reuse=None):
         """
@@ -249,11 +249,13 @@ class CenterNetHead(wmodule.WChildModule):
         with tf.variable_scope(scope,default_name="pool"):
             with tf.variable_scope("pool1"):
                 look_conv1 = slim.conv2d(x,dim,3,
+                                         rate=2,
                                          normalizer_fn=None,
                                          activation_fn=None)
                 look_right = pool2_fn(look_conv1)
 
                 p1_conv1 = slim.conv2d(x,dim,3,
+                                       rate=2,
                                        normalizer_fn=None,
                                        activation_fn=None)
                 p1_look_conv = slim.conv2d(p1_conv1+look_right,dim,3,
@@ -264,12 +266,14 @@ class CenterNetHead(wmodule.WChildModule):
 
             with tf.variable_scope("pool2"):
                 look_conv2 = slim.conv2d(x, dim, 3,
+                                        rate=2,
                                         normalizer_fn = None,
                                         activation_fn = None)
 
                 look_down = pool1_fn(look_conv2)
 
                 p2_conv1 = slim.conv2d(x, dim, 3,
+                                       rate=2,
                                        normalizer_fn=None,
                                        activation_fn=None)
                 p2_look_conv = slim.conv2d(p2_conv1 + look_down, dim, 3,

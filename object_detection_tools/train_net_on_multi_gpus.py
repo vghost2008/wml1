@@ -97,8 +97,10 @@ def main(_):
         else:
             kwargs = {'extend_vars': trainer.global_step}
     elif args.restore == "ckpt":
+        kwargs = {'extend_vars': trainer.global_step}
         pass
     elif args.restore == "finetune":
+        kwargs = {'extend_vars': trainer.global_step}
         pass
     elif args.restore == "none":
         pass

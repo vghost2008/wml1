@@ -142,8 +142,8 @@ class CenterNetOutputs(wmodule.WChildModule):
         with tf.name_scope(scope,"focal_loss"):
             zeros = tf.zeros_like(labels)
             ones = tf.ones_like(labels)
-            num_pos = tf.reduce_sum(tf.where(tf.equal(labels, 1), ones, zeros))
-            loss = 0
+            num_pos = tf.reduce_sum(tf.where(tf.greater_equal(labels, 0.5), ones, zeros))
+
             # loss=tf.reduce_mean(tf.log(logits))
             probs = tf.nn.sigmoid(logits)
             pos_weight = tf.where(tf.greater_equal(labels, 0.5), ones - probs, zeros)
@@ -161,7 +161,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             pure_neg_loss = -tf.nn.relu(logits)-tf.log(1+tf.exp(-tf.abs(logits)))
             neg_loss = tf.pow((1 - labels), 4) * tf.pow(neg_weight, 2) * pure_neg_loss
             neg_loss = tf.reduce_sum(neg_loss)
-            loss = loss - (pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
+            loss = -(pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
             tf.summary.scalar("neg_loss",neg_loss)
             tf.summary.scalar("pos_loss",pos_loss)
             #loss = tf.Print(loss,["mloss",probs,pos_weight,neg_weight,pos_loss,neg_loss,num_pos],summarize=100)
