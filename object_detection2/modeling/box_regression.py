@@ -291,9 +291,11 @@ class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
         if len(regression.get_shape())==4:
             base_value = tf.expand_dims(base_value,axis=0)
             base_value = tf.stop_gradient(tf.tile(base_value,[B,1,1,1]))
+            multi = tf.convert_to_tensor([[[[-1,-1,1,1]]]],dtype=tf.float32)
         elif len(regression.get_shape()) == 2:
             base_value = tf.reshape(base_value,[-1,4])
+            multi = tf.convert_to_tensor([[-1,-1,1,1]],dtype=tf.float32)
 
 
-        return base_value+regression
+        return base_value+regression*multi
 

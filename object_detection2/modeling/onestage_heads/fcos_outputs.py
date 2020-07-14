@@ -279,16 +279,17 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
 
+            keep_idxs = tf.greater(predicted_prob,self.score_threshold)
+            predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
+            topk_idxs = tf.boolean_mask(topk_idxs,keep_idxs)
+
             boxes_idxs = topk_idxs // self.num_classes
             classes_idxs = topk_idxs % self.num_classes
 
             # filter out the proposals with low confidence score
-            keep_idxs = tf.greater(predicted_prob,self.score_threshold)
-            predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
-            topk_idxs = tf.boolean_mask(boxes_idxs,keep_idxs)
 
-            boxes_i = tf.gather(boxes_i,topk_idxs)
-            center_ness = tf.nn.sigmoid(tf.gather(centern_ness_i,topk_idxs))
+            boxes_i = tf.gather(boxes_i,boxes_idxs)
+            center_ness = tf.nn.sigmoid(tf.gather(centern_ness_i,boxes_idxs))
             # predict boxes
 
 

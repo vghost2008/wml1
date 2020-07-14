@@ -163,7 +163,7 @@ class FCOSHead(wmodule.WChildModule):
                                 net = self.normalizer_fn(net, scope=f'{self.norm_scope_name}/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
-                _bbox_reg = slim.conv2d(net, 4, [3, 3], activation_fn=None,
+                _bbox_reg = slim.conv2d(net, 4, [3, 3], activation_fn=tf.nn.relu,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")*math.exp(j)
                 _center_ness = slim.conv2d(net, 1, [3, 3], activation_fn=None,
