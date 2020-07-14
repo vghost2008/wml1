@@ -1070,7 +1070,8 @@ def batch_concat_with_length(datas,lengths,axis=1):
 
     return datas,lengths
 
-
+def PrintSummary(v,name="v"):
+    return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)],summarize=100)
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

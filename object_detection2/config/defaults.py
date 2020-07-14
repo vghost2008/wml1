@@ -525,6 +525,31 @@ _C.MODEL.CENTERNET.ACTIVATION_FN = "relu"
 _C.MODEL.CENTERNET.K = 100
 _C.MODEL.CENTERNET.SIZE_THRESHOLD = 130
 # ---------------------------------------------------------------------------- #
+
+# ---------------------------------------------------------------------------- #
+# FCOS Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.FCOS = CN()
+
+# This is the number of foreground classes.
+_C.MODEL.FCOS.NUM_CLASSES = 80
+
+_C.MODEL.FCOS.IN_FEATURES = ["P3"]
+
+_C.MODEL.FCOS.SCORE_THRESH_TEST = 0.05
+_C.MODEL.FCOS.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.FCOS.NMS_THRESH_TEST = 0.5
+_C.MODEL.FCOS.NUM_CONVS = 4
+_C.MODEL.FCOS.PRIOR_PROB = 0.01
+
+
+# Loss parameters
+_C.MODEL.FCOS.OUTPUTS = "FCOSGIOUOutputs"
+_C.MODEL.FCOS.NORM = "BN"
+_C.MODEL.FCOS.ACTIVATION_FN = "relu"
+_C.MODEL.FCOS.SIZE_THRESHOLD = [64,128,256,512]
+_C.MODEL.FCOS.FOCAL_LOSS_GAMMA = 2.0
+_C.MODEL.FCOS.FOCAL_LOSS_ALPHA = 0.25
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.YOLACT = CN()

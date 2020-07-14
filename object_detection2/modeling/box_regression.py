@@ -231,3 +231,69 @@ class CenterBox2BoxTransform(AbstractBox2BoxTransform):
 
         return bboxes,scores,tl_scores,br_scores,clses,
 
+
+class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
+    '''
+    '''
+    def __init__(self):
+        pass
+
+
+    def get_deltas(self,gboxes,glabels,glength,min_size,max_size,fm_shape,img_size):
+        """
+        gboxes:[batch_size,M,4]
+        glabels:[batch_size,M]
+        output:
+        output_heatmaps_tl: top left heatmaps [B,OH,OW,C]
+        output_heatmaps_br: bottom right heatmaps [B,OH,OW,C]
+        output_heatmaps_c: center heatmaps [B,OH,OW,C]
+        output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
+        output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
+        """
+        g_regression,g_center_ness,gt_boxes,gt_classes = wop.fcos_boxes_encode(gbboxes=gboxes,
+                                                                               glabels=tf.cast(glabels,tf.int32),
+                                                                               glength=glength,
+                                                                               img_size=img_size,
+                                                                               fm_shape=fm_shape,
+                                                                               min_size=min_size,
+                                                                               max_size=max_size)
+        outputs = {}
+        outputs['g_regression'] = g_regression
+        outputs['g_center_ness'] = g_center_ness
+        outputs['g_boxes'] = gt_boxes
+        outputs['g_classes'] = gt_classes
+
+        return outputs
+
+    @wmlt.add_name_scope
+    def apply_deltas(self,regression,img_size=None,fm_size=None):
+        if len(regression.get_shape()) == 2:
+            B = 1
+            H = fm_size[0]
+            W = fm_size[1]
+
+        elif len(regression.get_shape()) == 4:
+            B,H,W,_ = wmlt.combined_static_and_dynamic_shape(regression)
+        else:
+            raise NotImplementedError("Error")
+        x_i,y_i = tf.meshgrid(tf.range(W),tf.range(H))
+        if isinstance(img_size,tf.Tensor) and img_size.dtype != tf.float32:
+            img_size = tf.to_float(img_size)
+        H = tf.to_float(H)
+        W = tf.to_float(W)
+        y_f = tf.to_float(y_i)+0.5
+        x_f = tf.to_float(x_i)+0.5
+        y_delta = img_size[0]/H
+        x_delta = img_size[1]/W
+        y_base_value = y_f*y_delta
+        x_base_value = x_f*x_delta
+        base_value = tf.stack([y_base_value,x_base_value,y_base_value,x_base_value],axis=-1)
+        if len(regression.get_shape())==4:
+            base_value = tf.expand_dims(base_value,axis=0)
+            base_value = tf.stop_gradient(tf.tile(base_value,[B,1,1,1]))
+        elif len(regression.get_shape()) == 2:
+            base_value = tf.reshape(base_value,[-1,4])
+
+
+        return base_value+regression
+
