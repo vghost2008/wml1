@@ -17,16 +17,16 @@ MODEL:
     IN_FEATURES: ["P3"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    SCORE_THRESH_TEST: 0.5
+    SCORE_THRESH_TEST: 0.05
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
 SOLVER:
-  IMS_PER_BATCH: 4
-  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
+  IMS_PER_BATCH: 6
+  BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
-  STEPS: (120000,)
+  STEPS: (240000,)
   LR_DECAY_TYPE: "cosine"
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)

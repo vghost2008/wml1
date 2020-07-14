@@ -5,7 +5,7 @@ Machine learning tools library.
 ##Dependencies
 - Linux or Mac OS
 - Python ≥ 3.6
-- torchvision
+- yacs
 - OpenCV
 - pycocotools
 - gcc & g++ ≥ 4.9

@@ -51,6 +51,13 @@
 2) 1+AA+Stitch+cosine
 ```
 
+###CenterNet
+
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|max pool|0.127|0.241|0.124|0.001|0.041|0.202|0.148|0.210|0.215|0.002|0.097|0.350|
+
+
 ##coco/RetinaNet.yaml BN
 
 - batch_size: 4 on 3 gpu
