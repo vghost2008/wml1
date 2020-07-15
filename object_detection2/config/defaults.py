@@ -161,6 +161,7 @@ _C.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS = [[0.5, 1.0, 2.0]]
 # ---------------------------------------------------------------------------- #
 _C.MODEL.RPN = CN()
 _C.MODEL.RPN.HEAD_NAME = "StandardRPNHead"  # used by RPN_HEAD_REGISTRY
+_C.MODEL.RPN.OUTPUTS = "RPNGIOUOutputs"
 
 # Names of the input feature maps to be used by RPN
 # e.g., ["p2", "p3", "p4", "p5", "p6"] for FPN
@@ -208,6 +209,7 @@ _C.MODEL.RPN.NMS_THRESH = 0.7
 # ---------------------------------------------------------------------------- #
 _C.MODEL.RETINANET_PG = CN()
 _C.MODEL.RETINANET_PG.HEAD_NAME = "StandardRETINANET_PGHead"  # used by RETINANET_PG_HEAD_REGISTRY
+_C.MODEL.RETINANET_PG.OUTPUTS = "PGRetinaNetGIOUOutputs"
 
 _C.MODEL.RETINANET_PG.NUM_CLASSES = 1
 # Names of the input feature maps to be used by RETINANET_PG
@@ -550,6 +552,60 @@ _C.MODEL.FCOS.ACTIVATION_FN = "relu"
 _C.MODEL.FCOS.SIZE_THRESHOLD = [64,128,256,512]
 _C.MODEL.FCOS.FOCAL_LOSS_GAMMA = 2.0
 _C.MODEL.FCOS.FOCAL_LOSS_ALPHA = 0.25
+
+# ---------------------------------------------------------------------------- #
+# FCOSPG Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.FCOSPG = CN()
+
+# This is the number of foreground classes.
+_C.MODEL.FCOSPG.NUM_CLASSES = 1
+_C.MODEL.FCOSPG.OUTPUTS = "PGFCOSOutputs"
+
+_C.MODEL.FCOSPG.IN_FEATURES = ["P3"]
+
+_C.MODEL.FCOSPG.SCORE_THRESH_TEST = 0.0
+_C.MODEL.FCOSPG.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.FCOSPG.NMS_THRESH_TEST = 0.7
+_C.MODEL.FCOSPG.NUM_CONVS = 4
+_C.MODEL.FCOSPG.PRIOR_PROB = 0.01
+
+
+# Loss parameters
+_C.MODEL.FCOSPG.OUTPUTS = "FCOSPGGIOUOutputs"
+_C.MODEL.FCOSPG.NORM = "BN"
+_C.MODEL.FCOSPG.ACTIVATION_FN = "relu"
+_C.MODEL.FCOSPG.SIZE_THRESHOLD = [64,128,256,512]
+_C.MODEL.FCOSPG.FOCAL_LOSS_GAMMA = 2.0
+_C.MODEL.FCOSPG.FOCAL_LOSS_ALPHA = 0.25
+_C.MODEL.FCOSPG.PRE_NMS_TOPK_TRAIN = 12000
+_C.MODEL.FCOSPG.PRE_NMS_TOPK_TEST = 6000
+# Number of top scoring RPN proposals to keep after applying NMS
+# When FPN is used, this limit is applied per level and then again to the union
+# of proposals from all levels
+# NOTE: When FPN is used, the meaning of this config is different from Detectron1.
+# It means per-batch topk in Detectron1, but per-image topk here.
+# See "modeling/rpn/rpn_outputs.py" for details.
+_C.MODEL.FCOSPG.POST_NMS_TOPK_TRAIN = 2000
+_C.MODEL.FCOSPG.POST_NMS_TOPK_TEST = 1000
+
+# FUSIONPG Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.FUSIONPG = CN()
+
+_C.MODEL.FUSIONPG.NAMES = [""]
+_C.MODEL.FUSIONPG.NMS_THRESH_TEST = 0.7
+
+_C.MODEL.FUSIONPG.PRE_NMS_TOPK_TRAIN = 12000
+_C.MODEL.FUSIONPG.PRE_NMS_TOPK_TEST = 6000
+# Number of top scoring RPN proposals to keep after applying NMS
+# When FPN is used, this limit is applied per level and then again to the union
+# of proposals from all levels
+# NOTE: When FPN is used, the meaning of this config is different from Detectron1.
+# It means per-batch topk in Detectron1, but per-image topk here.
+# See "modeling/rpn/rpn_outputs.py" for details.
+_C.MODEL.FUSIONPG.POST_NMS_TOPK_TRAIN = 2000
+_C.MODEL.FUSIONPG.POST_NMS_TOPK_TEST = 1000
 # RetinaNet Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.YOLACT = CN()

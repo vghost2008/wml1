@@ -67,6 +67,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
             scalar Tensor
         """
         self._log_accuracy()
+        wsummary.variable_summaries_v2(self.gt_classes,"gt_classes")
+        wsummary.variable_summaries_v2(self.pred_class_logits,"pred_class_logits")
         classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
                                                loss_collection=None,
                                                reduction=tf.losses.Reduction.MEAN)
@@ -135,8 +137,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
         """
         return {
-            "loss_cls": self.softmax_cross_entropy_loss(),
-            "loss_box_reg": self.smooth_l1_loss(),
+            "fastrcnn_loss_cls": self.softmax_cross_entropy_loss(),
+            "fastrcnn_loss_box_reg": self.smooth_l1_loss(),
         }
 
     def predict_boxes(self):

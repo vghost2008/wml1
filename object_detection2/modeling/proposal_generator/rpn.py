@@ -108,7 +108,7 @@ class RPN(wmodule.WChildModule):
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(inputs,features)
         anchors = self.rpn_head.anchor_generator(inputs,features)
         self.anchors_num_per_level = [wmlt.combined_static_and_dynamic_shape(x)[0] for x in anchors]
-        outputs = build_outputs(self.cfg.MODEL.PROPOSAL_GENERATOR.OUTPUTS,
+        outputs = build_outputs(self.cfg.MODEL.RPN.OUTPUTS,
             self.box2box_transform,
             self.anchor_matcher,
             self.batch_size_per_image,
