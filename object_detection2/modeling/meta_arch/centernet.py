@@ -44,7 +44,7 @@ def bottom_pool(x,kernel=11):
 @META_ARCH_REGISTRY.register()
 class CenterNet(MetaArch):
     """
-    Implement CenterNet (https://arxiv.org/abs/1708.02002).
+    Implement CenterNet
     """
 
     def __init__(self, cfg,*args,**kwargs):

@@ -23,7 +23,7 @@ __all__ = ["FCOS"]
 @META_ARCH_REGISTRY.register()
 class FCOS(MetaArch):
     """
-    Implement FCOS (https://arxiv.org/abs/1708.02002).
+    Implement FCOS: Fully Convolutional One-Stage Object Detection
     """
 
     def __init__(self, cfg,*args,**kwargs):
