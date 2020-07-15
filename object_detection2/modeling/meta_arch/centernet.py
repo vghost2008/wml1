@@ -21,22 +21,22 @@ slim = tf.contrib.slim
 
 __all__ = ["CenterNet"]
 
-def left_pool(x,kernel=11):
+def left_pool(x,kernel=13):
     x = tf.pad(x,paddings=[[0,0],[0,0],[0,kernel-1],[0,0]])
     x = slim.max_pool2d(x,[1,kernel],stride=1,padding="VALID")
     return x
 
-def right_pool(x,kernel=11):
+def right_pool(x,kernel=13):
     x = tf.pad(x,paddings=[[0,0],[0,0],[kernel-1,0],[0,0]])
     x = slim.max_pool2d(x,[1,kernel],stride=1,padding="VALID")
     return x
 
-def top_pool(x,kernel=11):
+def top_pool(x,kernel=13):
     x = tf.pad(x,paddings=[[0,0],[kernel-1,0],[0,0],[0,0]])
     x = slim.max_pool2d(x,[kernel,1],stride=1,padding="VALID")
     return x
 
-def bottom_pool(x,kernel=11):
+def bottom_pool(x,kernel=13):
     x = tf.pad(x,paddings=[[0,0],[0,kernel-1],[0,0],[0,0]])
     x = slim.max_pool2d(x,[kernel,1],stride=1,padding="VALID")
     return x
@@ -146,18 +146,18 @@ class CenterNetHead(wmodule.WChildModule):
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
 
-        self.left_pool = wop.left_pool
+        '''self.left_pool = wop.left_pool
         self.right_pool = wop.right_pool
         self.bottom_pool = wop.bottom_pool
-        self.top_pool = wop.top_pool
+        self.top_pool = wop.top_pool'''
         '''self.left_pool = partial(wnnl.cnn_self_hattenation,scope="left_pool")
         self.right_pool = partial(wnnl.cnn_self_hattenation,scope="right_pool")
         self.bottom_pool = partial(wnnl.cnn_self_vattenation,scope="bottom_pool")
         self.top_pool = partial(wnnl.cnn_self_vattenation,scope="top_pool")'''
-        '''self.left_pool = left_pool
+        self.left_pool = left_pool
         self.right_pool = right_pool
         self.bottom_pool = bottom_pool
-        self.top_pool = top_pool'''
+        self.top_pool = top_pool
 
     def forward(self, features,reuse=None):
         """
@@ -249,37 +249,25 @@ class CenterNetHead(wmodule.WChildModule):
         with tf.variable_scope(scope,default_name="pool"):
             with tf.variable_scope("pool1"):
                 look_conv1 = slim.conv2d(x,dim,3,
-                                         rate=2,
-                                         normalizer_fn=None,
-                                         activation_fn=None)
+                                         rate=2)
                 look_right = pool2_fn(look_conv1)
 
                 p1_conv1 = slim.conv2d(x,dim,3,
-                                       rate=2,
-                                       normalizer_fn=None,
-                                       activation_fn=None)
+                                       rate=2)
                 p1_look_conv = slim.conv2d(p1_conv1+look_right,dim,3,
-                                           biases_initializer=None,
-                                           normalizer_fn=None,
-                                           activation_fn=None)
+                                           biases_initializer=None)
                 pool1 = pool1_fn(p1_look_conv)
 
             with tf.variable_scope("pool2"):
                 look_conv2 = slim.conv2d(x, dim, 3,
-                                        rate=2,
-                                        normalizer_fn = None,
-                                        activation_fn = None)
+                                        rate=2)
 
                 look_down = pool1_fn(look_conv2)
 
                 p2_conv1 = slim.conv2d(x, dim, 3,
-                                       rate=2,
-                                       normalizer_fn=None,
-                                       activation_fn=None)
+                                       rate=2)
                 p2_look_conv = slim.conv2d(p2_conv1 + look_down, dim, 3,
-                                           biases_initializer=None,
-                                           normalizer_fn = None,
-                                           activation_fn = None)
+                                           biases_initializer=None)
                 pool2 = pool2_fn(p2_look_conv)
 
                 with tf.variable_scope("merge"):
@@ -304,7 +292,13 @@ class CenterNetHead(wmodule.WChildModule):
     def pool_cross(self, x, pool1_fn, pool2_fn, pool3_fn, pool4_fn,dim=128, scope=None):
         out_dim = channel(x)
         with tf.variable_scope(scope, default_name="pool_cross"):
-            with tf.variable_scope("pool1"):
+            x = slim.conv2d(x, dim, 3)
+            x = slim.conv2d(x, dim, 3)
+            x = slim.conv2d(x, out_dim, 3,
+                            normalizer_fn=None,
+                            activation_fn=None)
+            return x
+            '''with tf.variable_scope("pool1"):
                 p1_conv1 = slim.conv2d(x, dim, 3,
                                        normalizer_fn=None,
                                        activation_fn=None)
@@ -337,7 +331,7 @@ class CenterNetHead(wmodule.WChildModule):
                 conv2 = slim.conv2d(relu1, out_dim, 3,
                                     normalizer_fn=None,
                                     activation_fn=None)
-                return conv2
+                return conv2'''
 
     def tl_pool(self,x,scope="tl_pool"):
         return self.pool(x,self.top_pool,self.left_pool,scope=scope)
