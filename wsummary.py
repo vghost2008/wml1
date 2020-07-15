@@ -252,6 +252,8 @@ def positive_box_on_images_summary(image,boxes,pmasks,name="positive_box_on_imag
 @btf.add_name_scope
 def feature_map_summary(feature_map,name="feature_map",max_outputs=None):
     data = feature_map[0]
+    if data.dtype != tf.float32:
+        data = tf.cast(data,tf.float32)
     if max_outputs is None:
         max_outputs = feature_map.get_shape().as_list()[-1]
     data = tf.transpose(data,[2,0,1])

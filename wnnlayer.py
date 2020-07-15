@@ -182,44 +182,6 @@ def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,o
         return x
 
 @add_arg_scope
-def group_norm_4d_v2(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm"):
-    # x: input features with shape [N,H,W,C]
-    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
-    with tf.variable_scope(scope):
-        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
-        gamma = tf.get_variable(name="gamma",shape=[1,1,1,G,C//G],initializer=tf.ones_initializer())
-        if offset:
-            beta = tf.get_variable(name="beta",shape=[1,1,1,G,C//G],initializer=tf.zeros_initializer())
-        if weights_regularizer is not None:
-            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
-        x = wmlt.reshape(x, [N, H, W, G, C // G,])
-        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
-        gain = tf.math.rsqrt(var + epsilon)
-
-        if sub_mean:
-            offset_value = -mean * gain
-        else:
-            offset_value = None
-
-        if scale:
-            gain *= gamma
-            if offset_value is not None:
-                offset_value *= gamma
-
-        if offset:
-            if offset_value is None:
-                offset_value = beta
-            else:
-                offset_value += beta
-
-        if offset_value is not None:
-            x = x * gain + offset_value
-        else:
-            x =  offset_value
-        x = wmlt.reshape(x, [N,H,W,C])
-        return x
-
-@add_arg_scope
 def group_norm_4d_v0(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,scope="group_norm"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
@@ -487,12 +449,9 @@ def mish(x):
         return x*tf.tanh(tf.nn.softplus(x))
 
 @add_arg_scope
-def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True,scope=None,dtype=None):
+def spectral_norm(w, iteration=1,max_sigma=None,is_training=True,scope=None,dtype=None):
     with tf.variable_scope(scope,"spectral_norm"):
        w_shape = w.shape.as_list()
-       if debug:
-           w = tf.reshape(w, [-1, w_shape[-1]])
-           s0,_,_ = tf.linalg.svd(w)
 
        s_w = tf.get_variable("sn_weight",w_shape,initializer=tf.zeros_initializer,trainable=False,dtype=dtype)
        if is_training:
@@ -522,24 +481,13 @@ def spectral_norm(w, iteration=1,max_sigma=None,debug=False,is_training=True,sco
                if max_sigma is None:
                    w_norm = w / sigma
                else:
-                   #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
                    w_norm = w/(sigma/max_sigma)
                w_norm = tf.reshape(w_norm, w_shape)
            with tf.control_dependencies([s_w.assign(w_norm)]):
                w_norm = tf.identity(w_norm)
        else:
-           '''if max_sigma is None:
-               w_norm = w / s_sigma
-           else:
-               #w_norm = tf.cond(tf.greater(sigma,max_sigma),lambda:w/(sigma/max_sigma),lambda:w,name="scale_w")
-               w_norm = w/(s_sigma/max_sigma)'''
            w_norm = s_w
-       #w_norm = tf.Print(w_norm,[tf.reduce_mean(w_norm),tf.reduce_mean(sigma)],"w_norm")
-       if debug:
-           w_norm = tf.reshape(w_norm, [-1, w_shape[-1]])
-           s,_,_ = tf.linalg.svd(w_norm)
-           w_norm = tf.Print(w_norm,[s0[0],s[0]],"Singular1")
-           w_norm = tf.reshape(w_norm, w_shape)
+
        return w_norm
 
 @add_arg_scope

@@ -686,10 +686,10 @@ def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
             height = tf.convert_to_tensor(height,dtype=boxes.dtype)
         elif height.dtype != boxes.dtype:
             height = tf.cast(height,boxes.dtype)
-        ymin = boxes[0]*height
-        xmin = boxes[1]*width
-        ymax = boxes[2]*height
-        xmax = boxes[3]*width
+        ymin = boxes[0]*(height-1)
+        xmin = boxes[1]*(width-1)
+        ymax = boxes[2]*(height-1)
+        xmax = boxes[3]*(width-1)
 
         return tf.stack([ymin,xmin,ymax,xmax],axis=1)
 
@@ -704,10 +704,10 @@ def tfabsolutely_boxes_to_relative_boxes(boxes, width, height):
             height = tf.cast(height, boxes.dtype)
         if isinstance(width,tf.Tensor) and width.dtype != boxes.dtype:
             width = tf.cast(width, boxes.dtype)
-        ymin = boxes[...,0] / height
-        xmin = boxes[...,1] / width
-        ymax = boxes[...,2] / height
-        xmax = boxes[...,3] / width
+        ymin = boxes[...,0] / (height-1)
+        xmin = boxes[...,1] / (width-1)
+        ymax = boxes[...,2] / (height-1)
+        xmax = boxes[...,3] / (width-1)
 
         return tf.stack([ymin, xmin, ymax, xmax], axis=-1)
 

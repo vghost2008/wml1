@@ -1,1 +1,1 @@
-from . import rcnn,retinanet,ssd,yolact,centernet
+from . import rcnn,retinanet,ssd,yolact,centernet,fcos

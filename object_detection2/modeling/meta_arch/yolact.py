@@ -140,7 +140,6 @@ class YOLACTHead(wmodule.WChildModule):
             'fused': None,  # Use fused batch norm if possible.
             'is_training': self.is_training
         }
-        # Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn = slim.batch_norm
         self.coefficient_nr = coefficient_nr
         self.activation_fn = tf.nn.relu
