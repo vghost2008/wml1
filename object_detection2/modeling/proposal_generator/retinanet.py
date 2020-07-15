@@ -80,7 +80,7 @@ class RetinaNet(wmodule.WChildModule):
         gt_length = batched_inputs[GT_LENGTH]
         gt_labels = batched_inputs[GT_LABELS]
 
-        outputs = build_outputs(self.cfg.MODEL.PROPOSAL_GENERATOR.OUTPUTS,
+        outputs = build_outputs(self.cfg.MODEL.RETINANET_PG.OUTPUTS,
             cfg=self.cfg.MODEL.RETINANET_PG,
             parent=self,
             box2box_transform=self.box2box_transform,

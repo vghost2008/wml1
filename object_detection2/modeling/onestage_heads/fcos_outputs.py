@@ -190,12 +190,12 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             loss_regression_list.append(loss_box_reg)
             loss_center_ness_list.append(loss_center_ness)
 
-        return {"loss_cls": tf.add_n(loss_cls_list),
-                "loss_box_reg": tf.add_n(loss_regression_list),
-                "loss_center_ness":tf.add_n(loss_center_ness_list)}
+        return {"fcos_loss_cls": tf.add_n(loss_cls_list),
+                "fcos_loss_box_reg": tf.add_n(loss_regression_list),
+                "fcos_loss_center_ness":tf.add_n(loss_center_ness_list)}
 
     @wmlt.add_name_scope
-    def inference(self, inputs,box_cls, box_regression,center_ness):
+    def inference(self, inputs,box_cls, box_regression,center_ness,nms=None,pad=True):
         """
         Arguments:
             inputs: same as FCOS.forward's batched_inputs
@@ -220,7 +220,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         box_regression = tf.concat(box_regression,axis=1)
         center_ness = tf.concat(center_ness,axis=1)
 
-        results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],x[2],fm_sizes),
+        results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],x[2],fm_sizes,nms=nms,pad=pad),
                                                 elems=[box_cls,box_regression,center_ness],
                                                 dtype=[tf.float32,tf.int32,tf.float32,tf.int32],
                                                 back_prop=False)
@@ -235,7 +235,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         return outdata
 
     @wmlt.add_name_scope
-    def inference_single_image(self, box_cls, box_regression, center_ness,fm_sizes):
+    def inference_single_image(self, box_cls, box_regression, center_ness,fm_sizes,nms = None,pad=True):
         """
         Single-image inference. Return bounding-box detection results by thresholding
         on scores and applying non-maximum suppression (NMS).
@@ -279,9 +279,10 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
 
-            keep_idxs = tf.greater(predicted_prob,self.score_threshold)
-            predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
-            topk_idxs = tf.boolean_mask(topk_idxs,keep_idxs)
+            if self.score_threshold>1e-5:
+                keep_idxs = tf.greater(predicted_prob,self.score_threshold)
+                predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
+                topk_idxs = tf.boolean_mask(topk_idxs,keep_idxs)
 
             boxes_idxs = topk_idxs // self.num_classes
             classes_idxs = topk_idxs % self.num_classes
@@ -303,7 +304,8 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         x,y = wmlt.sort_data(key=scores_all,datas=[boxes_all,class_idxs_all])
         boxes_all,class_idxs_all = y
         scores_all,_ = x
-        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
+        if nms is None:
+            nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
         boxes,labels,nms_idxs = nms(bboxes=boxes_all,classes=class_idxs_all)
         scores = tf.gather(scores_all,nms_idxs)
 
@@ -311,9 +313,10 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         #labels = tf.Print(labels,[tf.shape(labels)],name="XXXXXXXXXXXXXXXXXXXX",summarize=100)
         labels = labels+1 #加上背景
         lens = tf.shape(labels)[0]
-        boxes = tf.pad(boxes, paddings=[[0, candiate_nr - lens], [0, 0]])
-        labels = tf.pad(labels, paddings=[[0, candiate_nr - lens]])
-        scores = tf.pad(scores, paddings=[[0, candiate_nr - lens]])
+        if pad:
+            boxes = tf.pad(boxes, paddings=[[0, candiate_nr - lens], [0, 0]])
+            labels = tf.pad(labels, paddings=[[0, candiate_nr - lens]])
+            scores = tf.pad(scores, paddings=[[0, candiate_nr - lens]])
 
         return [boxes,labels,scores,lens]
 

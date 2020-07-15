@@ -52,6 +52,7 @@ def main(_):
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
     cfg.MODEL.CENTERNET.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
+    cfg.MODEL.FCOS.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
     cfg.freeze()
     config.set_global_cfg(cfg)

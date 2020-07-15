@@ -235,8 +235,8 @@ class CenterBox2BoxTransform(AbstractBox2BoxTransform):
 class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
     '''
     '''
-    def __init__(self):
-        pass
+    def __init__(self,num_classes=None):
+        self.num_classes = num_classes
 
 
     def get_deltas(self,gboxes,glabels,glength,min_size,max_size,fm_shape,img_size):
@@ -250,6 +250,8 @@ class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
         output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
         output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
         """
+        if self.num_classes is not None:
+            glabels = tf.clip_by_value(glabels,0,self.num_classes)
         g_regression,g_center_ness,gt_boxes,gt_classes = wop.fcos_boxes_encode(gbboxes=gboxes,
                                                                                glabels=tf.cast(glabels,tf.int32),
                                                                                glength=glength,

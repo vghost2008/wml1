@@ -32,9 +32,9 @@ def find_top_rpn_proposals(
             nms_thresh,
             pre_nms_topk,
             post_nms_topk,
-            anchors_num_per_level,
+            anchors_num_per_level=None,
     ):
-    if len(anchors_num_per_level) == 1:
+    if anchors_num_per_level is None or len(anchors_num_per_level) == 1:
         return find_top_rpn_proposals_for_single_level(proposals,pred_objectness_logits,nms_thresh,pre_nms_topk,
                                                        post_nms_topk)
     with tf.name_scope("find_top_rpn_proposals"):

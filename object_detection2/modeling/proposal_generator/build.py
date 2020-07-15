@@ -14,3 +14,13 @@ def build_proposal_generator(cfg, *args,**kwargs):
         return None
 
     return PROPOSAL_GENERATOR_REGISTRY.get(name)(cfg, *args,**kwargs)
+
+def build_proposal_generator_by_name(name,cfg, *args,**kwargs):
+    """
+    Build a proposal generator from `cfg.MODEL.PROPOSAL_GENERATOR.NAME`.
+    The name can be "PrecomputedProposals" to use no proposal generator.
+    """
+    if name == "PrecomputedProposals":
+        return None
+
+    return PROPOSAL_GENERATOR_REGISTRY.get(name)(cfg, *args,**kwargs)
