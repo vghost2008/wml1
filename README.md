@@ -5,6 +5,7 @@ Machine learning tools library.
 ##Dependencies
 - Linux or Mac OS
 - Python ≥ 3.6
+- scipy
 - yacs
 - OpenCV
 - pycocotools
