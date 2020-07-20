@@ -163,13 +163,9 @@ class FCOSHead(wmodule.WChildModule):
                                 net = self.normalizer_fn(net, scope=f'{self.norm_scope_name}/feature_{j}',**self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
-                _bbox_reg = slim.conv2d(net, 4, [3, 3], activation_fn=tf.nn.relu,
+                _bbox_reg = slim.conv2d(net, 4, [3, 3], activation_fn=tf.math.exp,
                                          normalizer_fn=None,
-                                         scope="BoxPredictor")*math.exp(j)
-                _center_ness = slim.conv2d(net, 1, [3, 3], activation_fn=None,
-                                        normalizer_fn=None,
-                                        scope="CenterNessPredictor")
-                _center_ness = tf.squeeze(_center_ness,axis=-1)
+                                         scope="BoxPredictor")*tf.get_variable(name=f"gamma_{j}",shape=(),initializer=tf.ones_initializer())*math.exp(j)
                 net = feature
                 with tf.variable_scope("ClassPredictionTower"):
                     for i in range(num_convs):
@@ -187,6 +183,10 @@ class FCOSHead(wmodule.WChildModule):
                                          normalizer_fn=None,
                                          biases_initializer=tf.constant_initializer(value=bias_value),
                                          scope="ClassPredictor")
+                _center_ness = slim.conv2d(net, 1, [3, 3], activation_fn=None,
+                                        normalizer_fn=None,
+                                        scope="CenterNessPredictor")
+                _center_ness = tf.squeeze(_center_ness,axis=-1)
 
             logits.append(_logits)
             bbox_reg.append(_bbox_reg)

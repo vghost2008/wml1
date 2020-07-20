@@ -32,7 +32,7 @@ DATASETS:
   #TEST: "mnistod_eval"
   SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 3
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32

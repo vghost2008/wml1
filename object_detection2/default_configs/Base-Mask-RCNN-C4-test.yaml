@@ -1,0 +1,47 @@
+_BASE_: "./Base-RCNN-FPN.yaml"
+MODEL:
+  PREPROCESS: "subimagenetmean"
+  BACKBONE:
+    NAME: "build_retinanet_shufflenetv2_fpn_backbone"
+  MASK_ON: False
+  RESNETS:
+    DEPTH: 50
+  PROPOSAL_GENERATOR:
+    NAME: "FCOSPG"
+  FCOSPG:
+    IN_FEATURES: ["P2","P3","P4"]
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    SIZE_THRESHOLD: [64,128]
+    PRE_NMS_TOPK_TRAIN: 2000 # Per FPN level
+    PRE_NMS_TOPK_TEST: 2000 # Per FPN level
+    POST_NMS_TOPK_TRAIN: 200
+    POST_NMS_TOPK_TEST: 500
+    OUTPUTS: "PGFCOSOutputs"
+  FPN:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    IN_FEATURES: ["C2", "C3"]
+    ENABLE_DROPBLOCK: True
+    BACKBONE_HOOK: ("","")
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
+  WARMUP_ITERS: 1000
+  CLIP_NORM: 32
+  STEPS: (10000,)
+  LR_DECAY_TYPE: "cosine"
+INPUT:
+  MAX_SIZE_TRAIN: 800
+  MAX_SIZE_TEST: 1333
+  MIN_SIZE_TRAIN: (224,256,288)
+  MIN_SIZE_TEST: 224
+  STITCH: 0.0
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "Base-MaskRCNN-FCOSPG"
+  LOG_STEP: 200
