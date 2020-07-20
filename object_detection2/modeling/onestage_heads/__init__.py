@@ -1,1 +1,2 @@
 from . import retinanet_outputs,retinanet_giou_outputs,ssd_outputs,yolact_outputs,centernet_outputs,fcos_outputs
+from . import fcos_outputsv2

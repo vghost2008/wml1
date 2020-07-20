@@ -19,7 +19,7 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="Base-Mask-RCNN-C4-test1", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="Base-FCOS", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",

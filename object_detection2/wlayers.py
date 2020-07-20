@@ -215,6 +215,8 @@ GIoU = IoU - (C - (A U B)) / C
 GIoU_Loss = 1 - GIoU
 bboxes0: [...,4] (ymin,xmin,ymax,xmax) or (xmin,ymin,xmax,ymax)
 bboxes1: [...,4] (ymin,xmin,ymax,xmax) or (xmin,ymin,xmax,ymax)
+返回:
+[-1,1]
 '''
 def giou(bboxes0, bboxes1,name=None):
     with tf.name_scope(name,default_name="giou"):
