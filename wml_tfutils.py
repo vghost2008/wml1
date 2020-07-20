@@ -983,6 +983,7 @@ def nearest_neighbor_downsampling(input_tensor, scale=None, height_scale=None,
         output_tensor = tf.reshape(
             input_tensor, [batch_size, height//h_scale, h_scale, width//w_scale, w_scale, channels])
         return output_tensor[:,:,0,:,0,:]
+
 def channel_upsample(input_tensor,scale=None,height_scale=None,width_scale=None):
     if not scale and (height_scale is None or width_scale is None):
         raise ValueError('Provide either `scale` or `height_scale` and'
@@ -1070,8 +1071,10 @@ def batch_concat_with_length(datas,lengths,axis=1):
 
     return datas,lengths
 
-def PrintSummary(v,name="v"):
-    return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)],summarize=100)
+def PrintSummary(v,name="v",extern_vars=[],with_global_step=False):
+    if with_global_step:
+        extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
+    return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
