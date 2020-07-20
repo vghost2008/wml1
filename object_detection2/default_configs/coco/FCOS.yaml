@@ -17,7 +17,7 @@ MODEL:
     IN_FEATURES: ["P3","P4","P5"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    SCORE_THRESH_TEST: 0.05
+    SCORE_THRESH_TEST: 0.3
     SIZE_THRESHOLD: [64,128]
 DATASETS:
   TRAIN: "coco_2017_train"
