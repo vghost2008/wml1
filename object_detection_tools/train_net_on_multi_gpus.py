@@ -51,7 +51,6 @@ def main(_):
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
-    cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
     cfg.MODEL.CENTERNET.NUM_CLASSES = num_classes

@@ -416,36 +416,6 @@ _C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 224
 _C.MODEL.ROI_KEYPOINT_HEAD.canonical_level = 1
 
 # ---------------------------------------------------------------------------- #
-# Semantic Segmentation Head
-# ---------------------------------------------------------------------------- #
-_C.MODEL.SEM_SEG_HEAD = CN()
-_C.MODEL.SEM_SEG_HEAD.NAME = "SemSegFPNHead"
-_C.MODEL.SEM_SEG_HEAD.IN_FEATURES = ["p2", "p3", "p4", "p5"]
-# Label in the semantic segmentation ground truth that is ignored, i.e., no loss is calculated for
-# the correposnding pixel.
-_C.MODEL.SEM_SEG_HEAD.IGNORE_VALUE = 255
-# Number of classes in the semantic segmentation head
-_C.MODEL.SEM_SEG_HEAD.NUM_CLASSES = 54
-# Number of channels in the 3x3 convs inside semantic-FPN heads.
-_C.MODEL.SEM_SEG_HEAD.CONVS_DIM = 128
-# Outputs from semantic-FPN heads are up-scaled to the COMMON_STRIDE stride.
-_C.MODEL.SEM_SEG_HEAD.COMMON_STRIDE = 4
-# Normalization method for the convolution layers. Options: "" (no norm), "GN".
-_C.MODEL.SEM_SEG_HEAD.NORM = "GN"
-_C.MODEL.SEM_SEG_HEAD.LOSS_WEIGHT = 1.0
-
-_C.MODEL.PANOPTIC_FPN = CN()
-# Scaling of all losses from instance detection / segmentation head.
-_C.MODEL.PANOPTIC_FPN.INSTANCE_LOSS_WEIGHT = 1.0
-
-# options when combining instance & semantic segmentation outputs
-_C.MODEL.PANOPTIC_FPN.COMBINE = CN({"ENABLED": True})
-_C.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.5
-_C.MODEL.PANOPTIC_FPN.COMBINE.STUFF_AREA_LIMIT = 4096
-_C.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = 0.5
-
-
-# ---------------------------------------------------------------------------- #
 # SSD Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.SSD = CN()
@@ -588,6 +558,7 @@ _C.MODEL.FCOSPG.PRE_NMS_TOPK_TEST = 6000
 # See "modeling/rpn/rpn_outputs.py" for details.
 _C.MODEL.FCOSPG.POST_NMS_TOPK_TRAIN = 2000
 _C.MODEL.FCOSPG.POST_NMS_TOPK_TEST = 1000
+_C.MODEL.FCOSPG.LOSS_SCALE = 0.25
 
 # FUSIONPG Head
 # ---------------------------------------------------------------------------- #
