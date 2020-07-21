@@ -173,9 +173,9 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             pred_boxes = tf.boolean_mask(pred_boxes,foreground_idxs)
             gt_boxes = tf.boolean_mask(gt_boxes,foreground_idxs)
             reg_loss_sum = 1.0-odl.giou(pred_boxes,gt_boxes)
-            loss_box_reg = tf.reduce_sum(reg_loss_sum)
+            reg_loss_sum = tf.reduce_sum(reg_loss_sum)
             reg_loss_sum = tf.cond(tf.greater(num_foreground, 0), lambda: reg_loss_sum, lambda: tf.zeros(shape=()))
-            reg_loss_sum = reg_loss_sum/ tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            loss_box_reg = reg_loss_sum/ tf.cast(tf.maximum(1, num_foreground),tf.float32)
 
             #center ness loss
             #gt_center_ness = wmlt.PrintSummary(gt_center_ness,"center_ness")
