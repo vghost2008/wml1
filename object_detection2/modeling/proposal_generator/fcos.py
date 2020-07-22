@@ -88,7 +88,6 @@ class FCOSPG(wmodule.WChildModule):
             _losses = outputs.losses()
             for k,v in _losses.items():
                 losses["pg_"+k] = v
-
         outdata = {PD_BOXES: results[RD_BOXES], PD_PROBABILITY: results[RD_PROBABILITY]}
         wsummary.detection_image_summary(images=batched_inputs[IMAGE],
                                          boxes=outdata[PD_BOXES],

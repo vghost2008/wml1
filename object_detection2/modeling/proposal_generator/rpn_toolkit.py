@@ -78,16 +78,13 @@ def find_top_rpn_proposals_for_single_level(
         post_nms_topk,
 ):
     with tf.name_scope("find_top_rpn_proposals_for_single_level"):
-        class_prediction = pred_objectness_logits
-        probability = class_prediction
-
         '''
         通过top_k+gather排序
         In Detectron2, they chosen the top candiate_nr*6 boxes
         '''
-        probability,indices = tf.nn.top_k(probability,k=tf.minimum(pre_nms_topk,tf.shape(probability)[1]))
+        probability,indices = tf.nn.top_k(pred_objectness_logits,
+                                          k=tf.minimum(pre_nms_topk,tf.shape(pred_objectness_logits)[1]))
         proposals = wmlt.batch_gather(proposals,indices)
-
 
         def fn(bboxes,probability):
             labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)

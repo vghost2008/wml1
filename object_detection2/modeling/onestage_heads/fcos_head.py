@@ -6,7 +6,6 @@ import object_detection2.od_toolkit as odtk
 import wsummary
 import wnnlayer as wnnl
 
-
 slim = tf.contrib.slim
 
 class FCOSHead(wmodule.WChildModule):
@@ -27,6 +26,11 @@ class FCOSHead(wmodule.WChildModule):
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
+    @staticmethod
+    def clip_exp(x):
+        x = tf.minimum(x,9.3)
+        return tf.exp(x)
+
     @staticmethod
     def clip_exp(x):
         x = tf.minimum(x,9.3)
