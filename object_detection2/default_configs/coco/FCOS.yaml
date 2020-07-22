@@ -14,6 +14,7 @@ MODEL:
     ENABLE_DROPBLOCK: True
     BACKBONE_HOOK: ("","BalanceBackboneHook")
   FCOS:
+    OUTPUTS: "FCOSGIOUOutputs"
     IN_FEATURES: ["P3","P4","P5"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
@@ -24,7 +25,7 @@ DATASETS:
   TEST: "coco_2017_eval"
 SOLVER:
   IMS_PER_BATCH: 4
-  BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
+  BASE_LR: 0.01
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
   STEPS: (120000,)
