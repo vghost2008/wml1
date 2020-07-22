@@ -3,7 +3,8 @@ from ..box_regression import Box2BoxTransform
 from ..matcher import Matcher
 from ..poolers import ROIPooler
 from .build import build_box_head,build_outputs
-from .fast_rcnn import FastRCNNOutputLayers, FastRCNNOutputs
+from .fast_rcnn import FastRCNNOutputs
+from .fast_rcnn_output_layers import FastRCNNOutputLayers
 from .roi_heads import ROI_HEADS_REGISTRY, StandardROIHeads
 from object_detection2.datadef import *
 import wml_tfutils as wmlt

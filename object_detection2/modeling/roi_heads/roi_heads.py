@@ -7,6 +7,7 @@ import tensorflow as tf
 from thirdparty.nets.resnet_v1 import *
 from object_detection2.modeling.poolers import ROIPooler
 from .fast_rcnn import *
+from .fast_rcnn_output_layers import FastRCNNOutputLayers
 from .mask_head import *
 import object_detection2.od_toolkit as od
 import object_detection2.bboxes as bboxes
