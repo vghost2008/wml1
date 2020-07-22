@@ -239,3 +239,7 @@ def giou(bboxes0, bboxes1,name=None):
 
         giou = ious - (C - union) /C
         return giou
+
+def giou_loss(bboxes0, bboxes1,name=None):
+    with tf.name_scope(name,default_name="giou_loss"):
+        return 1-giou(bboxes0,bboxes1)

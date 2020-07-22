@@ -1023,3 +1023,4 @@ def save_pbfile(sess,pb_path,output_names):
     with tf.gfile.FastGFile(pb_path, mode='wb') as f:
         f.write(constant_graph.SerializeToString())
     print(f"Save pb file {pb_path}.")
+
