@@ -203,6 +203,7 @@ _C.MODEL.RPN.POST_NMS_TOPK_TRAIN = 2000
 _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 # NMS threshold used on RPN proposals
 _C.MODEL.RPN.NMS_THRESH = 0.7
+_C.MODEL.RPN.SORT_RESULTS = False
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet proposal generator options

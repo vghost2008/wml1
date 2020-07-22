@@ -1013,6 +1013,7 @@ def select_image_by_mask(image,mask):
         index = tf.reshape(tf.range(batch_size),[batch_size,1])*tf.ones_like(mask,dtype=tf.int32)
         index = tf.boolean_mask(index,mask)
         return tf.gather(image,index)
+
 def sort_data(key,datas):
     size = tf.shape(key)[0]
     values,indices = tf.nn.top_k(key,k=size)

@@ -140,6 +140,14 @@ class RPN(wmodule.WChildModule):
             self.post_nms_topk[self.is_training],
             self.anchors_num_per_level,
         )
+        if self.cfg.MODEL.RPN.SORT_RESULTS:
+            with tf.name_scope("sort_rpn_results"):
+                def fn(bboxes,keys):
+                    N = wmlt.combined_static_and_dynamic_shape(keys)
+                    new_keys,indices = tf.nn.top_k(keys,k=N[0])
+                    bboxes = tf.gather(bboxes,indices)
+                    return [bboxes,keys]
+                proposals,logits = tf.map_fn(lambda x:fn(x[0],x[1]),elems=[proposals,logits],back_prop=False)
 
         outdata = {PD_BOXES:proposals,PD_PROBABILITY:tf.nn.sigmoid(logits)}
         wsummary.detection_image_summary(images=inputs[IMAGE],boxes=outdata[PD_BOXES],
