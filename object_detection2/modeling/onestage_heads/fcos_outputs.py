@@ -137,6 +137,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         loss_regression_list = []
         loss_center_ness_list = []
         img_size = tf.shape(self.batched_inputs[IMAGE])[1:3]
+        total_num_foreground = []
         for i,gt_results_item in enumerate(gt_results):
             gt_classes = gt_results_item['g_classes']
             gt_center_ness = gt_results_item['g_center_ness']
@@ -148,6 +149,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
 
             foreground_idxs = (gt_classes > 0)
             num_foreground = tf.reduce_sum(tf.cast(foreground_idxs,tf.int32))
+            total_num_foreground.append(num_foreground)
 
             gt_classes_target = tf.one_hot(gt_classes,depth=self.num_classes+1)
             gt_classes_target = gt_classes_target[...,1:]
@@ -158,7 +160,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
                 logits = pred_class_logits,
                 alpha=self.focal_loss_alpha,
                 gamma=self.focal_loss_gamma,
-            )) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            ))
 
             # regression loss
             pred_boxes = self.box2box_transform.apply_deltas(regression=pred_regression,img_size=img_size)
@@ -173,28 +175,33 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             pred_boxes = tf.boolean_mask(pred_boxes,foreground_idxs)
             gt_boxes = tf.boolean_mask(gt_boxes,foreground_idxs)
             reg_loss_sum = 1.0-odl.giou(pred_boxes,gt_boxes)
-            reg_loss_sum = tf.reduce_sum(reg_loss_sum)
-            reg_loss_sum = tf.cond(tf.greater(num_foreground, 0), lambda: reg_loss_sum, lambda: tf.zeros(shape=()))
-            loss_box_reg = reg_loss_sum/ tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            loss_box_reg = tf.reduce_sum(reg_loss_sum)
 
             #center ness loss
             #gt_center_ness = wmlt.PrintSummary(gt_center_ness,"center_ness")
             #pred_center_ness = wmlt.PrintSummary(pred_center_ness,"pred_center_ness")
             # logits loss
-            loss_center_ness = tf.reduce_sum(wnn.sigmoid_cross_entropy_with_logits_FL(
+            gt_center_ness = tf.boolean_mask(gt_center_ness,foreground_idxs)
+            pred_center_ness = tf.boolean_mask(pred_center_ness,foreground_idxs)
+            '''loss_center_ness = tf.reduce_sum(wnn.sigmoid_cross_entropy_with_logits_FL(
                 labels = gt_center_ness,
                 logits = pred_center_ness,
                 alpha=self.focal_loss_alpha,
                 gamma=self.focal_loss_gamma,
-            )) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            )) / tf.cast(tf.maximum(1, num_foreground),tf.float32)'''
+            loss_center_ness = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=gt_center_ness,
+                                                                             logits=pred_center_ness))
+            loss_center_ness = loss_center_ness
             #loss_cls = tf.Print(loss_cls,["loss",loss_cls,loss_box_reg,loss_center_ness])
             loss_cls_list.append(loss_cls)
             loss_regression_list.append(loss_box_reg)
             loss_center_ness_list.append(loss_center_ness)
+        
+        total_num_foreground = tf.to_float(tf.maximum(tf.add_n(total_num_foreground),1))
 
-        return {"fcos_loss_cls": tf.add_n(loss_cls_list),
-                "fcos_loss_box_reg": tf.add_n(loss_regression_list),
-                "fcos_loss_center_ness":tf.add_n(loss_center_ness_list)}
+        return {"fcos_loss_cls": tf.add_n(loss_cls_list)/total_num_foreground,
+                "fcos_loss_box_reg": tf.add_n(loss_regression_list)/total_num_foreground,
+                "fcos_loss_center_ness":tf.add_n(loss_center_ness_list)/total_num_foreground}
 
     @wmlt.add_name_scope
     def inference(self, inputs,box_cls, box_regression,center_ness,nms=None,pad=True):

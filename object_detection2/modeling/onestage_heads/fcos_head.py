@@ -80,9 +80,10 @@ class FCOSHead(wmodule.WChildModule):
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
                 _bbox_reg = _bbox_reg*wnnl.scale_gradient(tf.get_variable(name=f"gamma_{j}",shape=(),initializer=tf.ones_initializer()),0.2)
-                #_bbox_reg = tf.nn.relu(_bbox_reg)
-                _bbox_reg = self.clip_exp(_bbox_reg)
-                _bbox_reg = _bbox_reg*math.pow(2,j)
+                #_bbox_reg = self.clip_exp(_bbox_reg)
+                #_bbox_reg = _bbox_reg*math.pow(2,j)
+                _bbox_reg = tf.nn.relu(_bbox_reg)
+                _bbox_reg = _bbox_reg*math.pow(2,j)*16
                 wsummary.variable_summaries_v2(_bbox_reg,"bbox_reg_net")
 
                 '''net = feature
