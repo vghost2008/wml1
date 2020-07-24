@@ -15,8 +15,6 @@ from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
 from object_detection2.data.dataloader import DataLoader
 
-
-
 def ssd_losses(
     gt_logits,
     gt_anchor_deltas,
@@ -37,7 +35,6 @@ def ssd_losses(
         loss_collection=None
     )
     return objectness_loss, localization_loss
-
 
 @HEAD_OUTPUTS.register()
 class SSDOutputs(wmodule.WChildModule):
@@ -239,7 +236,6 @@ class SSDOutputs(wmodule.WChildModule):
 
             # Keep top k top scoring indices only.
             num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
-            # torch.sort is actually faster than .topk (at least on GPUs)
             predicted_prob, topk_idxs = tf.nn.top_k(probs, num_topk)
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]

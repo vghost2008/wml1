@@ -136,8 +136,9 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
         loss_cls_list = []
         loss_regression_list = []
         loss_center_ness_list = []
-        img_size = tf.shape(self.batched_inputs[IMAGE])[1:3]
         total_num_foreground = []
+        img_size = tf.shape(self.batched_inputs[IMAGE])[1:3]
+        
         for i,gt_results_item in enumerate(gt_results):
             gt_classes = gt_results_item['g_classes']
             gt_center_ness = gt_results_item['g_center_ness']
@@ -174,7 +175,7 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
                                                  name="FCOSGIou_decode_test")
             pred_boxes = tf.boolean_mask(pred_boxes,foreground_idxs)
             gt_boxes = tf.boolean_mask(gt_boxes,foreground_idxs)
-            reg_loss_sum = 1.0-odl.giou(pred_boxes,gt_boxes)
+            reg_loss_sum = odl.giou_loss(pred_boxes,gt_boxes)
             loss_box_reg = tf.reduce_sum(reg_loss_sum)
 
             #center ness loss
@@ -283,12 +284,12 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
 
             # Keep top k top scoring indices only.
             num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
-            # torch.sort is actually faster than .topk (at least on GPUs)
             predicted_prob, topk_idxs = tf.nn.top_k(box_cls_i,num_topk)
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
 
             if self.score_threshold>1e-5:
+                # filter out the proposals with low confidence score
                 keep_idxs = tf.greater(predicted_prob,self.score_threshold)
                 predicted_prob = tf.boolean_mask(predicted_prob,keep_idxs)
                 topk_idxs = tf.boolean_mask(topk_idxs,keep_idxs)
@@ -296,12 +297,8 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             boxes_idxs = topk_idxs // self.num_classes
             classes_idxs = topk_idxs % self.num_classes
 
-            # filter out the proposals with low confidence score
-
             boxes_i = tf.gather(boxes_i,boxes_idxs)
             center_ness = tf.nn.sigmoid(tf.gather(centern_ness_i,boxes_idxs))
-            # predict boxes
-
 
             boxes_all.append(boxes_i)
             scores_all.append(predicted_prob*center_ness)

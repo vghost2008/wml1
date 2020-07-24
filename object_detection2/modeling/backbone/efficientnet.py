@@ -47,7 +47,6 @@ class EfficientNet(Backbone):
                 res[f"C{6+i}"] = p6p7[i]
         return res
 
-
 class LastLevelP6P7(wmodule.WChildModule):
     """
     This module is used in RetinaNet to generate extra layers, P6 and P7 from

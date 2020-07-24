@@ -141,6 +141,13 @@ def apply_with_random_selector(x, func, num_cases):
             func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
             for case in range(num_cases)])[0]
 
+def random_select_tensors(tensors):
+    sel = tf.random_uniform([], maxval=len(tensors), dtype=tf.int32)
+    return control_flow_ops.merge([
+        control_flow_ops.switch(x, tf.equal(sel, case))[1]
+        for case,x in enumerate(tensors)])[0]
+
+
 def _ImageDimensions(image):
     if image.get_shape().is_fully_defined():
         return image.get_shape().as_list()
@@ -1076,6 +1083,9 @@ def PrintSummary(v,name="v",extern_vars=[],with_global_step=False):
     if with_global_step:
         extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
     return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
+
+def PrintNaNorInf(v,name="is_nan_or_inf"):
+    return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))],summarize=100)
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))

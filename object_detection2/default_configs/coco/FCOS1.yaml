@@ -14,7 +14,7 @@ MODEL:
     ENABLE_DROPBLOCK: True
     BACKBONE_HOOK: ("","BalanceBackboneHook")
   FCOS:
-    OUTPUTS: "FCOSGIOUOutputsV2"
+    OUTPUTS: "FCOSGIOUOutputs"
     IN_FEATURES: ["P3","P4","P5"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
@@ -38,5 +38,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "FCOSCOCO"
+  PROJ_NAME: "FCOSCOCO1"
   LOG_STEP: 200

@@ -3,23 +3,13 @@ import tensorflow as tf
 import wmodule
 from .build import PROPOSAL_GENERATOR_REGISTRY,build_proposal_generator_by_name
 from object_detection2.modeling.proposal_generator.rpn_outputs import find_top_rpn_proposals
-from object_detection2.modeling.build import build_outputs
-from object_detection2.modeling.backbone.build import build_backbone
-from object_detection2.modeling.anchor_generator import build_anchor_generator
-from object_detection2.modeling.matcher import Matcher
-import math
-from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from object_detection2.datadef import *
-from functools import partial
 from basic_tftools import batch_size
-import object_detection2.od_toolkit as odtk
 
 slim = tf.contrib.slim
 
 __all__ = ["FusionPG"]
-
-
 
 @PROPOSAL_GENERATOR_REGISTRY.register()
 class FusionPG(wmodule.WChildModule):
@@ -40,21 +30,24 @@ class FusionPG(wmodule.WChildModule):
         }
         self.nms_thresh = self.cfg.MODEL.FUSIONPG.NMS_THRESH_TEST
 
-
-
     def forward(self, batched_inputs,features):
         boxes = []
         losses = {}
         probabilitys = []
         B = batch_size(batched_inputs[IMAGE])
+        bboxes_nrs = []
         for i,pg in enumerate(self.pgs):
             result_i,losses_i = pg(batched_inputs,features)
             boxes_i = result_i[PD_BOXES]
             boxes.append(boxes_i)
             for k,v in losses_i.items():
                 losses[self.cfg.MODEL.FUSIONPG.NAMES[i]+"_"+k] = v
-            probabilitys_i = tf.reverse(tf.range(tf.shape(boxes_i)[1]),axis=[-1])
-            probabilitys_i = tf.to_float(probabilitys_i)/(tf.to_float(tf.shape(boxes_i)[1])+1e-8)
+            bboxes_nrs.append(tf.shape(boxes_i)[1])
+
+        bboxes_nr = tf.to_float(tf.reduce_max(tf.convert_to_tensor(bboxes_nrs)))+1e-8
+        for i, pg in enumerate(self.pgs):
+            probabilitys_i = tf.reverse(tf.range(bboxes_nrs[i]),axis=[-1])
+            probabilitys_i = tf.to_float(probabilitys_i)/bboxes_nr
             probabilitys_i = tf.expand_dims(probabilitys_i,axis=0)
             probabilitys_i = tf.tile(probabilitys_i,[B,1])
             probabilitys.append(probabilitys_i)
@@ -73,6 +66,3 @@ class FusionPG(wmodule.WChildModule):
                                          name="fusionpg/proposals")
 
         return outdata, losses
-
-
-

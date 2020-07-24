@@ -136,8 +136,10 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
         gt_results = self._get_ground_truth()
         loss_cls_list = []
         loss_regression_list = []
+        total_num_foreground = []
+        
         img_size = tf.shape(self.batched_inputs[IMAGE])[1:3]
-        gs = [tf.train.get_or_create_global_step()]
+
         for i,gt_results_item in enumerate(gt_results):
             gt_classes = gt_results_item['g_classes']
             gt_boxes = gt_results_item['g_boxes']
@@ -147,6 +149,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
 
             foreground_idxs = (gt_classes > 0)
             num_foreground = tf.reduce_sum(tf.cast(foreground_idxs,tf.int32))
+            total_num_foreground.append(num_foreground)
 
             gt_classes_target = tf.one_hot(gt_classes,depth=self.num_classes+1)
             gt_classes_target = gt_classes_target[...,1:]
@@ -160,7 +163,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
                 logits = pred_class_logits,
                 alpha=self.focal_loss_alpha,
                 gamma=self.focal_loss_gamma,
-            )*pred_center_ness+tf.pow(1-pred_center_ness,2)/3) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            )*pred_center_ness+tf.pow(1-pred_center_ness,2)/3)
 
             # regression loss
             pred_boxes = self.box2box_transform.apply_deltas(regression=pred_regression,img_size=img_size)
@@ -178,20 +181,18 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             wsummary.histogram_or_scalar(pred_center_ness,"center_ness_pos")
             reg_loss_sum = (1.0-odl.giou(pred_boxes,gt_boxes))
             wmlt.variable_summaries_v2(reg_loss_sum,f"giou_loss{i}")
-            scale = self.get_scaler_for_boxes_reg_loss()
-            wmlt.variable_summaries_v2(scale,f"scale{i}")
             pred_center_ness = tf.squeeze(pred_center_ness,axis=-1)
-            reg_loss_sum = reg_loss_sum*(pred_center_ness+1e-2)*(1-scale)+scale*reg_loss_sum
-            reg_loss_sum = tf.cond(tf.greater(num_foreground,0),lambda:reg_loss_sum,lambda:tf.zeros(shape=()))
+            reg_loss_sum = reg_loss_sum*(pred_center_ness+1e-2)
             wmlt.variable_summaries_v2(reg_loss_sum,f"loss_sum{i}")
-            loss_box_reg = tf.reduce_sum(reg_loss_sum) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
+            loss_box_reg = tf.reduce_sum(reg_loss_sum)
             wmlt.variable_summaries_v2(loss_box_reg,f"box_reg_loss_{i}")
 
             loss_cls_list.append(loss_cls)
             loss_regression_list.append(loss_box_reg)
 
-        return {"fcos_loss_cls": tf.add_n(loss_cls_list),
-                "fcos_loss_box_reg": tf.add_n(loss_regression_list)}
+        total_num_foreground = tf.to_float(tf.maximum(tf.add_n(total_num_foreground),1))
+        return {"fcos_loss_cls": tf.add_n(loss_cls_list)/total_num_foreground,
+                "fcos_loss_box_reg": tf.add_n(loss_regression_list)/total_num_foreground}
 
     @wmlt.add_name_scope
     def inference(self, inputs,box_cls, box_regression,center_ness,nms=None,pad=True):
@@ -318,13 +319,4 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             scores = tf.pad(scores, paddings=[[0, candiate_nr - lens]])
 
         return [boxes,labels,scores,lens]
-
-    @staticmethod
-    def get_scaler_for_boxes_reg_loss():
-        global_step = tf.train.get_or_create_global_step()
-        total_steps = 10000
-        res = 0.5 * (
-                1 + tf.cos(np.pi * tf.cast(tf.minimum(global_step, total_steps), tf.float32) /
-                    total_steps))
-        return res
 

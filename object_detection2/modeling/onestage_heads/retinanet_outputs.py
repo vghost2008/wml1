@@ -220,7 +220,6 @@ class RetinaNetOutputs(wmodule.WChildModule):
 
             # Keep top k top scoring indices only.
             num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
-            # torch.sort is actually faster than .topk (at least on GPUs)
             predicted_prob, topk_idxs = tf.nn.top_k(box_cls_i,num_topk)
             predicted_prob = predicted_prob[:num_topk]
             topk_idxs = topk_idxs[:num_topk]
@@ -240,7 +239,6 @@ class RetinaNetOutputs(wmodule.WChildModule):
             anchors_i = tf.gather(anchors_i,anchor_idxs)
             # predict boxes
             predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i)
-
 
             boxes_all.append(predicted_boxes)
             scores_all.append(predicted_prob)
