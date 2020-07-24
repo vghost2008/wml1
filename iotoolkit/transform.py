@@ -13,6 +13,7 @@ import numpy as np
 from .autoaugment import *
 from thirdparty.aug.autoaugment import distort_image_with_autoaugment
 import object_detection2.bboxes as odb
+from basic_tftools import channel
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -1183,6 +1184,47 @@ class WShear(WTransform):
             data_item[GT_MASKS] = mask
 
         return data_item
+
+'''
+mask: [N,H,W]
+'''
+class RemoveSpecifiedInstance(WTransform):
+    def __init__(self):
+        pass
+
+    def __call__(self, data_item):
+        bboxes = data_item[GT_BOXES]
+        labels = data_item[GT_LABELS]
+        masks = data_item[GT_MASKS]
+        image = data_item[IMAGE]
+        
+        remove = self.pred_fn(bboxes,labels,masks)
+        keep = tf.logical_not(remove)
+        
+        data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
+        data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep)
+        data_item[IMAGE] = self.remove_instance_in_image(image,masks,remove)
+        data_item[GT_MASKS]= tf.boolean_mask(masks, keep)
+
+        return data_item
+    @staticmethod
+    def remove_instance_in_image(image,masks,is_removeds,default_value=[127,127,127]):
+        removed_image = tf.ones_like(image)*tf.convert_to_tensor([[default_value]],dtype=tf.uint8)
+        masks = tf.expand_dims(masks,axis=-1)
+        chl = channel(image)
+        def fn(lhv,rhv):
+            mask,is_removed = rhv
+            select = tf.greater(mask,0)
+            select = tf.tile(select,[1,1,chl])
+            tmp_img = tf.where(select,removed_image,lhv)
+            res = tf.cond(is_removed,lambda:tmp_img,lambda:lhv)
+            return res
+        return tf.foldl(fn,elems=(masks,is_removeds),back_prop=False,initializer=image)
+
+    @staticmethod
+    def pred_fn(bboxes,labels,masks):
+        #an example
+        return tf.equal(labels,1)
 
 
 class WTransformList(WTransform):

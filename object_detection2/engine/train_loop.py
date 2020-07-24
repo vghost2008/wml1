@@ -532,7 +532,7 @@ class SimpleTrainer(TrainerBase):
             self.begin_step = self.step
 
         t_cost = time.perf_counter() - start
-        print(f"{self.name} step={self.step}, loss={total_loss}, time_cost={t_cost}")
+        print(f"{self.name} step={self.step:6}, loss={total_loss:9.5f}, time_cost={t_cost:5.3f}")
 
         if self.step%20 == 0:
             sys.stdout.flush()
@@ -542,6 +542,7 @@ class SimpleTrainer(TrainerBase):
             d = datetime.datetime.now()+datetime.timedelta(seconds=left_time)
             print(f"save check point file, already use {(time.time()-self.time_stamp)/3600:.3f}h, {left_time/3600:.3f}h left, expected to be finished at {str(d)}.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
+            
         if self.max_train_step>1 and self.step>self.max_train_step:
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()

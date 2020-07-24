@@ -244,6 +244,8 @@ def safe_copy(src_file,dst_file):
 
 
 def base_name(v):
+    if v[-1] == "/" or v[-1] == "\\":
+        v = v[:-1]
     base_name = os.path.basename(v)
     index = base_name.rfind(".")
     if -1 == index:

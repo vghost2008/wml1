@@ -35,14 +35,14 @@ aa = trans.RandomSelectSubTransform([
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
     return [trans.BBoxesRelativeToAbsolute(),
-            aa,
+            trans.RemoveSpecifiedInstance(),
             trans.UpdateHeightWidth(),
             trans.AddBoxLens(),
             ],\
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
 _C = CN()
 _C.INPUT = CN()
-_C.INPUT.DATAPROCESS = "WAA"
+_C.INPUT.DATAPROCESS = "test"
 _C.INPUT.MIN_SIZE_TRAIN = (512,576,640)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
