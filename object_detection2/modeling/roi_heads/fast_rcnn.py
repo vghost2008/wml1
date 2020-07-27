@@ -10,6 +10,7 @@ import numpy as np
 import wnn
 import wsummary
 from .build import HEAD_OUTPUTS
+import object_detection2.wlayers as odl
 
 slim = tf.contrib.slim
 
@@ -148,6 +149,9 @@ class FastRCNNOutputs(wmodule.WChildModule):
         return loss
 
     def get_pred_iou_loss(self):
+        if self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 1:
+            return self.get_pred_iou_lossv1()
+
         gt_scores = self.proposals[ED_SCORES]
         gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
         pred_iou_logits = self.pred_iou_logits
@@ -156,6 +160,37 @@ class FastRCNNOutputs(wmodule.WChildModule):
         loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gt_scores,
                                                         logits=pred_iou_logits)
         return tf.reduce_mean(loss)
+
+    def get_pred_iou_lossv1(self):
+        with tf.name_scope("get_pred_iou_loss"):
+            gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes, tf.nn.relu(self.proposals.indices))
+            batch_size, box_nr, box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
+            gt_proposal_deltas = tf.reshape(gt_proposal_deltas, [batch_size * box_nr, box_dim])
+            proposal_bboxes = tf.reshape(self.proposals.boxes, [batch_size * box_nr, box_dim])
+            cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
+            num_classes = self.pred_class_logits.get_shape().as_list()[-1]
+            fg_num_classes = num_classes - 1
+            pred_iou_logits = self.pred_iou_logits
+
+            fg_inds = tf.greater(self.gt_classes, 0)
+            gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas, fg_inds)
+            pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas, fg_inds)
+            proposal_bboxes = tf.boolean_mask(proposal_bboxes, fg_inds)
+            gt_logits_i = tf.boolean_mask(self.gt_classes, fg_inds)
+            pred_iou_logits = tf.reshape(tf.boolean_mask(pred_iou_logits, fg_inds),[-1])
+            if not cls_agnostic_bbox_reg:
+                pred_proposal_deltas = tf.reshape(pred_proposal_deltas, [-1, fg_num_classes, box_dim])
+                pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i - 1)
+
+            pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas, boxes=proposal_bboxes)
+            loss_box_reg = odl.giou_loss(pred_bboxes, gt_proposal_deltas)
+            loss_box_reg = tf.stop_gradient(loss_box_reg)
+            loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=loss_box_reg,
+                                                            logits=pred_iou_logits)
+            loss = tf.reduce_mean(loss)
+
+        return loss
+
     def predict_boxes(self):
         """
         Returns:

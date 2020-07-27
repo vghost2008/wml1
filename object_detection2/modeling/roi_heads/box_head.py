@@ -194,7 +194,7 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                         normalizer_params=self.norm_params)
                     nets.append(box_x)
 
-            if cfg.MODEL.ROI_BOX_HEAD.PRED_IOU:
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 with tf.variable_scope("BoxIOUPredictionTower"):
                     net = nets[-2]
                     iou_x = slim.conv2d(net,conv_dim,[3,3],
@@ -202,7 +202,7 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params)
 
-            if cfg.MODEL.ROI_BOX_HEAD.PRED_IOU:
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 return cls_x,box_x,iou_x
             else:
                 return cls_x,box_x

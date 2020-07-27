@@ -35,7 +35,8 @@ class FastRCNNGIOUOutputs(_FastRCNNOutputs):
             scalar Tensor
         """
         with tf.name_scope("box_regression_loss"):
-            gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes,self.proposals.indices)
+            gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes,
+                                                   tf.nn.relu(self.proposals.indices))
             batch_size,box_nr,box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
             gt_proposal_deltas = tf.reshape(gt_proposal_deltas,[batch_size*box_nr,box_dim])
             proposal_bboxes = tf.reshape(self.proposals.boxes,[batch_size*box_nr,box_dim])

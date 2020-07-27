@@ -46,8 +46,8 @@ class FusionPG(wmodule.WChildModule):
 
         bboxes_nr = tf.to_float(tf.reduce_max(tf.convert_to_tensor(bboxes_nrs)))+1e-8
         for i, pg in enumerate(self.pgs):
-            probabilitys_i = tf.reverse(tf.range(bboxes_nrs[i]),axis=[-1])
-            probabilitys_i = tf.to_float(probabilitys_i)/bboxes_nr
+            probabilitys_i = tf.range(bboxes_nrs[i])
+            probabilitys_i = 1.0-tf.to_float(probabilitys_i)/bboxes_nr
             probabilitys_i = tf.expand_dims(probabilitys_i,axis=0)
             probabilitys_i = tf.tile(probabilitys_i,[B,1])
             probabilitys.append(probabilitys_i)
