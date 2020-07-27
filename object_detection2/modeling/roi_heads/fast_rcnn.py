@@ -183,7 +183,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i - 1)
 
             pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas, boxes=proposal_bboxes)
-            loss_box_reg = odl.giou_loss(pred_bboxes, gt_proposal_deltas)
+            loss_box_reg = odl.giou(pred_bboxes, gt_proposal_deltas)
             loss_box_reg = tf.stop_gradient(loss_box_reg)
             loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=loss_box_reg,
                                                             logits=pred_iou_logits)
