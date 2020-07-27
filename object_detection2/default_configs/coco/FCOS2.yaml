@@ -4,22 +4,23 @@ MODEL:
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
-    NAME: "build_retinanet_resnet_fpn_backbone"
+    NAME: "build_resnet_fpn_backbone"
   RESNETS:
     FROZEN_BN: True
+    MAKE_C6C7: "C6"
   FPN:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    IN_FEATURES: ["C3","C4", "C5"]
+    IN_FEATURES: ["C3","C4", "C5","C6"]
     ENABLE_DROPBLOCK: True
     BACKBONE_HOOK: ("","BalanceBackboneHook")
   FCOS:
-    OUTPUTS: "FCOSGIOUOutputsV2"
-    IN_FEATURES: ["P3","P4","P5"]
+    OUTPUTS: "FCOSGIOUOutputs"
+    IN_FEATURES: ["P3","P4","P5","P6"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     SCORE_THRESH_TEST: 0.05
-    SIZE_THRESHOLD: [64,128]
+    SIZE_THRESHOLD: [64,128,256]
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
@@ -38,5 +39,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "FCOSCOCO"
+  PROJ_NAME: "FCOSCOCO2"
   LOG_STEP: 200

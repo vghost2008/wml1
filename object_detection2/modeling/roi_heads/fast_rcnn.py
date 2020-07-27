@@ -20,7 +20,9 @@ class FastRCNNOutputs(wmodule.WChildModule):
     """
 
     def __init__(
-        self, cfg,parent,box2box_transform, pred_class_logits, pred_proposal_deltas,proposals:EncodedData,**kwargs
+        self, cfg,parent,box2box_transform, pred_class_logits, pred_proposal_deltas,proposals:EncodedData,
+            pred_iou_logits=None,
+            **kwargs
     ):
         """
         Args:
@@ -44,6 +46,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
         # cat(..., dim=0) concatenates over all images in the batch
         self.proposals = proposals
+        self.pred_iou_logits = pred_iou_logits
         if self.is_training:
             gt_logits_i = proposals.gt_object_logits
             '''
@@ -135,11 +138,24 @@ class FastRCNNOutputs(wmodule.WChildModule):
         Returns:
             A dict of losses (scalar tensors) containing keys "loss_cls" and "loss_box_reg".
         """
-        return {
+        loss = {
             "fastrcnn_loss_cls": self.softmax_cross_entropy_loss(),
             "fastrcnn_loss_box_reg": self.smooth_l1_loss(),
         }
+        if self.pred_iou_logits is not None:
+            loss['fastrcnn_loss_iou'] = self.get_pred_iou_loss()
 
+        return loss
+
+    def get_pred_iou_loss(self):
+        gt_scores = self.proposals[ED_SCORES]
+        gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
+        pred_iou_logits = self.pred_iou_logits
+        pred_iou_logits = tf.reshape(pred_iou_logits,[-1])
+        wsummary.histogram_or_scalar(gt_scores,"gt_iou_by_matcher")
+        loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gt_scores,
+                                                        logits=pred_iou_logits)
+        return tf.reduce_mean(loss)
     def predict_boxes(self):
         """
         Returns:
@@ -292,7 +308,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
         probs = tf.nn.softmax(self.pred_class_logits, dim=-1)
         return probs
 
-    def inference(self, score_thresh, nms_thresh, topk_per_image,proposal_boxes=None,scores=None):
+    def inference(self, score_thresh, nms_thresh, topk_per_image,pred_iou_logits=None,
+                  proposal_boxes=None,scores=None):
         """
         Args:
             score_thresh (float): same as fast_rcnn_inference.
@@ -314,6 +331,9 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 probability = tf.nn.softmax(self.pred_class_logits)
             else:
                 probability = scores
+            if pred_iou_logits is not None:
+                ious = tf.nn.sigmoid(pred_iou_logits,"pred_iou")
+                probability = ious*probability
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])

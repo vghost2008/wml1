@@ -621,7 +621,11 @@ class StandardROIHeads(ROIHeads):
         if self.roi_hook is not None:
             box_features = self.roi_hook(box_features,self.inputs)
         box_features = self.box_head(box_features)
-        pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
+        if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+            pred_class_logits, pred_proposal_deltas,iou_logits = self.box_predictor(box_features)
+        else:
+            pred_class_logits, pred_proposal_deltas = self.box_predictor(box_features)
+            iou_logits = None
         del box_features
 
         outputs = build_outputs(name=self.cfg.MODEL.ROI_HEADS.OUTPUTS,
@@ -629,8 +633,9 @@ class StandardROIHeads(ROIHeads):
             box2box_transform=self.box2box_transform,
             pred_class_logits=pred_class_logits,
             pred_proposal_deltas=pred_proposal_deltas,
+            pred_iou_logits = iou_logits,
             proposals=proposals,
-        )
+            )
         if self.is_training:
             if self.train_on_pred_boxes:
                 pred_boxes = outputs.predict_boxes_for_gt_classes()
@@ -638,6 +643,7 @@ class StandardROIHeads(ROIHeads):
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 pred_instances = outputs.inference(
                     self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
+                    pred_iou_logits=iou_logits,
                     proposal_boxes=proposals.boxes
                 )
             else:
@@ -645,7 +651,8 @@ class StandardROIHeads(ROIHeads):
             return pred_instances,outputs.losses()
         else:
             pred_instances = outputs.inference(
-                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
+                self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
+                pred_iou_logits = iou_logits,
             )
             return pred_instances,{}
 

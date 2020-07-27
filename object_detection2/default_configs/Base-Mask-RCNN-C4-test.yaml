@@ -7,7 +7,7 @@ MODEL:
   RESNETS:
     DEPTH: 50
   PROPOSAL_GENERATOR:
-    NAME: "FCOSPG"
+    NAME: "RPN"
   FCOSPG:
     IN_FEATURES: ["P2","P3","P4"]
     NORM: "evo_norm_s0"
@@ -18,6 +18,11 @@ MODEL:
     POST_NMS_TOPK_TRAIN: 200
     POST_NMS_TOPK_TEST: 500
     OUTPUTS: "PGFCOSOutputs"
+  ROI_HEADS:
+    NAME: "StandardROIHeads"
+    IN_FEATURES: ["P2", "P3", "P4"]
+    BATCH_SIZE_PER_IMAGE: 128
+    PRED_IOU: True
   FPN:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"

@@ -30,7 +30,11 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
     def forward(self, x,scope="BoxPredictor"):
         with tf.variable_scope(scope):
             if not isinstance(x,tf.Tensor) and isinstance(x,Iterable):
-                assert len(x)==2, "error x length."
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                    assert len(x)==3, "error x length."
+                else:
+                    assert len(x) == 2, "error x length."
+
                 def trans(net):
                     if len(net.get_shape()) > 2:
                         shape = wmlt.combined_static_and_dynamic_shape(net)
@@ -44,6 +48,11 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
                 num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
                 proposal_deltas = slim.fully_connected(x[1],self.box_dim*num_bbox_reg_classes,activation_fn=None,
                                                        normalizer_fn=None,scope="bbox_pred")
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                    iou_logits = slim.fully_connected(x[2],1,
+                                                      activation_fn=None,
+                                                      normalizer_fn=None,
+                                                      scope="iou_pred")
             else:
                 if len(x.get_shape()) > 2:
                     shape = wmlt.combined_static_and_dynamic_shape(x)
@@ -54,5 +63,13 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
                 num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
                 proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
                                               normalizer_fn=None,scope="bbox_pred")
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                    iou_logits = slim.fully_connected(x,1,
+                                                      activation_fn=None,
+                                                      normalizer_fn=None,
+                                                      scope="iou_pred")
 
-            return scores, proposal_deltas
+            if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return scores, proposal_deltas,iou_logits
+            else:
+                return scores, proposal_deltas

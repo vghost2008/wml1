@@ -10,6 +10,7 @@ MODEL:
     DEPTH: 50
     FROZEN_BN: True
   ROI_HEADS:
+    IOU_THRESHOLDS: [0.6]
     OUTPUTS: "FastRCNNOutputs"
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
@@ -17,8 +18,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    #NAME: "FusionPG"
-    NAME: "RPN"
+    NAME: "FusionPG"
   FUSIONPG:
     NAMES: ["FCOSPG","RPN"]
     PRE_NMS_TOPK_TRAIN: 3000 # Per FPN level
@@ -26,7 +26,7 @@ MODEL:
     POST_NMS_TOPK_TRAIN: 1000
     POST_NMS_TOPK_TEST: 500
   ROI_BOX_HEAD:
-    NAME: "SeparateFastRCNNConvFCHeadV3"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
     NUM_CONV: 4
@@ -86,5 +86,5 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv3_2"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv3_1"
   LOG_STEP: 200

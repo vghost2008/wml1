@@ -216,7 +216,7 @@ def build_resnet_fpn_backbone(cfg,*args,**kwargs):
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
-        top_block=LastLevelMaxPool(cfg,*args,**kwargs),
+        top_block=None,
         fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
         cfg=cfg,
         *args,
