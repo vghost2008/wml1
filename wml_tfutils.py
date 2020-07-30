@@ -646,7 +646,6 @@ def sparse_to_dense(sparse_indices, dim_size, sparse_value, default_value=0):
     out_shape = tf.convert_to_tensor([tf.reduce_prod(tf.shape(sparse_indices)),dim_size])
     sparse_indices = tf.reshape(sparse_indices,[-1])
     sparse_indices = tf.stack([tf.range(first_dim_size),sparse_indices],axis=1)
-    out_shape = tf.Print(out_shape,[out_shape,tf.shape(sparse_indices)])
     res = tf.sparse_to_dense(sparse_indices,output_shape=out_shape,sparse_values=sparse_value,default_value=default_value)
     res = tf.reshape(res,tf.concat([old_shape[:-1],[dim_size]],axis=0))
     return res

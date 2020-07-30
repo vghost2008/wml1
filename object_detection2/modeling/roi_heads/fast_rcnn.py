@@ -11,6 +11,7 @@ import wnn
 import wsummary
 from .build import HEAD_OUTPUTS
 import object_detection2.wlayers as odl
+from object_detection2.modeling.matcher import Matcher
 
 slim = tf.contrib.slim
 
@@ -177,7 +178,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
             pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas, fg_inds)
             proposal_bboxes = tf.boolean_mask(proposal_bboxes, fg_inds)
             gt_logits_i = tf.boolean_mask(self.gt_classes, fg_inds)
-            pred_iou_logits = tf.reshape(tf.boolean_mask(pred_iou_logits, fg_inds),[-1])
+            pred_iou_logits_pos = tf.reshape(tf.boolean_mask(pred_iou_logits, fg_inds),[-1])
+            pred_iou_logits_neg = tf.reshape(tf.boolean_mask(pred_iou_logits, tf.logical_not(fg_inds)),[-1])
             if not cls_agnostic_bbox_reg:
                 pred_proposal_deltas = tf.reshape(pred_proposal_deltas, [-1, fg_num_classes, box_dim])
                 pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i - 1)
@@ -185,9 +187,16 @@ class FastRCNNOutputs(wmodule.WChildModule):
             pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas, boxes=proposal_bboxes)
             loss_box_reg = odl.giou(pred_bboxes, gt_proposal_deltas)
             loss_box_reg = tf.stop_gradient(loss_box_reg)
-            loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=loss_box_reg,
-                                                            logits=pred_iou_logits)
-            loss = tf.reduce_mean(loss)
+            loss_pos = wnn.sigmoid_cross_entropy_with_logits_FL(labels=loss_box_reg,
+                                                            logits=pred_iou_logits_pos)
+            loss_pos = tf.reduce_mean(loss_pos)
+            loss_neg = wnn.sigmoid_cross_entropy_with_logits_FL(labels=tf.zeros_like(pred_iou_logits_neg),
+                                                            logits=pred_iou_logits_neg)
+            loss_neg = tf.reduce_mean(loss_neg)*0.3
+            tf.summary.scalar("iou_pos_loss",loss_pos)
+            tf.summary.scalar("iou_neg_loss",loss_neg)
+
+            loss = loss_pos+loss_neg
 
         return loss
 
@@ -368,7 +377,26 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 probability = scores
             if pred_iou_logits is not None:
                 ious = tf.nn.sigmoid(pred_iou_logits,"pred_iou")
-                probability = ious*probability
+
+                if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
+                    matcher = Matcher(
+                        [1e-3],
+                        allow_low_quality_matches=False,
+                        cfg=self.cfg,
+                        parent=self
+                    )
+                    boxes = self.box2box_transform.apply_deltas(deltas=tf.expand_dims(self.pred_proposal_deltas,axis=0),
+                                                                boxes=proposal_boxes)
+                    mh_res0 = matcher(boxes,
+                                  self.parent.batched_inputs[GT_BOXES],
+                                  self.parent.batched_inputs[GT_LABELS],
+                                  self.parent.batched_inputs[GT_LENGTH])
+                    add_to_research_datas("pb_scores",mh_res0[1],[-1])
+                    add_to_research_datas("pb_ious",ious,[-1])
+                    assert len(probability.get_shape())==2, "error probability shape"
+                    add_to_research_datas("pb_probs",tf.nn.top_k(probability[:,1:],k=1)[0],[-1])
+                else:
+                    probability = ious*probability
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])
@@ -395,5 +423,18 @@ class FastRCNNOutputs(wmodule.WChildModule):
             res_indices = res_indices[:,:max_len]
 
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
+        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
+            with tf.device("/cpu:0"):
+                ious = wmlt.batch_gather(tf.expand_dims(ious,axis=0),res_indices)
+                scores0 = wmlt.batch_gather(mh_res0[1],res_indices)
+                l = lens[0]
+                mh_res1 = matcher(boxes[:,:l],
+                                 self.parent.batched_inputs[GT_BOXES],
+                                 self.parent.batched_inputs[GT_LABELS],
+                                 self.parent.batched_inputs[GT_LENGTH])
+                add_to_research_datas("rd_scores", mh_res1[1][:,:l],[-1])
+                add_to_research_datas("rd_ious", ious[:,:l],[-1])
+                add_to_research_datas("rd_probs", probability[:,:l],[-1])
+                add_to_research_datas("rd_scores_old", scores0[:,:l],[-1])
 
         return results

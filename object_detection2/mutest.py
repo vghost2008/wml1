@@ -31,6 +31,7 @@ class WMLTest(tf.test.TestCase):
 
 
 
+
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',

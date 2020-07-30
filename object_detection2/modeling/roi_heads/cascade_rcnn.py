@@ -24,6 +24,8 @@ class CascadeROIHeads(StandardROIHeads):
         cascade_ious             = cfg.MODEL.ROI_BOX_CASCADE_HEAD.IOUS
         self.num_cascade_stages  = len(cascade_ious)
         self.train_on_pred_boxes = cfg.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES
+        self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
+
 
         print(cascade_bbox_reg_weights,cascade_ious)
         print(len(cascade_bbox_reg_weights),len(cascade_ious))
@@ -49,7 +51,7 @@ class CascadeROIHeads(StandardROIHeads):
             self.box_head.append(box_head)
             self.box_predictor.append(
                 FastRCNNOutputLayers(cfg,parent=self,num_classes=self.num_classes,
-                    cls_agnostic_bbox_reg=True,**kwargs
+                    cls_agnostic_bbox_reg=self.cls_agnostic_bbox_reg,**kwargs
                 )
             )
             self.box2box_transform.append(Box2BoxTransform(weights=cascade_bbox_reg_weights[k]))

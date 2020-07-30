@@ -56,6 +56,7 @@ class ROIHeads(wmodule.WChildModule):
         self.in_features              = cfg.MODEL.ROI_HEADS.IN_FEATURES
         self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES     #不包含背景
         self.proposal_append_gt       = cfg.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT
+        self.proposal_append_huge_num_gt       = cfg.MODEL.ROI_HEADS.PROPOSAL_APPEND_HUGE_NUM_GT
         self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
         # fmt: on
 
@@ -165,11 +166,11 @@ class ROIHeads(wmodule.WChildModule):
     should be called between getProposalBoxes and encodeRCNBoxes
     Note that: Detectron2 also use the same strategy, but they juse simple add the gtboxes to the proposal_boxes
     '''
-    def add_ground_truth_to_proposals(self,proposals,gtboxes,boxes_lens,nr=16,limits=[0.1,0.1,0.1,0.1]):
+    def add_ground_truth_to_proposals(self,proposals,gtboxes,boxes_lens,nr=16,limits=[0.1,0.1,0.1,0.1],size=1):
         with tf.name_scope("add_ground_truth_boxes_to_proposal_boxes"):
             boxes,_ = od.batched_random_select_boxes(gtboxes,boxes_lens,nr)
             if limits is not None:
-                boxes = bboxes.random_distored_boxes(boxes,limits=limits,size=1,keep_org=True)
+                boxes = bboxes.random_distored_boxes(boxes,limits=limits,size=size,keep_org=True)
             proposals = tf.concat([proposals,boxes],axis=1)
         return proposals
 
@@ -212,7 +213,14 @@ class ROIHeads(wmodule.WChildModule):
             # examples from the start of training. For RPN, this augmentation improves
             # convergence and empirically improves box AP on COCO by about 0.5
             # points (under one tested configuration).
-            if self.proposal_append_gt:
+            if self.proposal_append_huge_num_gt:
+                nr = 100
+                size = max(proposals.get_shape().as_list()[1]//nr,1)
+                proposals = self.add_ground_truth_to_proposals(proposals, gt_boxes, gt_length,
+                                                               limits=[0.5,0.5,0.5],
+                                                               nr=nr,
+                                                               size=size)
+            elif self.proposal_append_gt:
                 proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,limits=None)
             res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
             gt_logits_i, scores, indices = res
@@ -546,6 +554,7 @@ class StandardROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
+        self.batched_inputs = inputs
         proposals_boxes = proposals[PD_BOXES]
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
@@ -597,7 +606,7 @@ class StandardROIHeads(ROIHeads):
         instances = self._forward_keypoint(inputs,features, instances,img_size=img_size)
         return instances
 
-    def _forward_box(self, features, proposals,img_size):
+    def _forward_box(self, features, proposals,img_size,retry=True):
         """
         Forward logic of the box prediction branch. If `self.train_on_pred_boxes is True`,
             the function puts predicted boxes in the `proposal_boxes` field of `proposals` argument.
@@ -654,6 +663,12 @@ class StandardROIHeads(ROIHeads):
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img,
                 pred_iou_logits = iou_logits,
             )
+            '''if self.cfg.MODEL.ROI_HEADS.PRED_IOU and retry:
+                proposals[PD_BOXES] = pred_instances[RD_BOXES]
+                scope = tf.get_variable_scope()
+                scope.reuse_variables()
+                return self._forward_box(features,proposals,img_size,retry=False)'''
+
             return pred_instances,{}
 
     def _forward_mask(self, inputs,features, instances,img_size):

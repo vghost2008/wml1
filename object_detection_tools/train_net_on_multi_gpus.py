@@ -81,7 +81,9 @@ def main(_):
     print("")
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
-    trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False)
+    trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False,
+                            research_file=args.research_file)
+    #trainer.full_trace = True
     kwargs = {}
     if args.restore == "auto":
         if len(cfg.MODEL.WEIGHTS) > 3:

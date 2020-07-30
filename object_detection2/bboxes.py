@@ -298,14 +298,12 @@ def to_cxyhw(data):
 def to_yxminmax(data):
     old_shape = btf.combined_static_and_dynamic_shape(data)
     data = tf.reshape(data,[-1,4])
-    data = tf.transpose(data,perm=[1,0])
-    cy, cx, h, w = tf.unstack(data,axis=0)
+    cy, cx, h, w = tf.unstack(data,axis=1)
     ymin = cy-h/2.
     ymax = cy+h/2.
     xmin = cx-w/2.
     xmax = cx+w/2.
-    data = tf.stack([ymin,xmin,ymax,xmax],axis=0)
-    data = tf.transpose(data,perm=[1,0])
+    data = tf.stack([ymin,xmin,ymax,xmax],axis=1)
     data = tf.reshape(data,old_shape)
 
     return data
@@ -316,6 +314,20 @@ output:[xmin,ymin,width,height]
 '''
 def to_xyminwh(bbox):
     return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
+'''
+将以ymin,xmin,ymax,xmax表示的box转换为以cy,cx表示的box
+对data的shape没有限制
+'''
+def get_bboxes_center_point(data):
+    old_shape = btf.combined_static_and_dynamic_shape(data)
+    old_shape[-1] = 2
+    data = tf.reshape(data,[-1,4])
+    ymin,xmin,ymax,xmax = tf.unstack(data,axis=1)
+    cy = (ymin+ymax)/2.
+    cx = (xmin+xmax)/2.
+    data = tf.stack([cy,cx],axis=1)
+    data = tf.reshape(data,old_shape)
+    return data
 
 def scale_bboxes(bboxes,scale):
     old_shape = tf.shape(bboxes)
@@ -799,3 +811,133 @@ def bboxes_flip_left_right(bboxes):
     bboxes = tf.transpose(bboxes)
     return bboxes
 
+
+'''
+boxes0:[X,4]
+boxes1:[Y,4]
+return:
+iou:[X,Y] i,j表示boxes0[i]与boxes1[j]的IOU
+'''
+@btf.add_name_scope
+def get_iou_matrix(boxes0,boxes1):
+    X,_ = btf.combined_static_and_dynamic_shape(boxes0)
+    Y,_ = btf.combined_static_and_dynamic_shape(boxes1)
+    boxes0 = tf.expand_dims(boxes0,axis=1)
+    boxes0 = tf.tile(boxes0,[1,Y,1])
+    boxes1 = tf.expand_dims(boxes1,axis=0)
+    boxes1 = tf.tile(boxes1,[X,1,1])
+
+    boxes0 = tf.reshape(boxes0,[-1,4])
+    boxes1 = tf.reshape(boxes1,[-1,4])
+    ious = batch_bboxes_jaccard(boxes0,boxes1)
+    return tf.reshape(ious,[X,Y])
+
+'''
+boxes0:[X,4]
+boxes1:[Y,4]
+return:
+dis:[X,Y] i,j表示boxes0[i]与boxes1[j]的l2距离
+'''
+@btf.add_name_scope
+def get_bboxes_dis(boxes0,boxes1):
+    X,_ = btf.combined_static_and_dynamic_shape(boxes0)
+    Y,_ = btf.combined_static_and_dynamic_shape(boxes1)
+    boxes0 = tf.expand_dims(boxes0,axis=1)
+    boxes0 = tf.tile(boxes0,[1,Y,1])
+    boxes1 = tf.expand_dims(boxes1,axis=0)
+    boxes1 = tf.tile(boxes1,[X,1,1])
+
+    boxes0 = tf.reshape(boxes0,[-1,4])
+    boxes1 = tf.reshape(boxes1,[-1,4])
+    boxes0 = get_bboxes_center_point(boxes0)
+    boxes1 = get_bboxes_center_point(boxes1)
+    dis = tf.square(boxes0-boxes1)
+    dis = tf.reduce_sum(dis,axis=-1,keepdims=False)
+    dis = tf.sqrt(dis)
+    return tf.reshape(dis,[X,Y])
+
+'''
+boxes0:[X,4]
+boxes1:[Y,4]
+return:
+is_in_center:[X,Y] i,j表示boxes1[j]的中心点是否在boxes0[i]内
+'''
+@btf.add_name_scope
+def is_center_in_boxes(boxes0,boxes1):
+    X,_ = btf.combined_static_and_dynamic_shape(boxes0)
+    Y,_ = btf.combined_static_and_dynamic_shape(boxes1)
+    boxes0 = tf.expand_dims(boxes0,axis=1)
+    boxes0 = tf.tile(boxes0,[1,Y,1])
+    boxes1 = tf.expand_dims(boxes1,axis=0)
+    boxes1 = tf.tile(boxes1,[X,1,1])
+
+    boxes0 = tf.reshape(boxes0,[-1,4])
+    boxes1 = tf.reshape(boxes1,[-1,4])
+    boxes1 = get_bboxes_center_point(boxes1)
+    d0 = tf.greater_equal(boxes1[:,0],boxes0[:,0])
+    d1 = tf.less_equal(boxes1[:,0],boxes0[:,2])
+    d2 = tf.greater_equal(boxes1[:,1],boxes0[:,1])
+    d3 = tf.less_equal(boxes1[:,1],boxes0[:,3])
+    res = tf.logical_and(tf.logical_and(d0,d1),tf.logical_and(d2,d3))
+    return tf.reshape(res,[X,Y])
+
+'''
+bboxes0: [B,X,4]
+bboxes1: [B,Y,4]
+len0: [B]
+'''
+def batch_bboxes_pair_wrap(bboxes0,bboxes1,fn,len0=None,len1=None,dtype=None):
+
+    def fn0(tbboxes0,tbboxes1):
+        res = fn(tbboxes0,tbboxes1)
+        return res
+
+    def fn1(tbboxes0,tbboxes1,l0):
+        X,_ = btf.combined_static_and_dynamic_shape(tbboxes0)
+        res = fn(tbboxes0[:l0],tbboxes1)
+        res = tf.pad(res,[[0,X-l0],[0,0]])
+        return res
+
+    def fn2(tbboxes0,tbboxes1,l1):
+        Y,_ = btf.combined_static_and_dynamic_shape(tbboxes1)
+        res = fn(tbboxes0,tbboxes1[:l1])
+        res = tf.pad(res,[[0,0],[0,Y-l1]])
+        return res
+
+    def fn3(tbboxes0,tbboxes1,l0,l1):
+        X,_ = btf.combined_static_and_dynamic_shape(tbboxes0)
+        Y,_ = btf.combined_static_and_dynamic_shape(tbboxes1)
+        res = fn(tbboxes0[:l0],tbboxes1[:l1])
+        res = tf.pad(res,[[0,X-l0],[0,Y-l1]])
+        return res
+
+    if dtype is None:
+        dtype = bboxes0.dtype
+
+    if len0 is None and len1 is None:
+        return tf.map_fn(lambda x:fn0(x[0],x[1]),elems=(bboxes0,bboxes1),dtype=dtype)
+    elif len0 is not None and len1 is not None:
+        return tf.map_fn(lambda x:fn3(x[0],x[1],x[2],x[3]),elems=(bboxes0,bboxes1,len0,len1),dtype=dtype)
+    elif len0 is not None and len1 is None:
+        return tf.map_fn(lambda x:fn1(x[0],x[1],x[2]),elems=(bboxes0,bboxes1,len0),dtype=dtype)
+    elif len0 is None and len1 is not None:
+        return tf.map_fn(lambda x:fn2(x[0],x[1],x[2]),elems=(bboxes0,bboxes1,len1),dtype=dtype)
+
+'''
+bboxes0: [B,X,4]
+bboxes1: [1,Y,4]
+len0: [B]
+'''
+def batch_bboxes_pair_wrapv2(bboxes0,bboxes1,fn,len0=None,dtype=None,scope=None):
+
+    def mfn(tbboxes0,l0):
+        X,_ = btf.combined_static_and_dynamic_shape(tbboxes0)
+        res = fn(tbboxes0[:l0],bboxes1[0])
+        res = tf.pad(res,[[0,X-l0],[0,0]])
+        return res
+
+    if dtype is None:
+        dtype = bboxes0.dtype
+
+    with tf.name_scope(scope,default_name="batch_bboxes_pair_wrapv2"):
+        return tf.map_fn(lambda x:mfn(x[0],x[1]),elems=(bboxes0,len0),dtype=dtype)

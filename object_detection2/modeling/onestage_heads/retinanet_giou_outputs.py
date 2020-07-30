@@ -71,6 +71,8 @@ class RetinaNetGIOUOutputs(wmodule.WChildModule):
         self.anchor_matcher = anchor_matcher
         self.pred_logits = pred_logits
         self.pred_anchor_deltas = pred_anchor_deltas
+        self.anchors_lens = [tf.shape(x)[0] for x in anchors]
+
 
         anchors = tf.concat(anchors,axis=0)
         anchors = tf.expand_dims(anchors,axis=0)
@@ -89,7 +91,9 @@ class RetinaNetGIOUOutputs(wmodule.WChildModule):
                 in {-1, 0, 1}, with meanings: -1 = ignore; 0 = negative class; 1 = positive class.
             gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), 4).
         """
-        res = self.anchor_matcher(self.anchors,self.gt_boxes,self.gt_labels,self.gt_length)
+        res = self.anchor_matcher(self.anchors,self.gt_boxes,self.gt_labels,self.gt_length,
+                                  boxes_len = self.anchors_lens)
+
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
 

@@ -6,13 +6,14 @@ from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.backbone.build import build_backbone
 from object_detection2.modeling.anchor_generator import build_anchor_generator
 from object_detection2.modeling.box_regression import Box2BoxTransform
-from object_detection2.modeling.matcher import Matcher
+from object_detection2.modeling.build_matcher import build_matcher
 import math
 from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 import object_detection2.od_toolkit as odtk
+import wnnlayer as wnnl
 
 slim = tf.contrib.slim
 
@@ -44,11 +45,13 @@ class RetinaNet(MetaArch):
 
         # Matching and loss
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RPN.BBOX_REG_WEIGHTS)
-        self.anchor_matcher = Matcher(
-            cfg.MODEL.RETINANET.IOU_THRESHOLDS,
+        self.anchor_matcher = build_matcher(
+            cfg.MODEL.RETINANET.MATCHER,
+            thresholds=cfg.MODEL.RETINANET.IOU_THRESHOLDS,
             allow_low_quality_matches=True,
             cfg=cfg,
             parent=self,
+            k = 9*self.anchor_generator.num_cell_anchors[0],
         )
 
 
@@ -97,6 +100,7 @@ class RetinaNet(MetaArch):
             gt_length=gt_length,
             max_detections_per_image=self.cfg.TEST.DETECTIONS_PER_IMAGE,
         )
+        outputs.batched_inputs = batched_inputs
 
         if self.is_training:
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
@@ -179,6 +183,8 @@ class RetinaNetHead(wmodule.WChildModule):
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
+                _bbox_reg = _bbox_reg*wnnl.scale_gradient(tf.get_variable(name=f"gamma_{j}",shape=(),initializer=tf.ones_initializer()),0.2)
+                
                 net = feature
                 with tf.variable_scope("ClassPredictionTower"):
                     for i in range(num_convs):

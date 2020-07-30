@@ -55,7 +55,7 @@ def __draw_detection_image_summary(images,
 
   if category_index is None:
     category_index = {}
-    for i in range(100):
+    for i in range(200):
       category_index[i] = str(i)
 
   if classes is None:

@@ -38,7 +38,10 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
                 def trans(net):
                     if len(net.get_shape()) > 2:
                         shape = wmlt.combined_static_and_dynamic_shape(net)
-                        return tf.reshape(net,[shape[0],-1])
+                        dim = 1
+                        for x in shape[1:]:
+                            dim *= x
+                        return tf.reshape(net,[shape[0],dim])
                     else:
                         return net
                 x = [trans(v) for v in x]

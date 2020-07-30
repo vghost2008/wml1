@@ -1,0 +1,18 @@
+#coding=utf-8
+import tensorflow as tf
+import wmodule
+from collections import OrderedDict
+from .build import ROI_HEADS_HOOK
+import wnnlayer as wnnl
+
+@ROI_HEADS_HOOK.register()
+class NonLocalROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        cls_net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook",
+                                         normalizer_fn=wnnl.evo_norm_s0,
+                                         activation_fn=None)
+        return cls_net,net

@@ -4,12 +4,12 @@ from thirdparty.registry import Registry
 import wmodule
 from .build import PROPOSAL_GENERATOR_REGISTRY
 from object_detection2.modeling.anchor_generator import *
-from object_detection2.modeling.matcher import *
 from object_detection2.modeling.box_regression import *
 from .rpn_outputs import find_top_rpn_proposals
 from object_detection2.datadef import *
 import wsummary
 from object_detection2.modeling.build import build_outputs
+from object_detection2.modeling.build_matcher import build_matcher
 
 slim = tf.contrib.slim
 
@@ -75,11 +75,15 @@ class RPN(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
         self.rpn_head = build_rpn_head(cfg,parent=self,*args,**kwargs)
-        self.anchor_matcher = Matcher(thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,
-                                      same_pos_label=1,
-                                      allow_low_quality_matches=True,
-                                      cfg=cfg,
-                                      parent=self)
+        self.anchor_matcher = build_matcher(
+            cfg.MODEL.RPN.MATCHER,
+            thresholds=cfg.MODEL.RPN.IOU_THRESHOLDS,
+            same_pos_label=1,
+            allow_low_quality_matches=True,
+            cfg=cfg,
+            parent=self,
+            k = 9*self.rpn_head.anchor_generator.num_cell_anchors[0],
+        )
         self.box2box_transform = Box2BoxTransform()
         self.in_features             = cfg.MODEL.RPN.IN_FEATURES
         self.nms_thresh              = cfg.MODEL.RPN.NMS_THRESH

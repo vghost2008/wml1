@@ -92,6 +92,8 @@ class ROIPooler(wmodule.WChildModule):
             self.level_pooler = WROIAlign(bin_size=bin_size,output_size=output_size)
         elif pooler_type == "ROIPool":
             self.level_pooler = WROIPool(bin_size=bin_size,output_size=output_size)
+        elif pooler_type == "MixPool":
+            self.level_pooler = MixPool(bin_size=bin_size, output_size=output_size)
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
 
@@ -123,12 +125,18 @@ class ROIPooler(wmodule.WChildModule):
             for net in x:
                 features.append(self.level_pooler(net,bboxes))
 
-            features = tf.stack(features,axis=1)
+            if isinstance(features[0],(list,tuple)):
+                features = [tf.stack(x,axis=1) for x in zip(*features)]
+            else:
+                features = tf.stack(features, axis=1)
             level_assignments = tf.reshape(level_assignments,[-1])
 
             if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 wsummary.histogram_or_scalar(level_assignments,"level_assignments")
 
-            output = wmlt.batch_gather(features,level_assignments)
+            if isinstance(features,(list,tuple)):
+                output = [wmlt.batch_gather(x, level_assignments) for x in features]
+            else:
+                output = wmlt.batch_gather(features,level_assignments)
 
             return output

@@ -18,6 +18,7 @@ from object_detection2.standard_names import *
 from tensorflow.python import debug as tfdbg
 import datetime
 import socket
+from object_detection2.datadef import *
 
 FLAGS = tf.app.flags.FLAGS
 CHECK_POINT_FILE_NAME = "data.ckpt"
@@ -218,7 +219,7 @@ class SimpleTrainer(TrainerBase):
     or write your own training loop.
     """
 
-    def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False):
+    def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False,research_file="research.txt"):
         """
         Args:
             model: a objectdetection Module. Takes a data from data_loader and returns a
@@ -259,6 +260,8 @@ class SimpleTrainer(TrainerBase):
         self.gpus = gpus
         self.debug_tf = debug_tf #example filter: r -f has_inf_or_nan
         self.timer = wmlu.AvgTimeThis()
+        self.research_file = research_file
+        
         if inference:
             assert not model.is_training,"Error training statu"
         if model.is_training:
@@ -270,6 +273,9 @@ class SimpleTrainer(TrainerBase):
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
+        if os.path.exists(self.research_file):
+            print(f"Remove {self.research_file}")
+            os.remove(self.research_file)
         try:
             if tf.gfile.Exists(self.log_dir):
                 tf.gfile.DeleteRecursively(self.log_dir)
@@ -552,8 +558,12 @@ class SimpleTrainer(TrainerBase):
         assert not self.model.is_training, "[SimpleTrainer] model was changed to eval mode!"
         start = time.perf_counter()
 
+        res_data = dict(self.res_data_for_eval)
+        research_datas = get_research_datas()
+        if len(research_datas)>0:
+            res_data.update(research_datas)
+
         if self.step%self.log_step == 0:
-            res_data = dict(self.res_data_for_eval)
             summary_dict = {"summary":self.summary}
             res_data.update(summary_dict)
             res_data = self.sess.run(res_data)
@@ -564,18 +574,28 @@ class SimpleTrainer(TrainerBase):
                 print("Full trace tensorflow may cause segment errors.")
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
-            res_data = self.res_data_for_eval
             res_data = self.sess.run(res_data,
                                      options=run_options, run_metadata=run_metadata)
             self.summary_writer.add_run_metadata(run_metadata, f"setp{self.step}")
         else:
-            res_data = self.res_data_for_eval
             with self.timer:
                 res_data = self.sess.run(res_data)
         self.step += 1
 
+        if len(research_datas)>0:
+            with open(self.research_file,"a") as f:
+                data_str = ""
+                key_str = ""
+                for k in research_datas.keys():
+                    data = res_data[k]
+                    for v in data:
+                        data_str += f"{v:.4f},"
+                    data_str += "##"
+                    key_str += f"{k}|"
+                f.write(data_str+key_str+"\n")
+
         t_cost = time.perf_counter() - start
-        print(f"{self.name} step={self.step}, time_cost={t_cost}, avg_time_cost={self.timer.get_time():.4f}")
+        print(f"{self.name} step={self.step:6}, time_cost={t_cost:5.3f}, avg_time_cost={self.timer.get_time():5.4f}")
 
         return res_data
 

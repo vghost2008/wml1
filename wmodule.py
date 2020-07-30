@@ -1,7 +1,7 @@
 #coding=utf-8
 
 class WModule(object):
-    def __init__(self,cfg,parent=None,is_training=False):
+    def __init__(self,cfg,parent=None,is_training=False,*args,**kwargs):
         self.maped_attr = {"is_training":is_training}
         self.cfg = cfg
         self.parent = parent

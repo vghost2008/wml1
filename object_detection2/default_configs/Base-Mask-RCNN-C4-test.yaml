@@ -24,6 +24,11 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 128
     PRED_IOU: True
     PRED_IOU_VERSION: 1
+  ROI_BOX_HEAD:
+    POOLER_TYPE: "MixPool"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
+    NUM_CONV: 4
+
   FPN:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"

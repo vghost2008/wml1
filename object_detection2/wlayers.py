@@ -4,6 +4,7 @@ from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
 from wtfop.wtfop_ops import boxes_relative_to_absolute
 import object_detection.bboxes as odb
 import wml_tfutils as wmlt
+import wtfop.wtfop_ops as wop
 
 slim=tf.contrib.slim
 
@@ -121,6 +122,97 @@ class WROIAlignRotated:
                 net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
                                      padding="SAME")
             return net
+
+class WROIKeepRatio:
+    '''
+    bin_size:(h,w)每一个格子的大小
+
+    '''
+    def __init__(self,bin_size=[2,2],output_size=[7,7]):
+        assert(len(bin_size)>=2)
+        self.bin_size = list(bin_size)
+        self.output_size = output_size
+    '''
+    bboxes:[batch_size,X,4]
+    net:[batch_size,H,W,C]
+    输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
+    '''
+    def __call__(self, net,bboxes):
+        with tf.variable_scope("WROIKeepRatio"):
+            batch_index = _make_batch_index_for_pooler(bboxes)
+            pool_height,pool_width = self.output_size
+            if not isinstance(bboxes,tf.Tensor):
+                bboxes = tf.convert_to_tensor(bboxes,dtype=tf.float32)
+            bboxes = tf.reshape(bboxes,[-1,4])
+            width = pool_width*self.bin_size[1]
+            height = pool_height*self.bin_size[0]
+            batch_index = tf.stop_gradient(tf.reshape(batch_index, [-1]))
+            bboxes = tf.stop_gradient(tf.reshape(bboxes, [-1, 4]))
+            bboxes,mask = self.get_bboxes_and_mask(bboxes,width,height)
+            mask = tf.expand_dims(mask,axis=-1)
+            net = tf.image.crop_and_resize(image=net, boxes=bboxes, box_ind=batch_index, crop_size=[height, width])
+            net = net*mask
+            if self.bin_size[0]>1 and self.bin_size[1]>1:
+                net = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
+                                     padding="SAME")
+            return net
+
+    @staticmethod
+    @wmlt.add_name_scope
+    def get_bboxes_and_mask(bboxes,crop_width,crop_height):
+        '''
+
+        :param bboxes: [B,4]
+        :param crop_width: ()
+        :param crop_height: ()
+        :return:
+        '''
+        with tf.device(":/cpu:0"):
+            ymin,xmin,ymax,xmax = bboxes[:,0],bboxes[:,1],bboxes[:,2],bboxes[:,3]
+            width = xmax-xmin
+            height = ymax-ymin
+            size = tf.where(tf.greater(width,height),width,height)
+            nxmin = tf.where(tf.less(xmin+size,0.5),xmin,tf.maximum(0.,xmax-size))
+            nymin = tf.where(tf.less(ymin+size,0.5),ymin,tf.maximum(0.,ymax-size))
+            nxmax = nxmin+size
+            nymax = nymin+size
+            bboxes = tf.stack([nymin,nxmin,nymax,nxmax],axis=-1)
+            xmin_pad = (xmin-nxmin)*(crop_width-1)/size
+            xmax_pad = (xmax-nxmin)*(crop_width-1)/size+1.1
+            B,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
+
+            def draw_boxes(img,box):
+                return wop.fill_bboxes(img,tf.expand_dims(box,axis=0),v=0.0,include_last=False)
+            mask = tf.ones([B,crop_height,crop_width])
+
+            tmp_bboxes = tf.stack([tf.zeros([B]),tf.zeros([B]),tf.ones([B])*crop_height,xmin_pad],axis=-1)
+            mask = tf.map_fn(lambda x:draw_boxes(x[0],x[1]),elems=(mask,tmp_bboxes),dtype=tf.float32,
+                             back_prop=False,parallel_iterations=16)
+            tmp_bboxes = tf.stack([tf.zeros([B]),xmax_pad,tf.ones([B])*crop_height,tf.ones([B])*crop_width],axis=-1)
+            mask = tf.map_fn(lambda x:draw_boxes(x[0],x[1]),elems=(mask,tmp_bboxes),dtype=tf.float32,
+                             back_prop=False,parallel_iterations=16)
+
+            ymin_pad = (ymin-nymin)*(crop_height-1)/size
+            ymax_pad = (ymax-nymin)*(crop_height-1)/size+1.1
+
+            tmp_bboxes = tf.stack([tf.zeros([B]),tf.zeros([B]),ymin_pad,tf.ones([B])*crop_width],axis=-1)
+            mask = tf.map_fn(lambda x:draw_boxes(x[0],x[1]),elems=(mask,tmp_bboxes),dtype=tf.float32,
+                             back_prop=False,parallel_iterations=16)
+            tmp_bboxes = tf.stack([ymax_pad,tf.zeros([B]),tf.ones([B])*crop_height,tf.ones([B])*crop_width],axis=-1)
+            mask = tf.map_fn(lambda x:draw_boxes(x[0],x[1]),elems=(mask,tmp_bboxes),dtype=tf.float32,
+                             back_prop=False,parallel_iterations=16)
+
+            return tf.stop_gradient(bboxes),tf.stop_gradient(mask)
+
+class MixPool:
+    def __init__(self,bin_size=[2,2],output_size=[7,7]):
+        self.roi_align_pool = WROIAlign(bin_size=bin_size,output_size=output_size)
+        self.roi_keep_ratio_pool = WROIKeepRatio(bin_size=bin_size,output_size=output_size)
+
+    def __call__(self, net,bboxes):
+        net0 = self.roi_keep_ratio_pool(net,bboxes)
+        net1 = self.roi_align_pool(net,bboxes)
+        return net0,net1
 
 '''
 bboxes:[X,4]

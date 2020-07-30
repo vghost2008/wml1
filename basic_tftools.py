@@ -145,7 +145,7 @@ params:[batch_size,X,...]
 indices:[batch_size,...]
 如果indices:[batch_size]那么返回[batch_size,...]
 '''
-def batch_gather(params,indices,name=None):
+def batch_gather(params,indices,name=None,parallel_iterations=10,back_prop=True):
     if indices.get_shape().ndims <= 1:
         with tf.name_scope(name=name, default_name="batch_gather"):
             indices_shape = combined_static_and_dynamic_shape(indices)
@@ -155,9 +155,19 @@ def batch_gather(params,indices,name=None):
             return tf.gather_nd(params,indices)
     elif indices.get_shape().ndims <= 2:
         with tf.name_scope(name=name,default_name="batch_gather"):
-            return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype)
+            return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype,
+                             parallel_iterations=parallel_iterations,
+                             back_prop=back_prop)
     else:
-        return tf.batch_gather(params,indices,name)
+        with tf.name_scope(name=name,default_name="batch_gather"):
+            shape0 = combined_static_and_dynamic_shape(params)
+            shape1 = combined_static_and_dynamic_shape(indices)
+            params = tf.reshape(params,[-1,shape0[-1]])
+            indices = tf.reshape(indices,[-1,shape1[-1]])
+            res = batch_gather(params,indices,parallel_iterations=parallel_iterations,
+                               back_prop=back_prop)
+            res = tf.reshape(res,shape1)
+            return res
 
 def show_input_shape(func,message=None):
     @wraps(func)
@@ -165,7 +175,7 @@ def show_input_shape(func,message=None):
         data = []
         for d in args:
             data.append(d)
-        for k,v in kwargs:
+        for k,v in kwargs.items():
             data.append(v)
         datas = []
         index = -1

@@ -3,9 +3,19 @@ from collections import namedtuple,OrderedDict
 from .standard_names import *
 import tensorflow as tf
 from wml_utils import MDict
+RESEARCH_DATAS = OrderedDict()
+
+def get_research_datas():
+    return RESEARCH_DATAS
+
+def add_to_research_datas(key,v,reshape=None):
+    if reshape:
+        v = tf.reshape(v,reshape)
+    RESEARCH_DATAS[key] = v
 
 ProposalsData = OrderedDict#namedtuple("ProposalsData",[PD_BOXES,PD_LOGITS])
 RCNNResultsData = OrderedDict#key=[RD_BOXES,RD_LABELS,RD_PROBABILITY,RD_INDICES,RD_LENGTH,RD_MASKS,RD_KEYPOINT]
+
 class EncodedData(MDict):
     def __init__(self,gt_object_logits=None,scores=None,indices=None,boxes=None,gt_boxes=None,gt_labels=None):
         if gt_object_logits is not None:
@@ -26,6 +36,7 @@ def unstack_encoded_data_on_batch_dim(data:EncodedData):
     return EncodedData(*data)
 
 class SummaryLevel:
+    RESEARCH=-1
     DEBUG=0
     INFO=1
     WARNING=2

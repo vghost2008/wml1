@@ -204,6 +204,7 @@ _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 # NMS threshold used on RPN proposals
 _C.MODEL.RPN.NMS_THRESH = 0.7
 _C.MODEL.RPN.SORT_RESULTS = False
+_C.MODEL.RPN.MATCHER = "Matcher"
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet proposal generator options
@@ -305,6 +306,7 @@ _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # If True, augment proposals with ground-truth boxes before sampling proposals to
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True
+_C.MODEL.ROI_HEADS.PROPOSAL_APPEND_HUGE_NUM_GT = False
 
 _C.MODEL.ROI_HEADS.PRED_IOU = False
 _C.MODEL.ROI_HEADS.PRED_IOU_VERSION = 0
@@ -478,6 +480,7 @@ _C.MODEL.RETINANET.SMOOTH_L1_LOSS_BETA = 0.1
 _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 _C.MODEL.RETINANET.NORM = "BN"
 _C.MODEL.RETINANET.ACTIVATION_FN = "relu"
+_C.MODEL.RETINANET.MATCHER = "Matcher"
 
 # ---------------------------------------------------------------------------- #
 # CornerNet Head

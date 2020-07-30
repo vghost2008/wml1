@@ -55,15 +55,12 @@ class FastRCNNConvFCHead(wmodule.WChildModule):
                 for _ in range(num_fc):
                     x = slim.fully_connected(x,fc_dim,activation_fn=tf.nn.relu,
                                              normalizer_fn=self.normalizer_fn)
-
             return x
 
 
 @ROI_BOX_HEAD_REGISTRY.register()
 class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
     """
-    A head with several 3x3 conv layers (each followed by norm & relu) and
-    several fc layers (each followed by relu).
     """
 
     def __init__(self, cfg,*args,**kwargs):
@@ -138,8 +135,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
 @ROI_BOX_HEAD_REGISTRY.register()
 class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
     """
-    A head with several 3x3 conv layers (each followed by norm & relu) and
-    several fc layers (each followed by relu).
+    Rethinking Classification and Localization for Object Detection
     """
 
     def __init__(self, cfg,*args,**kwargs):
@@ -247,15 +243,17 @@ class SeparateFastRCNNConvFCHeadV3(wmodule.WChildModule):
             with tf.variable_scope("ClassPredictionTower"):
                 if num_fc>0:
                     if len(cls_x.get_shape()) > 2:
-                        shape = wmlt.combined_static_and_dynamic_shape(cls_x)
-                        dim = 1
-                        #for i in range(1,len(shape)):
-                            #dim = dim*shape[i]
-                        idx = (shape[1]*shape[2])//2
-                        print("idx:",idx)
-                        idx = tf.ones([shape[0]],dtype=tf.int32)*idx
-                        cls_x = tf.reshape(cls_x,[shape[0],-1,shape[-1]])
-                        cls_x = wmlt.batch_gather(cls_x,idx)
+                        attenation = slim.conv2d(cls_x, 64, [3, 3],
+                                            activation_fn=self.activation_fn,
+                                            normalizer_fn=self.normalizer_fn,
+                                            normalizer_params=self.norm_params)
+                        attenation = slim.conv2d(attenation, 1, [3, 3],
+                                                 activation_fn=tf.nn.sigmoid,
+                                                 normalizer_fn=None,
+                                                 normalizer_params=self.norm_params)
+                        sum = tf.reduce_sum(attenation,axis=[1,2],keepdims=True)+1e-8
+                        cls_x = cls_x*attenation/sum
+                        cls_x = tf.reduce_sum(cls_x,axis=[1,2],keepdims=False)
                     for _ in range(num_fc):
                         cls_x = slim.fully_connected(cls_x,fc_dim,
                                                      activation_fn=self.activation_fn,

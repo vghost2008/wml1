@@ -39,6 +39,7 @@ class FusionPG(wmodule.WChildModule):
         for i,pg in enumerate(self.pgs):
             result_i,losses_i = pg(batched_inputs,features)
             boxes_i = result_i[PD_BOXES]
+            wsummary.histogram_or_scalar(result_i[PD_PROBABILITY],self.cfg.MODEL.FUSIONPG.NAMES[i]+"_scores")
             boxes.append(boxes_i)
             for k,v in losses_i.items():
                 losses[self.cfg.MODEL.FUSIONPG.NAMES[i]+"_"+k] = v
@@ -63,6 +64,9 @@ class FusionPG(wmodule.WChildModule):
         outdata = {PD_BOXES: proposals, PD_PROBABILITY: tf.nn.sigmoid(logits)}
         wsummary.detection_image_summary(images=batched_inputs[IMAGE],
                                          boxes=outdata[PD_BOXES],
+                                         name="fusionpg/proposals")
+        wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                         boxes=outdata[PD_BOXES][:,:20],
                                          name="fusionpg/proposals")
 
         return outdata, losses

@@ -68,6 +68,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         self.pred_logits = pred_logits
         self.pred_anchor_deltas = pred_anchor_deltas
 
+        self.anchors_lens = [tf.shape(x)[0] for x in anchors]
         anchors = tf.concat(anchors,axis=0)
         anchors = tf.expand_dims(anchors,axis=0)
         self.anchors = anchors
@@ -85,11 +86,24 @@ class RetinaNetOutputs(wmodule.WChildModule):
                 in {-1, 0, 1}, with meanings: -1 = ignore; 0 = negative class; 1 = positive class.
             gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), 4).
         """
-        res = self.anchor_matcher(self.anchors,self.gt_boxes,self.gt_labels,self.gt_length)
+        res = self.anchor_matcher(self.anchors,self.gt_boxes,self.gt_labels,self.gt_length,
+                                  boxes_len=self.anchors_lens)
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
+        #indices = tf.Print(indices,[self.gt_length-tf.reduce_max(indices,axis=-1),self.gt_length],summarize=100)
 
         gt_anchor_deltas = self.box2box_transform.get_deltas(self.anchors,self.gt_boxes,gt_objectness_logits_i,indices)
+
+        '''logmask = tf.greater(gt_objectness_logits_i, 0)
+        B = logmask.get_shape().as_list()[0]
+        wsummary.detection_image_summary_by_logmask(images=self.batched_inputs[IMAGE],
+                                                    boxes=tf.tile(self.anchors,[B,1,1]),
+                                                    classes=gt_objectness_logits_i,
+                                                    scores=scores,
+                                                    logmask=logmask,
+                                                    name="label_and_sample_proposals_summary",
+                                                    category_index=DataLoader.category_index,
+                                                    max_boxes_to_draw=1000)'''
         #gt_objectness_logits_i为相应anchor box的标签
         return gt_objectness_logits_i, gt_anchor_deltas
 
@@ -121,8 +135,10 @@ class RetinaNetOutputs(wmodule.WChildModule):
         valid_idxs = gt_classes >= 0
         foreground_idxs = (gt_classes > 0)
         num_foreground = tf.reduce_sum(tf.cast(foreground_idxs,tf.int32))
+        #num_foreground = tf.Print(num_foreground,[tf.to_float(num_foreground)/tf.to_float(tf.reduce_prod(tf.shape(gt_classes)))*100,"XXX"])
 
         gt_classes_target = tf.boolean_mask(gt_classes,valid_idxs)
+        wsummary.variable_summaries_v2(tf.to_float(gt_classes_target),"gt_classes_target")
         gt_classes_target = tf.one_hot(gt_classes_target,depth=self.num_classes+1)
         gt_classes_target = gt_classes_target[:,1:]#RetinaNet中没有背景, 因为背景index=0, 所以要在one hot 后去掉背景
         pred_class_logits = tf.boolean_mask(pred_class_logits,valid_idxs)
