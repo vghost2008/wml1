@@ -73,9 +73,20 @@ class FastRCNNOutputs(wmodule.WChildModule):
         self._log_accuracy()
         wsummary.variable_summaries_v2(self.gt_classes,"gt_classes")
         wsummary.variable_summaries_v2(self.pred_class_logits,"pred_class_logits")
-        classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
+        if self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD>1e-3:
+            with tf.name_scope("modify_gtclasses"):
+                threshold = self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD
+                scores = tf.reshape(self.proposals[ED_SCORES],[-1])
+                gt_classes = self.gt_classes
+                gt_classes = tf.where(tf.greater(scores,threshold),gt_classes,tf.zeros_like(gt_classes))
+            classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=gt_classes,
                                                loss_collection=None,
                                                reduction=tf.losses.Reduction.MEAN)
+        else:
+            classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
+                                                                  loss_collection=None,
+                                                                  reduction=tf.losses.Reduction.MEAN)
+
         wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
         return classes_loss
 
@@ -130,7 +141,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
         wsummary.histogram_or_scalar(loss_box_reg,"fast_rcnn/box_reg_loss")
 
-        return loss_box_reg
+        return loss_box_reg*self.cfg.MODEL.ROI_HEADS.BOX_REG_LOSS_SCALE
 
     def losses(self):
         """
@@ -192,7 +203,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             loss_pos = tf.reduce_mean(loss_pos)
             loss_neg = wnn.sigmoid_cross_entropy_with_logits_FL(labels=tf.zeros_like(pred_iou_logits_neg),
                                                             logits=pred_iou_logits_neg)
-            loss_neg = tf.reduce_mean(loss_neg)*0.3
+            loss_neg = tf.reduce_mean(loss_neg)*0.5
             tf.summary.scalar("iou_pos_loss",loss_pos)
             tf.summary.scalar("iou_neg_loss",loss_neg)
 
@@ -285,6 +296,12 @@ class FastRCNNOutputs(wmodule.WChildModule):
             probability, nb_labels = tf.nn.top_k(class_prediction, k=1)
             # 背景的类别为0，前面已经删除了背景，需要重新加上
             labels = nb_labels + 1
+
+            '''num_classes = class_prediction.get_shape().as_list()[-1]-1
+            probability, labels = tf.nn.top_k(class_prediction, k=1)
+            probability = tf.where(tf.greater(labels,0),probability,tf.zeros_like(probability))
+            nb_labels = tf.where(tf.greater(labels,0),labels-1,labels)'''
+
             ndims = class_prediction.get_shape().ndims
             probability = tf.squeeze(probability, axis=ndims - 1)
             labels = tf.squeeze(labels, axis=ndims - 1)
@@ -385,18 +402,29 @@ class FastRCNNOutputs(wmodule.WChildModule):
                         cfg=self.cfg,
                         parent=self
                     )
-                    boxes = self.box2box_transform.apply_deltas(deltas=tf.expand_dims(self.pred_proposal_deltas,axis=0),
-                                                                boxes=proposal_boxes)
-                    mh_res0 = matcher(boxes,
+                    mh_res0 = matcher(proposal_boxes,
                                   self.parent.batched_inputs[GT_BOXES],
                                   self.parent.batched_inputs[GT_LABELS],
                                   self.parent.batched_inputs[GT_LENGTH])
                     add_to_research_datas("pb_scores",mh_res0[1],[-1])
                     add_to_research_datas("pb_ious",ious,[-1])
                     assert len(probability.get_shape())==2, "error probability shape"
-                    add_to_research_datas("pb_probs",tf.nn.top_k(probability[:,1:],k=1)[0],[-1])
                 else:
                     probability = ious*probability
+            else:
+                if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
+                    matcher = Matcher(
+                        [1e-3],
+                        allow_low_quality_matches=False,
+                        cfg=self.cfg,
+                        parent=self
+                    )
+                    mh_res0 = matcher(proposal_boxes,
+                                      self.parent.batched_inputs[GT_BOXES],
+                                      self.parent.batched_inputs[GT_LABELS],
+                                      self.parent.batched_inputs[GT_LENGTH])
+                    add_to_research_datas("pb_scores",mh_res0[1],[-1])
+                    assert len(probability.get_shape())==2, "error probability shape"
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])
@@ -425,7 +453,11 @@ class FastRCNNOutputs(wmodule.WChildModule):
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
         if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
             with tf.device("/cpu:0"):
-                ious = wmlt.batch_gather(tf.expand_dims(ious,axis=0),res_indices)
+                if pred_iou_logits is not None:
+                    ious = wmlt.batch_gather(tf.expand_dims(ious,axis=0),res_indices)
+                else:
+                    ious = None
+
                 scores0 = wmlt.batch_gather(mh_res0[1],res_indices)
                 l = lens[0]
                 mh_res1 = matcher(boxes[:,:l],
@@ -433,7 +465,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
                                  self.parent.batched_inputs[GT_LABELS],
                                  self.parent.batched_inputs[GT_LENGTH])
                 add_to_research_datas("rd_scores", mh_res1[1][:,:l],[-1])
-                add_to_research_datas("rd_ious", ious[:,:l],[-1])
+
+                if ious is not None:
+                    add_to_research_datas("rd_ious", ious[:,:l],[-1])
+
                 add_to_research_datas("rd_probs", probability[:,:l],[-1])
                 add_to_research_datas("rd_scores_old", scores0[:,:l],[-1])
 

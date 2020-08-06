@@ -43,11 +43,7 @@ def category_id_filter(category_id):
     good_ids = [1,2,3]
     return category_id in good_ids
 
-text_to_id={"a":1,"b":2,"c":3,"d":4}
 USE_INDEX_IN_FILE = False
-#text_to_id={"0":1,"1":2,"2":3}
-def label_text_to_id(text):
-    return text_to_id[text]
 
 def create_tf_example(image,
                       annotations_list,

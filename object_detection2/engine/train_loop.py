@@ -6,6 +6,7 @@ import numpy as np
 import image_visualization as imv
 from object_detection2.modeling.meta_arch.build import build_model
 from object_detection2.data.dataloader import DataLoader
+import object_detection2.odtools as odt
 import time
 import weakref
 import wnn
@@ -261,6 +262,7 @@ class SimpleTrainer(TrainerBase):
         self.debug_tf = debug_tf #example filter: r -f has_inf_or_nan
         self.timer = wmlu.AvgTimeThis()
         self.research_file = research_file
+        self.cfg = cfg
         
         if inference:
             assert not model.is_training,"Error training statu"
@@ -273,7 +275,7 @@ class SimpleTrainer(TrainerBase):
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
-        if os.path.exists(self.research_file):
+        if not model.is_training and os.path.exists(self.research_file):
             print(f"Remove {self.research_file}")
             os.remove(self.research_file)
         try:
@@ -365,6 +367,27 @@ class SimpleTrainer(TrainerBase):
                 tf.summary.scalar(f"loss/{k}",v)
                 v = tf.cond(tf.logical_or(tf.is_nan(v),tf.is_inf(v)),lambda : tf.zeros_like(v),lambda:v)
                 tf.losses.add_loss(v)
+        elif self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.RESEARCH:
+            research = self.cfg.GLOBAL.RESEARCH
+            if 'result_classes' in research:
+                print("replace labels with gtlabels.")
+                labels = odt.replace_with_gtlabels(bboxes=self.res_data[RD_BOXES],
+                                                   labels=self.res_data[RD_LABELS],
+                                                   length=self.res_data[RD_LENGTH],
+                                                   gtbboxes=data[GT_BOXES],
+                                                   gtlabels=data[GT_LABELS],
+                                                   gtlength=data[GT_LENGTH])
+                self.res_data[RD_LABELS] = labels
+
+            if 'result_bboxes' in research:
+                print("replace bboxes with gtbboxes.")
+                bboxes = odt.replace_with_gtbboxes(bboxes=self.res_data[RD_BOXES],
+                                                   labels=self.res_data[RD_LABELS],
+                                                   length=self.res_data[RD_LENGTH],
+                                                   gtbboxes=data[GT_BOXES],
+                                                   gtlabels=data[GT_LABELS],
+                                                   gtlength=data[GT_LENGTH])
+                self.res_data[RD_BOXES] = bboxes
 
         self.loss_dict = loss_dict
         config = tf.ConfigProto(allow_soft_placement=True)
@@ -393,7 +416,7 @@ class SimpleTrainer(TrainerBase):
                 wsummary.histogram_or_scalar(v,v.name[:-2])
             wnn.log_moving_variable()
 
-            self.saver = tf.train.Saver()
+            self.saver = tf.train.Saver(max_to_keep=100)
             tf.summary.scalar("total_loss",self.total_loss)
 
         self.summary = tf.summary.merge_all()
@@ -482,7 +505,7 @@ class SimpleTrainer(TrainerBase):
             wsummary.histogram_or_scalar(v,v.name[:-2])
         wnn.log_moving_variable()
 
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=100)
         tf.summary.scalar("total_loss",self.total_loss)
 
         self.summary = tf.summary.merge_all()
@@ -548,7 +571,7 @@ class SimpleTrainer(TrainerBase):
             d = datetime.datetime.now()+datetime.timedelta(seconds=left_time)
             print(f"save check point file, already use {(time.time()-self.time_stamp)/3600:.3f}h, {left_time/3600:.3f}h left, expected to be finished at {str(d)}.")
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
-            
+
         if self.max_train_step>1 and self.step>self.max_train_step:
             self.saver.save(self.sess, os.path.join(self.ckpt_dir,CHECK_POINT_FILE_NAME),global_step=self.step)
             sys.stdout.flush()

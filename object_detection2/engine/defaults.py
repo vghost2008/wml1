@@ -19,7 +19,7 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="Mask-RCNN-FPN-C41.yaml", metavar="FILE", help="path to config file")
     parser.add_argument("--research-file", default="research.txt", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
@@ -33,10 +33,10 @@ def default_argument_parser():
         default=None,
         nargs=argparse.REMAINDER,
     )
-    parser.add_argument("--log_dir", default=wmlu.home_dir("ai/tmp/object_detection2_log"),type=str,help="path to log dir")
-    parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to ckpt dir")
-    parser.add_argument("--test_data_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to test data dir")
-    parser.add_argument("--save_data_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to save data dir")
+    parser.add_argument("--log_dir", default=wmlu.home_dir("ai/tmp3/object_detection2_log"),type=str,help="path to log dir")
+    parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to ckpt dir")
+    parser.add_argument("--test_data_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to test data dir")
+    parser.add_argument("--save_data_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to save data dir")
     '''
     begin training datetime:
     format: YY-MM-dd HH:MM:SS如20-06-22 15:12:00

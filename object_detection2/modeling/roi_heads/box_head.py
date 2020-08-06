@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from thirdparty.registry import Registry
+import wsummary
 import wmodule
 import wml_tfutils as wmlt
 import wnnlayer as wnnl
@@ -98,7 +99,10 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                     cls_x = slim.conv2d(cls_x,conv_dim,[3,3],
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params)
+                                        normalizer_params=self.norm_params,
+                                        padding = 'VALID')
+
+
                 if num_fc>0:
                     if len(cls_x.get_shape()) > 2:
                         shape = wmlt.combined_static_and_dynamic_shape(cls_x)
@@ -111,12 +115,15 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                                                      activation_fn=self.activation_fn,
                                                      normalizer_fn=self.normalizer_fn,
                                                      normalizer_params=self.norm_params)
+
             with tf.variable_scope("BoxPredictionTower"):
                 for _ in range(num_conv):
                     box_x = slim.conv2d(box_x,conv_dim,[3,3],
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params)
+                                        normalizer_params=self.norm_params,
+                                        padding = 'VALID')
+
                 if num_fc>0:
                     if len(box_x.get_shape()) > 2:
                         shape = wmlt.combined_static_and_dynamic_shape(box_x)
@@ -206,8 +213,6 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
 @ROI_BOX_HEAD_REGISTRY.register()
 class SeparateFastRCNNConvFCHeadV3(wmodule.WChildModule):
     """
-    A head with several 3x3 conv layers (each followed by norm & relu) and
-    several fc layers (each followed by relu).
     """
 
     def __init__(self, cfg,*args,**kwargs):
@@ -222,8 +227,8 @@ class SeparateFastRCNNConvFCHeadV3(wmodule.WChildModule):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
 
 
-    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
-        with tf.variable_scope(scope,reuse=reuse):
+    def forward(self, x,scope="FastRCNNConvFCHead"):
+        with tf.variable_scope(scope):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
             num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
@@ -241,29 +246,51 @@ class SeparateFastRCNNConvFCHeadV3(wmodule.WChildModule):
                 box_x = x
 
             with tf.variable_scope("ClassPredictionTower"):
+                lconv_dim = conv_dim
+                for _ in range(num_conv):
+                    lconv_dim += 64
+                    cls_x = slim.conv2d(cls_x,lconv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params,
+                                        padding = 'VALID')
+
+
                 if num_fc>0:
                     if len(cls_x.get_shape()) > 2:
-                        attenation = slim.conv2d(cls_x, 64, [3, 3],
-                                            activation_fn=self.activation_fn,
-                                            normalizer_fn=self.normalizer_fn,
-                                            normalizer_params=self.norm_params)
-                        attenation = slim.conv2d(attenation, 1, [3, 3],
-                                                 activation_fn=tf.nn.sigmoid,
-                                                 normalizer_fn=None,
-                                                 normalizer_params=self.norm_params)
-                        sum = tf.reduce_sum(attenation,axis=[1,2],keepdims=True)+1e-8
-                        cls_x = cls_x*attenation/sum
-                        cls_x = tf.reduce_sum(cls_x,axis=[1,2],keepdims=False)
+                        shape = wmlt.combined_static_and_dynamic_shape(cls_x)
+                        dim = 1
+                        for i in range(1,len(shape)):
+                            dim = dim*shape[i]
+                        cls_x = tf.reshape(cls_x,[shape[0],dim])
                     for _ in range(num_fc):
                         cls_x = slim.fully_connected(cls_x,fc_dim,
                                                      activation_fn=self.activation_fn,
                                                      normalizer_fn=self.normalizer_fn,
                                                      normalizer_params=self.norm_params)
+
             with tf.variable_scope("BoxPredictionTower"):
+                lconv_dim = conv_dim
                 for _ in range(num_conv):
-                    box_x = slim.conv2d(box_x,conv_dim,[3,3],
+                    lconv_dim += 64
+                    box_x = slim.conv2d(box_x,lconv_dim,[3,3],
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params)
+                                        normalizer_params=self.norm_params,
+                                        padding = 'VALID')
+
+                if num_fc>0:
+                    if len(box_x.get_shape()) > 2:
+                        shape = wmlt.combined_static_and_dynamic_shape(box_x)
+                        dim = 1
+                        for i in range(1,len(shape)):
+                            dim = dim*shape[i]
+                        box_x = tf.reshape(box_x,[shape[0],dim])
+                    for _ in range(num_fc):
+                        box_x = slim.fully_connected(box_x,fc_dim,
+                                                     activation_fn=self.activation_fn,
+                                                     normalizer_fn=self.normalizer_fn,
+                                                     normalizer_params=self.norm_params)
 
             return cls_x,box_x
+

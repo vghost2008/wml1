@@ -284,6 +284,8 @@ _C.MODEL.ROI_HEADS.IN_FEATURES = ["res4"]
 # Overlap threshold for an RoI to be considered foreground (if >= IOU_THRESHOLD)
 _C.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 _C.MODEL.ROI_HEADS.IOU_LABELS = [0, 1]
+_C.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD = -1.0
+
 # RoI minibatch size *per image* (number of regions of interest [ROIs])
 # Total number of RoIs per training minibatch =
 #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
@@ -313,6 +315,7 @@ _C.MODEL.ROI_HEADS.PRED_IOU_VERSION = 0
 #预测时box结果的最小相对面积
 
 _C.MODEL.ROI_HEADS.OUTPUTS = "FastRCNNOutputs"
+_C.MODEL.ROI_HEADS.BOX_REG_LOSS_SCALE = 1.0
 
 # ---------------------------------------------------------------------------- #
 # Box Head
@@ -321,6 +324,7 @@ _C.MODEL.ROI_BOX_HEAD = CN()
 # C4 don't use head name option
 # Options for non-C4 models: FastRCNNConvFCHead,
 _C.MODEL.ROI_BOX_HEAD.NAME = ""
+_C.MODEL.ROI_BOX_HEAD.OUTPUTS_LAYER = "FastRCNNOutputLayers"
 # Default weights on (dx, dy, dw, dh) for normalizing bbox regression targets
 # These are empirically chosen to approximately lead to unit variance targets
 _C.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
@@ -763,6 +767,7 @@ _C.GLOBAL = CN()
 _C.GLOBAL.DEBUG = True
 _C.GLOBAL.PROJ_NAME = "Demon"
 _C.GLOBAL.SUMMARY_LEVEL = 0
+_C.GLOBAL.RESEARCH = [""] #result_classes, result_bboxes
 _C.GLOBAL.LOG_STEP = 200
 _C.GLOBAL.SAVE_STEP = 500
 _C.log_dir = ""

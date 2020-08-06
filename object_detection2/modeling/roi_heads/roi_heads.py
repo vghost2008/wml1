@@ -84,70 +84,88 @@ class ROIHeads(wmodule.WChildModule):
     r_indices:[nr]
     '''
     @staticmethod
-    def sample_proposals(labels, neg_nr, pos_nr):
+    def sample_proposals(labels, ious,neg_nr, pos_nr):
         nr = neg_nr + pos_nr
         r_indices = tf.range(0, tf.shape(labels)[0])
         keep_indices = tf.greater_equal(labels,0)
         labels = tf.boolean_mask(labels, keep_indices)
+        ious = tf.boolean_mask(ious,keep_indices)
         r_indices = tf.boolean_mask(r_indices, keep_indices)
         total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
         total_pos_nr = tf.shape(labels)[0] - total_neg_nr
 
         with tf.name_scope("SelectRCNBoxes"):
-            def random_select(labels, indices, size):
+            def random_select(indices, size):
                 with tf.name_scope("random_select"):
-                    data_nr = tf.shape(labels)[0]
+                    data_nr = tf.shape(indices)[0]
                     indexs = tf.range(data_nr)
                     indexs = wpad(indexs, [0, size - data_nr])
                     indexs = tf.random_shuffle(indexs)
                     indexs = tf.random_crop(indexs, [size])
-                    labels = tf.gather(labels, indexs)
                     indices = tf.gather(indices, indexs)
-                    return labels, indices
+                    return indices
+
+            def random_select_pos(ious,indices, size):
+                #return random_select(indices,size)
+                with tf.name_scope("random_select"):
+                    indexs = wop.his_random_select(his_nr=5,min=0.5,max=1.0,data=ious,select_nr=size)
+                    indices = tf.gather(indices, indexs)
+                    return indices
+
+
+            def random_select_neg(ious,indices, size):
+                #return random_select(indices,size)
+                with tf.name_scope("random_select"):
+                    indexs = wop.his_random_select(his_nr=7,min=-0.2,max=0.5,data=ious,select_nr=size)
+                    indices = tf.gather(indices, indexs)
+                    return indices
+
 
             # positive and negitave number satisfy the requement
             def selectRCNBoxesM0():
                 with tf.name_scope("M0"):
                     n_mask = tf.equal(labels, 0)
                     p_mask = tf.logical_not(n_mask)
-                    n_labels = tf.boolean_mask(labels, n_mask)
                     n_indices = tf.boolean_mask(r_indices, n_mask)
-                    p_labels = tf.boolean_mask(labels, p_mask)
-                    p_indices = tf.boolean_mask(r_indices, p_mask)
-                    p_labels, p_indices = random_select(p_labels, p_indices, pos_nr)
-                    n_labels, n_indices = random_select(n_labels, n_indices, neg_nr)
+                    n_ious = tf.boolean_mask(ious,n_mask)
 
-                    return tf.concat([p_labels, n_labels], axis=0), tf.concat([p_indices, n_indices], axis=0)
+                    p_ious = tf.boolean_mask(ious,p_mask)
+                    p_indices = tf.boolean_mask(r_indices, p_mask)
+
+                    p_indices = random_select_pos(p_ious,p_indices, pos_nr)
+                    n_indices = random_select_neg(n_ious,n_indices, neg_nr)
+
+                    return tf.concat([p_indices, n_indices], axis=0)
 
             # process the default situation
             def selectRCNBoxesM1():
                 with tf.name_scope("M1"):
-                    return random_select(labels, r_indices, nr)
+                    return random_select(r_indices, nr)
 
             # positive dosen't satisfy the requement
             def selectRCNBoxesM2():
                 with tf.name_scope("M2"):
                     n_mask = tf.equal(labels, 0)
                     p_mask = tf.logical_not(n_mask)
-                    n_labels = tf.boolean_mask(labels, n_mask)
+
                     n_indices = tf.boolean_mask(r_indices, n_mask)
-                    p_labels = tf.boolean_mask(labels, p_mask)
+                    n_ious = tf.boolean_mask(ious,n_mask)
+
                     p_indices = tf.boolean_mask(r_indices, p_mask)
+
                     with tf.name_scope("Select"):
-                        n_labels, n_indices = \
-                            random_select(n_labels, n_indices, nr - total_pos_nr)
-                    return tf.concat([p_labels, n_labels], axis=0), tf.concat([p_indices, n_indices], axis=0)
+                        n_indices = \
+                            random_select_neg(n_ious, n_indices, nr - total_pos_nr)
+                    return tf.concat([p_indices, n_indices], axis=0)
 
             # positive and negative is empty
             def selectRCNBoxesM3():
                 with tf.name_scope("M3"):
                     # boxes = tf.constant([[0.0,0.0,0.001,0.001]],dtype=tf.float32)*tf.ones([nr,4],dtype=tf.float32)
                     # boxes_regs = tf.zeros_like(boxes,dtype=tf.float32)
-                    labels = tf.constant([0]) * tf.ones([nr], dtype=tf.int32)
-                    # scores = tf.ones_like(labels,dtype=tf.float32)
-                    return labels, tf.zeros_like(labels)
+                    return tf.zeros_like(labels)
 
-            r_labels, r_indices = tf.case({
+            r_indices = tf.case({
                 tf.logical_and(total_pos_nr >= pos_nr, total_neg_nr >= neg_nr): selectRCNBoxesM0,
                 tf.logical_and(tf.logical_and(total_pos_nr < pos_nr, total_neg_nr >= neg_nr),
                                total_pos_nr > 0): selectRCNBoxesM2,
@@ -155,9 +173,10 @@ class ROIHeads(wmodule.WChildModule):
             },
                 default=selectRCNBoxesM1,
                 exclusive=True)
-            r_labels.set_shape([nr])
+
             r_indices.set_shape([nr])
-            return r_labels, r_indices
+
+            return r_indices
 
 
     '''
@@ -214,7 +233,9 @@ class ROIHeads(wmodule.WChildModule):
             # convergence and empirically improves box AP on COCO by about 0.5
             # points (under one tested configuration).
             if self.proposal_append_huge_num_gt:
-                nr = 100
+                #select nr gtbboxes
+                nr = 50
+                #distored gtbboxes size times
                 size = max(proposals.get_shape().as_list()[1]//nr,1)
                 proposals = self.add_ground_truth_to_proposals(proposals, gt_boxes, gt_length,
                                                                limits=[0.5,0.5,0.5],
@@ -222,6 +243,7 @@ class ROIHeads(wmodule.WChildModule):
                                                                size=size)
             elif self.proposal_append_gt:
                 proposals = self.add_ground_truth_to_proposals(proposals,gt_boxes,gt_length,limits=None)
+            #proposals = tf.Print(proposals,[tf.shape(proposals),"proposals"])
             res = self.proposal_matcher(proposals, gt_boxes,gt_labels, gt_length)
             gt_logits_i, scores, indices = res
 
@@ -230,10 +252,16 @@ class ROIHeads(wmodule.WChildModule):
                 neg_nr = self.batch_size_per_image-pos_nr
                 batch_size = gt_logits_i.get_shape().as_list()[0]
 
-                gt_logits_i, rcn_indices = \
-                    tf.map_fn(lambda x: self.sample_proposals(x,neg_nr=neg_nr, pos_nr=pos_nr),
-                              elems=(gt_logits_i),
-                              dtype=(tf.int32, tf.int32),
+                if self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD > 1e-3:
+                    thre_v = self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD
+                    labels_for_select = tf.where(tf.greater(scores,thre_v),gt_logits_i,tf.zeros_like(gt_logits_i))
+                else:
+                    labels_for_select = gt_logits_i
+
+                rcn_indices = \
+                    tf.map_fn(lambda x: self.sample_proposals(x[0],x[1],neg_nr=neg_nr, pos_nr=pos_nr),
+                              elems=(labels_for_select,scores),
+                              dtype=(tf.int32),
                               back_prop=False,
                               parallel_iterations=batch_size)
                 if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
@@ -243,10 +271,13 @@ class ROIHeads(wmodule.WChildModule):
                         tf.summary.scalar("pos_nr",pos_nr)
                         tf.summary.scalar("neg_nr",neg_nr)
 
-
+                gt_logits_i = tf.stop_gradient(wmlt.batch_gather(gt_logits_i,rcn_indices))
                 indices = tf.stop_gradient(wmlt.batch_gather(indices, rcn_indices))
                 proposals = tf.stop_gradient(wmlt.batch_gather(proposals, rcn_indices))
+                tmp_mask = tf.greater(scores,1e-3)
+                wsummary.histogram_or_scalar(tf.boolean_mask(scores,tmp_mask),"rpn_results_ious")
                 scores = wmlt.batch_gather(scores, rcn_indices)
+
             if self.cfg.GLOBAL.DEBUG:
                 with tf.device(":/cpu:0"):
                     with tf.name_scope("label_and_sample_proposals_summary"):
@@ -264,6 +295,7 @@ class ROIHeads(wmodule.WChildModule):
                                                                     scores=scores,
                                                                     logmask=logmask,
                                                                     name="label_and_sample_proposals_summary_by_gtboxes")
+                    wsummary.histogram_or_scalar(scores,"select_rcn_ious")
 
 
             res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
@@ -367,7 +399,7 @@ class Res5ROIHeads(ROIHeads):
         '''
         x = self.pooler(features, boxes,img_size=img_size)
         if self.roi_hook is not None:
-            x = self.roi_hook(x,self.inputs)
+            x = self.roi_hook(x,self.batched_inputs)
         x = self.res5_block(x,reuse=reuse)
         return x
 
@@ -375,7 +407,7 @@ class Res5ROIHeads(ROIHeads):
         """
         See :class:`ROIHeads.forward`.
         """
-        self.inputs = inputs
+        self.batched_inputs = inputs
         img_size = get_img_size_from_batched_inputs(inputs)
         proposal_boxes = proposals[PD_BOXES]
         if self.is_training:
@@ -502,7 +534,7 @@ class StandardROIHeads(ROIHeads):
         self.box_head = build_box_head(
             cfg,parent=self,*args,**kwargs
         )
-        self.box_predictor = FastRCNNOutputLayers(cfg,parent=self,
+        self.box_predictor = build_box_outputs_layer(cfg,parent=self,
             num_classes=self.num_classes, cls_agnostic_bbox_reg=self.cls_agnostic_bbox_reg,**kwargs
         )
 
@@ -628,7 +660,7 @@ class StandardROIHeads(ROIHeads):
             proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         if self.roi_hook is not None:
-            box_features = self.roi_hook(box_features,self.inputs)
+            box_features = self.roi_hook(box_features,self.batched_inputs)
         box_features = self.box_head(box_features)
         if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
             pred_class_logits, pred_proposal_deltas,iou_logits = self.box_predictor(box_features)
@@ -694,8 +726,6 @@ class StandardROIHeads(ROIHeads):
             fg_selection_mask = select_foreground_proposals(instances)
             proposal_boxes = instances.boxes
             mask_features = self.mask_pooler(features, proposal_boxes,img_size=img_size)
-            if self.roi_hook is not None:
-                mask_features = self.roi_hook(mask_features, self.inputs)
             fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
             mask_features = tf.boolean_mask(mask_features, fg_selection_mask)
             mask_logits = self.mask_head(mask_features)
@@ -704,8 +734,6 @@ class StandardROIHeads(ROIHeads):
             #when inference instances is RCNNResultsData
             pred_boxes = instances[RD_BOXES]
             mask_features = self.mask_pooler(features, pred_boxes,img_size=img_size)
-            if self.roi_hook is not None:
-                mask_features = self.roi_hook(mask_features, self.inputs)
             mask_logits = self.mask_head(mask_features)
             mask_rcnn_inference(mask_logits, instances)
             return instances

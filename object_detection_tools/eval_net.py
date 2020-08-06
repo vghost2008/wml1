@@ -57,7 +57,8 @@ def main(_):
     config.set_global_cfg(cfg)
 
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
-    trainer = SimpleTrainer(cfg,data=data,model=model)
+
+    trainer = SimpleTrainer(cfg,data=data,model=model,research_file=args.research_file)
     #global_scopes = ".*/sigma"
     trainer.resume_or_load()
     res = trainer.test(cfg, model)

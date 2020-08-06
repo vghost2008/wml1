@@ -94,6 +94,8 @@ class ROIPooler(wmodule.WChildModule):
             self.level_pooler = WROIPool(bin_size=bin_size,output_size=output_size)
         elif pooler_type == "MixPool":
             self.level_pooler = MixPool(bin_size=bin_size, output_size=output_size)
+        elif pooler_type == "ROIMultiScale":
+            self.level_pooler = WROIMultiScale(bin_size=bin_size, output_size=output_size)
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
 

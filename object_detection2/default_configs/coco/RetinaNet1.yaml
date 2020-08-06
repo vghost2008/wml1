@@ -24,14 +24,13 @@ MODEL:
     IOU_THRESHOLDS: [0.4, 0.5]
     IOU_LABELS: [0, -1, 1]
     NORM: "evo_norm_s0"
+    SCORE_THRESH_TEST: 0.05
     ACTIVATION_FN: "NA"
     OUTPUTS: "RetinaNetGIOUOutputs"
     MATCHER: "ATSSMatcher"
 DATASETS:
   TRAIN: "coco_2014_train"
   TEST: "coco_2014_eval"
-  #TRAIN: "mnistod_train"
-  #TEST: "mnistod_eval"
   SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
   IMS_PER_BATCH: 3

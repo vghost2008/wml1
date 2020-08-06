@@ -183,7 +183,7 @@ class RetinaNetHead(wmodule.WChildModule):
                 _bbox_reg = slim.conv2d(net, self.num_anchors* 4, [3, 3], activation_fn=None,
                                          normalizer_fn=None,
                                          scope="BoxPredictor")
-                _bbox_reg = _bbox_reg*wnnl.scale_gradient(tf.get_variable(name=f"gamma_{j}",shape=(),initializer=tf.ones_initializer()),0.2)
+                #_bbox_reg = _bbox_reg*wnnl.scale_gradient(tf.get_variable(name=f"gamma_{j}",shape=(),initializer=tf.ones_initializer()),0.2)
                 
                 net = feature
                 with tf.variable_scope("ClassPredictionTower"):

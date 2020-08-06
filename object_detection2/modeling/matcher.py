@@ -41,7 +41,8 @@ class Matcher(wmodule.WChildModule):
                            length=glength,
                            neg_threshold=self.thresholds[0],
                            pos_threshold=self.thresholds[1],
-                           max_overlap_as_pos=self.allow_low_quality_matches)
+                           max_overlap_as_pos=self.allow_low_quality_matches,
+                           force_in_gtbox=False)
 
         if self.same_pos_label:
             labels = tf.where(tf.greater(labels,0),tf.ones_like(labels)*self.same_pos_label,labels)

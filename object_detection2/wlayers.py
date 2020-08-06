@@ -2,9 +2,12 @@
 import tensorflow as tf
 from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
 from wtfop.wtfop_ops import boxes_relative_to_absolute
-import object_detection.bboxes as odb
+import object_detection2.bboxes as odb
 import wml_tfutils as wmlt
 import wtfop.wtfop_ops as wop
+from basic_tftools import channel
+import object_detection2.od_toolkit as odt
+import wnnlayer as wnnl
 
 slim=tf.contrib.slim
 
@@ -123,6 +126,44 @@ class WROIAlignRotated:
                                      padding="SAME")
             return net
 
+class WROIMultiScale:
+    '''
+    bin_size:(h,w)每一个格子的大小
+
+    '''
+    def __init__(self,bin_size=[2,2],output_size=[7,7]):
+        assert(len(bin_size)>=2)
+        self.bin_size = list(bin_size)
+        self.output_size = output_size
+        self.scale = 2.0
+        self.pool0 = WROIAlign(bin_size=bin_size,output_size=output_size)
+        output_size1 = [x+2*(x//2) for x in output_size]
+        self.pool1 = WROIAlign(bin_size=[1,1], output_size=output_size1)
+
+    '''
+    bboxes:[batch_size,X,4]
+    net:[batch_size,H,W,C]
+    输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
+    '''
+    def __call__(self, net,bboxes):
+        with tf.variable_scope("roi_multi_scale",reuse=tf.AUTO_REUSE):
+            conv_kernel = self.output_size[0]
+            net0 = self.pool0(net,bboxes)
+            net1 = self.pool1(net,odb.scale_bboxes(bboxes,scale=[self.scale,self.scale]))
+            normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=True)
+            ch = channel(net)
+            net1 = slim.separable_conv2d(net1, ch, kernel_size=[conv_kernel, conv_kernel], padding="VALID",
+                                            depth_multiplier=1,
+                                            normalizer_fn=normalizer_fn,
+                                            normalizer_params=normalizer_params,
+                                            scope=f"sep_conv")
+            net1 = wnnl.non_local_blockv1(net1,
+                                          normalizer_fn=normalizer_fn,
+                                          normalizer_params=normalizer_params,
+                                          activation_fn=None)
+            return net0,net1
+
+
 class WROIKeepRatio:
     '''
     bin_size:(h,w)每一个格子的大小
@@ -206,13 +247,22 @@ class WROIKeepRatio:
 
 class MixPool:
     def __init__(self,bin_size=[2,2],output_size=[7,7]):
-        self.roi_align_pool = WROIAlign(bin_size=bin_size,output_size=output_size)
-        self.roi_keep_ratio_pool = WROIKeepRatio(bin_size=bin_size,output_size=output_size)
+        #self.roi_align_pool = WROIAlign(bin_size=bin_size,output_size=output_size)
+        #self.roi_keep_ratio_pool = WROIKeepRatio(bin_size=bin_size,output_size=output_size)
+        self.roi_align_pool = WROIAlign(bin_size=[1,1],output_size=[14,14])
+        self.bin_size = [2,2]
 
     def __call__(self, net,bboxes):
-        net0 = self.roi_keep_ratio_pool(net,bboxes)
-        net1 = self.roi_align_pool(net,bboxes)
+        #net0 = self.roi_keep_ratio_pool(net,bboxes)
+        #net1 = self.roi_align_pool(net,bboxes)
+        #return net0,net1
+        net = self.roi_align_pool(net,bboxes)
+        net0 = tf.nn.max_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
+                             padding="SAME")
+        net1 = tf.nn.avg_pool(net, ksize=[1] + self.bin_size + [1], strides=[1] + self.bin_size + [1],
+                              padding="SAME")
         return net0,net1
+
 
 '''
 bboxes:[X,4]

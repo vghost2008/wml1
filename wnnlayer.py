@@ -602,20 +602,91 @@ def depthwise_conv2d_with_sn(inputs,
             shape = [kernel_size,kernel_size,num_inputs,1]
         w = tf.get_variable("kernel", shape=shape,
                             initializer=weights_initializer)
-        b = tf.get_variable("bias", [num_inputs], initializer=biases_initializer)
+        if biases_initializer is not None and normalizer_fn is None:
+            b = tf.get_variable("bias", [num_inputs], initializer=biases_initializer)
+        else:
+            b = None
         if weights_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(w))
-        if biases_regularizer is not None:
+        if b is not None and biases_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
-        outputs = tf.nn.depthwise_conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration), strides=[1, stride, stride, 1],padding=padding) + b
+        outputs = tf.nn.depthwise_conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration),
+                                         strides=[1, stride, stride, 1],padding=padding)
         if normalizer_fn is not None:
             if normalizer_params is None:
                 normalizer_params = {}
             outputs = normalizer_fn(outputs,**normalizer_params)
+        elif b is not None:
+            outputs = outputs + tf.reshape(b,[1,1,1,num_inputs])
+
         if activation_fn is not None:
             outputs = activation_fn(outputs)
-        return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+        if outputs_collections is not None:
+            return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+        else:
+            return outputs
+
+@add_arg_scope
+def separable_conv2d_with_sn(inputs,
+                   num_outputs,
+                   kernel_size,
+                   stride=1,
+                   padding='SAME',
+                   activation_fn=nn.relu,
+                   weights_initializer=initializers.xavier_initializer(),
+                   weights_regularizer=None,
+                   biases_initializer=init_ops.zeros_initializer(),
+                   biases_regularizer=None,
+                   normalizer_fn=None,
+                   normalizer_params=None,
+                   outputs_collections=None,
+                   rate=1,
+                   reuse=None,
+                   scope=None):
+    with tf.variable_scope(scope,default_name="separable_conv2d_with_sn",reuse=reuse) as sc:
+        net = depthwise_conv2d_with_sn(inputs,kernel_size=kernel_size,
+                                       stride=stride,
+                                       padding=padding,
+                                       activation_fn=None,
+                                       weights_initializer=weights_initializer,
+                                       weights_regularizer=weights_regularizer,
+                                       biases_initializer=None,
+                                       normalizer_fn=None,
+                                       outputs_collections=outputs_collections,
+                                       rate=rate,
+                                       )
+        if num_outputs is not None:
+            net = conv2d_with_sn(net,num_outputs,kernel_size=[1,1],
+                                 padding="SAME",
+                                 activation_fn=None,
+                                 normalizer_fn=None,
+                                 weights_initializer=weights_initializer,
+                                 outputs_collections=outputs_collections)
+
+        b = None
+        if normalizer_fn is not None:
+            if normalizer_params is None:
+                normalizer_params = {}
+            net = normalizer_fn(net, **normalizer_params)
+        else:
+            if biases_initializer is not None:
+                b = tf.get_variable("bias", [num_outputs], initializer=biases_initializer)
+            if b is not None and biases_regularizer is not None:
+                tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
+            if b is not None:
+                b = tf.reshape(b,[1,1,1,num_outputs])
+                net = net + b
+
+        if activation_fn is not None:
+            net = activation_fn(net)
+
+        if outputs_collections is not None:
+            return utils.collect_named_outputs(outputs_collections, sc.name, net)
+        else:
+            return net
+
 
 @add_arg_scope
 def fully_connected_with_sn(inputs,

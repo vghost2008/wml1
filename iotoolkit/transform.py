@@ -1227,6 +1227,56 @@ class RemoveSpecifiedInstance(WTransform):
         return tf.equal(labels,1)
 
 
+'''
+mask: [N,H,W]
+'''
+class NPRemoveSpecifiedInstance(WTransform):
+    def __init__(self,pred_fn=None):
+        self.pred_fn = pred_fn
+
+    def __call__(self, data_item):
+        bboxes = data_item[GT_BOXES]
+        labels = data_item[GT_LABELS]
+        masks = data_item[GT_MASKS]
+        image = data_item[IMAGE]
+
+        remove = self.pred_fn(bboxes, labels, masks)
+        keep = np.logical_not(remove)
+
+        data_item[GT_BOXES] = data_item[GT_BOXES][keep]
+        data_item[GT_LABELS] = data_item[GT_LABELS][keep]
+        data_item[IMAGE] = self.remove_instance_in_image(image, masks, remove)
+        if GT_MASKS in data_item:
+            data_item[GT_MASKS] = masks[keep]
+
+        return data_item
+
+    @staticmethod
+    def remove_instance_in_image(image, masks, is_removeds, default_value=[127, 127, 127]):
+        removed_image = np.ones_like(image) * np.array([[default_value]], dtype=np.uint8)
+        masks = np.expand_dims(masks, axis=-1)
+        chl = image.shape[-1]
+
+        def fn(lhv, mask,is_removed):
+            if is_removed:
+                select = np.greater(mask, 0)
+                select = np.tile(select, [1, 1, chl])
+                tmp_img = np.where(select, removed_image, lhv)
+            return tmp_img
+        
+        res_img = image
+        for msk,is_rm in zip(masks,is_removeds):
+            res_img = fn(res_img,msk,is_rm)
+        
+        return res_img
+
+
+    @staticmethod
+    def __pred_fn(bboxes, labels, masks):
+        # an example
+        return np.equal(labels, 1)
+
+
 class WTransformList(WTransform):
     def __init__(self,trans_list):
         self.trans_list = list(trans_list)

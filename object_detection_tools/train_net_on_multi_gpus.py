@@ -10,11 +10,7 @@ import sys
 import datetime
 import time
 
-gpus = [0,1,2]
-gpus = [2,3,4]
-#gpus = [1,5,6]
-#gpus = [3,6,7]
-gpus = [3]
+gpus = [0]
 
 slim = tf.contrib.slim
 def setup(args):

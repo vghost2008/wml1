@@ -2,6 +2,8 @@
 import tensorflow as tf
 from object_detection2.modeling.matcher import Matcher
 from object_detection2.standard_names import *
+from wmodule import WModule
+from basic_tftools import batch_gather
 
 
 def get_img_size_from_batched_inputs(inputs):
@@ -37,3 +39,31 @@ class RemoveSpecifiedResults(object):
     @staticmethod
     def __pred_fn(gbboxes,glabels):
         return tf.zeros_like(glabels,dtype=tf.bool)
+
+
+def replace_with_gtlabels(bboxes,labels,length,gtbboxes,gtlabels,gtlength,threshold=0.5):
+    parent = WModule(cfg=None)
+    matcher = Matcher(
+        thresholds=[threshold],
+        allow_low_quality_matches=False,
+        cfg=None,
+        parent=parent,
+    )
+    n_labels,_,_ = matcher(bboxes,gtbboxes,gtlabels,gtlength)
+    labels = tf.where(tf.greater(n_labels,0),n_labels,labels)
+    return labels
+
+def replace_with_gtbboxes(bboxes,labels,length,gtbboxes,gtlabels,gtlength,threshold=0.5):
+    parent = WModule(cfg=None)
+    matcher = Matcher(
+        thresholds=[threshold],
+        allow_low_quality_matches=False,
+        cfg=None,
+        parent=parent,
+    )
+    n_labels,_,indices = matcher(bboxes,gtbboxes,gtlabels,gtlength)
+    n_labels = tf.expand_dims(n_labels,axis=-1)
+    n_labels = tf.tile(n_labels,[1,1,4])
+    n_bboxes = batch_gather(gtbboxes,tf.nn.relu(indices))
+    bboxes = tf.where(tf.greater(n_labels,0),n_bboxes,bboxes)
+    return bboxes

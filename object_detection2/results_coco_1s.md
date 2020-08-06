@@ -43,7 +43,7 @@
 |1)+FPN DB,WSum+cosine|0.334|0.526|0.356|0.061|0.262|0.450|0.302|0.475|0.504|0.147|0.462|0.643|
 |2)|0.339|0.531|0.362|0.063|0.270|0.455|0.304|0.481|0.510|0.145|0.473|0.648|
 |EfficientDet-D0|0.329|0.558|0.347|0.049|0.259|0.433|0.284|0.443|0.470|0.117|0.419|0.588|
-
+|FCOS|0.332|0.529|0.354|0.081|0.268|0.451|0.291|0.455|0.476|0.141|0.444|0.608|
 
 
 ```
@@ -736,4 +736,30 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.375
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.071
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.326
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.491
+```
+
+##coco/FCOS2.yaml
+
+- batch_size: 4 on 3 gpu
+- backbone resnet50, FrozenBN
+- FPN normal: EvoNormS0
+- Head normal: EvoNormS0
+- iterator: 120k
+- train time: -
+- eval time: 0.0753
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.332
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.529
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.354
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.081
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.268
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.451
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.291
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.455
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.476
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.141
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.444
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.608
+
 ```

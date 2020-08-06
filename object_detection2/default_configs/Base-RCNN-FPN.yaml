@@ -35,6 +35,8 @@ MODEL:
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: True
+
 SOLVER:
   IMS_PER_BATCH: 16
   BASE_LR: 0.02
@@ -47,4 +49,7 @@ INPUT:
   MIN_SIZE_TEST: 224
 GLOBAL:
   PROJ_NAME: "RCNNFPNDemon"
+  #SUMMARY_LEVEL: -1
+  #RESEARCH: ["result_classes"]
+  #RESEARCH: ["result_bboxes","result_classes"]
 VERSION: 2

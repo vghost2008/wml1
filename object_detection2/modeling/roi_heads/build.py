@@ -19,6 +19,7 @@ Registry for box heads, which make box predictions from per-region features.
 
 The registered object will be called with `obj(cfg, input_shape)`.
 """
+ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY = Registry("ROI_BOX_HEAD_OUTPUTS_LAYER")
 
 def build_roi_heads_hook(cfg, *args,**kwargs):
     name = cfg.MODEL.ROI_HEADS.HOOK
@@ -33,6 +34,13 @@ def build_box_head(cfg, *args,**kwargs):
     """
     name = cfg.MODEL.ROI_BOX_HEAD.NAME
     return ROI_BOX_HEAD_REGISTRY.get(name)(cfg, *args,**kwargs)
+
+def build_box_outputs_layer(cfg, *args,**kwargs):
+    """
+    Build a box head defined by `cfg.MODEL.ROI_BOX_HEAD.NAME`.
+    """
+    name = cfg.MODEL.ROI_BOX_HEAD.OUTPUTS_LAYER
+    return ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY.get(name)(cfg, *args,**kwargs)
 
 def build_roi_heads(cfg, *args,**kwargs):
     """

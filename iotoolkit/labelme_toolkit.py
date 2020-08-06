@@ -68,6 +68,7 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
                     label = shape["label"]
                 annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
         except:
+            print(f"Read file {os.path.basename(file_path)} faild.")
             pass
     return image,annotations_list
 
@@ -282,6 +283,9 @@ def random_cutv2(image,annotations_list,ref_bbox,img_data,size,weights=None):
 '''
 image_data:[h,w,c]
 bbox:[ymin,xmin,ymax,xmax)
+output:
+image_info: {'height','width'}
+annotations_list: [{'bbox','segmentation','category_id'}' #bbox[xmin,ymin,width,height], 'segmentation' [H,W]
 '''
 def cut(annotations_list,img_data,bbox,threshold=0.15,return_none_if_no_ann=True):
     bbox = list(bbox)
@@ -394,7 +398,24 @@ class LabelMeData(object):
             labels_names,bboxes = get_labels_and_bboxes(image,annotations_list)
             labels = [self.label_text2id(x) for x in labels_names]
             yield img_file,[image['height'],image['width']],labels, bboxes,  None
+            
+def remove_instance(image,annotations_list,remove_pred_fn,default_value=[127, 127, 127]):
+    res = []
+    removed_image = np.ones_like(image) * np.array([[default_value]], dtype=np.uint8)
 
+    chl = image.shape[-1]
+    for ann in annotations_list:
+        if remove_pred_fn(ann):
+            mask = ann['segmentation']
+            select = np.greater(mask, 0)
+            select = np.expand_dims(select,axis=-1)
+            select = np.tile(select, [1, 1, chl])
+            image = np.where(select, removed_image, image)
+        else:
+            res.append(ann)
+    
+    return image,res
+            
 if __name__ == "__main__":
     #data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatasv3")
     import img_utils as wmli
@@ -407,11 +428,11 @@ if __name__ == "__main__":
     def name_to_id(name):
         return NAME_TO_ID[name]
 
-    data = LabelMeData(label_text2id=name_to_id,shuffle=True)
+    data = LabelMeData(label_text2id=name_to_id,shuffle=False)
     data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav8_preproc")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/test_preproc")
     for x in data.get_items():
-        full_path, category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
+        full_path, img_info,category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
         img = wmli.imread(full_path)
 
 

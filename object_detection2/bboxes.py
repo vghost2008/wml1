@@ -329,11 +329,14 @@ def get_bboxes_center_point(data):
     data = tf.reshape(data,old_shape)
     return data
 
+'''
+boxes:[...,4] ymin,xmin,ymax,xmax
+scale:[hscale,wscale]
+'''
 def scale_bboxes(bboxes,scale):
     old_shape = tf.shape(bboxes)
     data = tf.reshape(bboxes,[-1,4])
-    data = tf.transpose(data,perm=[1,0])
-    ymin,xmin,ymax,xmax = tf.unstack(data,axis=0)
+    ymin,xmin,ymax,xmax = tf.unstack(data,axis=1)
     cy = (ymin+ymax)/2.
     cx = (xmin+xmax)/2.
     h = ymax-ymin
@@ -344,10 +347,10 @@ def scale_bboxes(bboxes,scale):
     ymax = cy + h / 2.
     xmin = cx - w / 2.
     xmax = cx + w / 2.
-    data = tf.stack([ymin, xmin, ymax, xmax], axis=0)
-    data = tf.transpose(data, perm=[1, 0])
+    data = tf.stack([ymin, xmin, ymax, xmax], axis=1)
     data = tf.reshape(data, old_shape)
     return data
+
 '''
 data:[N,4]
 校正ymin,xmin,ymax,xmax表示的box中的不合法数据
@@ -440,13 +443,12 @@ regs:[N,4]
 def decode_boxes(boxes,
                     regs,
                     prio_scaling=[0.1, 0.1, 0.2, 0.2]):
+    assert btf.channel(boxes) == btf.channel(regs),"box channel must be 4."
 
-    l_shape = tf.shape(boxes)
-    r_shape = tf.shape(regs)
+    l_shape = btf.combined_static_and_dynamic_shape(boxes)
+    r_shape = btf.combined_static_and_dynamic_shape(regs)
 
-
-    data = tf.transpose(boxes, perm=[1, 0])
-    ymin, xmin, ymax, xmax = tf.unstack(data, axis=0)
+    ymin, xmin, ymax, xmax = tf.unstack(boxes, axis=1)
     cy = (ymin + ymax) / 2.
     cx = (xmin + xmax) / 2.
     h = ymax - ymin
@@ -460,10 +462,11 @@ def decode_boxes(boxes,
     else:
         regs = tf.reshape(regs,
                           (-1, r_shape[-1]))
-        cy = regs[:, 0] * h * prio_scaling[0] + cy
-        cx = regs[:, 1] * w * prio_scaling[1] + cx
-        h = h * tf.exp(regs[:, 2] * prio_scaling[2])
-        w = w * tf.exp(regs[:, 3] * prio_scaling[3])
+        regs0, regs1, regs2, regs3 = tf.unstack(regs, axis=1)
+        cy = regs0 * h * prio_scaling[0] + cy
+        cx = regs1 * w * prio_scaling[1] + cx
+        h = h * tf.exp(regs2 * prio_scaling[2])
+        w = w * tf.exp(regs3 * prio_scaling[3])
 
     ymin = cy - h / 2.
     xmin = cx - w / 2.
