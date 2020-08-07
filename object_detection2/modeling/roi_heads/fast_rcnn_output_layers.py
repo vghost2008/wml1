@@ -4,6 +4,7 @@ import wmodule
 import wml_tfutils as wmlt
 from collections import Iterable
 from .build import ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY
+from .box_head import BoxesForwardType
 import wsummary
 
 slim = tf.contrib.slim
@@ -30,7 +31,7 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
         self.cls_agnostic_bbox_reg = cls_agnostic_bbox_reg
         self.box_dim = box_dim
 
-    def forward(self, x,scope="BoxPredictor"):
+    def forward(self, x,scope="BoxPredictor",fwd_type=BoxesForwardType.ALL):
         with tf.variable_scope(scope):
             if not isinstance(x,tf.Tensor) and isinstance(x,Iterable):
                 if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
@@ -48,32 +49,52 @@ class FastRCNNOutputLayers(wmodule.WChildModule):
                     else:
                         return net
                 x = [trans(v) for v in x]
-                scores = slim.fully_connected(x[0],self.num_classes+1,activation_fn=None,
-                                              normalizer_fn=None,scope="cls_score")
-                foreground_num_classes = self.num_classes
-                num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
-                proposal_deltas = slim.fully_connected(x[1],self.box_dim*num_bbox_reg_classes,activation_fn=None,
-                                                       normalizer_fn=None,scope="bbox_pred")
-                if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                if fwd_type&BoxesForwardType.CLASSES:
+                    scores = slim.fully_connected(x[0],self.num_classes+1,activation_fn=None,
+                                                  normalizer_fn=None,scope="cls_score")
+                else:
+                    scores = None
+
+                if fwd_type&BoxesForwardType.BBOXES:
+                    foreground_num_classes = self.num_classes
+                    num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
+                    proposal_deltas = slim.fully_connected(x[1],self.box_dim*num_bbox_reg_classes,activation_fn=None,
+                                                           normalizer_fn=None,scope="bbox_pred")
+                else:
+                    proposal_deltas = None
+
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU and fwd_type&BoxesForwardType.IOUS:
                     iou_logits = slim.fully_connected(x[2],1,
                                                       activation_fn=None,
                                                       normalizer_fn=None,
                                                       scope="iou_pred")
+                else:
+                    iou_logits = None
             else:
                 if len(x.get_shape()) > 2:
                     shape = wmlt.combined_static_and_dynamic_shape(x)
                     x = tf.reshape(x,[shape[0],-1])
-                scores = slim.fully_connected(x,self.num_classes+1,activation_fn=None,
-                                              normalizer_fn=None,scope="cls_score")
-                foreground_num_classes = self.num_classes
-                num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
-                proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
-                                              normalizer_fn=None,scope="bbox_pred")
-                if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
+                if fwd_type&BoxesForwardType.CLASSES:
+                    scores = slim.fully_connected(x,self.num_classes+1,activation_fn=None,
+                                                  normalizer_fn=None,scope="cls_score")
+                else:
+                    scores = None
+
+                if fwd_type&BoxesForwardType.BBOXES:
+                    foreground_num_classes = self.num_classes
+                    num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
+                    proposal_deltas = slim.fully_connected(x,self.box_dim*num_bbox_reg_classes,activation_fn=None,
+                                                  normalizer_fn=None,scope="bbox_pred")
+                else:
+                    proposal_deltas = None
+
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU and fwd_type&BoxesForwardType.IOUS:
                     iou_logits = slim.fully_connected(x,1,
                                                       activation_fn=None,
                                                       normalizer_fn=None,
                                                       scope="iou_pred")
+                else:
+                    iou_logits = None
 
             wsummary.variable_summaries_v2(proposal_deltas,"proposal_deltas")
             if self.cfg.MODEL.ROI_HEADS.PRED_IOU:

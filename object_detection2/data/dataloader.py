@@ -38,8 +38,7 @@ class DataLoader(wmodule.WModule):
         if is_training:
             data = data.repeat()
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH
-            data = data.shuffle(batch_size*4) #tensorflow.models default use 2048
-            #data = data.shuffle(2048) #tensorflow.models default use 2048
+            data = data.shuffle(2048) #tensorflow.models default use 2048
         else:
             batch_size = 1 if batch_size is None else batch_size
         DataLoader.category_index = category_index

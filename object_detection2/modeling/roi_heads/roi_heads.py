@@ -84,12 +84,13 @@ class ROIHeads(wmodule.WChildModule):
     r_indices:[nr]
     '''
     @staticmethod
-    def sample_proposals(labels, ious,neg_nr, pos_nr):
+    def sample_proposals(labels, ious,gt_index,neg_nr, pos_nr):
         nr = neg_nr + pos_nr
         r_indices = tf.range(0, tf.shape(labels)[0])
         keep_indices = tf.greater_equal(labels,0)
         labels = tf.boolean_mask(labels, keep_indices)
         ious = tf.boolean_mask(ious,keep_indices)
+        gt_index = tf.boolean_mask(gt_index,keep_indices)
         r_indices = tf.boolean_mask(r_indices, keep_indices)
         total_neg_nr = tf.reduce_sum(tf.cast(tf.equal(labels, 0), tf.int32))
         total_pos_nr = tf.shape(labels)[0] - total_neg_nr
@@ -105,10 +106,17 @@ class ROIHeads(wmodule.WChildModule):
                     indices = tf.gather(indices, indexs)
                     return indices
 
-            def random_select_pos(ious,indices, size):
+            def random_select_pos(p_gt_index,indices, size):
+                '''
+                正样本按所属的ground truth box选择，由于每个gtbox的检测难易程度不同，如果按iou采样可能造成某些容易的gtbox的样本过多，困难的gtbox的样本过少
+                :param p_gt_index:
+                :param indices:
+                :param size:
+                :return:
+                '''
                 #return random_select(indices,size)
                 with tf.name_scope("random_select"):
-                    indexs = wop.his_random_select(his_nr=5,min=0.5,max=1.0,data=ious,select_nr=size)
+                    indexs = wop.his_random_select(data=p_gt_index,select_nr=size)
                     indices = tf.gather(indices, indexs)
                     return indices
 
@@ -129,10 +137,10 @@ class ROIHeads(wmodule.WChildModule):
                     n_indices = tf.boolean_mask(r_indices, n_mask)
                     n_ious = tf.boolean_mask(ious,n_mask)
 
-                    p_ious = tf.boolean_mask(ious,p_mask)
+                    p_gt_index = tf.boolean_mask(gt_index,p_mask)
                     p_indices = tf.boolean_mask(r_indices, p_mask)
 
-                    p_indices = random_select_pos(p_ious,p_indices, pos_nr)
+                    p_indices = random_select_pos(p_gt_index,p_indices, pos_nr)
                     n_indices = random_select_neg(n_ious,n_indices, neg_nr)
 
                     return tf.concat([p_indices, n_indices], axis=0)
@@ -259,8 +267,8 @@ class ROIHeads(wmodule.WChildModule):
                     labels_for_select = gt_logits_i
 
                 rcn_indices = \
-                    tf.map_fn(lambda x: self.sample_proposals(x[0],x[1],neg_nr=neg_nr, pos_nr=pos_nr),
-                              elems=(labels_for_select,scores),
+                    tf.map_fn(lambda x: self.sample_proposals(x[0],x[1],x[2],neg_nr=neg_nr, pos_nr=pos_nr),
+                              elems=(labels_for_select,scores,indices),
                               dtype=(tf.int32),
                               back_prop=False,
                               parallel_iterations=batch_size)
@@ -280,21 +288,18 @@ class ROIHeads(wmodule.WChildModule):
 
             if self.cfg.GLOBAL.DEBUG:
                 with tf.device(":/cpu:0"):
-                    with tf.name_scope("label_and_sample_proposals_summary"):
-                        logmask = tf.greater(gt_logits_i,0)
-                        wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
-                                                                    boxes=proposals,
-                                                                    classes=gt_logits_i,
-                                                                    scores=scores,
-                                                                    logmask=logmask,
-                                                                    name="label_and_sample_proposals_summary")
-                        pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
-                        wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
-                                                                    boxes=pgt_boxes,
-                                                                    classes=gt_logits_i,
-                                                                    scores=scores,
-                                                                    logmask=logmask,
-                                                                    name="label_and_sample_proposals_summary_by_gtboxes")
+                    logmask = tf.greater(gt_logits_i,0)
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=proposals,
+                                                                logmask=logmask,
+                                                                name="selected_pos_proposals")
+                    pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=pgt_boxes,
+                                                                classes=gt_logits_i,
+                                                                scores=scores,
+                                                                logmask=logmask,
+                                                                name="selected_pb_s_gtboxes")
                     wsummary.histogram_or_scalar(scores,"select_rcn_ious")
 
 

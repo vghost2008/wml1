@@ -428,9 +428,9 @@ if __name__ == "__main__":
     def name_to_id(name):
         return NAME_TO_ID[name]
 
-    data = LabelMeData(label_text2id=name_to_id,shuffle=False)
-    data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/test_preproc")
+    data = LabelMeData(label_text2id=name_to_id,shuffle=True)
+    #data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
     for x in data.get_items():
         full_path, img_info,category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
         img = wmli.imread(full_path)

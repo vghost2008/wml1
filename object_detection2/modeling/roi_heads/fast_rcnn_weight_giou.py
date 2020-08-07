@@ -98,7 +98,10 @@ class FastRCNNWeightGIOUOutputs(_FastRCNNOutputs):
         wsummary.variable_summaries_v2(self.gt_classes,"gt_classes")
         wsummary.variable_summaries_v2(self.pred_class_logits,"pred_class_logits")
         scores = tf.stop_gradient(tf.reshape(self.proposals[ED_SCORES], [-1]))
-        weights = tf.abs(scores-0.5)*4
+        #weights = tf.abs(scores-0.5)*4
+        weights = tf.minimum(tf.pow(tf.abs(scores-0.5),2)*100,1.0)
+        weights = tf.stop_gradient(weights)
+        wsummary.histogram_or_scalar(weights,"cls_loss_weights")
         if self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD>1e-3:
             with tf.name_scope("modify_gtclasses"):
                 threshold = self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD

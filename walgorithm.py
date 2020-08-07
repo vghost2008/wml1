@@ -65,3 +65,22 @@ def edit_distance(sm, sn):
 
     return matrix[m - 1][n - 1]
 
+
+def pearsonr(x,y):
+    #Pearson_correlation coefficient [-1,1]
+    if not isinstance(x,np.ndarray):
+        x = np.array(x)
+
+    if not isinstance(y, np.ndarray):
+        y = np.array(y)
+
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    x_ba = x-x_mean
+    y_ba = y-y_mean
+    v = np.sum(x_ba*y_ba)
+    dx = np.sum((x-x_mean)**2)
+    dy = np.sum((y-y_mean)**2)
+    sv = np.sqrt(dx*dy)+1e-8
+
+    return v/sv

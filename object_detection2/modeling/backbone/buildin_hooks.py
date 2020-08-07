@@ -95,6 +95,53 @@ class BalanceBackboneHook(wmodule.WChildModule):
                 
             return res
 
+
+@BACKBONE_HOOK_REGISTRY.register()
+class BalanceBackboneHookV2(wmodule.WChildModule):
+    def __init__(self, cfg, parent, *args, **kwargs):
+        super().__init__(cfg, parent, *args, **kwargs)
+
+    def forward(self, features, batched_inputs):
+        normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
+        res = OrderedDict()
+        with tf.variable_scope("BalanceBackboneHook"):
+            del batched_inputs
+            ref_index = 1
+            end_points = list(features.items())
+            k0, v0 = end_points[ref_index]
+            mfeatures = []
+            with tf.name_scope("fusion"):
+                shape0 = wmlt.combined_static_and_dynamic_shape(v0)
+                for i, (k, v) in enumerate(end_points):
+                    if i == ref_index:
+                        net = v
+                    else:
+                        net = tf.image.resize_bilinear(v, shape0[1:3], name=f"resize{i}")
+                    mfeatures.append(net)
+                net = tf.add_n(mfeatures) / float(len(mfeatures))
+                net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
+                                  activation_fn=None,
+                                  normalizer_fn=normalizer_fn,
+                                  normalizer_params=normalizer_params,
+                                  scope=f"smooth0")
+            for i, (k, v) in enumerate(end_points):
+                with tf.name_scope(f"merge_{k}"):
+                    shape = wmlt.combined_static_and_dynamic_shape(v)
+                    v0 = tf.image.resize_bilinear(net, shape[1:3])
+                    v = v + v0
+                with tf.variable_scope("smooth1",reuse=tf.AUTO_REUSE):
+                    v = slim.separable_convolution2d(v,None,[3,3],
+                                                       rate=(i+1)*2,
+                                                       normalizer_fn=None,
+                                                       depth_multiplier=1,
+                                                       activation_fn=None,
+                                                       biases_initializer=None)
+                with tf.variable_scope(f"normalizer{i}"):
+                    v = normalizer_fn(v,**normalizer_params)
+                res[k] = v
+
+            return res
+
 @BACKBONE_HOOK_REGISTRY.register()
 class DeformConvBackboneHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):

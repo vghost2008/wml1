@@ -409,8 +409,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
                     add_to_research_datas("pb_scores",mh_res0[1],[-1])
                     add_to_research_datas("pb_ious",ious,[-1])
                     assert len(probability.get_shape())==2, "error probability shape"
-                else:
-                    probability = ious*probability
+
+                raw_probability = tf.expand_dims(probability,axis=0) #only support batch_size=1
+                probability = ious*probability
+
             else:
                 if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
                     matcher = Matcher(
@@ -469,6 +471,11 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 if ious is not None:
                     add_to_research_datas("rd_ious", ious[:,:l],[-1])
 
+                if pred_iou_logits is not None:
+                    probs = wmlt.batch_gather(raw_probability,res_indices)
+                    add_to_research_datas("rd_probs", probs[:,:l],[-1])
+                else:
+                    add_to_research_datas("rd_probs", probability[:,:l],[-1])
                 add_to_research_datas("rd_probs", probability[:,:l],[-1])
                 add_to_research_datas("rd_scores_old", scores0[:,:l],[-1])
 
