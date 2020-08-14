@@ -288,6 +288,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                            threshold=0.5,
                            classes_wise=False,
                            topk_per_image=-1,
+                           ious=None,
                            nms=None):
         with tf.name_scope("prediction_on_single_image"):
             # 删除背景
@@ -339,7 +340,11 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
             candiate_nr = tf.shape(probability)[0] if topk_per_image<0 else topk_per_image#最多可返回candiate_nr个box
 
-            boxes, labels, indices = nms(boxes, labels, confidence=probability)
+            if ious is None:
+                boxes, labels, indices = nms(boxes, labels, confidence=probability)
+            else:
+                ious = tf.gather(ious,res_indices)
+                boxes, labels, indices = nms(boxes, labels, confidence=ious)
             probability = tf.gather(probability, indices)
             res_indices = tf.gather(res_indices, indices)
 
@@ -411,7 +416,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                     assert len(probability.get_shape())==2, "error probability shape"
 
                 raw_probability = tf.expand_dims(probability,axis=0) #only support batch_size=1
-                probability = ious*probability
+                #probability = ious*probability
 
             else:
                 if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
@@ -430,19 +435,33 @@ class FastRCNNOutputs(wmodule.WChildModule):
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])
+            if pred_iou_logits is not None:
+                ious = tf.reshape(ious,[batch_size,-1])
 
             pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
             classes_wise = (L != box_dim)
 
-            boxes, labels, probability, res_indices, lens = tf.map_fn(
-                lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
-                                                score_thresh,
-                                                classes_wise=classes_wise,
-                                                topk_per_image=topk_per_image,
-                                                nms=nms),
-                elems=(probability, pred_proposal_deltas, proposal_boxes),
-                dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
-            )
+            if pred_iou_logits is None:
+                boxes, labels, probability, res_indices, lens = tf.map_fn(
+                    lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
+                                                    score_thresh,
+                                                    classes_wise=classes_wise,
+                                                    topk_per_image=topk_per_image,
+                                                    nms=nms),
+                    elems=(probability, pred_proposal_deltas, proposal_boxes),
+                    dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+                )
+            else:
+                boxes, labels, probability, res_indices, lens = tf.map_fn(
+                    lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
+                                                              score_thresh,
+                                                              classes_wise=classes_wise,
+                                                              topk_per_image=topk_per_image,
+                                                              ious=x[3],
+                                                              nms=nms),
+                    elems=(probability, pred_proposal_deltas, proposal_boxes,ious),
+                    dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
+                )
 
         with tf.name_scope("remove_null_boxes"):
             #max_len=0会引导程序异常退出，原因未知
@@ -456,7 +475,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
             with tf.device("/cpu:0"):
                 if pred_iou_logits is not None:
-                    ious = wmlt.batch_gather(tf.expand_dims(ious,axis=0),res_indices)
+                    ious = wmlt.batch_gather(ious,res_indices)
                 else:
                     ious = None
 

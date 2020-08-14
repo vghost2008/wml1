@@ -83,8 +83,7 @@ class ROIHeads(wmodule.WChildModule):
     r_labels:[nr]
     r_indices:[nr]
     '''
-    @staticmethod
-    def sample_proposals(labels, ious,gt_index,neg_nr, pos_nr):
+    def sample_proposals(self,labels, ious,gt_index,neg_nr, pos_nr):
         nr = neg_nr + pos_nr
         r_indices = tf.range(0, tf.shape(labels)[0])
         keep_indices = tf.greater_equal(labels,0)
@@ -114,7 +113,11 @@ class ROIHeads(wmodule.WChildModule):
                 :param size:
                 :return:
                 '''
-                #return random_select(indices,size)
+                if not self.cfg.MODEL.ROI_HEADS.BALANCED_POS_SAMPLE:
+                    print("Use normal fastrcnn pos sampler.")
+                    return random_select(indices,size)
+
+                print("Use balanced fastrcnn pos sampler.")
                 with tf.name_scope("random_select"):
                     indexs = wop.his_random_select(data=p_gt_index,select_nr=size)
                     indices = tf.gather(indices, indexs)
@@ -122,9 +125,13 @@ class ROIHeads(wmodule.WChildModule):
 
 
             def random_select_neg(ious,indices, size):
-                #return random_select(indices,size)
+                if not self.cfg.MODEL.ROI_HEADS.BALANCED_NEG_SAMPLE:
+                    print("Use normal fastrcnn neg sampler.")
+                    return random_select(indices,size)
+                low_value = self.cfg.MODEL.ROI_HEADS.BALANCED_NEG_SAMPLE_LOW_VALUE
+                print(f"Use balanced fastrcnn neg sampler, low value = {low_value}.")
                 with tf.name_scope("random_select"):
-                    indexs = wop.his_random_select(his_nr=7,min=-0.2,max=0.5,data=ious,select_nr=size)
+                    indexs = wop.his_random_select(his_nr=8,min=low_value,max=0.5,data=ious,select_nr=size)
                     indices = tf.gather(indices, indexs)
                     return indices
 
@@ -292,14 +299,22 @@ class ROIHeads(wmodule.WChildModule):
                     wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
                                                                 boxes=proposals,
                                                                 logmask=logmask,
-                                                                name="selected_pos_proposals")
+                                                                name="selected_pos_proposals",
+                                                                max_boxes_to_draw=100)
+                    logmask = tf.less_equal(gt_logits_i,0)
+                    wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
+                                                                boxes=proposals,
+                                                                logmask=logmask,
+                                                                name="selected_neg_proposals",
+                                                                max_boxes_to_draw=100)
                     pgt_boxes = wmlt.batch_gather(inputs[GT_BOXES],tf.nn.relu(indices)) #background's indices is -1
                     wsummary.detection_image_summary_by_logmask(images=inputs[IMAGE],
                                                                 boxes=pgt_boxes,
                                                                 classes=gt_logits_i,
                                                                 scores=scores,
                                                                 logmask=logmask,
-                                                                name="selected_pb_s_gtboxes")
+                                                                name="selected_pb_s_gtboxes",
+                                                                max_boxes_to_draw=100)
                     wsummary.histogram_or_scalar(scores,"select_rcn_ious")
 
 

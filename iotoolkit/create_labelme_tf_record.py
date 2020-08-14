@@ -133,7 +133,7 @@ def create_tf_example(image,
 def _get_output_filename(output_dir, name, idx):
     return '%s/%s_%03d.tfrecord' % (output_dir, name, idx)
 
-def _add_to_tfrecord(file,writer,id):
+def _add_to_tfrecord(file,writer,id,label_text_to_id):
     img_file,json_file = file
     image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
     if len(annotations_list)>32:
@@ -153,7 +153,7 @@ def _add_to_tfrecord(file,writer,id):
     return False
 
 
-def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0):
+def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0,label_text_to_id=None):
     files = get_files(data_dir,img_suffix=img_suffix)
     if os.path.exists(output_dir) and (data_dir != output_dir):
         shutil.rmtree(output_dir)
@@ -174,23 +174,32 @@ def _create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shufflin
                 sys.stdout.write('\r>> Converting image %d/%d' % (i+1, len(files)))
                 sys.stdout.flush()
 
-                if _add_to_tfrecord(files[i], tfrecord_writer):
+                if _add_to_tfrecord(files[i], tfrecord_writer,label_text_to_id=label_text_to_id):
                     j += 1
                 i += 1
 
             fidx += 1
     print('\nFinished converting the dataset total %d examples.!'%(len(files)))
 
-def make_tfrecord(file_data,output_dir,name):
+def make_tfrecord(file_data,output_dir,name,label_text_to_id):
     fidx,file_d = file_data
     tf_filename = _get_output_filename(output_dir, name, fidx)
     with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
         for i,file in enumerate(file_d):
-            _add_to_tfrecord(file, tfrecord_writer,id=fidx*SAMPLES_PER_FILES+i)
+            _add_to_tfrecord(file, tfrecord_writer,id=fidx*SAMPLES_PER_FILES+i,label_text_to_id=label_text_to_id)
 
-def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0):
+def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="train",shuffling=True,fidx=0,label_text_to_id=None):
     files = get_files(data_dir,img_suffix=img_suffix)
     if os.path.exists(output_dir) and (data_dir != output_dir):
+        shutil.rmtree(output_dir)
+        print("删除文件夹%s"%(output_dir))
+    return multithread_create_tf_record_by_files(files,output_dir,
+                                                 name,shuffling,fidx,
+                                                 label_text_to_id)
+    
+def multithread_create_tf_record_by_files(files,output_dir,name="train",shuffling=True,fidx=0,label_text_to_id=None):
+    print(f"samples per files {SAMPLES_PER_FILES}.")
+    if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
         print("删除文件夹%s"%(output_dir))
     if not tf.gfile.Exists(output_dir):
@@ -199,6 +208,7 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
     if shuffling:
         random.seed(time.time())
         random.shuffle(files)
+    print(f"Total {len(files)} files.")
     files = wmlu.list_to_2dlist(files,SAMPLES_PER_FILES)
     files_data = list(enumerate(files))
     if fidx != 0:
@@ -207,8 +217,9 @@ def multithread_create_tf_record(data_dir,output_dir,img_suffix="jpg",name="trai
             _files_data.append([fid+fidx,file_d])
         files_data = _files_data
 
-    pool = Pool(10)
-    pool.map(functools.partial(make_tfrecord,output_dir=output_dir,name=name),files_data)
+    sys.stdout.flush()
+    pool = Pool(13)
+    pool.map(functools.partial(make_tfrecord,output_dir=output_dir,name=name,label_text_to_id=label_text_to_id),files_data)
     pool.close()
     pool.join()
 

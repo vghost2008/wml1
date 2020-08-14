@@ -1,6 +1,6 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
-  MASK_ON: False
+  MASK_ON: True
   WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
@@ -16,6 +16,8 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
+    PRED_IOU: True
+    PRED_IOU_VERSION: 1
   PROPOSAL_GENERATOR:
     OUTPUTS: "RPNGIOUOutputs"
   ROI_BOX_HEAD:
@@ -67,5 +69,7 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv2"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv4_1"
   LOG_STEP: 200
+  SUMMARY_LEVEL: -1
+

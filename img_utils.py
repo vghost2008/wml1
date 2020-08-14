@@ -517,7 +517,8 @@ def remove_boxes_of_img(img,bboxes,default_value=[127,127,127]):
     return img
 
 def img_info(img):
-    img = nprgb_to_gray(img)
+    if len(img.shape) == 3 and img.shape[-1]>1:
+        img = nprgb_to_gray(img)
     return np.std(img)
 
 def tf_img_info(img):

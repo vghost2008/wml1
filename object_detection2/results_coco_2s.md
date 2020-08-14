@@ -71,10 +71,7 @@
 |sephv2|0.133|0.236|0.133|0.001|0.078|0.203|0.166|0.244|0.250|0.001|0.157|0.382|
 |sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|
 |sephv2+cosine+EvoNormS head+pred iou1|0.306|0.478|0.329|0.031|0.225|0.447|0.271|0.406|0.419|0.034|0.369|0.584|
-
-
-
-
+|3) |0.306|0.479|0.324|0.055|0.219|0.433|0.279|0.415|0.430|0.092|0.393|0.559|
 
 
 ####segm
@@ -97,6 +94,7 @@
 ```
 - 1) use nonlocal and fusebackbone+cosine
 - 2) use cosine + BalanceBackboneHook + Mask Head EvoNormS0
+- 3) sephv2+cosine+EvoNormS0+ASTTMatcher+class loss linear scalear+new rcn sample+p2 output
 ```
 
 ##coco/Mask-RCNN-FPN-C3.yaml 
@@ -727,4 +725,39 @@ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.400
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.178
 Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.395
 Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.498
+```
+
+##coco/Mask-RCNN-FPN-sephv2.yaml
+
+- batch_size: 4 on 3 gpu
+- ROIHeads: StandardROIHeads
+- backbone resnet50, FrozenBN
+- FPN normal: EnvNormS0
+- Head normal: EnvNormS0
+- iterator: 120k
+- train time: 32.8h
+- eval time: 0.2148s/img
+- ANCHOR SIZES: [[64],[128], [256], [512]] 
+- PredIOU v1
+- RPN: ASTTMatcher
+- class loss linear scale
+- new rcn sample
+- rcnn p2 output 
+
+###bbox
+
+```
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.306
+Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.479
+Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.324
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.055
+Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.219
+Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.433
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.279
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.415
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.430
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.092
+Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.393
+Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.559
+
 ```

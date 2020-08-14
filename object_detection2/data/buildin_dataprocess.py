@@ -165,8 +165,8 @@ def coco_nodirection(cfg, is_training):
                                trans.AddBoxLens(),
                                trans.UpdateHeightWidth(),
                                ]
-        if cfg.MODEL.INPUT_ALIGN > 1:
-            trans_on_batch_img = [trans.PadtoAlign(align=cfg.MODEL.INPUT_ALIGN),
+        if cfg.INPUT.SIZE_ALIGN > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
                                   trans.BBoxesAbsoluteToRelative(),
                                   trans.FixDataInfo()]
         else:
@@ -203,8 +203,8 @@ def SSD(cfg, is_training):
                                trans.AddBoxLens(),
                                trans.UpdateHeightWidth(),
                                ]
-        if cfg.MODEL.INPUT_ALIGN > 1:
-            trans_on_batch_img = [trans.PadtoAlign(align=cfg.MODEL.INPUT_ALIGN),
+        if cfg.INPUT.SIZE_ALIGN> 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
                                   trans.BBoxesAbsoluteToRelative(),
                                   trans.FixDataInfo()]
         else:

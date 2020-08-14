@@ -1083,6 +1083,11 @@ def PrintSummary(v,name="v",extern_vars=[],with_global_step=False):
         extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
     return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
 
+def PrintSummaryV2(v0,v,name="v",extern_vars=[],with_global_step=False):
+    if with_global_step:
+        extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
+    return tf.Print(v0,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
+
 def PrintNaNorInf(v,name="is_nan_or_inf"):
     return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))],summarize=100)
 

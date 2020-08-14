@@ -103,6 +103,7 @@ def get_database(dataset_dir,num_parallel=1,file_pattern='*_train.record'):
     if len(files) == 0:
         logging.error(f'No files found in {file_pattern}')
     else:
+        print(f"Total {len(files)} files.")
         wmlu.show_list(files)
     dataset = tf.data.TFRecordDataset(files,num_parallel_reads=num_parallel)
     dataset = dataset.map(__parse_func,num_parallel_calls=num_parallel)

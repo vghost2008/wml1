@@ -1,0 +1,45 @@
+_BASE_: "../Base-RCNN-FPN.yaml"
+MODEL:
+  MASK_ON: False
+  #BACKBONE:
+    #NAME: "build_shufflenetv2_bifpn_backbone"
+  BIFPN:
+    IN_FEATURES: ["C2","C3", "C4"]
+    REPEAT: 2
+    OUT_CHANNELS: 256
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+  ROI_BOX_HEAD:
+    #POOLER_TYPE: "ROIMultiScale"
+    bin_size: [1,1]
+    NAME: "SeparateFastRCNNConvFCHeadV3"
+    NUM_FC: 0
+    POOLER_RESOLUTION: 11
+    NUM_CONV: 4
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    OUTPUTS_LAYER: "FastRCNNAvgOutputLayers"
+    #CONV_DIM: 1024
+  ROI_MASK_HEAD:
+    NORM: "GN"
+  FPN:
+    NORM: "GN"
+  ROI_HEADS:
+    #PROPOSAL_APPEND_HUGE_NUM_GT: False
+    IOU_THRESHOLDS: [0.5]
+    #OUTPUTS: "FastRCNNWeightGIOUOutputs"
+    #POS_LABELS_THRESHOLD: 0.5
+SOLVER:
+  IMS_PER_BATCH: 10
+  BASE_LR: 0.02
+  STEPS: (2500,)
+  LR_DECAY_TYPE: "cosine"
+  WARMUP_ITERS: 100
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
+GLOBAL:
+  PROJ_NAME: "MaskRCNNFPNDemon2"
+  SUMMARY_LEVEL: -1
+  LOG_STEP: 200

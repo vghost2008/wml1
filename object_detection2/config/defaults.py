@@ -39,6 +39,7 @@ _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = False
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
 _C.INPUT.ROTATE_ANY_ANGLE.PROBABILITY = 0.5
+_C.INPUT.SHUFFLE_BUFFER_SIZE = 2048
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -293,6 +294,9 @@ _C.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD = -1.0
 _C.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512
 # Target fraction of RoI minibatch that is labeled foreground (i.e. class > 0)
 _C.MODEL.ROI_HEADS.POSITIVE_FRACTION = 0.25
+_C.MODEL.ROI_HEADS.BALANCED_POS_SAMPLE = True
+_C.MODEL.ROI_HEADS.BALANCED_NEG_SAMPLE = True
+_C.MODEL.ROI_HEADS.BALANCED_NEG_SAMPLE_LOW_VALUE = -0.2
 
 # Only used on test mode
 
@@ -334,7 +338,7 @@ _C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 14
 _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_BOX_HEAD.POOLER_TYPE = "ROIAlign"
-_C.MODEL.ROI_BOX_HEAD.canonical_box_size = 224
+_C.MODEL.ROI_BOX_HEAD.canonical_box_size = 224.0
 _C.MODEL.ROI_BOX_HEAD.canonical_level = 1
 
 _C.MODEL.ROI_BOX_HEAD.NUM_FC = 0
@@ -422,7 +426,7 @@ _C.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
 _C.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = 1.0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
-_C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 224
+_C.MODEL.ROI_KEYPOINT_HEAD.canonical_box_size = 224.0
 _C.MODEL.ROI_KEYPOINT_HEAD.canonical_level = 1
 
 # ---------------------------------------------------------------------------- #
@@ -770,5 +774,7 @@ _C.GLOBAL.SUMMARY_LEVEL = 0
 _C.GLOBAL.RESEARCH = [""] #result_classes, result_bboxes
 _C.GLOBAL.LOG_STEP = 200
 _C.GLOBAL.SAVE_STEP = 500
+_C.GLOBAL.GPU_MEM_FRACTION=0.0
 _C.log_dir = ""
 _C.ckpt_dir = ""
+#BalanceBackboneHookV2

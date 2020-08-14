@@ -94,4 +94,5 @@ def find_top_rpn_proposals_for_single_level(
 
         boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
                                       dtype=(tf.float32,tf.float32),back_prop=False)
+        
         return tf.stop_gradient(boxes),tf.stop_gradient(probability)

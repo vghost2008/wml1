@@ -25,6 +25,28 @@ def trans_odresult_to_annotations_list(data):
 
     return res
 
+def trans_absolute_coord_to_relative_coord(image_info,annotations_list):
+    H = image_info['height']
+    W = image_info['width']
+    res_bbox = []
+    res_segmentation = []
+    res_labels = []
+    for ann in annotations_list:
+        box = ann['bbox']
+        xmin = box[0]/W
+        ymin = box[1]/H
+        xmax = (box[0]+box[2])/W
+        ymax = (box[1]+box[3])/H
+        res_bbox.append([ymin,xmin,ymax,xmax])
+        res_segmentation.append(ann['segmentation'])
+        res_labels.append(ann['category_id'])
+
+    if len(annotations_list)>0:
+        return np.array(res_bbox),np.array(res_labels),np.array(res_segmentation)
+    else:
+        return np.zeros([0,4],dtype=np.float32),np.zeros([0],dtype=np.int32),np.zeros([0,H,W],dtype=np.uint8)
+
+
 def get_files(data_dir, img_suffix="jpg"):
     files = wmlu.recurse_get_filepath_in_dir(data_dir, suffix=".json")
     res = []
@@ -35,6 +57,13 @@ def get_files(data_dir, img_suffix="jpg"):
 
     return res
 
+
+'''
+output:
+image_info: {'height','width'}
+annotations_list: [{'bbox','segmentation','category_id'}' #bbox[xmin,ymin,width,height] absolute coordinate, 
+'segmentation' [H,W]
+'''
 def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
     annotations_list = []
     image = {}
@@ -239,7 +268,7 @@ def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
     image_info = {}
     image_info["height"] =size[1]
     image_info["width"] =size[0]
-    obj_ann_bboxes = get_expand_bboxes_in_annotationsv2(annotations_list,size)
+    obj_ann_bboxes = get_expand_bboxes_in_annotationsv2(annotations_list,[x//2 for x in size])
     if len(annotations_list)==0:
         return res
 
@@ -285,7 +314,8 @@ image_data:[h,w,c]
 bbox:[ymin,xmin,ymax,xmax)
 output:
 image_info: {'height','width'}
-annotations_list: [{'bbox','segmentation','category_id'}' #bbox[xmin,ymin,width,height], 'segmentation' [H,W]
+annotations_list: [{'bbox','segmentation','category_id'}' #bbox[xmin,ymin,width,height] absolute coordinate, 'segmentation' [H,W]
+image_data:[H,W,3]
 '''
 def cut(annotations_list,img_data,bbox,threshold=0.15,return_none_if_no_ann=True):
     bbox = list(bbox)
@@ -430,7 +460,8 @@ if __name__ == "__main__":
 
     data = LabelMeData(label_text2id=name_to_id,shuffle=True)
     #data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
+    #data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10_neg_preproc")
     for x in data.get_items():
         full_path, img_info,category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
         img = wmli.imread(full_path)

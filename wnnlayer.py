@@ -508,6 +508,7 @@ def conv2d_with_sn(inputs,
                    reuse=None,
                    scope=None,sn_iteration=1,dtype=None):
     del rate
+    print(f"conv2d_with_sn is deprecated.")
     with variable_scope.variable_scope(scope, 'conv2d', [inputs], reuse=reuse) as sc:
         if isinstance(kernel_size,list):
             shape = kernel_size+[inputs.get_shape().as_list()[-1],num_outputs]
@@ -521,7 +522,9 @@ def conv2d_with_sn(inputs,
         if biases_regularizer is not None:
             tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,biases_regularizer(b))
 
-        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration,dtype=dtype), strides=[1, stride, stride, 1],padding=padding) + b
+        outputs = tf.nn.conv2d(input=inputs, filter=spectral_norm(w,iteration=sn_iteration,dtype=dtype),
+                               strides=[1, stride, stride, 1],
+                               padding=padding) + b
         if normalizer_fn is not None:
             if normalizer_params is None:
                 normalizer_params = {}

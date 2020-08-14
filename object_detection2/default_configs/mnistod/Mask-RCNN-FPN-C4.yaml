@@ -1,0 +1,49 @@
+_BASE_: "../Base-RCNN-FPN.yaml"
+MODEL:
+  MASK_ON: False
+  RESNETS:
+    DEPTH: 50
+  ROI_BOX_HEAD:
+    #POOLER_TYPE: "ROIMultiScale"
+    bin_size: [1,1]
+    NAME: "SeparateFastRCNNConvFCHeadV4"
+    NUM_FC: 2
+    POOLER_RESOLUTION: 7
+    NUM_CONV: 4
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    CLS_AGNOSTIC_BBOX_REG: True
+  ROI_MASK_HEAD:
+    NORM: "GN"
+  FPN:
+    NORM: "GN"
+  #RPN:
+  #  MATCHER: "ATSSMatcher"
+  ROI_HEADS:
+    NAME: "TwoStepROIHeads"
+    #IN_FEATURES: ["P2"]
+    PRED_IOU: True
+    #PRED_IOU_VERSION: 1
+    #PROPOSAL_APPEND_HUGE_NUM_GT: False
+    IOU_THRESHOLDS: [0.06]
+    SCORE_THRESH_TEST: 0.05
+    OUTPUTS: "FastRCNNWeightGIOUOutputs"
+    POS_LABELS_THRESHOLD: 0.5
+    BOX_REG_LOSS_SCALE: 6.0
+
+SOLVER:
+  IMS_PER_BATCH: 10
+  BASE_LR: 0.02
+  STEPS: (2500,)
+  LR_DECAY_TYPE: "cosine"
+  WARMUP_ITERS: 100
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
+GLOBAL:
+  PROJ_NAME: "MaskRCNNFPNDemon"
+  SUMMARY_LEVEL: -1
+  #RESEARCH: ["result_bboxes","result_classes"]
+  RESEARCH: ["result_classes"]
+  LOG_STEP: 200

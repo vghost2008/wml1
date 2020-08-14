@@ -316,7 +316,7 @@ def coco2014_val_dataset():
 
 def labelme_dataset():
     data = LabelMeData(label_text2id=None)
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv9")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
     return data.get_items()
 
 

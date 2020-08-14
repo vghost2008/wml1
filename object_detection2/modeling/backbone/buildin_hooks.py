@@ -113,6 +113,14 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
             with tf.name_scope("fusion"):
                 shape0 = wmlt.combined_static_and_dynamic_shape(v0)
                 for i, (k, v) in enumerate(end_points):
+                    with tf.variable_scope("smooth1", reuse=tf.AUTO_REUSE):
+                        v = slim.conv2d(v, v.get_shape().as_list()[-1], [3, 3],
+                                        rate=(i + 1) * 2,
+                                        normalizer_fn=None,
+                                        activation_fn=None,
+                                        biases_initializer=None)
+                    with tf.variable_scope(f"normalizer{i}"):
+                        v = normalizer_fn(v, **normalizer_params)
                     if i == ref_index:
                         net = v
                     else:
@@ -129,15 +137,6 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
                     shape = wmlt.combined_static_and_dynamic_shape(v)
                     v0 = tf.image.resize_bilinear(net, shape[1:3])
                     v = v + v0
-                with tf.variable_scope("smooth1",reuse=tf.AUTO_REUSE):
-                    v = slim.separable_convolution2d(v,None,[3,3],
-                                                       rate=(i+1)*2,
-                                                       normalizer_fn=None,
-                                                       depth_multiplier=1,
-                                                       activation_fn=None,
-                                                       biases_initializer=None)
-                with tf.variable_scope(f"normalizer{i}"):
-                    v = normalizer_fn(v,**normalizer_params)
                 res[k] = v
 
             return res

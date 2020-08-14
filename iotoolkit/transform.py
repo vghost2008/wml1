@@ -117,6 +117,8 @@ def distort_color(image, color_ordering=6, fast_mode=False,
             h_max_delta = 0.1,
             scope=None,seed=None):
     with tf.name_scope(scope, 'distort_color', [image]):
+        ori_dtype = image.dtype
+        image = tf.image.convert_image_dtype(image,tf.float32)
         if fast_mode:
             if color_ordering == 0:
                 image = tf.image.random_brightness(image, max_delta=32. / 255.)
@@ -154,10 +156,9 @@ def distort_color(image, color_ordering=6, fast_mode=False,
                 image = tf.image.random_hue(image, max_delta=h_max_delta,seed=seed)
                 image = tf.image.random_brightness(image, b_max_delta,seed=seed)
                 image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper,seed=seed)
-            elif color_ordering == 7:
-                return image
             else:
                 raise ValueError('color_ordering must be in [0, 3]')
+        image = tf.image.convert_image_dtype(image,ori_dtype)
         return image
 
 def distorted_bounding_box_crop(image,

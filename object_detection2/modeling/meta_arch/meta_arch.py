@@ -33,7 +33,7 @@ class MetaArch(wmodule.WModule):
         """
         Normalize, pad and batch the input images.
         """
-        with tf.name_scope("preprocess_image"):
+        with tf.name_scope(f"preprocess_image_{self.cfg.MODEL.PREPROCESS}"):
             b_img = batched_inputs[IMAGE]
             if self.cfg.MODEL.PREPROCESS == "ton1p1":
                 b_img = (b_img-127.5)/127.5

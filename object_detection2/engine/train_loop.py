@@ -390,7 +390,12 @@ class SimpleTrainer(TrainerBase):
                 self.res_data[RD_BOXES] = bboxes
 
         self.loss_dict = loss_dict
-        config = tf.ConfigProto(allow_soft_placement=True)
+
+        if not self.model.is_training and self.cfg.GLOBAL.GPU_MEM_FRACTION>0.1:
+            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.cfg.GLOBAL.GPU_MEM_FRACTION)
+            config = tf.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options)
+        else:
+            config = tf.ConfigProto(allow_soft_placement=True)
         if not self.model.is_training:
             config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
@@ -458,10 +463,12 @@ class SimpleTrainer(TrainerBase):
             with tf.device(f"/gpu:{i}"):
                 with tf.device(":/cpu:0"):
                     data = self.data.get_next()
-                    DataLoader.detection_image_summary(data,name=f"data_source{i}")
-                                                       
+
                 self.input_data = data
                 with tf.name_scope(f"GPU{self.gpus[i]}"):
+                    with tf.device(":/cpu:0"):
+                        DataLoader.detection_image_summary(data,name=f"data_source{i}")
+
                     self.res_data,loss_dict = self.model.forward(data)
                 loss_values = []
                 for k,v in loss_dict.items():

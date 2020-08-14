@@ -818,6 +818,26 @@ def bboxes_flip_left_right(bboxes):
 '''
 boxes0:[X,4]
 boxes1:[Y,4]
+boxes0与boxes1可以为同一个tensor
+return:
+dis:[X,Y] i,j表示boxes0[i]与boxes1[j]的交集与boxes1[j]的比值
+'''
+@btf.add_name_scope
+def get_bboxes_intersection_matrix(boxes0,boxes1):
+    X,_ = btf.combined_static_and_dynamic_shape(boxes0)
+    Y,_ = btf.combined_static_and_dynamic_shape(boxes1)
+    boxes0 = tf.expand_dims(boxes0,axis=1)
+    boxes0 = tf.tile(boxes0,[1,Y,1])
+    boxes1 = tf.expand_dims(boxes1,axis=0)
+    boxes1 = tf.tile(boxes1,[X,1,1])
+
+    boxes0 = tf.reshape(boxes0,[-1,4])
+    boxes1 = tf.reshape(boxes1,[-1,4])
+    scores = bboxes_intersection(boxes0,boxes1)
+    return tf.reshape(scores,[X,Y])
+'''
+boxes0:[X,4]
+boxes1:[Y,4]
 return:
 iou:[X,Y] i,j表示boxes0[i]与boxes1[j]的IOU
 '''
@@ -944,3 +964,61 @@ def batch_bboxes_pair_wrapv2(bboxes0,bboxes1,fn,len0=None,dtype=None,scope=None)
 
     with tf.name_scope(scope,default_name="batch_bboxes_pair_wrapv2"):
         return tf.map_fn(lambda x:mfn(x[0],x[1]),elems=(bboxes0,len0),dtype=dtype)
+
+'''
+用于删除同类别且有重叠的bboxes
+如果box[i],与box[j]的交叉面积占box[j]面积的百分比大于threshold则删除box[j]
+这种处理倾向于删除面积小的boxes
+'''
+@btf.add_name_scope
+def remove_bboxes_by_overlay(bboxes,labels=None,threshold=0.5):
+    scores = get_bboxes_intersection_matrix(bboxes,bboxes)
+    R,_ = btf.combined_static_and_dynamic_shape(scores)
+    scores = scores*(1.0-tf.eye(R))
+    faild_pos = tf.greater(scores,threshold)
+    if labels is not None:
+        labels0 = tf.reshape(labels,[R,1])
+        labels0 = tf.tile(labels0,[1,R])
+        labels1 = tf.reshape(labels,[1,R])
+        labels1 = tf.tile(labels1,[R,1])
+        test_pos = tf.equal(labels0,labels1)
+        faild_pos = tf.logical_and(faild_pos,test_pos)
+
+    faild_pos = tf.reduce_any(faild_pos,axis=0,keepdims=False)
+    keep_pos = tf.logical_not(faild_pos)
+    bboxes = tf.boolean_mask(bboxes,keep_pos)
+    return bboxes,keep_pos
+
+def batched_remove_bboxes_by_overlay(bboxes,labels=None,length=None,threshold=0.5):
+    def fn0(boxes,label,l):
+        nr,_ = btf.combined_static_and_dynamic_shape(boxes)
+        boxes = boxes[:l,:]
+        label = label[:l]
+        boxes,keep_pos = remove_bboxes_by_overlay(boxes,label,threshold)
+        label = tf.boolean_mask(label,keep_pos)
+        n_nr,_ = btf.combined_static_and_dynamic_shape(boxes)
+        padding_nr = nr-n_nr
+        boxes = tf.pad(boxes,[[0,padding_nr],[0,0]])
+        label = tf.pad(label,[[0,padding_nr]])
+        return boxes,label,n_nr
+
+    def fn1(boxes,l):
+        nr,_ = btf.combined_static_and_dynamic_shape(boxes)
+        boxes = boxes[:l,:]
+        boxes,keep_pos = remove_bboxes_by_overlay(boxes,None,threshold)
+        n_nr,_ = btf.combined_static_and_dynamic_shape(boxes)
+        padding_nr = nr-n_nr
+        boxes = tf.pad(boxes,[[0,padding_nr],[0,0]])
+        return boxes,n_nr
+
+    length = tf.convert_to_tensor(length)
+    labels = tf.convert_to_tensor(labels)
+    bboxes = tf.convert_to_tensor(bboxes)
+    if labels is None:
+        boxes,length = tf.map_fn(lambda x:fn1(x[0],x[1]),elems=(bboxes,length),
+                          back_prop=False)
+        return boxes,length
+    else:
+        boxes,labels,length = tf.map_fn(lambda x:fn0(x[0],x[1],x[2]),elems=(bboxes,labels,length),
+                          back_prop=False)
+        return boxes,labels,length
