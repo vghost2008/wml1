@@ -3,6 +3,7 @@ from thirdparty.registry import Registry
 import wmodule
 from object_detection2.modeling.matcher import Matcher
 from object_detection2.modeling.box_regression import Box2BoxTransform
+from functools import partial
 import tensorflow as tf
 from thirdparty.nets.resnet_v1 import *
 from object_detection2.modeling.poolers import ROIPooler
@@ -120,6 +121,7 @@ class ROIHeads(wmodule.WChildModule):
                 print("Use balanced fastrcnn pos sampler.")
                 with tf.name_scope("random_select"):
                     indexs = wop.his_random_select(data=p_gt_index,select_nr=size)
+                    #indexs = tf.Print(indexs,["indexs",tf.shape(p_gt_index),indexs],summarize=100)
                     indices = tf.gather(indices, indexs)
                     return indices
 
@@ -365,8 +367,6 @@ class Res5ROIHeads(ROIHeads):
     def __init__(self, cfg,parent,**kwargs):
         super().__init__(cfg,parent,**kwargs)
 
-        assert len(self.in_features) == 1, "Res5ROIHeads only support one feature map input."
-
         # fmt: off
         pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         pooler_type       = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
@@ -374,6 +374,8 @@ class Res5ROIHeads(ROIHeads):
         self.mask_on      = cfg.MODEL.MASK_ON
         # fmt: on
         assert not cfg.MODEL.KEYPOINT_ON
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
 
         self.pooler = ROIPooler(
             cfg=cfg.MODEL.ROI_BOX_HEAD,
@@ -382,7 +384,9 @@ class Res5ROIHeads(ROIHeads):
             bin_size=bin_size,
             pooler_type=pooler_type,
         )
-
+        self.box_head = build_box_head(
+            cfg,parent=self,**kwargs
+        )
         self.box_predictor = FastRCNNOutputLayers(cfg,parent=self,
             num_classes=self.num_classes, cls_agnostic_bbox_reg=self.cls_agnostic_bbox_reg,**kwargs
         )
@@ -394,25 +398,6 @@ class Res5ROIHeads(ROIHeads):
                 **kwargs
             )
 
-    def res5_block(self, net,reuse=None):
-        batch_norm_decay = self.cfg.MODEL.RESNETS.batch_norm_decay #0.999
-        nr = 3
-        use_batch_norm = True
-        blocks = [
-            resnet_utils.Block('block4', bottleneck, [{
-                'depth': 2048,
-                'depth_bottleneck': 512,
-                'stride': 1
-            }] * nr)
-        ]
-        with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
-                                             is_training=self.is_training,
-                                             use_batch_norm=use_batch_norm)):
-            with tf.variable_scope("resnet_v1_101",reuse=reuse):
-                net = resnet_utils.stack_blocks_dense(
-                        net, blocks)
-        return net
-
     def _shared_roi_transform(self, features, boxes,img_size,reuse=None):
         '''
         返回的batch_size与box nr 合并到了新的batch_size这一维
@@ -420,7 +405,7 @@ class Res5ROIHeads(ROIHeads):
         x = self.pooler(features, boxes,img_size=img_size)
         if self.roi_hook is not None:
             x = self.roi_hook(x,self.batched_inputs)
-        x = self.res5_block(x,reuse=reuse)
+        x = self.box_head(x)
         return x
 
     def forward(self, inputs, features, proposals:ProposalsData):
@@ -434,12 +419,24 @@ class Res5ROIHeads(ROIHeads):
             proposals = self.label_and_sample_proposals(inputs,proposal_boxes)
             proposal_boxes = proposals.boxes
 
+        features_in = [features[f] for f in self.in_features]
         box_features = self._shared_roi_transform(
-            [features[f] for f in self.in_features], proposal_boxes,img_size=img_size
+            features_in, proposal_boxes,img_size=img_size
         )
-        feature_pooled = tf.reduce_mean(box_features,axis=[1, 2],keep_dims=False)  # pooled to 1x1
-        pred_class_logits, pred_proposal_deltas = self.box_predictor(feature_pooled)
-        del feature_pooled
+        if isinstance(box_features,tf.Tensor) or len(box_features) == 1:
+            box_x = box_features
+            cls_x = box_features
+            msk_x = box_features
+        elif len(box_features) == 2:
+            cls_x = box_features[0]
+            box_x = box_features[1]
+            msk_x = box_x
+        else:
+            cls_x = box_features[0]
+            box_x = box_features[1]
+            msk_x = box_features[2]
+
+        pred_class_logits, pred_proposal_deltas = self.box_predictor([cls_x,box_x])
         outputs = build_outputs(name=self.cfg.MODEL.ROI_HEADS.OUTPUTS,
             cfg=self.cfg,
             parent=self,
@@ -466,11 +463,11 @@ class Res5ROIHeads(ROIHeads):
                 # on foreground proposals, so we need to select out the foreground
                 # features.
                 '''
-                feature in box_features's shape is [batch_size*box_nr,H,W,C]
+                feature in msk_x's shape is [batch_size*box_nr,H,W,C]
                 '''
                 fg_selection_mask = tf.reshape(fg_selection_mask,[-1])
-                mask_features = tf.boolean_mask(box_features,fg_selection_mask)
-                del box_features
+                mask_features = tf.boolean_mask(msk_x,fg_selection_mask)
+                del msk_x
                 mask_logits = self.mask_head(mask_features)
                 losses["loss_mask"] = mask_rcnn_loss(inputs,mask_logits, proposals,fg_selection_mask)
             #return {}, losses
@@ -479,9 +476,17 @@ class Res5ROIHeads(ROIHeads):
             pred_instances = outputs.inference(
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )
+            '''
             pred_instances = self.forward_with_given_boxes(features, pred_instances,
                                                            img_size=img_size,
-                                                           reuse=True)
+                                                           reuse=True)'''
+            if self.mask_on:
+                index = pred_instances[RD_INDICES]
+                index = tf.reshape(index,[-1])
+                mask_features = tf.gather(msk_x,index)
+                mask_logits = self.mask_head(mask_features)
+                mask_rcnn_inference(mask_logits, pred_instances)
+
             return pred_instances, {}
 
     def forward_with_given_boxes(self, features, instances:RCNNResultsData,img_size,reuse=None):

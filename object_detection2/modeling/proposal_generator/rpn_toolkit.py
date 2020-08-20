@@ -33,10 +33,14 @@ def find_top_rpn_proposals(
             pre_nms_topk,
             post_nms_topk,
             anchors_num_per_level=None,
+            score_threshold=None,
+            is_training=True
     ):
     if anchors_num_per_level is None or len(anchors_num_per_level) == 1:
         return find_top_rpn_proposals_for_single_level(proposals,pred_objectness_logits,nms_thresh,pre_nms_topk,
-                                                       post_nms_topk)
+                                                       post_nms_topk,
+                                                       score_threshold=score_threshold,
+                                                       is_training=is_training)
     with tf.name_scope("find_top_rpn_proposals"):
         proposals = tf.split(proposals,num_or_size_splits=anchors_num_per_level,axis=1)
         pred_objectness_logits = tf.split(pred_objectness_logits,num_or_size_splits=anchors_num_per_level,axis=1)
@@ -47,7 +51,9 @@ def find_top_rpn_proposals(
                                                               pred_objectness_logits=pred_objectness_logits[i],
                                                               nms_thresh=nms_thresh,
                                                               pre_nms_topk=pre_nms_topk//(3**i),
-                                                              post_nms_topk=post_nms_topk//(3**i))
+                                                              post_nms_topk=post_nms_topk//(3**i),
+                                                              score_threshold=score_threshold,
+                                                              is_training=is_training)
             boxes.append(t_boxes)
             probabilitys.append(t_probability)
         return tf.concat(boxes,axis=1),tf.concat(probabilitys,axis=1)
@@ -76,6 +82,8 @@ def find_top_rpn_proposals_for_single_level(
         nms_thresh,
         pre_nms_topk,
         post_nms_topk,
+        score_threshold=-1.0,
+        is_training=True,
 ):
     with tf.name_scope("find_top_rpn_proposals_for_single_level"):
         '''
@@ -88,8 +96,24 @@ def find_top_rpn_proposals_for_single_level(
 
         def fn(bboxes,probability):
             labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
-            boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
-            probability = tf.gather(probability,indices)
+            if is_training:
+                boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                probability = tf.gather(probability,indices)
+            else:
+                boxes,labels,indices = wop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                probability = tf.gather(probability,indices)
+                if score_threshold > 1e-10:
+                    p_mask = tf.greater(probability,score_threshold)
+
+                    indices = tf.constant([[0]],dtype=tf.int32)
+                    updates = tf.constant([1],dtype=tf.int32)
+                    shape = tf.shape(p_mask)
+                    lp_mask= tf.cast(tf.scatter_nd(indices, updates, shape),tf.bool)
+                    p_mask = tf.logical_or(p_mask,lp_mask)
+
+                    probability = tf.boolean_mask(probability,p_mask)
+                    boxes = tf.boolean_mask(boxes,p_mask)
+
             return boxes,probability
 
         boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),

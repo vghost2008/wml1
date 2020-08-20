@@ -854,17 +854,18 @@ size:()
 return:
 [N,size]
 '''
-def batch_boolean_mask(data,mask,size):
-    if not isinstance(data,tf.Tensor):
-        data = tf.convert_to_tensor(data)
-    def fn(d,m):
-        d = tf.boolean_mask(d,m)
-        padding = [[0,size-tf.shape(d)[0]]]
-        if d.get_shape().ndims>1:
-            padding = padding+[[0,0]]*(d.get_shape().ndims-1)
-        d = tf.pad(d,padding)
-        return d
-    return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
+def batch_boolean_mask(data,mask,size,scope=None):
+    with tf.name_scope(scope,default_name="batch_boolean_mask"):
+        if not isinstance(data,tf.Tensor):
+            data = tf.convert_to_tensor(data)
+        def fn(d,m):
+            d = tf.boolean_mask(d,m,name="boolean_mask_on_single_data")
+            padding = [[0,size-tf.shape(d)[0]]]
+            if d.get_shape().ndims>1:
+                padding = padding+[[0,0]]*(d.get_shape().ndims-1)
+            d = tf.pad(d,padding)
+            return d
+        return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
 
 '''
 每一个element分别执行boolean mask并 concat在一起

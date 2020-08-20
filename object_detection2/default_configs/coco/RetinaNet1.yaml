@@ -27,7 +27,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     ACTIVATION_FN: "NA"
     OUTPUTS: "RetinaNetGIOUOutputs"
-    MATCHER: "ATSSMatcher"
+    MATCHER: "ATSSMatcher3"
 DATASETS:
   TRAIN: "coco_2014_train"
   TEST: "coco_2014_eval"

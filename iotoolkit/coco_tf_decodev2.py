@@ -120,20 +120,22 @@ labels:[X]
 bboxes:[X,4]
 mask:[X,H,W]
 '''
-def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",id_to_label={},transforms=None,has_file_index=True):
+def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",id_to_label={},transforms=None,has_file_index=True,filter_empty=True):
     '''
     id_to_label:first id is the category_id in coco, second label is the label id for model
     '''
     dataset = get_database(dataset_dir=data_dir,num_parallel=num_parallel,file_pattern=file_pattern)
     def filter_func(x):
         return tf.greater(tf.shape(x[GT_BOXES])[0],0)
-    dataset = dataset.filter(filter_func)
+    if filter_empty:
+        dataset = dataset.filter(filter_func)
     if transforms is not None:
         if isinstance(transforms,Iterable):
             transforms = WTransformList(transforms)
         dataset = dataset.map(transforms,num_parallel_calls=num_parallel)
-    #处理后有的bbox可能消失了
-    dataset = dataset.filter(filter_func)
+    if filter_empty:
+        #处理后有的bbox可能消失了
+        dataset = dataset.filter(filter_func)
     with tf.name_scope('data_provider'):
         pass
     return dataset

@@ -88,7 +88,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                                                                   reduction=tf.losses.Reduction.MEAN)
 
         wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
-        return classes_loss
+        return classes_loss*self.cfg.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE
 
     def smooth_l1_loss(self):
         """
@@ -320,7 +320,12 @@ class FastRCNNOutputs(wmodule.WChildModule):
             NMS前数据必须已经排好序
             通过top_k+gather排序
             '''
-            probability, indices = tf.nn.top_k(probability, k=tf.shape(probability)[0])
+            if ious is None:
+                probability, indices = tf.nn.top_k(probability, k=tf.shape(probability)[0])
+            else:
+                _, indices = tf.nn.top_k(ious, k=tf.shape(ious)[0])
+                probability = tf.gather(probability,indices)
+
             labels = tf.gather(labels, indices)
             bboxes_regs = tf.gather(bboxes_regs, indices)
             proposal_bboxes = tf.gather(proposal_bboxes, indices)

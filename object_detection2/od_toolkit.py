@@ -3,6 +3,8 @@ import tensorflow as tf
 import wtfop.wtfop_ops as wop
 import wml_tfutils as wmlt
 import wnnlayer as wnnl
+import basic_tftools as btf
+from .standard_names import *
 
 slim = tf.contrib.slim
 
@@ -157,3 +159,17 @@ def avg_fusion(feature_maps,*args,scope=None,**kwargs):
 
 def concat_fusion(feature_maps,*args,scope=None,**kwargs):
     return tf.concat(feature_maps,axis=-1,name=scope)
+
+def boolean_mask_on_instances(instances,mask,labels_key=RD_LABELS,length_key=RD_LENGTH,exclude=[IMAGE]):
+    res = {}
+    B,size = btf.combined_static_and_dynamic_shape(instances[labels_key])
+    for k, v in instances.items():
+        if len(v.get_shape())>1 and k not in exclude:
+            n_v = wmlt.batch_boolean_mask(v, mask, size=size,scope=k)
+            res[k] = n_v
+        else:
+            res[k] = v
+    length = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
+    res[length_key] = length
+
+    return res

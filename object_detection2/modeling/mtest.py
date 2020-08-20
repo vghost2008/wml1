@@ -1,6 +1,7 @@
 # coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
+from wmodule import WModule
 import wnnlayer as wnnl
 import logging
 import wml_utils as wmlu
@@ -17,6 +18,7 @@ import img_utils as wmli
 from object_detection2.modeling.poolers import ROIPooler
 from object_detection2.modeling.box_regression import Box2BoxTransform
 import object_detection2.config.config as config
+from object_detection2.modeling.matcher import *
 import wmodule
 
 
@@ -100,6 +102,47 @@ class WMLTest(tf.test.TestCase):
                                          [0.6999999,0.7,0.9,0.8],
                                          [0.3,0.3,0.5,0.6]])
             self.assertAllClose(a=out_new_boxes,b=target_new_boxes,atol=1e-5,rtol=0.)
+
+    def testATSSMatcher(self):
+        with self.test_session() as sess:
+            parent = WModule(cfg=None)
+            matcher = ATSSMatcher(k=2, cfg=None, parent=parent)
+            boxes0 = tf.constant(np.array([[0, 0, 1, 1], [0.5, 0.5, 1, 1], [0.1, 0.1, 0.2, 0.2], [0, 0, 1, 0.5],
+                                           [0.1, 0.3, 0.5, 0.6], [0.4, 0.5, 0.7, 0.8]]))
+            boxes0 = tf.expand_dims(boxes0, axis=0)
+            boxes1 = tf.constant(np.array([[-0.1, 0, 0.3, 1], [0.5, 0.5, 1, 1]]))
+            boxes1 = tf.expand_dims(boxes1, axis=0)
+            labels = tf.constant([[1, 4]])
+            length = tf.convert_to_tensor([2])
+            labels, scores, indices = matcher(boxes0, boxes1, labels, length, [3, 3])
+            target_scores = np.array([[0.,1.,0.,0.,0.,0.]],dtype=np.float32)
+            target_labels = np.array([[0,4,0,0,0,0]],dtype=np.int32)
+            target_indices = np.array([[-1, 1,-1,-1,-1,-1]],dtype=np.int32)
+            labels, scores, indices = sess.run([labels, scores, indices])
+            self.assertAllClose(scores,target_scores,atol=1e-4)
+            self.assertAllEqual(labels,target_labels)
+            self.assertAllEqual(indices,target_indices)
+
+    def testATSSMatcher3(self):
+        with self.test_session() as sess:
+            parent = WModule(cfg=None)
+            matcher = ATSSMatcher3(thresholds=[0.4,0.5], cfg=None, parent=parent)
+            boxes0 = tf.constant(np.array([[0.5, 0.1, 1, 0.9], [0.5, 0.5, 1, 1], [0.1, 0.1, 0.2, 0.2], [0, 0, 1, 0.5],
+                                           [0.1, 0.3, 0.5, 0.6], [0.4, 0.5, 0.7, 0.8]]),dtype=tf.float32)
+            boxes0 = tf.expand_dims(boxes0, axis=0)
+            boxes1 = tf.constant(np.array([[-0.1, 0, 0.3, 1], [0.5, 0.5, 1, 1]]),dtype=tf.float32)
+            boxes1 = tf.expand_dims(boxes1, axis=0)
+            labels = tf.constant([[1, 4]])
+            length = tf.convert_to_tensor([2])
+            labels, scores, indices = matcher(boxes0, boxes1, labels, length, [3, 3])
+            target_scores = np.array([[0.44444444,1.,0.025,0.,0.13043478,0.21428571]],dtype=np.float32)
+            target_labels = np.array([[-1,4,0,0,0,0]],dtype=np.int32)
+            target_indices = np.array([[-1, 1,-1,-1,-1,-1]],dtype=np.int32)
+            labels, scores, indices = sess.run([labels, scores, indices])
+            self.assertAllClose(scores,target_scores,atol=1e-4)
+            self.assertAllEqual(labels,target_labels)
+            self.assertAllEqual(indices,target_indices)
+
 
 
 if __name__ == "__main__":

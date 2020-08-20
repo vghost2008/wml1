@@ -40,6 +40,7 @@ _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = False
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
 _C.INPUT.ROTATE_ANY_ANGLE.PROBABILITY = 0.5
 _C.INPUT.SHUFFLE_BUFFER_SIZE = 2048
+_C.INPUT.FILTER_EMPTY = True
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -135,7 +136,7 @@ _C.MODEL.PROPOSAL_GENERATOR.NAME = "RPN"
 # (a the scale used during training or inference)
 _C.MODEL.PROPOSAL_GENERATOR.MIN_SIZE = 0
 
-_C.MODEL.PROPOSAL_GENERATOR.OUTPUTS = "RPNOutputs"
+_C.MODEL.PROPOSAL_GENERATOR.SCORE_THRESH_TEST = 0.0
 
 
 # ---------------------------------------------------------------------------- #
@@ -320,6 +321,7 @@ _C.MODEL.ROI_HEADS.PRED_IOU_VERSION = 0
 
 _C.MODEL.ROI_HEADS.OUTPUTS = "FastRCNNOutputs"
 _C.MODEL.ROI_HEADS.BOX_REG_LOSS_SCALE = 1.0
+_C.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE = 1.0
 
 # ---------------------------------------------------------------------------- #
 # Box Head

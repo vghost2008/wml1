@@ -118,5 +118,5 @@ class FastRCNNWeightGIOUOutputs(_FastRCNNOutputs):
         classes_loss = weights*classes_loss
         classes_loss = tf.reduce_mean(classes_loss)
         wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
-        return classes_loss
+        return classes_loss*self.cfg.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE
 

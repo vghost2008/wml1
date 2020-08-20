@@ -37,7 +37,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 TRAIN_SIZE_LIMIT = None
 VAL_SIZE_LIMIT = None
-SAMPLES_PER_FILES = 200
+SAMPLES_PER_FILES = 500
 
 def category_id_filter(category_id):
     good_ids = [1,2,3]
@@ -59,7 +59,6 @@ def create_tf_example(image,
 
     with tf.gfile.GFile(img_file, 'rb') as fid:
         encoded_jpg = fid.read()
-        encoded_jpg_io = io.BytesIO(encoded_jpg)
 
     xmin = []
     xmax = []
@@ -68,6 +67,7 @@ def create_tf_example(image,
     category_ids = []
     encoded_mask_png = []
     num_annotations_skipped = 0
+    print("ann size:",len(annotations_list))
     for object_annotations in annotations_list:
         (x, y, width, height) = tuple(object_annotations['bbox'])
         if width <= 0 or height <= 0:
@@ -136,9 +136,9 @@ def _get_output_filename(output_dir, name, idx):
 def _add_to_tfrecord(file,writer,id,label_text_to_id):
     img_file,json_file = file
     image_info,annotations_list = read_labelme_data(json_file,label_text_to_id)
-    if len(annotations_list)>32:
+    '''if len(annotations_list)>64:
         print(f"Too many annotations_list {len(annotations_list)}")
-        return False
+        return False'''
     if len(annotations_list)==0:
         print("No annotations.")
         #for test
@@ -228,8 +228,6 @@ def multithread_create_tf_record_by_files(files,output_dir,name="train",shufflin
 
 if __name__ == "__main__":
 
-    #dataset_dir = "/home/vghost/ai/mldata/mnistod/eval"
-    #output_dir = "/home/vghost/ai/mldata/mnistod/eval_tfrecord"
     dataset_dir = "/home/vghost/ai/mldata/mnistod/train1"
     output_dir = "/home/vghost/ai/mldata/mnistod/train1_tfrecord"
     output_name = "train"

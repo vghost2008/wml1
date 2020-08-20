@@ -107,8 +107,6 @@ class ATSSMatcher(wmodule.WChildModule):
             with tf.device("/cpu:0"):
                 iou_std = tf.sqrt(iou_var)
                 iou_threshold = iou_mean+iou_std
-                #wsummary.histogram_or_scalar(iou_std, "iou_std")
-                #wsummary.histogram_or_scalar(iou_threshold, "iou_threshold")
                 '''
                 原算法中表示的为仅从上面的topk中取正样本，这里从所有的样本中取正样本
                 '''
@@ -131,4 +129,162 @@ class ATSSMatcher(wmodule.WChildModule):
 
             if self.same_pos_label:
                 labels = tf.where(tf.greater(labels, 0), tf.ones_like(labels) * self.same_pos_label, labels)
+            return tf.stop_gradient(labels),tf.stop_gradient(scores),tf.stop_gradient(index)
+
+@MATCHER.register()
+class ATSSMatcher2(wmodule.WChildModule):
+    MIN_IOU_THRESHOLD = 0.1
+    def __init__(self,same_pos_label=None,*args,**kwargs):
+        '''
+        '''
+        super().__init__(*args,**kwargs)
+        self.same_pos_label = same_pos_label
+
+        print(f"ATSSMatcher v2.0")
+
+    @wmlt.add_name_scope
+    def get_threshold(self,iou_matrix):
+        B,X,Y = btf.combined_static_and_dynamic_shape(iou_matrix)
+        iou_matrix = tf.reshape(iou_matrix,[B*X,Y])
+        def fn(ious):
+            mask = tf.greater(ious,self.MIN_IOU_THRESHOLD)
+            def fn0():
+                p_ious = tf.boolean_mask(ious,mask)
+                mean,var = tf.nn.moments(p_ious,axes=-1)
+                std = tf.sqrt(var)
+                return mean+std
+            def fn1():
+                return tf.constant(1.0,dtype=tf.float32)
+            return tf.cond(tf.reduce_any(mask),fn0,fn1)
+        threshold = tf.map_fn(fn,elems=iou_matrix,back_prop=False)
+        threshold = tf.reshape(threshold,[B,X,1])
+        return tf.stop_gradient(threshold)
+
+    def forward(self,boxes,gboxes,glabels,glength,*args,**kwargs):
+        '''
+        :param boxes: [1,X,4] or [batch_size,X,4] proposal boxes
+        :param gboxes: [batch_size,Y,4] groundtruth boxes
+        :param glabels: [batch_size,Y] groundtruth labels
+        :param glength: [batch_size] boxes size
+        :return:
+        labels: [batch_size,X,4], the label of boxes, -1 indict ignored box, which will not calculate loss,
+        0 is background
+        scores: [batch_size,X], the overlap score with boxes' match gt box
+        indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
+        '''
+        with tf.name_scope("ATTSMatcher2"):
+            iou_matrix = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
+                                                      fn=odb.get_iou_matrix,
+                                                      len0=glength,
+                                                      scope="get_iou_matrix")
+            is_center_in_gtboxes = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
+                                                                fn=odb.is_center_in_boxes,
+                                                                len0=glength,
+                                                                dtype=tf.bool,
+                                                                scope="get_is_center_in_gtbboxes")
+            wsummary.variable_summaries_v2(iou_matrix,"iou_matrix")
+
+            with tf.device("/cpu:0"):
+                iou_threshold = self.get_threshold(iou_matrix)
+                is_pos = tf.logical_and(iou_matrix>iou_threshold,is_center_in_gtboxes)
+                iou_matrix = tf.where(is_pos,iou_matrix,tf.zeros_like(iou_matrix))
+                scores,index = tf.nn.top_k(tf.transpose(iou_matrix,perm=[0,2,1]),k=1)
+                B,Y,_ = btf.combined_static_and_dynamic_shape(gboxes)
+                index = tf.squeeze(index,axis=-1)
+                scores = tf.squeeze(scores,axis=-1)
+                labels = wmlt.batch_gather(glabels,index,name="gather_labels",
+                                           parallel_iterations=B,
+                                           back_prop=False)
+                is_good_score = tf.greater(scores,self.MIN_IOU_THRESHOLD)
+                labels = tf.where(is_good_score,labels,tf.zeros_like(labels))
+                index = tf.where(is_good_score,index,tf.ones_like(index)*-1)
+
+            if self.same_pos_label:
+                labels = tf.where(tf.greater(labels, 0), tf.ones_like(labels) * self.same_pos_label, labels)
+            return tf.stop_gradient(labels),tf.stop_gradient(scores),tf.stop_gradient(index)
+
+@MATCHER.register()
+class ATSSMatcher3(wmodule.WChildModule):
+    MIN_IOU_THRESHOLD = 0.1
+    def __init__(self,thresholds,same_pos_label=None,*args,**kwargs):
+        '''
+        '''
+        super().__init__(*args,**kwargs)
+        self.same_pos_label = same_pos_label
+        self.thresholds = thresholds
+
+        print(f"ATSSMatcher v3.0, thresholds={self.thresholds}")
+
+    @wmlt.add_name_scope
+    def get_threshold(self,iou_matrix):
+        '''
+        iou_matrix: [B,GT_nr,Anchor_nr]
+        X = GT_nr, Y=Anchor_nr
+        return:
+        [B,GT]
+        '''
+        B,X,Y = btf.combined_static_and_dynamic_shape(iou_matrix)
+        iou_matrix = tf.reshape(iou_matrix,[B*X,Y])
+        def fn(ious):
+            mask = tf.greater(ious,self.MIN_IOU_THRESHOLD)
+            def fn0():
+                p_ious = tf.boolean_mask(ious,mask)
+                mean,var = tf.nn.moments(p_ious,axes=-1)
+                std = tf.sqrt(var)
+                return mean+std
+            def fn1():
+                return tf.constant(1.0,dtype=tf.float32)
+            return tf.cond(tf.reduce_any(mask),fn0,fn1)
+        threshold = tf.map_fn(fn,elems=iou_matrix,back_prop=False)
+        threshold = tf.reshape(threshold,[B,X])
+        return tf.stop_gradient(threshold)
+
+    def forward(self,boxes,gboxes,glabels,glength,*args,**kwargs):
+        '''
+        :param boxes: [1,X,4] or [batch_size,X,4] proposal boxes
+        :param gboxes: [batch_size,Y,4] groundtruth boxes
+        :param glabels: [batch_size,Y] groundtruth labels
+        :param glength: [batch_size] boxes size
+        :return:
+        labels: [batch_size,X,4], the label of boxes, -1 indict ignored box, which will not calculate loss,
+        0 is background
+        scores: [batch_size,X], the overlap score with boxes' match gt box
+        indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
+        '''
+        with tf.name_scope("ATTSMatcher2"):
+            iou_matrix = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
+                                                      fn=odb.get_iou_matrix,
+                                                      len0=glength,
+                                                      scope="get_iou_matrix")
+            is_center_in_gtboxes = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
+                                                                fn=odb.is_center_in_boxes,
+                                                                len0=glength,
+                                                                dtype=tf.bool,
+                                                                scope="get_is_center_in_gtbboxes")
+            wsummary.variable_summaries_v2(iou_matrix,"iou_matrix")
+
+            with tf.device("/cpu:0"):
+                iou_threshold = self.get_threshold(iou_matrix)
+                iou_threshold = tf.minimum(iou_threshold,self.thresholds[-1])
+                iou_matrix = tf.where(is_center_in_gtboxes,iou_matrix,tf.zeros_like(iou_matrix))
+                scores,index = tf.nn.top_k(tf.transpose(iou_matrix,perm=[0,2,1]),k=1)
+                B,Y,_ = btf.combined_static_and_dynamic_shape(gboxes)
+                index = tf.squeeze(index,axis=-1)
+                scores = tf.squeeze(scores,axis=-1)
+                threshold = wmlt.batch_gather(iou_threshold,index)
+                labels = wmlt.batch_gather(glabels,index,name="gather_labels",
+                                           parallel_iterations=B,
+                                           back_prop=False)
+                is_good_score = tf.greater(scores,self.MIN_IOU_THRESHOLD)
+                is_good_score = tf.logical_and(is_good_score,scores>=threshold)
+                labels = tf.where(is_good_score,labels,tf.zeros_like(labels))
+                margin = self.thresholds[-1]-self.thresholds[0]
+                is_in_mid_threshold = tf.logical_and(scores<threshold,scores>threshold-margin)
+                is_ignore = tf.logical_and(is_in_mid_threshold,scores>self.MIN_IOU_THRESHOLD+margin)
+                labels = tf.where(is_ignore,tf.ones_like(labels)*-1,labels)
+                index = tf.where(is_good_score,index,tf.ones_like(index)*-1)
+
+            if self.same_pos_label:
+                labels = tf.where(tf.greater(labels, 0), tf.ones_like(labels) * self.same_pos_label, labels)
+
             return tf.stop_gradient(labels),tf.stop_gradient(scores),tf.stop_gradient(index)

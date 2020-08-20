@@ -17,7 +17,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    OUTPUTS: "RPNGIOUOutputs"
+    SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
@@ -43,9 +43,6 @@ MODEL:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
     PRE_NMS_TOPK_TEST: 6000 # Per FPN level
-    # Detectron1 uses 2000 proposals per-batch,
-    # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
-    # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
     POST_NMS_TOPK_TRAIN: 1000
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
@@ -68,4 +65,5 @@ INPUT:
 VERSION: 2
 GLOBAL:
   PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv2"
+  SUMMARY_LEVEL: -1
   LOG_STEP: 200

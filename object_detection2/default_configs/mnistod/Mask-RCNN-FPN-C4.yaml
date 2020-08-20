@@ -1,6 +1,6 @@
 _BASE_: "../Base-RCNN-FPN.yaml"
 MODEL:
-  MASK_ON: False
+  MASK_ON: True
   RESNETS:
     DEPTH: 50
   ROI_BOX_HEAD:
@@ -15,21 +15,22 @@ MODEL:
     CLS_AGNOSTIC_BBOX_REG: True
   ROI_MASK_HEAD:
     NORM: "GN"
+    NUM_CONV: 0
   FPN:
     NORM: "GN"
-  #RPN:
-  #  MATCHER: "ATSSMatcher"
+  RPN:
+    MATCHER: "ATSSMatcher2"
   ROI_HEADS:
-    NAME: "TwoStepROIHeads"
+    NAME: "Res5ROIHeads"
     #IN_FEATURES: ["P2"]
-    PRED_IOU: True
+    #PRED_IOU: True
     #PRED_IOU_VERSION: 1
     #PROPOSAL_APPEND_HUGE_NUM_GT: False
-    IOU_THRESHOLDS: [0.06]
+    #IOU_THRESHOLDS: [0.06]
     SCORE_THRESH_TEST: 0.05
-    OUTPUTS: "FastRCNNWeightGIOUOutputs"
-    POS_LABELS_THRESHOLD: 0.5
-    BOX_REG_LOSS_SCALE: 6.0
+    #OUTPUTS: "FastRCNNWeightGIOUOutputs"
+    #POS_LABELS_THRESHOLD: 0.5
+    #BOX_REG_LOSS_SCALE: 6.0
 
 SOLVER:
   IMS_PER_BATCH: 10

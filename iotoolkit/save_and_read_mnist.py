@@ -4,7 +4,6 @@ import sys
 import numpy as np
 import tensorflow as tf
 import sys
-sys.path.append("..")
 import wml_tfutils as wmlt
 
 slim = tf.contrib.slim

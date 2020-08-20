@@ -13,12 +13,34 @@ import numpy as np
 from .autoaugment import *
 from thirdparty.aug.autoaugment import distort_image_with_autoaugment
 import object_detection2.bboxes as odb
+import object_detection2.od_toolkit as odt
 from basic_tftools import channel
+import copy
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
 '''
 class WTransform(object):
+    GLOBAL_STATUS = 0
+    ABSOLUTE_COORDINATE = 1
+    HWN_MASK = 2
+    
+    @staticmethod
+    def test_statu(statu):
+        return (WTransform.GLOBAL_STATUS&statu)>0
+    
+    @staticmethod
+    def test_unstatu(statu):
+        return (WTransform.GLOBAL_STATUS&statu)==0
+
+    @staticmethod
+    def set_statu(statu):
+        WTransform.GLOBAL_STATUS = WTransform.GLOBAL_STATUS|statu
+        
+    @staticmethod
+    def unset_statu(statu):
+        WTransform.GLOBAL_STATUS = WTransform.GLOBAL_STATUS^statu
+
     def is_image(self,key):
         return ('image' in key) or ('img' in key)
 
@@ -68,21 +90,26 @@ class WTransform(object):
                 else:
                     res[k] = v
         return res
+
     def __str__(self):
         return type(self).__name__
 
     @staticmethod
+    def _identity(x):
+        return x
+
+    @staticmethod
     def select(pred,true_v,false_v):
-        return tf.cond(pred,lambda:true_v,lambda:false_v)
+        return tf.cond(pred,partial(WTransform._identity,true_v),partial(WTransform._identity,false_v))
 
     @staticmethod
     def cond_set(dict_data,key,pred,v):
-        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+        dict_data[key] = tf.cond(pred,partial(WTransform._identity,v),partial(WTransform._identity,dict_data[key]))
 
     @staticmethod
     def probability_set(dict_data,key,prob,v):
         pred = tf.less_equal(tf.random_uniform(shape=()),prob)
-        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+        dict_data[key] = tf.cond(pred,partial(WTransform._identity,v),partial(WTransform._identity,dict_data[key]))
 
     @staticmethod
     def pad(dict_data,key,paddings):
@@ -108,7 +135,7 @@ def resize_img(img,limit,align,resize_method=tf.image.ResizeMethod.BILINEAR):
         new_size = wop.get_image_resize_size(size=tf.shape(img)[0:2], limit=limit, align=align)
         return tf.image.resize_images(img, new_size,method=resize_method)
 
-def distort_color(image, color_ordering=6, fast_mode=False,
+def distort_color(image, color_ordering=2, fast_mode=False,
             b_max_delta=0.1,
             c_lower = 0.8,
             c_upper = 1.2,
@@ -263,12 +290,17 @@ class RandomFlipLeftRight(WTransform):
     def __init__(self):
         pass
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
         is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
         func = tf.image.flip_left_right
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
         func2 = wml_bboxes.bboxes_flip_left_right
         data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
         return data_item
+    
+    def __str__(self):
+        return f"{RandomFlipLeftRight.__name__}"
 
 '''
 Boxes: relative coordinate
@@ -278,12 +310,16 @@ class RandomFlipUpDown(WTransform):
     def __init__(self):
         pass
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
         is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
         func = tf.image.flip_up_down
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
         func2 = wml_bboxes.bboxes_flip_up_down
         data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
         return data_item
+    def __str__(self):
+        return f"{RandomFlipUpDown.__name__}"
 
 class AutoAugment(WTransform):
     def __init__(self,augmentation_name="v0"):
@@ -301,26 +337,34 @@ Boxes: relative coordinate
 mask:H,W,N format
 '''
 class RandomRotate(WTransform):
-    def __init__(self,clockwise=True):
+    def __init__(self,clockwise=True,probability=0.5):
         self.clockwise = clockwise
         if clockwise:
             self.k = 1
         else:
             self.k = 3
+        self.probability = probability
 
     def __call__(self, data_item):
-        is_rotate = tf.greater(tf.random_uniform(shape=[]),0.5)
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        is_rotate = tf.less_equal(tf.random_uniform(shape=[]),self.probability)
         func = partial(tf.image.rot90,k=self.k)
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_rotate)
         func2 = partial(wml_bboxes.bboxes_rot90,clockwise=self.clockwise)
         data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_rotate)
         return data_item
+    
+    def __str__(self):
+        return f"{RandomRotate.__name__}"
 
 class RemoveZeroAreaBBox(WTransform):
     def __init__(self,mini_area=1e-4):
         self.mini_area = mini_area
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"INFO: {self} better use absolute coordinate.")
         area = odb.box_area(data_item[GT_BOXES])
         keep = tf.greater_equal(area,self.mini_area)
         data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
@@ -329,6 +373,9 @@ class RemoveZeroAreaBBox(WTransform):
             data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep)
 
         return data_item
+    
+    def __str__(self):
+        return f"{RemoveZeroAreaBBox.__name__}"
 
 
 '''
@@ -342,6 +389,10 @@ class RandomRotateAnyAngle(WTransform):
         self.enable = enable
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         if not self.enable:
             return data_item
         is_rotate = tf.less(tf.random_uniform(shape=[]),self.rotate_probability)
@@ -359,6 +410,9 @@ class RandomRotateAnyAngle(WTransform):
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
 
         return data_item
+    
+    def __str__(self):
+        return f"{RandomRotateAnyAngle.__name__}"
 '''
 mask:H,W,N format
 bbox: relative coordinate
@@ -376,8 +430,13 @@ class ResizeShortestEdge(WTransform):
         self.resize_method = resize_method
         self.seed = seed
         self.max_size = max_size
+        
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
         with tf.name_scope("resize_shortest_edge"):
             if len(self.short_edge_length) == 1:
                 func = partial(resize_img,limit=[self.short_edge_length[0],self.max_size],
@@ -394,6 +453,7 @@ class ResizeShortestEdge(WTransform):
                                align=self.align,
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
+        
     def __str__(self):
         return type(self).__name__+f"[{self.short_edge_length}, max_size={self.max_size}]"
 '''
@@ -412,8 +472,11 @@ class ResizeLongestEdge(WTransform):
         self.resize_method = resize_method
         self.seed = seed
         self.min_size = min_size
+        
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
         with tf.name_scope("resize_shortest_edge"):
             if len(self.long_edge_length) == 1:
                 func = partial(resize_img,limit=[self.min_size,self.long_edge_length[0]],
@@ -430,24 +493,39 @@ class ResizeLongestEdge(WTransform):
                                align=self.align,
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
+        
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class MaskNHW2HWN(WTransform):
     def __init__(self):
         pass
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+        self.set_statu(WTransform.HWN_MASK)
         with tf.name_scope("MaskNHW2HWN"):
             func = partial(tf.transpose,perm=[1,2,0])
             return self.apply_to_masks(func,data_item)
+        
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class MaskHWN2NHW(WTransform):
     def __init__(self):
         pass
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
+        self.unset_statu(WTransform.HWN_MASK)
         with tf.name_scope("MaskHWN2NHW"):
             func = partial(tf.transpose,perm=[2,0,1])
             return self.apply_to_masks(func,data_item)
+        
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class DelHeightWidth(WTransform):
     def __call__(self, data_item):
@@ -456,6 +534,8 @@ class DelHeightWidth(WTransform):
         if 'width' in data_item:
             del data_item['width']
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class UpdateHeightWidth(WTransform):
     def __call__(self, data_item):
@@ -465,6 +545,8 @@ class UpdateHeightWidth(WTransform):
         if WIDTH in data_item:
             data_item[WIDTH] = shape[1]
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class AddSize(WTransform):
     def __init__(self,img_key='image'):
@@ -472,16 +554,23 @@ class AddSize(WTransform):
     def __call__(self, data_item):
         data_item['size'] = tf.shape(data_item[self.img_key])[0:2]
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class BBoxesRelativeToAbsolute(WTransform):
     def __init__(self,img_key='image'):
         self.img_key = img_key
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        self.set_statu(WTransform.ABSOLUTE_COORDINATE)
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             size = tf.shape(data_item[self.img_key])
             func = partial(wml_bboxes.tfrelative_boxes_to_absolutely_boxes,width=size[1],height=size[0])
             return self.apply_to_bbox(func,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 prossed batched data
@@ -492,6 +581,9 @@ class BBoxesAbsoluteToRelative(WTransform):
         self.img_key = img_key
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        self.unset_statu(WTransform.ABSOLUTE_COORDINATE)
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             if len(data_item[IMAGE].get_shape()) == 4:
                 size = tf.shape(data_item[self.img_key])[1:3]
@@ -501,6 +593,9 @@ class BBoxesAbsoluteToRelative(WTransform):
                 size = tf.shape(data_item[self.img_key])[:2]
                 func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
                 return self.apply_to_bbox(func,data_item)
+            
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 如果有Mask分支，Mask必须先转换为HWN的模式
@@ -512,6 +607,8 @@ class ResizeToFixedSize(WTransform):
         self.channels = channels
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
         with tf.name_scope("resize_image"):
             func = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
             #data_item['gt_boxes'] = tf.Print(data_item['gt_boxes'],[tf.shape(data_item['gt_boxes']),data_item['fileindex']])
@@ -520,6 +617,9 @@ class ResizeToFixedSize(WTransform):
                 func = partial(tf.reshape,shape=self.size+[self.channels])
                 items = self.apply_to_images(func,items)
             return items
+        
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class NoTransform(WTransform):
     def __init__(self,id=None):
@@ -530,6 +630,8 @@ class NoTransform(WTransform):
         else:
             data_item[IMAGE] = tf.Print(data_item[IMAGE],["id:",self.id])
             return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class RandomSelectSubTransform(WTransform):
     def __init__(self,trans,probs=None):
@@ -540,26 +642,14 @@ class RandomSelectSubTransform(WTransform):
             self.probs = probs
 
     def __call__(self, data_item:dict):
-        all_items = []
+        all_funs = []
         for t in self.trans:
-            all_items.append(t(dict(data_item)))
-        res_data_items = {}
+            all_funs.append(partial(t,dict(data_item)))
+
         index = tf.random_uniform(shape=(),maxval=len(self.trans),dtype=tf.int32)
 
-        for k in data_item.keys():
-            datas = []
-            for i,v in enumerate(all_items):
-                datas.append(v[k])
-            if self.is_same(datas,data_item[k]):
-                res_data_items[k] = data_item[k]
-        for k in res_data_items.keys():
-            for x in all_items:
-                x.pop(k)
-
-        if len(all_items[0])>0:
-            selected_data = btf.select_in_list(all_items,index)
-            res_data_items.update(selected_data)
-        return res_data_items
+        selected_data = btf.selectfn_in_list(all_funs,index)
+        return selected_data
 
     @staticmethod
     def is_same(datas,ref_data):
@@ -567,6 +657,8 @@ class RandomSelectSubTransform(WTransform):
             if d != ref_data:
                 return False
         return True
+    def __str__(self):
+        return f"{type(self).__name}: "+str(self.trans)
 
 class AddBoxLens(WTransform):
     def __init__(self,box_key="gt_boxes",gt_len_key="gt_length"):
@@ -577,6 +669,8 @@ class AddBoxLens(WTransform):
         gt_len = tf.shape(data_item[self.box_key])[0]
         data_item[self.gt_len_key] = gt_len
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WDistortColor(WTransform):
     def __init__(self,**kwargs):
@@ -584,6 +678,8 @@ class WDistortColor(WTransform):
     def __call__(self, data_item):
         func = partial(distort_color,**self.kwargs)
         return self.apply_to_images(func,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WRandomDistortColor(WTransform):
     def __init__(self,probability=0.5,**kwargs):
@@ -593,12 +689,16 @@ class WRandomDistortColor(WTransform):
         is_dis = tf.less_equal(tf.random_uniform(shape=[]),self.probability)
         func = partial(distort_color,**self.kwargs)
         return self.apply_to_images(func,data_item,runtime_filter=is_dis)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WRandomBlur(WTransform):
     def __init__(self,**kwargs):
         self.kwargs = kwargs
     def __call__(self, data_item):
         return self.apply_to_images(random_blur,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WTransImgToFloat(WTransform):
     def __init__(self,**kwargs):
@@ -606,12 +706,16 @@ class WTransImgToFloat(WTransform):
     def __call__(self, data_item):
         func = partial(tf.cast, dtype=tf.float32)
         return self.apply_to_images(func,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WTransImgToGray(WTransform):
     def __init__(self,**kwargs):
         self.kwargs = kwargs
     def __call__(self, data_item):
         return self.apply_to_images(tf.image.rgb_to_grayscale,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WPerImgStandardization(WTransform):
     def __init__(self,**kwargs):
@@ -619,7 +723,10 @@ class WPerImgStandardization(WTransform):
 
     def __call__(self, data_item):
         return self.apply_to_images(tf.image.per_image_standardization,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 '''
+bboxes: relative coordinate
 如果有Mask分支，Mask必须先转换为HWN的模式
 '''
 class SampleDistortedBoundingBox(WTransform):
@@ -637,6 +744,11 @@ class SampleDistortedBoundingBox(WTransform):
         self.filter_threshold = filter_threshold
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
+            
         labels = data_item[GT_LABELS]
         data_item[GT_LABELS] = labels
         image = data_item[IMAGE]
@@ -663,6 +775,9 @@ class SampleDistortedBoundingBox(WTransform):
             data_item = self.apply_to_masks(func,data_item)
 
         return data_item
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class RandomSampleDistortedBoundingBox(WTransform):
     def __init__(self,
@@ -681,6 +796,10 @@ class RandomSampleDistortedBoundingBox(WTransform):
         self.probability = probability
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
         #return data_item
         labels = data_item[GT_LABELS]
         data_item[GT_LABELS] = labels
@@ -709,6 +828,9 @@ class RandomSampleDistortedBoundingBox(WTransform):
             pass
 
         return data_item
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WTransLabels(WTransform):
     def __init__(self,id_to_label):
@@ -723,6 +845,8 @@ class WTransLabels(WTransform):
         labels = wop.int_hash(labels,self.id_to_label)
         data_item[GT_LABELS] = labels
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 Mask必须为NHW格式
@@ -748,6 +872,8 @@ class WRemoveCrowdInstance(WTransform):
             masks = tf.gather(data_item[GT_MASKS],indices)
             data_item[GT_MASKS] = masks
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 '''
 operator on batch
 '''
@@ -760,9 +886,12 @@ class FixDataInfo(WTransform):
             batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
             return tf.reshape(x,[batch_size,H,W,self.channel])
         return self.apply_to_images(func,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 image: [B,H,W,C]
+bboxes: absolute coordinate
 如果有Mask分支，Mask必须为[B,N,H,W]
 '''
 class PadtoAlign(WTransform):
@@ -770,6 +899,10 @@ class PadtoAlign(WTransform):
         self.align = align
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         if self.align <= 1:
             return data_item
 
@@ -791,9 +924,12 @@ class PadtoAlign(WTransform):
 
         data_item = self.apply_to_images(func4img,data_item)
         return self.apply_to_masks(func4mask,data_item)
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
-用于将多个图像拼在一起，生成一个包含更多（可能也更清晰）的小目标
+用于将多个图像拼在一起，生成一个包含更多（通常也更清晰）的小目标
 image: [B,H,W,C]
 如果有Mask分支，Mask必须为[B,N,H,W]
 bboxes:absolute coordinate
@@ -806,8 +942,24 @@ class Stitch(WTransform):
         else:
             self.nr = nr
             self.probability = None
+            
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+        B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        if B<2:
+            return data_item
+
+        if self.probability is None:
+            return self.apply_stitch(data_item)
+        else:
+            p = tf.less(tf.random_uniform(shape=()),self.probability)
+            return tf.cond(p,partial(self.apply_stitch,dict(data_item)),lambda:dict(data_item))
+
+    def apply_stitch(self, data_item):
         B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
         if B<2:
             return data_item
@@ -815,12 +967,7 @@ class Stitch(WTransform):
         indexs = tf.range((B//2)*2)
         indexs = tf.random_shuffle(indexs,seed=time.time())
         indexs = tf.reshape(indexs,[B//2,2])
-        if self.probability is None:
-            nr = tf.minimum(B//2,int(self.nr+0.5))
-        else:
-            p = tf.less(tf.random_uniform(shape=()),self.probability)
-            nr = tf.cond(p,lambda:1,lambda:0)
-        need_trans = tf.greater(nr,0)
+        nr = tf.minimum(B//2,int(self.nr+0.5))
         indexs = indexs[:nr]
         B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
         B,_,BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
@@ -846,13 +993,13 @@ class Stitch(WTransform):
         i_height = tf.gather(data_item[HEIGHT],indexs)
         i_length = tf.gather(data_item[GT_LENGTH],indexs)
 
-        def cond_set_value(data_dict,key,pred,value,indexs):
+        def set_value(data_dict,key,value,indexs):
             org_v = data_dict[key]
             shape = btf.combined_static_and_dynamic_shape(org_v)
             cond_v = tf.scatter_nd(tf.reshape(indexs,[-1,1]),value,shape)
             is_set = tf.cast(btf.indices_to_dense_vector(indexs,size=shape[0]),tf.bool)
             cond_v = tf.where(is_set,cond_v,org_v)
-            WTransform.cond_set(data_dict,key,pred,cond_v)
+            data_dict[key] = cond_v
             pass
 
         if GT_MASKS in data_item:
@@ -873,7 +1020,7 @@ class Stitch(WTransform):
                                                             stateful=False)
             mask = tf.transpose(mask,perm=[0,3,1,2])
             mask = tf.reshape(mask, [nr,max_length,H,W])
-            cond_set_value(data_item,GT_MASKS,need_trans,mask,o_indexs)
+            set_value(data_item,GT_MASKS,mask,o_indexs)
         else:
             image, bboxes, labels,length = tf.py_func(Stitch.process,[i_image,
                                                                               i_bboxes,
@@ -891,10 +1038,10 @@ class Stitch(WTransform):
         bboxes = tf.reshape(bboxes, [nr, max_length, BOX_DIM])
         labels = tf.reshape(labels, [nr, max_length])
         length = tf.reshape(length, [nr])
-        cond_set_value(data_item, IMAGE, need_trans, image,o_indexs)
-        cond_set_value(data_item, GT_BOXES, need_trans, bboxes,o_indexs)
-        cond_set_value(data_item, GT_LABELS, need_trans, labels,o_indexs)
-        cond_set_value(data_item, GT_LENGTH, need_trans, length,o_indexs)
+        set_value(data_item, IMAGE,  image,o_indexs)
+        set_value(data_item, GT_BOXES,  bboxes,o_indexs)
+        set_value(data_item, GT_LABELS,  labels,o_indexs)
+        set_value(data_item, GT_LENGTH,  length,o_indexs)
 
         return data_item
 
@@ -1089,7 +1236,12 @@ class Stitch(WTransform):
                                 width=width,
                                 height=height,
                                 length=length)
+    def __str__(self):
+        return f"{type(self).__name__}"
 
+'''
+image: in [0,255]
+'''
 class WRandomEqualize(WTransform):
     def __init__(self,prob=0.8):
         self.prob = prob
@@ -1098,6 +1250,8 @@ class WRandomEqualize(WTransform):
         image = equalize(data_item[IMAGE])
         self.probability_set(data_item,IMAGE,self.prob,image)
         return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 class WRandomCutout(WTransform):
     def __init__(self,pad_size=8,prob=0.8):
@@ -1108,6 +1262,9 @@ class WRandomCutout(WTransform):
         image = cutout(data_item[IMAGE],pad_size=self.pad_size)
         self.probability_set(data_item,IMAGE,self.prob,image)
         return data_item
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 Image: [H,W,C]
@@ -1115,14 +1272,30 @@ Mask: [Nr,H,W]
 bbox: absolute value
 '''
 class WRandomTranslate(WTransform):
-    def __init__(self,prob=0.6,pixels=60,image_fill_value=127,translate_horizontal=True):
+    def __init__(self,prob=0.6,pixels=60,image_fill_value=127,translate_horizontal=True,max_size=None):
         self.prob = prob
         self.pixels = pixels
         self.image_fill_value = image_fill_value
         self.translate_horizontal = translate_horizontal
+        self.max_size = max_size
+        self.pad_pixels = None
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"INFO: {self} better use absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         is_trans = tf.less_equal(tf.random_uniform(shape=()),self.prob)
+        if self.max_size is not None:
+            shape = tf.shape(data_item[IMAGE])
+            if self.translate_horizontal:
+                v = tf.minimum(self.pixels,self.max_size-shape[1])
+            else:
+                v = tf.minimum(self.pixels,self.max_size-shape[0])
+            self.pad_pixels = tf.nn.relu(v)
+        else:
+            self.pad_pixels = self.pixels
+
         image = self.image_offset(data_item[IMAGE])
         self.cond_set(data_item,IMAGE,is_trans,image)
         if GT_MASKS in data_item:
@@ -1135,25 +1308,32 @@ class WRandomTranslate(WTransform):
 
     def image_offset(self,image):
         if self.translate_horizontal:
-            padding = [[0,0],[self.pixels,0],[0,0]]
+            padding = [[0,0],[self.pad_pixels,0],[0,0]]
         else:
-            padding = [[self.pixels, 0], [0, 0], [0, 0]]
+            padding = [[self.pad_pixels, 0], [0, 0], [0, 0]]
         return tf.pad(image,paddings=padding,constant_values=self.image_fill_value)
 
     def mask_offset(self,mask):
         if self.translate_horizontal:
-            padding = [[0,0],[0,0],[self.pixels,0]]
+            padding = [[0,0],[0,0],[self.pad_pixels,0]]
         else:
-            padding = [[0, 0], [self.pixels, 0], [0, 0]]
+            padding = [[0, 0], [self.pad_pixels, 0], [0, 0]]
         return tf.pad(mask,paddings=padding)
 
     def box_offset(self,bbox):
+        pad_pixels = tf.cast(self.pad_pixels,tf.float32)
         if self.translate_horizontal:
-            offset = tf.convert_to_tensor([[0,self.pixels,0,self.pixels]],dtype=tf.float32)
+            offset = tf.convert_to_tensor([[0,pad_pixels,0,pad_pixels]],dtype=tf.float32)
         else:
-            offset = tf.convert_to_tensor([[self.pixels, 0, self.pixels,0]], dtype=tf.float32)
+            offset = tf.convert_to_tensor([[pad_pixels, 0, pad_pixels,0]], dtype=tf.float32)
         return bbox+offset
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
+'''
+image: in [0,255]
+'''
 class WColor(WTransform):
     def __init__(self,factor=1.18):
         self.factor = factor
@@ -1173,6 +1353,10 @@ class WShear(WTransform):
         self.replace = replace
 
     def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"INFO: {self} better use absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         image = data_item[IMAGE]
         bboxes = data_item[GT_BOXES]
         mask = data_item.get(GT_MASKS,None)
@@ -1185,6 +1369,9 @@ class WShear(WTransform):
             data_item[GT_MASKS] = mask
 
         return data_item
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 '''
 mask: [N,H,W]
@@ -1194,6 +1381,8 @@ class RemoveSpecifiedInstance(WTransform):
         pass
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         bboxes = data_item[GT_BOXES]
         labels = data_item[GT_LABELS]
         masks = data_item[GT_MASKS]
@@ -1226,6 +1415,96 @@ class RemoveSpecifiedInstance(WTransform):
     def pred_fn(bboxes,labels,masks):
         #an example
         return tf.equal(labels,1)
+    
+    def __str__(self):
+        return f"{type(self).__name__}"
+
+'''
+bbox: absolute coordinate
+'''
+class RandomMoveRect(WTransform):
+    def __init__(self,probability=0.5,max_size=None):
+        self.probability = probability
+        self.max_size = max_size
+
+    def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"INFO: {self} better use absolute coordinate.")
+        is_proc = tf.less_equal(tf.random_uniform(shape=[]), self.probability)
+        s_image = self.move_rect(data_item[IMAGE],data_item[GT_BOXES])
+        image = tf.cond(is_proc,lambda:s_image,lambda:data_item[IMAGE])
+        data_item[IMAGE] = image
+        return data_item
+
+    def npget_bboxes(self,env_bbox,image_size):
+        x_l = env_bbox[1]
+        y_t = env_bbox[0]
+        x_r = image_size[1]-env_bbox[3]
+        y_b = image_size[0]-env_bbox[2]
+        mw = max(x_l,x_r)
+        mh = max(y_t,y_b)
+
+        H,W,_ = image_size
+
+        if mw<20 or mh<20:
+            return np.zeros([2,6],dtype=np.int32)
+
+        if self.max_size is None:
+            w = np.random.uniform(20,mw,size=()).astype(np.int32)
+            h = np.random.uniform(20,mh,size=()).astype(np.int32)
+        else:
+            w = np.random.uniform(20,min(mw,self.max_size),size=()).astype(np.int32)
+            h = np.random.uniform(20,min(mh,self.max_size),size=()).astype(np.int32)
+
+        def get_box(w,h,index):
+            index = index%4
+            if index==0:
+                if y_t<h:
+                    return get_box(w,h,1)
+                xmin = np.random.uniform(0,W-w-1,size=())
+                ymin = np.random.uniform(0,y_t-h,size=())
+                return np.array([ymin,xmin,ymin+h,xmin+w],dtype=np.int32)
+            elif index==1:
+                if x_r<w:
+                    return get_box(w,h,2)
+                xmin = np.random.uniform(W-x_r,W-w-1,size=())
+                ymin = np.random.uniform(0,H-h-1,size=())
+                return np.array([ymin,xmin,ymin+h,xmin+w],dtype=np.int32)
+            elif index==2:
+                if y_b<h:
+                    return get_box(w,h,3)
+                xmin = np.random.uniform(0,W-w-1,size=())
+                ymin = np.random.uniform(H-y_b,H-h-1,size=())
+                return np.array([ymin,xmin,ymin+h,xmin+w],dtype=np.int32)
+            elif index==3:
+                if x_l<w:
+                    return get_box(w,h,0)
+                xmin = np.random.uniform(0,x_l-w,size=())
+                ymin = np.random.uniform(0,H-h-1,size=())
+                return np.array([ymin,xmin,ymin+h,xmin+w],dtype=np.int32)
+        index = np.random.uniform(0,3.1,size=(2)).astype(np.int32)
+        _box0 = get_box(w,h,index[0])
+        _box1 = get_box(w,h,index[1])
+        box0 = np.array([_box0[0],_box0[1],0,_box0[2]-_box0[0],_box0[3]-_box0[1],3],dtype=np.int32)
+        box1 = np.array([_box1[0],_box1[2],_box1[1],_box1[3],0,3],dtype=np.int32)
+        return np.stack([box0,box1],axis=0)
+
+    def move_rect(self,image,bboxes):
+        env_bboxes = odb.tfbbox_of_boxes(bboxes)
+        image_shape = btf.combined_static_and_dynamic_shape(image)
+        boxes = tf.py_func(self.npget_bboxes,(env_bboxes,image_shape),tf.int32)
+        need_move = tf.greater(boxes[0][3],5)
+        src_begin = boxes[0][:3]
+        src_size = boxes[0][3:]
+
+        v = tf.slice(image,begin=src_begin,size=src_size)
+        index = tf.reshape(boxes[1],[3,2])
+        t_image = wop.item_assign(tensor=image,v=v,index=index) 
+        image = tf.cond(need_move,lambda:t_image,lambda:image)
+        return image
+
+    def __str__(self):
+        return f"{type(self).__name__}"
 
 
 '''
@@ -1236,6 +1515,8 @@ class NPRemoveSpecifiedInstance(WTransform):
         self.pred_fn = pred_fn
 
     def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
         bboxes = data_item[GT_BOXES]
         labels = data_item[GT_LABELS]
         masks = data_item[GT_MASKS]
@@ -1277,6 +1558,9 @@ class NPRemoveSpecifiedInstance(WTransform):
         # an example
         return np.equal(labels, 1)
 
+    def __str__(self):
+        return f"{type(self).__name__}"
+
 
 class WTransformList(WTransform):
     def __init__(self,trans_list):
@@ -1286,5 +1570,75 @@ class WTransformList(WTransform):
             data_item = trans(data_item)
         return data_item
     def __str__(self):
-        return "WTransformList: "+str(self.trans_list)
+        return f"{type(self).__name__}: "+str(self.trans_list)
+    
+
+'''
+IMAGE:[H,W,C]
+mask: [N,H,W]
+bboxes: relative coordinate
+'''
+class AddFakeInstance(WTransform):
+    def __init__(self):
+        pass
+    def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+        
+        data_nr = tf.shape(data_item[GT_LABELS])[0]
+        data_item = tf.cond(data_nr>0,lambda:data_item,partial(self.add_fake_obj,data_item))
+        return data_item
+
+    @btf.add_name_scope
+    def add_fake_obj(self,data_item):
+        img = data_item[IMAGE]
+        H,W,C = btf.combined_static_and_dynamic_shape(img)
+        bboxes = tf.constant([[0,0,1,1]],dtype=tf.float32)
+        bboxes = tf.concat([data_item[GT_BOXES],bboxes],axis=0)
+        label = tf.constant([0],dtype=data_item[GT_LABELS].dtype)
+        labels = tf.concat([data_item[GT_LABELS],label],axis=0)
+        
+        if GT_MASKS in data_item:
+            msk = data_item[GT_MASKS]
+            mask = tf.ones([1,H,W],dtype=msk.dtype)
+            mask = tf.concat([msk,mask],axis=0)
+            
+            data_item[GT_MASKS] = mask
+
+        data_item[GT_BOXES] = bboxes
+        data_item[GT_LABELS] = labels 
+
+        return data_item
+    
+    def __str__(self):
+        return f"{type(self).__name__}: "+str(self.trans_list)
+
+'''
+IMAGE:[H,W,C]
+mask: [N,H,W]
+bboxes: relative coordinate
+'''
+class RemoveFakeInstance(WTransform):
+    def __init__(self):
+        pass
+    
+    def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+
+        with tf.name_scope("remove_fake_instance"):
+            if IS_CROWD in data_item:
+                '''
+                IS_CROWD的数据大于可能不与GT_LABELS等匹配，如果不删除会产生错误
+                '''
+                data_item.pop(IS_CROWD)
+            mask = tf.greater(data_item[GT_LABELS],0)
+            data_item = odt.boolean_mask_on_instances(data_item,mask,
+                                                      labels_key=GT_LABELS,
+                                                      length_key=GT_LENGTH)
+        return data_item
 

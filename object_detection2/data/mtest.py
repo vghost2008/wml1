@@ -15,6 +15,10 @@ from object_detection2.data.datasets.build import DATASETS_REGISTRY
 from object_detection2.data.dataloader import *
 from wml_utils import  AvgTimeThis
 from object_detection2.standard_names import *
+import os
+
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
 
 
 NUM_CLASSES = 91
@@ -34,8 +38,12 @@ aa = trans.RandomSelectSubTransform([
 
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
-    return [trans.BBoxesRelativeToAbsolute(),
-            trans.RemoveSpecifiedInstance(),
+    return [trans.MaskNHW2HWN(),
+            trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
+                                     max_size=cfg.INPUT.MAX_SIZE_TRAIN,
+                                     align=cfg.INPUT.SIZE_ALIGN),
+            trans.MaskHWN2NHW(),
+            trans.BBoxesRelativeToAbsolute(),
             trans.UpdateHeightWidth(),
             trans.AddBoxLens(),
             ],\
@@ -43,7 +51,7 @@ def test(cfg,is_training):
 _C = CN()
 _C.INPUT = CN()
 _C.INPUT.DATAPROCESS = "test"
-_C.INPUT.MIN_SIZE_TRAIN = (512,576,640)
+_C.INPUT.MIN_SIZE_TRAIN = (224,224)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
 _C.DATASETS = CN()
@@ -51,12 +59,13 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATASETS.TRAIN = "coco_2017_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
-_C.INPUT.STITCH = 0.0
+_C.INPUT.STITCH = 0.5
 _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = True
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
 _C.INPUT.ROTATE_ANY_ANGLE.PROBABILITY = 0.5
-
+_C.INPUT.FILTER_EMPTY = True
+_C.INPUT.SHUFFLE_BUFFER_SIZE = 10
 def main(_):
     cfg = _C
     data_loader = DataLoader(cfg=cfg,is_training=True)

@@ -325,7 +325,7 @@ def get_bboxes_center_point(data):
     ymin,xmin,ymax,xmax = tf.unstack(data,axis=1)
     cy = (ymin+ymax)/2.
     cx = (xmin+xmax)/2.
-    data = tf.stack([cy,cx],axis=1)
+    data = tf.concat([tf.expand_dims(cy,-1),tf.expand_dims(cx,axis=-1)],axis=1)
     data = tf.reshape(data,old_shape)
     return data
 
@@ -648,6 +648,10 @@ def bbox_of_boxes(boxes):
     xmax = np.max(boxes[3])
     return [ymin,xmin,ymax,xmax]
 
+'''
+boxes:[N,4],[ymin,xmin,ymax,xmax]
+return:[ymin,xmin,ymax,xmax]
+'''
 def tfbbox_of_boxes(boxes):
     if not isinstance(boxes,tf.Tensor):
         boxes = tf.convert_to_tensor(boxes)

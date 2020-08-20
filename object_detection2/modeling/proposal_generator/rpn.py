@@ -128,7 +128,9 @@ class RPN(wmodule.WChildModule):
 
         if self.is_training:
             losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
+            rpn_threshold = 0.0
         else:
+            rpn_threshold = self.cfg.MODEL.PROPOSAL_GENERATOR.SCORE_THRESH_TEST
             losses = {}
 
         # Find the top proposals by applying NMS and removing boxes that
@@ -143,6 +145,8 @@ class RPN(wmodule.WChildModule):
             self.pre_nms_topk[self.is_training],
             self.post_nms_topk[self.is_training],
             self.anchors_num_per_level,
+            score_threshold=rpn_threshold,
+            is_training=self.is_training
         )
         if self.cfg.MODEL.RPN.SORT_RESULTS:
             with tf.name_scope("sort_rpn_results"):

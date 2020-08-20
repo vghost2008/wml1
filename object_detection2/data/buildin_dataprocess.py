@@ -256,3 +256,21 @@ def SSD_Fix_Size(cfg, is_training):
                               trans.FixDataInfo()]
 
     return (trans_on_single_img, trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
+def NULL(cfg, is_training):
+    if is_training:
+        size = cfg.INPUT.MIN_SIZE_TRAIN[0]
+        trans_on_single_img = [trans.NoTransform(),
+                               trans.AddBoxLens(),
+                               trans.UpdateHeightWidth(),
+                               ]
+        trans_on_batch_img = [trans.FixDataInfo()]
+    else:
+        size = cfg.INPUT.MIN_SIZE_TEST
+        trans_on_single_img = [trans.NoTransform(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.FixDataInfo()]
+
+    return (trans_on_single_img, trans_on_batch_img)

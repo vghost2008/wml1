@@ -5,10 +5,12 @@ import numpy as np
 import tensorflow as tf
 import wmltools as wt
 CIFAR_IMG_SIZE=30
+
 def tf_int64_feature(value):
 	return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 def tf_byte_feature(value):
 	return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
 class DataSet:
 	def __init__(self):
 		self.images_data=np.array([])
@@ -36,12 +38,15 @@ def read_raw_data(file_path):
 			labels += [datas[0:1]]
 			images += [datas[1:]]
 	return labels,images,num_records
+
 def convert_traindata_to_records(data_dir,save_dir):
 	filenames = [ os.path.join(data_dir,'data_batch_%d.bin'%i) for i in range(1,6)]
 	convert_to_records(filenames,os.path.join(save_dir,"traindata.tfrecords"))
+
 def convert_testdata_to_records(data_dir,save_dir):
 	filenames = [os.path.join(data_dir,'test_batch.bin')]
 	convert_to_records(filenames,os.path.join(save_dir,"testdata.tfrecords"))
+
 def convert_to_records(datapaths,savepath):
 	width          =   32
 	height         =   32
@@ -64,11 +69,13 @@ def convert_to_records(datapaths,savepath):
 				'image_raw':tf_byte_feature(image_raw)}))
 			writer.write(example.SerializeToString())
 	writer.close
+
 def to_records(data_dir,save_dir):
 	if not tf.gfile.Exists(save_dir):
 		tf.gfile.MakeDirs(save_dir)
 	convert_traindata_to_records(data_dir,save_dir)
 	convert_testdata_to_records(data_dir,save_dir)
+
 def read_and_decode(filename_queue):
 	with tf.name_scope("read_and_decode"):
 		reader = tf.TFRecordReader()
@@ -91,6 +98,7 @@ def read_and_decode(filename_queue):
 			image = tf.image.random_contrast(image,lower=0.2,upper=1.8)
 			image = (image-127.5)*2./255.
 	return image,label
+
 def eval_read_and_decode(filename_queue):
 	with tf.name_scope("read_and_decode"):
 		reader = tf.TFRecordReader()

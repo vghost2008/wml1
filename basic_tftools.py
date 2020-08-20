@@ -258,14 +258,23 @@ def probability_case(prob_fn_pairs,scope=None,seed=int(time.time()),prob=None):
         assert math.fabs(last_prob-1.)<1e-2,"Error probabiliby distribultion"
 
         return tf.case(pred_fn_pairs,exclusive=True)
+
 def _identity(x):
     return x
+
 def select_in_list(datas,index,scope=None):
     with tf.name_scope(scope,default_name=f"select_in_list{len(datas)}"):
         pred_fn_pairs = OrderedDict()
         for i,d in enumerate(datas):
             pred_fn_pairs[tf.equal(index,i)] = partial(_identity,d)
-        return tf.case(pred_fn_pairs,exclusive=True)
+        return tf.case(pred_fn_pairs,exclusive=False)
+
+def selectfn_in_list(datas,index,scope=None):
+    with tf.name_scope(scope,default_name=f"select_in_list{len(datas)}"):
+        pred_fn_pairs = OrderedDict()
+        for i,fn in enumerate(datas):
+            pred_fn_pairs[tf.equal(index,i)] = fn
+        return tf.case(pred_fn_pairs,exclusive=False)
 
 @add_name_scope
 def twod_indexs_to_oned_indexs(indexs,depth=None):
