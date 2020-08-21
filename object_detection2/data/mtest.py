@@ -38,7 +38,9 @@ aa = trans.RandomSelectSubTransform([
 
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
-    return [trans.MaskNHW2HWN(),
+    return [ trans.WDistortColor(),
+             trans.RandomNoise(0.5,100),
+            trans.MaskNHW2HWN(),
             trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
                                      max_size=cfg.INPUT.MAX_SIZE_TRAIN,
                                      align=cfg.INPUT.SIZE_ALIGN),
@@ -59,7 +61,7 @@ _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
 _C.DATASETS.TRAIN = "coco_2017_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
-_C.INPUT.STITCH = 0.5
+_C.INPUT.STITCH = 0.0
 _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = True
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6

@@ -8,7 +8,7 @@ if len(sys.argv)==1:
     save_path = wmlu.home_dir("ai/mldata2/0day/coco_statics.dat")
     save_path = wmlu.home_dir("ai/mldata2/0day/ocr_statics.dat")
     save_path = wmlu.home_dir("ai/mldata2/0day/cocoval_statics.dat")
-    save_path = wmlu.home_dir("ai/mldata2/0day/qc_data.dat")
+    save_path = wmlu.home_dir("ai/mldata2/0day/qc_data_org.dat")
 else:
     save_path = sys.argv[-1]
 if __name__ == "__main__":

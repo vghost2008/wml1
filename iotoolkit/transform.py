@@ -95,21 +95,25 @@ class WTransform(object):
         return type(self).__name__
 
     @staticmethod
-    def _identity(x):
-        return x
-
-    @staticmethod
     def select(pred,true_v,false_v):
-        return tf.cond(pred,partial(WTransform._identity,true_v),partial(WTransform._identity,false_v))
+        return tf.cond(pred,lambda:true_v,lambda:false_v)
 
     @staticmethod
     def cond_set(dict_data,key,pred,v):
-        dict_data[key] = tf.cond(pred,partial(WTransform._identity,v),partial(WTransform._identity,dict_data[key]))
+        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
 
     @staticmethod
     def probability_set(dict_data,key,prob,v):
         pred = tf.less_equal(tf.random_uniform(shape=()),prob)
-        dict_data[key] = tf.cond(pred,partial(WTransform._identity,v),partial(WTransform._identity,dict_data[key]))
+        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+        
+    @staticmethod
+    def probability_fn_set(dict_data,key,prob,fn,fn2=None):
+        pred = tf.less_equal(tf.random_uniform(shape=()),prob)
+        if fn2 is None:
+            dict_data[key] = tf.cond(pred,fn,lambda:dict_data[key])
+        else:
+            dict_data[key] = tf.cond(pred,fn,fn2)
 
     @staticmethod
     def pad(dict_data,key,paddings):
@@ -145,6 +149,8 @@ def distort_color(image, color_ordering=2, fast_mode=False,
             scope=None,seed=None):
     with tf.name_scope(scope, 'distort_color', [image]):
         ori_dtype = image.dtype
+        if ori_dtype != tf.uint8:
+            print("WARNING: distort color should performace on tf.uint8.")
         image = tf.image.convert_image_dtype(image,tf.float32)
         if fast_mode:
             if color_ordering == 0:
@@ -185,7 +191,9 @@ def distort_color(image, color_ordering=2, fast_mode=False,
                 image = tf.image.random_contrast(image, lower=c_lower, upper=c_upper,seed=seed)
             else:
                 raise ValueError('color_ordering must be in [0, 3]')
-        image = tf.image.convert_image_dtype(image,ori_dtype)
+        if ori_dtype.is_integer:
+            scale = ori_dtype.max + 0.5
+            image = image*scale
         return image
 
 def distorted_bounding_box_crop(image,
@@ -673,22 +681,32 @@ class AddBoxLens(WTransform):
         return f"{type(self).__name__}"
 
 class WDistortColor(WTransform):
-    def __init__(self,**kwargs):
+    def __init__(self,color_ordering=2,**kwargs):
+        self.color_ordering = color_ordering
         self.kwargs = kwargs
+        
     def __call__(self, data_item):
-        func = partial(distort_color,**self.kwargs)
+        func = partial(distort_color,color_ordering=self.color_ordering,**self.kwargs)
         return self.apply_to_images(func,data_item)
     def __str__(self):
         return f"{type(self).__name__}"
 
 class WRandomDistortColor(WTransform):
-    def __init__(self,probability=0.5,**kwargs):
+    def __init__(self,probability=0.5,color_ordering=2,**kwargs):
         self.kwargs = kwargs
         self.probability = probability
+        self.color_ordering = color_ordering
+        
     def __call__(self, data_item):
-        is_dis = tf.less_equal(tf.random_uniform(shape=[]),self.probability)
-        func = partial(distort_color,**self.kwargs)
-        return self.apply_to_images(func,data_item,runtime_filter=is_dis)
+        def fn():
+            return distort_color(image=data_item[IMAGE],
+                                 color_ordering=self.color_ordering)
+        def fn2():
+            return tf.cast(data_item[IMAGE],tf.float32)
+        self.probability_fn_set(data_item,IMAGE,self.probability,
+                                       fn,fn2)
+        return data_item
+    
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -978,7 +996,7 @@ class Stitch(WTransform):
         l1 = tf.gather(data_item[GT_LENGTH],indexs[1])
         sum_l = l0+l1
         max_length = tf.maximum(tf.reduce_max(sum_l),tf.shape(data_item[GT_LABELS])[1])
-        pad_value = max_length-tf.shape(data_item[GT_LABELS])[1]
+        pad_value = tf.maximum(0,max_length-tf.shape(data_item[GT_LABELS])[1])
         WTransform.pad(data_item,GT_BOXES,[[0,0],[0,pad_value]])
         WTransform.pad(data_item,GT_LABELS,[[0,0],[0,pad_value]])
         if GT_MASKS in data_item:
@@ -1047,6 +1065,15 @@ class Stitch(WTransform):
 
     @staticmethod
     def fitto(width,height,target_w,target_h):
+        '''
+        用于计算将大小为(height,width)的区域等比例缩放到(target_h,target_w)的大小的区域时的
+        准确尺寸
+        :param width:
+        :param height:
+        :param target_w:
+        :param target_h:
+        :return:
+        '''
         if width<1 or height<1:
             return (target_w,target_h)
         if width*target_h>=height*target_w:
@@ -1083,6 +1110,16 @@ class Stitch(WTransform):
 
     @staticmethod
     def get_sizes(W,H,widths,heights,is_h):
+        '''
+        多个区域将以横向(is_h=True)或纵向(is_h=False)的拼接方式放在大小为(H,W)的区域时，他们的目标大小
+        :param W: ()
+        :param H: ()
+        :param widths: [N]
+        :param heights:  [N]
+        :param is_h: ()
+        :return:
+        [N],[N]
+        '''
         if is_h:
             TW = W
             TH = H//2
@@ -1130,6 +1167,16 @@ class Stitch(WTransform):
 
     @staticmethod
     def concat_mask(imgs,widths,heights,W,H,is_h):
+        '''
+
+        :param imgs: [[H,W,N0],[H,W,N1]]
+        :param widths: [w0,w1]
+        :param heights: [h0,h1]
+        :param W: ()
+        :param H: ()
+        :param is_h: ()
+        :return:
+        '''
         ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
         timgs = []
 
@@ -1208,10 +1255,15 @@ class Stitch(WTransform):
             image[id0] = img
             bboxes[id0] = bbox
             labels[id0] = label
-            if mask is not None:
-                m = Stitch.concat_mask([mask[id0][:,:,:len0],mask[id1][:,:,:len1]],widths,heights,W,H,ih)
-                m = np.pad(m,[(0,0),(0,0),(0,max_length-len0-len1)],'constant', constant_values=(0,0))
-                mask[id0] = m
+            try:
+                if mask is not None:
+                    m = Stitch.concat_mask([mask[id0][:,:,:len0],mask[id1][:,:,:len1]],widths,heights,W,H,ih)
+                    m = np.pad(m,[(0,0),(0,0),(0,max_length-len0-len1)],'constant', constant_values=(0,0))
+                    mask[id0] = m
+            except:
+                raise 1
+                pass
+
         if mask is not None:
             return image[:res_nr],mask[:res_nr],bboxes[:res_nr],labels[:res_nr],res_length.astype(type)[:res_nr]
         else:
@@ -1419,6 +1471,21 @@ class RemoveSpecifiedInstance(WTransform):
     def __str__(self):
         return f"{type(self).__name__}"
 
+class RandomNoise(WTransform):
+    def __init__(self,probability=0.5,max_value=10.0):
+        self.probabilitby = probability
+        self.max_value = max_value
+    
+    def __call__(self,data_item):
+        def fn():
+            shape = tf.shape(data_item[IMAGE])
+            return data_item[IMAGE]+tf.random_uniform(shape=shape,
+                                                      minval=-self.max_value,
+                                                      maxval=self.max_value)
+            
+        self.probability_fn_set(data_item,IMAGE,self.probabilitby,fn)
+        
+        return data_item
 '''
 bbox: absolute coordinate
 '''

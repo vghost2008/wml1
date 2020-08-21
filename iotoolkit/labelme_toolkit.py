@@ -407,7 +407,11 @@ class LabelMeData(object):
             labels_names,bboxes = get_labels_and_bboxes(image,annotations_list)
             masks = [ann["segmentation"] for ann in annotations_list]
             if len(masks)>0:
-                masks = np.stack(masks,axis=0)
+                try:
+                    masks = np.stack(masks,axis=0)
+                except:
+                    print("ERROR: stack masks faild.")
+                    masks = None
             
             if self.label_text2id is not None:
                 labels = [self.label_text2id(x) for x in labels_names]

@@ -167,6 +167,11 @@ size:(w,h)
 def resize_img(img,size,keep_aspect_ratio=False):
 
     img_shape = img.shape
+    if np.any(np.array(img_shape)==0):
+        img_shape = list(img_shape)
+        img_shape[0] = size[1]
+        img_shape[1] = size[0]
+        return np.zeros(img_shape,dtype=img.dtype)
     if keep_aspect_ratio:
         if size[1]*img_shape[1] != size[0]*img_shape[0]:
             if size[1]*img_shape[1]>size[0]*img_shape[0]:

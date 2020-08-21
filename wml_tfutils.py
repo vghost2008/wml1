@@ -32,6 +32,9 @@ add_name_scope = btf.add_name_scope
 add_variable_scope = btf.add_variable_scope
 probability_case = btf.probability_case
 indices_to_dense_vector = btf.indices_to_dense_vector
+PrintSummary = btf.PrintSummary
+PrintSummaryV2 = btf.PrintSummaryV2
+PrintNaNorInf = btf.PrintNaNorInf
 
 def add_to_hash_table_collection(value):
     tf.add_to_collection(_HASH_TABLE_COLLECTION,value)
@@ -1078,19 +1081,6 @@ def batch_concat_with_length(datas,lengths,axis=1):
     datas,lengths = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(datas,masks),dtype=(datas[0].dtype,tf.int32))
 
     return datas,lengths
-
-def PrintSummary(v,name="v",extern_vars=[],with_global_step=False):
-    if with_global_step:
-        extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
-    return tf.Print(v,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
-
-def PrintSummaryV2(v0,v,name="v",extern_vars=[],with_global_step=False):
-    if with_global_step:
-        extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
-    return tf.Print(v0,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
-
-def PrintNaNorInf(v,name="is_nan_or_inf"):
-    return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))],summarize=100)
 
 if __name__ == "__main__":
     wmlu.show_list(get_variables_in_ckpt_in_dir("../../mldata/faster_rcnn_resnet101/"))
