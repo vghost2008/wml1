@@ -220,13 +220,17 @@ def resize(image,annotations_list,img_data,size):
     res_image["width"] = size[1]
     res_image["height"] = size[0]
     res_ann = []
+
+    res_img_data = wmli.resize_img(img_data,size,keep_aspect_ratio=True)
+    x_scale = res_img_data.shape[1]/img_data.shape[1]
+    y_scale = res_img_data.shape[0]/img_data.shape[0]
+
     for ann in  annotations_list:
-        bbox = copy.deepcopy(ann["bbox"])
-        #segmentation = wmli.resize_img(ann["segmentation"],size)
-        segmentation = cv2.resize(ann["segmentation"],dsize=size,interpolation=cv2.INTER_NEAREST)
+        bbox = (np.array(ann["bbox"])*np.array([x_scale,y_scale,x_scale,y_scale])).astype(np.int32)
+        segmentation = wmli.resize_img(ann["segmentation"],size=size,keep_aspect_ratio=True,
+                                      interpolation=cv2.INTER_NEAREST)
         category = copy.deepcopy(ann["category_id"])
         res_ann.append({"bbox":bbox,"segmentation":segmentation,"category_id":category})
-    res_img_data = wmli.resize_img(img_data,size)
 
     return res_image,res_ann,res_img_data
 
@@ -261,7 +265,7 @@ def random_cut(image,annotations_list,img_data,size,weights=None,threshold=0.15)
 size:[H,W]
 在每一个标目标附近裁剪出一个子图
 '''
-def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
+def random_cutv1(image,annotations_list,img_data,size,threshold=0.15,resize_size=None):
     res = []
     x_max = max(0,image["width"]-size[0])
     y_max = max(0,image["height"]-size[1])
@@ -280,6 +284,10 @@ def random_cutv1(image,annotations_list,img_data,size,threshold=0.15):
         rect = (t_bbox[1],t_bbox[0],t_bbox[1]+t_bbox[3],t_bbox[0]+t_bbox[2])
         new_image_info,new_annotations_list,new_image_data = cut(annotations_list,img_data,rect,threshold=threshold)
         if new_annotations_list is not None and len(new_annotations_list)>0:
+            if resize_size is not None:
+                new_image_info, new_annotations_list, new_image_data = resize(new_image_info, new_annotations_list,
+                                                                              new_image_data, resize_size)
+
             res.append((new_image_info,new_annotations_list,new_image_data))
     return res
 
@@ -465,7 +473,9 @@ if __name__ == "__main__":
     data = LabelMeData(label_text2id=name_to_id,shuffle=True)
     #data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
     #data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10_neg_preproc")
+    #data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10_neg_preproc")
+    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10_1x_neg_preproc")
+    #data.read_data("/home/vghost/ai/mldata2/qualitycontrol/x")
     for x in data.get_items():
         full_path, img_info,category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
         img = wmli.imread(full_path)

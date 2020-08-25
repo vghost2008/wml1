@@ -404,8 +404,8 @@ class FastRCNNConvHead(wmodule.WChildModule):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
 
 
-    def forward(self, x,scope="FastRCNNConvHead"):
-        with tf.variable_scope(scope):
+    def forward(self, x,scope="FastRCNNConvHead",reuse=None):
+        with tf.variable_scope(scope,reuse=reuse):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
             num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV

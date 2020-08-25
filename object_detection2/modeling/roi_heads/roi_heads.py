@@ -404,8 +404,8 @@ class Res5ROIHeads(ROIHeads):
         '''
         x = self.pooler(features, boxes,img_size=img_size)
         if self.roi_hook is not None:
-            x = self.roi_hook(x,self.batched_inputs)
-        x = self.box_head(x)
+            x = self.roi_hook(x,self.batched_inputs,reuse=reuse)
+        x = self.box_head(x,reuse=reuse)
         return x
 
     def forward(self, inputs, features, proposals:ProposalsData):
@@ -477,16 +477,11 @@ class Res5ROIHeads(ROIHeads):
                 self.test_score_thresh, self.test_nms_thresh, self.test_detections_per_img
             )
             '''
+            由于bbox的位置已经改变，直接使用前面的计算的box_feature会有不对齐的问题
+            '''
             pred_instances = self.forward_with_given_boxes(features, pred_instances,
                                                            img_size=img_size,
-                                                           reuse=True)'''
-            if self.mask_on:
-                index = pred_instances[RD_INDICES]
-                index = tf.reshape(index,[-1])
-                mask_features = tf.gather(msk_x,index)
-                mask_logits = self.mask_head(mask_features)
-                mask_rcnn_inference(mask_logits, pred_instances)
-
+                                                           reuse=True)
             return pred_instances, {}
 
     def forward_with_given_boxes(self, features, instances:RCNNResultsData,img_size,reuse=None):
@@ -507,10 +502,22 @@ class Res5ROIHeads(ROIHeads):
 
         if self.mask_on:
             features = [features[f] for f in self.in_features]
-            x = self._shared_roi_transform(features, instances[RD_BOXES],
+            box_features = self._shared_roi_transform(features, instances[RD_BOXES],
                                            img_size=img_size,
                                            reuse=reuse)
-            mask_logits = self.mask_head(x)
+            if isinstance(box_features,tf.Tensor) or len(box_features) == 1:
+                box_x = box_features
+                cls_x = box_features
+                msk_x = box_features
+            elif len(box_features) == 2:
+                cls_x = box_features[0]
+                box_x = box_features[1]
+                msk_x = box_x
+            else:
+                cls_x = box_features[0]
+                box_x = box_features[1]
+                msk_x = box_features[2]
+            mask_logits = self.mask_head(msk_x)
             mask_rcnn_inference(mask_logits, instances)
         return instances
 

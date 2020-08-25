@@ -164,7 +164,7 @@ def merge_hotgraph_image(src,dst,alpha):
 '''
 size:(w,h)
 '''
-def resize_img(img,size,keep_aspect_ratio=False):
+def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR):
 
     img_shape = img.shape
     if np.any(np.array(img_shape)==0):
@@ -185,7 +185,7 @@ def resize_img(img,size,keep_aspect_ratio=False):
         size = tuple(size)
     if size[0]==img_shape[0] and size[1]==img_shape[1]:
         return img
-    return cv2.resize(img,dsize=size)
+    return cv2.resize(img,dsize=size,interpolation=interpolation)
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)

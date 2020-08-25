@@ -28,7 +28,7 @@ class WROIPool(object):
 
     def __call__(self,net,bboxes):
         '''
-        bboxes [X,4] (ymin,xmin,ymax,xmax)相对坐标
+        bboxes [batch_size,X,4] (ymin,xmin,ymax,xmax)相对坐标
         net:[batch_size,X,4]
         输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
         '''

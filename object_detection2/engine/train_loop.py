@@ -396,7 +396,7 @@ class SimpleTrainer(TrainerBase):
             config = tf.ConfigProto(allow_soft_placement=True,gpu_options=gpu_options)
         else:
             config = tf.ConfigProto(allow_soft_placement=True)
-        if not self.model.is_training:
+        if not self.model.is_training and self.cfg.GLOBAL.GPU_MEM_FRACTION<=0.1:
             config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         self.top_variable_name_scope = "Model"

@@ -999,12 +999,13 @@ def batched_remove_bboxes_by_overlay(bboxes,labels=None,length=None,threshold=0.
         boxes = boxes[:l,:]
         label = label[:l]
         boxes,keep_pos = remove_bboxes_by_overlay(boxes,label,threshold)
-        label = tf.boolean_mask(label,keep_pos)
+        n_nr = btf.combined_static_and_dynamic_shape(keep_pos)[0]
+        padding_nr = nr-n_nr
+        keep_pos = tf.pad(keep_pos,[[0,padding_nr]])
         n_nr,_ = btf.combined_static_and_dynamic_shape(boxes)
         padding_nr = nr-n_nr
         boxes = tf.pad(boxes,[[0,padding_nr],[0,0]])
-        label = tf.pad(label,[[0,padding_nr]])
-        return boxes,label,n_nr
+        return boxes,keep_pos,n_nr
 
     def fn1(boxes,l):
         nr,_ = btf.combined_static_and_dynamic_shape(boxes)
@@ -1013,16 +1014,17 @@ def batched_remove_bboxes_by_overlay(bboxes,labels=None,length=None,threshold=0.
         n_nr,_ = btf.combined_static_and_dynamic_shape(boxes)
         padding_nr = nr-n_nr
         boxes = tf.pad(boxes,[[0,padding_nr],[0,0]])
-        return boxes,n_nr
+        keep_pos = tf.pad(keep_pos,[[0,padding_nr]])
+        return boxes,keep_pos,n_nr
 
     length = tf.convert_to_tensor(length)
     labels = tf.convert_to_tensor(labels)
     bboxes = tf.convert_to_tensor(bboxes)
     if labels is None:
-        boxes,length = tf.map_fn(lambda x:fn1(x[0],x[1]),elems=(bboxes,length),
-                          back_prop=False)
-        return boxes,length
+        boxes,keep_pos,length = tf.map_fn(lambda x:fn1(x[0],x[1]),elems=(bboxes,length),
+                          back_prop=False,dtype=(tf.float32,tf.bool,length.dtype))
     else:
-        boxes,labels,length = tf.map_fn(lambda x:fn0(x[0],x[1],x[2]),elems=(bboxes,labels,length),
-                          back_prop=False)
-        return boxes,labels,length
+        boxes,keep_pos,length = tf.map_fn(lambda x:fn0(x[0],x[1],x[2]),elems=(bboxes,labels,length),
+                          back_prop=False,dtype=(tf.float32,tf.bool,length.dtype))
+
+    return boxes,keep_pos,length

@@ -85,6 +85,7 @@ class RPNGIOUOutputs(object):
         self.gt_length = gt_length
         self.num_feature_maps = len(pred_objectness_logits)
         self.mid_results = {}
+        print("RPNGIOUOutputs v1.0")
 
     def _get_ground_truth(self):
         """

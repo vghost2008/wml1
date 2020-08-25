@@ -388,3 +388,22 @@ def PrintSummaryV2(v0,v,name="v",extern_vars=[],with_global_step=False):
 
 def PrintNaNorInf(v,name="is_nan_or_inf"):
     return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))],summarize=100)
+
+def PrintShape(v,datas,name="shape",extern_vars=[],with_global_step=False):
+    if with_global_step:
+        extern_vars = extern_vars + [tf.train.get_or_create_global_step()]
+    values = [name]+[tf.shape(x) for x in datas]+extern_vars
+    return tf.Print(v,values,summarize=100)
+
+@add_name_scope
+def filter_by_threshold(labels,probability,threshold):
+    '''
+    不同类(labels)使用不同的threshold
+    :param labels: [N] #背景为0
+    :param probability: [N]
+    :param threshold: [C]#不含背景
+    :return: [N], bool
+    '''
+    r_labels = tf.nn.relu(labels-1)
+    r_threshold = tf.gather(threshold,r_labels)
+    return tf.greater_equal(probability,r_threshold)

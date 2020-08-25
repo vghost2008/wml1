@@ -25,6 +25,7 @@ class FastRCNNGIOUOutputs(_FastRCNNOutputs):
     def __init__(
         self,*args,**kwargs
     ):
+        print("FastRCNNGIOUOutputs v1.0")
         super().__init__(*args,**kwargs)
 
     def smooth_l1_loss(self):
