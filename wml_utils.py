@@ -106,7 +106,7 @@ def get_filenames_in_dir(dir_path,suffix=None,prefix=None):
     res.sort()
     return res
 
-def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None):
+def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):
     if suffix is not None:
         suffix = suffix.split(";;")
     if prefix is not None:
@@ -132,7 +132,7 @@ def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None):
         return is_prefix_good and is_suffix_good
 
     res=[]
-    for dir_path,_,files in os.walk(dir_path):
+    for dir_path,_,files in os.walk(dir_path,followlinks=followlinks):
         for file in files:
             if suffix is not None or prefix is not None:
                 if check_file(file):

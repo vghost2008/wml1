@@ -207,6 +207,8 @@ _C.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
 _C.MODEL.RPN.NMS_THRESH = 0.7
 _C.MODEL.RPN.SORT_RESULTS = False
 _C.MODEL.RPN.MATCHER = "Matcher"
+_C.MODEL.RPN.NORM = ""
+_C.MODEL.RPN.ACTIVATION_FN = "relu"
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet proposal generator options

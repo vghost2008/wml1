@@ -63,7 +63,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         accuracy = wnn.accuracy_ratio(logits=self.pred_class_logits,labels=self.gt_classes)
         tf.summary.scalar("fast_rcnn/accuracy",accuracy)
 
-    def softmax_cross_entropy_loss(self):
+    '''def softmax_cross_entropy_loss(self):
         """
         Compute the softmax cross entropy loss for box classification.
 
@@ -87,6 +87,33 @@ class FastRCNNOutputs(wmodule.WChildModule):
                                                                   loss_collection=None,
                                                                   reduction=tf.losses.Reduction.MEAN)
 
+        wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
+        return classes_loss*self.cfg.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE'''
+    
+    def softmax_cross_entropy_loss(self):
+        self._log_accuracy()
+        wsummary.variable_summaries_v2(self.gt_classes,"gt_classes")
+        wsummary.variable_summaries_v2(self.pred_class_logits,"pred_class_logits")
+        scores = tf.stop_gradient(tf.reshape(self.proposals[ED_SCORES], [-1]))
+        #weights = tf.abs(scores-0.5)*4
+        weights = tf.minimum(tf.pow(tf.abs(scores-0.5),2)*100,1.0)
+        weights = tf.stop_gradient(weights)
+        wsummary.histogram_or_scalar(weights,"cls_loss_weights")
+        if self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD>1e-3:
+            with tf.name_scope("modify_gtclasses"):
+                threshold = self.cfg.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD
+                gt_classes = self.gt_classes
+                gt_classes = tf.where(tf.greater(scores,threshold),gt_classes,tf.zeros_like(gt_classes))
+            classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=gt_classes,
+                                               loss_collection=None,
+                                               reduction=tf.losses.Reduction.NONE)
+        else:
+            classes_loss = tf.losses.sparse_softmax_cross_entropy(logits=self.pred_class_logits, labels=self.gt_classes,
+                                                                  loss_collection=None,
+                                                                  reduction=tf.losses.Reduction.NONE)
+
+        classes_loss = weights*classes_loss
+        classes_loss = tf.reduce_mean(classes_loss)
         wsummary.histogram_or_scalar(classes_loss,"fast_rcnn/classes_loss")
         return classes_loss*self.cfg.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE
 

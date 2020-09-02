@@ -135,10 +135,9 @@ class WROIMultiScale:
         assert(len(bin_size)>=2)
         self.bin_size = list(bin_size)
         self.output_size = output_size
-        self.scale = 2.0
-        self.pool0 = WROIAlign(bin_size=bin_size,output_size=output_size)
-        output_size1 = [x+2*(x//2) for x in output_size]
-        self.pool1 = WROIAlign(bin_size=[1,1], output_size=output_size1)
+        self.scale = 1.5
+        self.pool0 = WROIAlign(bin_size=[1,1],output_size=output_size)
+        self.pool1 = WROIAlign(bin_size=[1,1], output_size=output_size)
 
     '''
     bboxes:[batch_size,X,4]
@@ -146,22 +145,9 @@ class WROIMultiScale:
     输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
     '''
     def __call__(self, net,bboxes):
-        with tf.variable_scope("roi_multi_scale",reuse=tf.AUTO_REUSE):
-            conv_kernel = self.output_size[0]
-            net0 = self.pool0(net,bboxes)
-            net1 = self.pool1(net,odb.scale_bboxes(bboxes,scale=[self.scale,self.scale]))
-            normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=True)
-            ch = channel(net)
-            net1 = slim.separable_conv2d(net1, ch, kernel_size=[conv_kernel, conv_kernel], padding="VALID",
-                                            depth_multiplier=1,
-                                            normalizer_fn=normalizer_fn,
-                                            normalizer_params=normalizer_params,
-                                            scope=f"sep_conv")
-            net1 = wnnl.non_local_blockv1(net1,
-                                          normalizer_fn=normalizer_fn,
-                                          normalizer_params=normalizer_params,
-                                          activation_fn=None)
-            return net0,net1
+        net0 = self.pool0(net,bboxes)
+        net1 = self.pool1(net,odb.scale_bboxes(bboxes,scale=[self.scale,self.scale]))
+        return net0,net1
 
 
 class WROIKeepRatio:

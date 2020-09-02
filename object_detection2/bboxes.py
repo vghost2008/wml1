@@ -275,6 +275,17 @@ def npto_cyxhw(data):
     w = (xmax-xmin)/2
     data = np.stack([cy,cx,h,w],axis=1)
     return data
+
+def npminxywh_toyxminmax(data):
+    if not isinstance(data,np.ndarray):
+        data = np.array(data)
+    x = data[...,0]
+    y = data[...,1]
+    w = data[...,2]
+    h = data[...,3]
+    xmax = x+w
+    ymax = y+h
+    return np.stack([y,x,ymax,xmax],axis=-1)
 '''
 将以ymin,xmin,ymax,xmax表示的box转换为以cy,cx,h,w表示的box
 对data的shape没有限制
@@ -333,8 +344,9 @@ def get_bboxes_center_point(data):
 boxes:[...,4] ymin,xmin,ymax,xmax
 scale:[hscale,wscale]
 '''
-def scale_bboxes(bboxes,scale):
-    old_shape = tf.shape(bboxes)
+@btf.add_name_scope
+def scale_bboxes(bboxes,scale,correct=False):
+    old_shape = btf.combined_static_and_dynamic_shape(bboxes)
     data = tf.reshape(bboxes,[-1,4])
     ymin,xmin,ymax,xmax = tf.unstack(data,axis=1)
     cy = (ymin+ymax)/2.
@@ -349,6 +361,8 @@ def scale_bboxes(bboxes,scale):
     xmax = cx + w / 2.
     data = tf.stack([ymin, xmin, ymax, xmax], axis=1)
     data = tf.reshape(data, old_shape)
+    if correct:
+        data = tf_correct_yxminmax_boxes(data)
     return data
 
 '''
@@ -393,20 +407,18 @@ def distored_boxes(bboxes,scale=[],xoffset=[],yoffset=[],keep_org=True):
 
 '''
 box：[N,4] 使用相对坐标表
-sub_box:bboxes参考区域
+sub_box:[4]/[N,4] bboxes参考区域
 函数返回box在[0,0,1,1]区域的表示值
 '''
 def restore_sub_area(bboxes,sub_box):
-    h = sub_box[2]-sub_box[0]
-    w = sub_box[3]-sub_box[1]
-    bboxes = tf.transpose(bboxes,[1,0])
-    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
-    ymin = ymin*h+sub_box[0]
-    ymax = ymax*h+sub_box[0]
-    xmin = xmin*w+sub_box[1]
-    xmax = xmax*w+sub_box[1]
-    bboxes = tf.stack([ymin,xmin,ymax,xmax],axis=0)
-    bboxes = tf.transpose(bboxes)
+    h = sub_box[...,2]-sub_box[...,0]
+    w = sub_box[...,3]-sub_box[...,1]
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=-1)
+    ymin = ymin*h+sub_box[...,0]
+    ymax = ymax*h+sub_box[...,0]
+    xmin = xmin*w+sub_box[...,1]
+    xmax = xmax*w+sub_box[...,1]
+    bboxes = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
     return bboxes
 
 '''
@@ -696,7 +708,6 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 '''
 def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
     with tf.name_scope("relative_boxes_to_absolutely_boxes"):
-        boxes = tf.transpose(boxes)
         if not isinstance(width,tf.Tensor):
             width = tf.convert_to_tensor(width,dtype=boxes.dtype)
         elif width.dtype != boxes.dtype:
@@ -705,12 +716,12 @@ def tfrelative_boxes_to_absolutely_boxes(boxes,width,height):
             height = tf.convert_to_tensor(height,dtype=boxes.dtype)
         elif height.dtype != boxes.dtype:
             height = tf.cast(height,boxes.dtype)
-        ymin = boxes[0]*(height-1)
-        xmin = boxes[1]*(width-1)
-        ymax = boxes[2]*(height-1)
-        xmax = boxes[3]*(width-1)
+        ymin = boxes[...,0]*(height-1)
+        xmin = boxes[...,1]*(width-1)
+        ymax = boxes[...,2]*(height-1)
+        xmax = boxes[...,3]*(width-1)
 
-        return tf.stack([ymin,xmin,ymax,xmax],axis=1)
+        return tf.stack([ymin,xmin,ymax,xmax],axis=-1)
 
 
 '''

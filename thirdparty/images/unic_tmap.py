@@ -269,6 +269,9 @@ class TMAP(object):
             else:
                 res.append(f"P{i}")
         return res
+    
+    def __str__(self):
+        return f"scan scale:{self.scan_scale}, width={self._width}, height={self._height}"
 
     def __del__(self):
         lib = self.tmap_libs

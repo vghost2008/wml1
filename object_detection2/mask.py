@@ -6,7 +6,7 @@ import basic_tftools as btf
 
 '''
 mask: [N,h,w]仅实例的box内部部分的mask, 值为1或0
-boxes: [N,4] relative coordinate
+boxes: [N,4] relative coordinate or absolute coordinate with size=[1,1]
 size: [2]={H,W}
 '''
 def mask_area_by_instance_mask(mask,boxes,size):

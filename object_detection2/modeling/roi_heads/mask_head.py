@@ -10,6 +10,7 @@ import wsummary
 import img_utils as wmli
 import object_detection2.od_toolkit as odt
 import basic_tftools as btf
+from basic_tftools import channel as get_channel
 
 slim = tf.contrib.slim
 
@@ -179,6 +180,59 @@ class MaskRCNNConvUpsampleHead(wmodule.WChildModule):
                             scope="predictor")
         return x
 
+@ROI_MASK_HEAD_REGISTRY.register()
+class HighResolutionMaskHead(wmodule.WChildModule):
+    """
+    A mask head with several conv layers, plus an upsample layer (with `ConvTranspose2d`).
+    """
+
+    def __init__(self, cfg,**kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv: the number of conv layers
+            conv_dim: the dimension of the conv layers
+            norm: normalization for the conv layers
+        """
+        super(HighResolutionMaskHead, self).__init__(cfg,**kwargs)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_MASK_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_MASK_HEAD.ACTIVATION_FN)
+
+
+    def forward(self, x):
+        cfg = self.cfg
+        # fmt: off
+        num_classes       = cfg.MODEL.ROI_HEADS.NUM_CLASSES
+        conv_dims         = cfg.MODEL.ROI_MASK_HEAD.CONV_DIM
+        num_conv          = cfg.MODEL.ROI_MASK_HEAD.NUM_CONV
+        cls_agnostic_mask = cfg.MODEL.ROI_MASK_HEAD.CLS_AGNOSTIC_MASK
+        # fmt: on
+        num_mask_classes = 1 if cls_agnostic_mask else num_classes
+        x_channel = get_channel(x)
+        assert x_channel>conv_dims,"error conv dims for mask."
+
+        with tf.variable_scope("MaskHead"):
+            x_identity,x = tf.split(x,num_or_size_splits=[x_channel-conv_dims,conv_dims],axis=-1)
+            x_iden_channel = get_channel(x_identity)
+            if 'G' in self.norm_params and self.norm_params['G'] > get_channel(x):
+                self.norm_params['G'] = get_channel(x)
+            for k in range(num_conv):
+                x = slim.conv2d(x,conv_dims,[3,3],padding="SAME",
+                                activation_fn=self.activation_fn,
+                                normalizer_fn=self.normalizer_fn,
+                                normalizer_params=self.norm_params,
+                                scope=f"Conv{k}")
+            x = slim.conv2d_transpose(x,x_iden_channel,kernel_size=2,
+                                      stride=2,
+                                      activation_fn=self.activation_fn,
+                                      normalizer_fn=self.normalizer_fn,
+                                      normalizer_params=self.norm_params,
+                                      scope="Upsample")
+            B,H,W,C = btf.combined_static_and_dynamic_shape(x)
+            x_identity = tf.image.resize_bilinear(x_identity,size=(H,W))
+            x = x_identity+x
+            x = slim.conv2d(x,num_mask_classes,kernel_size=1,activation_fn=None,normalizer_fn=None,
+                            scope="predictor")
+        return x
 
 def build_mask_head(cfg,*args,**kwargs):
     """

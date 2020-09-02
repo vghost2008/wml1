@@ -16,7 +16,7 @@ MODEL:
     ACTIVATION_FN: "NA"
     IN_FEATURES: ["C3","C4", "C5"]
     ENABLE_DROPBLOCK: True
-    BACKBONE_HOOK: ("","BalanceBackboneHookV2")
+    BACKBONE_HOOK: ("","BalanceBackboneHook")
   RETINANET:
     #IN_FEATURES: ["P2","P3","P4"]
     IN_FEATURES: ["P3","P4","P5","P6","P7"]
@@ -44,6 +44,7 @@ INPUT:
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
+  SHUFFLE_BUFFER_SIZE: 1024
   #DATAPROCESS: "SSD_Fix_Size"
 VERSION: 2
 GLOBAL:

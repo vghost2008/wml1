@@ -162,11 +162,13 @@ def batch_gather(params,indices,name=None,parallel_iterations=10,back_prop=True)
         with tf.name_scope(name=name,default_name="batch_gather"):
             shape0 = combined_static_and_dynamic_shape(params)
             shape1 = combined_static_and_dynamic_shape(indices)
-            params = tf.reshape(params,[-1,shape0[-1]])
+            nr = len(shape1)
+            params = tf.reshape(params,[-1]+shape0[nr-1:])
             indices = tf.reshape(indices,[-1,shape1[-1]])
             res = batch_gather(params,indices,parallel_iterations=parallel_iterations,
                                back_prop=back_prop)
-            res = tf.reshape(res,shape1)
+            return_shape = shape1+shape0[nr:]
+            res = tf.reshape(res,return_shape)
             return res
 
 def show_input_shape(func,message=None):
@@ -407,3 +409,23 @@ def filter_by_threshold(labels,probability,threshold):
     r_labels = tf.nn.relu(labels-1)
     r_threshold = tf.gather(threshold,r_labels)
     return tf.greater_equal(probability,r_threshold)
+
+def squeeze_to_one(input,axes):
+    v = axes[0]
+    for x in axes[1:]:
+        if x-v != 1:
+            raise ValueError("Error axes value")
+        v = x
+    shape = combined_static_and_dynamic_shape(input)
+    new_dims_size = 1
+    for i,x in enumerate(shape):
+        if i in axes:
+            new_dims_size = new_dims_size*x
+    if axes[0]>0:
+        new_shape = shape[:axes[0]-1]+[new_dims_size]
+    else:
+        new_shape = [new_dims_size]
+    if axes[-1] < len(shape)-1:
+        new_shape = new_shape+shape[axes[-1]+1:]
+
+    return tf.reshape(input,new_shape)

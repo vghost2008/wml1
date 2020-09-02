@@ -75,6 +75,14 @@
 |sephv9(retinanet rpn)|0.300|0.474|0.323|0.039|0.221|0.427|0.265|0.386|0.396|0.059|0.340|0.537|
 |3) |0.306|0.479|0.324|0.055|0.219|0.433|0.279|0.415|0.430|0.092|0.393|0.559|
 |4) |0.314|0.502|0.332|0.039|0.228|0.456|0.276|0.406|0.421|0.056|0.375|0.571|
+|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
+|4) + cls loss weight +RPN evo normal(sephv17)|0.314|0.501|0.337|0.050|0.231|0.453|0.279|0.405|0.417|0.063|0.371|0.569|
+|4) + cls loss weight + no balance sample(sephv16)|0.311|0.495|0.332|0.045|0.229|0.453|0.275|0.401|0.411|0.056|0.355|0.569|
+|4) + cls loss weight + no neg balance sample(sephv18)|0.314|0.506|0.334|0.047|0.231|0.451|0.277|0.407|0.420|0.061|0.374|0.570|
+|4) + cls loss weight + no pos balance sample(sephv18_1)|0.315|0.494|0.341|0.040|0.227|0.460|0.277|0.402|0.413|0.053|0.356|0.571|
+|4)+GIOUoutputs|0.301|0.498|0.319|0.042|0.215|0.441|0.266|0.390|0.403|0.055|0.352|0.555|
+|4)+GIOUoutputs+reg loss x4 (sephv15)|0.316|0.501|0.335|0.047|0.229|0.460|0.278|0.408|0.421|0.059|0.365|0.577|
+|4)+GIOUoutputs+no cls loss weight|0.295|0.493|0.308|0.042|0.207|0.437|0.263|0.389|0.403|0.055|0.347|0.559|
 
 
 ####segm
@@ -93,12 +101,12 @@
 |sephv2+cosine+EvoNormS head+pred iou1|0.281|0.506|0.282|0.031|0.396|0.497|0.250|0.388|0.400|0.178|0.395|0.498|
 
 
-
 ```
 - 1) use nonlocal and fusebackbone+cosine
 - 2) use cosine + BalanceBackboneHook + Mask Head EvoNormS0
 - 3) sephv2+cosine+EvoNormS0+ASTTMatcher+class loss linear scalear+new rcn sample+p2 output
 - 4) sephv2+cosine+EvoNormS0+ASTTMatcher3+new rcn sample
+```
 
 ###bbox
 

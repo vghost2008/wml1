@@ -10,6 +10,7 @@ from object_detection2.datadef import *
 import wsummary
 from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.build_matcher import build_matcher
+import object_detection2.od_toolkit as odtk
 
 slim = tf.contrib.slim
 
@@ -31,6 +32,8 @@ class StandardRPNHead(wmodule.WChildModule):
         assert len(set(num_cell_anchors))==1,"all levers cell anchors num must be equal."
         self.num_cell_anchors = num_cell_anchors[0]
         self.box_dim = self.anchor_generator.box_dim
+        self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.MODEL.RPN.NORM,is_training=self.is_training)
+        self.activation_fn = odtk.get_activation_fn(self.cfg.MODEL.RPN.ACTIVATION_FN)
 
     def forward(self,inputs,features):
         '''
@@ -45,21 +48,20 @@ class StandardRPNHead(wmodule.WChildModule):
         pred_objectness_logits = []
         pred_anchor_deltas = []
 
-        for x in features:
+        for i,x in enumerate(features):
             channel = x.get_shape()[-1]
-            '''t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
-                          activation_fn=tf.nn.relu,
-                          padding="SAME")
-            t0 = slim.conv2d(t,self.num_cell_anchors,[1,1],activation_fn=None,
-                             normalizer_fn=None)
-            t1 = slim.conv2d(t,self.num_cell_anchors*self.box_dim,[1,1],activation_fn=None,
-                             normalizer_fn=None)
-            pred_objectness_logits.append(t0)
-            pred_anchor_deltas.append(t1)'''
             with tf.variable_scope("StandardRPNHead",reuse=tf.AUTO_REUSE):
                 t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
-                                activation_fn=tf.nn.relu,
+                                activation_fn=None,
                                 padding="SAME")
+
+                if self.normalizer_fn is not None:
+                    with tf.variable_scope(f"norm{i}"):
+                        t = self.normalizer_fn(t,**self.norm_params)
+
+                if self.activation_fn is not None:
+                    t = self.activation_fn(t)
+
                 t0 = slim.conv2d(t,self.num_cell_anchors,[1,1],activation_fn=None,
                                  normalizer_fn=None,scope="objectness_logits")
                 t1 = slim.conv2d(t,self.num_cell_anchors*self.box_dim,[1,1],activation_fn=None,
