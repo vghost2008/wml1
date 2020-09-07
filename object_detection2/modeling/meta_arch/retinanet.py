@@ -83,9 +83,9 @@ class RetinaNet(MetaArch):
             features = [features[f] for f in self.in_features]
         pred_logits, pred_anchor_deltas= self.head(features)
         anchors = self.anchor_generator(batched_inputs,features)
-        gt_boxes = batched_inputs[GT_BOXES]
-        gt_length = batched_inputs[GT_LENGTH]
-        gt_labels = batched_inputs[GT_LABELS]
+        gt_boxes = batched_inputs.get(GT_BOXES,None)
+        gt_length = batched_inputs.get(GT_LENGTH,None)
+        gt_labels = batched_inputs.get(GT_LABELS,None)
 
         outputs = build_outputs(name=self.cfg.MODEL.RETINANET.OUTPUTS,
             cfg=self.cfg.MODEL.RETINANET,

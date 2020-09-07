@@ -36,8 +36,8 @@ def default_argument_parser():
     )
     parser.add_argument("--log_dir", default=wmlu.home_dir("ai/tmp3/object_detection2_log"),type=str,help="path to log dir")
     parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to ckpt dir")
-    parser.add_argument("--test_data_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to test data dir")
-    parser.add_argument("--save_data_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to save data dir")
+    parser.add_argument("--test_data_dir", default="/2_data/wj/mldata/coco/val2017",type=str,help="path to test data dir")
+    parser.add_argument("--save_data_dir", default="/2_data/wj/mldata/coco/coco_results",type=str,help="path to save data dir")
     '''
     begin training datetime:
     format: YY-MM-dd HH:MM:SS如20-06-22 15:12:00

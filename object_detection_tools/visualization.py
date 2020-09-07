@@ -106,7 +106,11 @@ def bboxes_draw_on_imgv2(img, classes, scores=None, bboxes=None,
     return img
 '''
 mask only include the area within bbox
+img:[H,W,C]
+classes: [N]
+scores: [N]
 bboxes:[N,4], relative coordinate
+masks: [N,mh,mw]
 '''
 def draw_bboxes_and_mask(img,classes,scores,bboxes,masks,color_fn=None,text_fn=None,thickness=4,show_text=False,fontScale=0.8):
     masks = masks.astype(np.uint8)

@@ -6,7 +6,9 @@ import tensorflow as tf
 from .build_dataprocess import DATAPROCESS_REGISTRY
 import socket
 from collections import Iterable
-
+DEFAULT_CATEGORY_INDEX = {}
+for i in range(100):
+    DEFAULT_CATEGORY_INDEX[i] = f"{i}"
 class DataLoader(wmodule.WModule):
     category_index = None
     def __init__(self,cfg,*args,**kwargs):
