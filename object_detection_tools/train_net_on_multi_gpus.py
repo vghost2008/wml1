@@ -1,7 +1,7 @@
 #coding=utf-8
 import object_detection2.config.config as config
 from object_detection2.engine.train_loop import SimpleTrainer
-from object_detection2.engine.defaults import default_argument_parser
+from object_detection2.engine.defaults import default_argument_parser,get_config_file
 from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 import tensorflow as tf
@@ -28,7 +28,7 @@ def setup(args):
     gpus_str = gpus_str[:-1]
     os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
 
-    config_path = config.get_config_file(args.config_file)
+    config_path = get_config_file(args.config_file)
     print(f"Config file {args.config_file}, gpus={os.environ['CUDA_VISIBLE_DEVICES']}")
     cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)

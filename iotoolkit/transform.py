@@ -16,6 +16,8 @@ import object_detection2.bboxes as odb
 import object_detection2.od_toolkit as odt
 from basic_tftools import channel
 import copy
+import wnnlayer as wnnl
+import wtfop.wtfop_ops as wop
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -204,6 +206,7 @@ def distorted_bounding_box_crop(image,
                                 area_range=(0.1, 1.0),
                                 max_attempts=200,
                                 filter_threshold=0.3,
+                                use_image_if_no_bounding_boxes=True,
                                 scope=None):
     '''
     data argument for object detection
@@ -235,7 +238,7 @@ def distorted_bounding_box_crop(image,
                 aspect_ratio_range=aspect_ratio_range,
                 area_range=area_range,
                 max_attempts=max_attempts,
-                use_image_if_no_bounding_boxes=True,
+                use_image_if_no_bounding_boxes=use_image_if_no_bounding_boxes,
                 seed=int(time.time()),
                 seed2=int(10*time.time()))
         '''
@@ -250,13 +253,19 @@ def distorted_bounding_box_crop(image,
         将在原图中的bboxes转换为在distort_bbox定义的子图中的bboxes
         保留了distort_bbox界外的部分
         '''
-        bboxes = wml_bboxes.bboxes_resize(distort_bbox, bboxes)
+        bigger_bboxes = wml_bboxes.bboxes_resize(distort_bbox, bboxes)
         '''
         仅保留交叉面积大于threshold的bbox
         '''
-        labels, bboxes,mask = wml_bboxes.bboxes_filter_overlap(labels, bboxes,
-                                                   threshold=filter_threshold,
-                                                   assign_negative=False)
+        labels, bboxes,mask,ignore_mask = wml_bboxes.bboxes_filter_overlap(labels, bigger_bboxes,
+                                                               threshold=filter_threshold,
+                                                               assign_negative=False,
+                                                               return_ignore_mask=True)
+        ignore_bboxes = tf.boolean_mask(bigger_bboxes,ignore_mask)
+        ignore_bboxes = odb.tf_correct_yxminmax_boxes(ignore_bboxes)
+        H,W,C = btf.combined_static_and_dynamic_shape(cropped_image)
+        ignore_bboxes = odb.tfrelative_boxes_to_absolutely_boxes(ignore_bboxes,width=W,height=H)
+        cropped_image = wop.fill_bboxes(image=cropped_image,bboxes=ignore_bboxes,v=127.5,include_last=True)
         return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
 
 def random_rot90(image,bboxes,clockwise=True):
@@ -721,9 +730,11 @@ class WRandomBlur(WTransform):
 class WTransImgToFloat(WTransform):
     def __init__(self,**kwargs):
         self.kwargs = kwargs
+
     def __call__(self, data_item):
-        func = partial(tf.cast, dtype=tf.float32)
-        return self.apply_to_images(func,data_item)
+        data_item[IMAGE] = tf.cast(data_item[IMAGE],tf.float32)
+        return data_item
+
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -743,6 +754,24 @@ class WPerImgStandardization(WTransform):
         return self.apply_to_images(tf.image.per_image_standardization,data_item)
     def __str__(self):
         return f"{type(self).__name__}"
+
+class WRemoveOverlap(WTransform):
+    def __init__(self,threshold=0.5,**kwargs):
+        self.threshold = threshold
+        self.kwargs = kwargs
+
+    def __call__(self, data_item):
+        bboxes,keep_pos = odb.remove_bboxes_by_overlap(data_item[GT_BOXES],data_item[GT_LABELS],
+                                                       threshold=self.threshold)
+        data_item[GT_BOXES] = bboxes
+        data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep_pos)
+        if GT_MASKS in data_item:
+            data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep_pos)
+
+        return data_item
+
+    def __str__(self):
+        return f"{type(self).__name__}"
 '''
 bboxes: relative coordinate
 如果有Mask分支，Mask必须先转换为HWN的模式
@@ -754,12 +783,14 @@ class SampleDistortedBoundingBox(WTransform):
                  area_range=(0.1, 1.0),
                  max_attempts=100,
                  filter_threshold=0.3,
+                 use_image_if_no_bounding_boxes=True,
                  ):
         self.min_object_covered = min_object_covered
         self.aspect_ratio_range = aspect_ratio_range
         self.area_range = area_range
         self.max_attempts = max_attempts
         self.filter_threshold = filter_threshold
+        self.use_image_if_no_bounding_boxes = use_image_if_no_bounding_boxes
 
     def __call__(self, data_item):
         if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
@@ -778,6 +809,7 @@ class SampleDistortedBoundingBox(WTransform):
                                         aspect_ratio_range=self.aspect_ratio_range,
                                         max_attempts=self.max_attempts,
                                         filter_threshold=self.filter_threshold,
+                                        use_image_if_no_bounding_boxes=self.use_image_if_no_bounding_boxes,
                                         scope="distorted_bounding_box_crop")
         data_item[IMAGE] = dst_image
         data_item[GT_LABELS] = labels
@@ -889,6 +921,27 @@ class WRemoveCrowdInstance(WTransform):
         if GT_MASKS in data_item:
             masks = tf.gather(data_item[GT_MASKS],indices)
             data_item[GT_MASKS] = masks
+        return data_item
+    def __str__(self):
+        return f"{type(self).__name__}"
+'''
+Mask必须为HWN格式
+'''
+class WScale(WTransform):
+    def __init__(self,scale=0.5,method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
+        self.scale = scale
+        self.method = method
+
+    def __call__(self, data_item):
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
+
+        image = wnnl.upsample(data_item[IMAGE],scale_factor=self.scale,mode=self.method)
+        data_item[IMAGE] = image
+        if GT_MASKS in data_item:
+            mask = wnnl.upsample(data_item[GT_MASKS],scale_factor=self.scale,mode=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            data_item[GT_MASKS] = mask
+
         return data_item
     def __str__(self):
         return f"{type(self).__name__}"
@@ -1477,6 +1530,9 @@ class RandomNoise(WTransform):
         self.max_value = max_value
     
     def __call__(self,data_item):
+        if data_item[IMAGE].dtype != tf.float32:
+            data_item[IMAGE] = tf.cast(data_item[IMAGE], tf.float32)
+
         def fn():
             shape = tf.shape(data_item[IMAGE])
             return data_item[IMAGE]+tf.random_uniform(shape=shape,

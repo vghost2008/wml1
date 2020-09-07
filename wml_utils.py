@@ -330,10 +330,10 @@ def show_list(values,fmt=None,recurse=False):
     print("]")
 
 def show_dict(values):
-    print("[")
+    print("{")
     for k,v in values.items():
-        print(k,"->",v)
-    print("]")
+        print(k,":",v,",")
+    print("}")
 
 def nparray2str(value,split=",",format="{}"):
     if not isinstance(value,np.ndarray):
@@ -593,6 +593,14 @@ def create_empty_dir(dir_path,remove_if_exists=True,yes_to_all=False):
         os.makedirs(dir_path)
 
     return True
+def add_dict(lhv,rhv):
+    res = dict(lhv)
+    for k,v in rhv.items():
+        if k in res:
+            res[k] = res[k]+v
+        else:
+            res[k] = v
+    return res
 
 def sync_data_dir(src_dir,dst_dir):
     if "vghost" in socket.gethostname():

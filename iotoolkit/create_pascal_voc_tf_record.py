@@ -1,9 +1,11 @@
 #coding=utf-8
 import os
+import functools
 import sys
 import random
 import time
 import numpy as np
+from multiprocessing import Pool
 import tensorflow as tf
 import object_detection.utils as odu
 import object_detection.npod_toolkit as npod
@@ -13,32 +15,18 @@ import sys
 from iotoolkit.pascal_voc_data import *
 from wml_tfutils import int64_feature,bytes_feature,floats_feature
 from iotoolkit.pascal_voc_data import TEXT_TO_ID
+import img_utils as wmli
+import wml_utils as wmlu
 
-DIRECTORY_ANNOTATIONS = 'Annotations/'
-DIRECTORY_IMAGES = 'JPEGImages/'
 SAMPLES_PER_FILES = 6000
-'''def category_id_filter(category_id):
-    good_ids = [15,6,7,14,2]
-    return category_id in good_ids
+def _category_id_filter(category_id):
+    return True
 
-def labels_text_to_labels(labels_text):
-    return [TEXT_TO_ID[x] for x in labels_text]'''
-'''text = []
-for i in range(ord('a'),ord('z')+1):
-    text.append(chr(i))
-for i in range(ord('A'), ord('Z') + 1):
-    text.append(chr(i))
-for i in range(ord('0'), ord('9') + 1):
-    text.append(chr(i))
-text.append('/')
-text.append('\\')
-text.append('-')
-text.append('+')
-text.append(":")
-text.append("WORD")
-text_to_id = {}
-for i,t in enumerate(text):
-    text_to_id[t] = i+1'''
+def _labels_text_to_labels(labels_text):
+    for x in labels_text:
+        if x not in TEXT_TO_ID:
+           print(f"Error \"{x}\" not in target set.")
+    return [TEXT_TO_ID[x] for x in labels_text]
 
 class VOCMaker(object):
     def __init__(self,filenames=None):
@@ -48,18 +36,9 @@ class VOCMaker(object):
         else:
             self.filenames = filenames
 
-        def _category_id_filter(category_id):
-            return True
 
         self.category_id_filter = _category_id_filter
-
-        def _labels_text_to_labels(labels_text):
-            # return [int(x) for x in labels_text]
-            for x in labels_text:
-                if x not in TEXT_TO_ID:
-                    print(f"Error \"{x}\" not in target set.")
-            return [TEXT_TO_ID[x] for x in labels_text]
-
+        self.image_preprocess = None
         self.labels_text_to_labels = _labels_text_to_labels
 
     '''
@@ -68,14 +47,17 @@ class VOCMaker(object):
     
     返回图像数据，bbox(用[0,1]表示，bbox相对应的label
     '''
-    def _process_image(self,directory, name):
-        filename = os.path.join(directory,DIRECTORY_IMAGES + name + '.jpg')
-        if not os.path.exists(filename):
+    def _process_image(self,xml_file,img_file):
+        if not os.path.exists(img_file):
             return None,None,None,None,None,None,None
-        image_data = tf.gfile.FastGFile(filename, 'rb').read()
+        if self.image_preprocess is not None:
+            img = wmli.imread(img_file)
+            img = self.image_preprocess(img)
+            image_data = wmli.encode_img(img)
+        else:
+            image_data = tf.gfile.FastGFile(img_file, 'rb').read()
 
-        filename = os.path.join(directory, DIRECTORY_ANNOTATIONS, name + '.xml')
-        shape, _bboxes, _labels_text, _difficult, _truncated = odu.read_voc_xml(filename, adjust=None)
+        shape, _bboxes, _labels_text, _difficult, _truncated = odu.read_voc_xml(xml_file, adjust=None)
         _labels = self.labels_text_to_labels(_labels_text)
         bboxes = []
         labels_text = []
@@ -134,11 +116,13 @@ class VOCMaker(object):
     dataset_dir:图像目录路径
     name:图像文件名，不包含路径及后辍
     '''
-    def _add_to_tfrecord(self,dataset_dir, name, tfrecord_writer):
-        if self.filenames is not None and name not in self.filenames:
+    def _add_to_tfrecord(self,img_file, tfrecord_writer):
+        xml_file = wmlu.change_suffix(img_file,"xml")
+        if not os.path.exists(img_file) or not os.path.exists(xml_file):
+            print(f"Error file {xml_file}, {img_file}.")
             return False
         image_data, shape, bboxes, labels, labels_text, difficult, truncated = \
-            self._process_image(dataset_dir, name)
+            self._process_image(xml_file,img_file)
         if image_data is None:
             return False
         example = self._convert_to_example(image_data, labels, labels_text,
@@ -148,55 +132,56 @@ class VOCMaker(object):
 
 
     def _get_output_filename(self,output_dir, name, idx):
-        return '%s/%s_%03d.tfrecord' % (output_dir, name, idx)
+        return '%s/%s_%04d.tfrecord' % (output_dir, name, idx)
+
+    def make_tfrecord(self,file_data,output_dir,name="train"):
+        fidx,files = file_data
+        tf_filename = self._get_output_filename(output_dir, name, fidx)
+        with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
+            for file in files:
+                self._add_to_tfrecord(file, tfrecord_writer)
 
     '''
     将所有图像文件按SAMPLES_PER_FILES(200)一批保存在tfrecored文件中
     '''
-    def to_tfrecords(self,dataset_dir, output_dir, name='train', shuffling=False,repeat=1,fidx=0):
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir)
-            print("删除文件夹%s"%(output_dir))
-        if not tf.gfile.Exists(dataset_dir):
-            tf.gfile.MakeDirs(dataset_dir)
-        if not tf.gfile.Exists(output_dir):
-            tf.gfile.MakeDirs(output_dir)
+    def multi_thread_to_tfrecords(self,dataset_dir, output_dir, shuffling=False,fidx=0):
+        files = wmlu.recurse_get_filepath_in_dir(dataset_dir,suffix=".xml")
 
-        path = os.path.join(dataset_dir, DIRECTORY_ANNOTATIONS)
-        '''
-        filenames仅包含文件名，不包含文件路径
-        '''
-        filenames = sorted(os.listdir(path))
-        if repeat>1:
-            filenames = list(filenames)*repeat
+        return self.multi_thread_to_tfrecords_by_files(files,output_dir,shuffling,fidx)
+    '''
+    将所有图像文件按SAMPLES_PER_FILES(200)一批保存在tfrecored文件中
+    files: img file list
+    '''
+    def multi_thread_to_tfrecords_by_files(self,files, output_dir,shuffling=False,fidx=0):
+        wmlu.create_empty_dir(output_dir,remove_if_exists=True,yes_to_all=True)
         if shuffling:
             random.seed(time.time())
-            random.shuffle(filenames)
+            random.shuffle(files)
+        wmlu.show_list(files[:100])
+        if len(files)>100:
+            print("...")
+        print(f"Total {len(files)} files.")
+        sys.stdout.flush()
+        files = wmlu.list_to_2dlist(files,SAMPLES_PER_FILES)
+        files_data = list(enumerate(files))
+        if fidx != 0:
+            _files_data = []
+            for fid,file_d in files_data:
+                _files_data.append([fid+fidx,file_d])
+            files_data = _files_data
+        sys.stdout.flush()
+        pool = Pool(13)
+        pool.map(functools.partial(self.make_tfrecord,output_dir=output_dir),files_data)
+        #list(map(functools.partial(self.make_tfrecord,output_dir=output_dir),files_data))
+        pool.close()
+        pool.join()
 
-        i = 0
-        while i < len(filenames):
-            tf_filename = self._get_output_filename(output_dir, name, fidx)
-            with tf.python_io.TFRecordWriter(tf_filename) as tfrecord_writer:
-                j = 0
-                while i < len(filenames) and j < SAMPLES_PER_FILES:
-                    sys.stdout.write('\r>> Converting image %d/%d' % (i+1, len(filenames)))
-                    sys.stdout.flush()
-
-                    filename = filenames[i]
-                    img_name = filename[:-4]
-                    if self._add_to_tfrecord(dataset_dir, img_name, tfrecord_writer):
-                        j += 1
-                    i += 1
-
-                fidx += 1
-        print('\nFinished converting the dataset total %d examples.!'%(len(filenames)))
+        print('\nFinished converting the dataset total %d examples.!'%(len(files)))
 
 if __name__ == "__main__":
 
     dataset_dir = "/media/vghost/Linux/constantData/MachineLearning/mldata/PASCAL/VOCdevkit/VOC2012"
     output_dir = "/home/vghost/ai/mldata/VOC2012_tfdata"
-    #dataset_dir = "/home/vghost/ai/mldata/ocrdatav1/rdatav2"
-    #output_dir = "/home/vghost/ai/mldata/ocrdatav1/tfdata1"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

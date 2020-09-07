@@ -128,7 +128,7 @@ file_path:图像文件路径
 shape:[h,w,d]
 boxes:相对大小
 '''
-def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None):
+def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
 
     if len(shape)==2:
         shape = list(shape)+[1]
@@ -183,10 +183,16 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
             object.appendChild(create_text_element(doc, "difficult", dif))
             object.appendChild(create_text_element(doc, "prob", prob))
             bndbox = doc.createElement("bndbox")
-            bndbox.appendChild(create_text_element(doc, "xmin", int(box[1] * shape[1])))
-            bndbox.appendChild(create_text_element(doc, "ymin", int(box[0] * shape[0])))
-            bndbox.appendChild(create_text_element(doc, "xmax", int(box[3] * shape[1])))
-            bndbox.appendChild(create_text_element(doc, "ymax", int(box[2] * shape[0])))
+            if is_relative_coordinate:
+                bndbox.appendChild(create_text_element(doc, "xmin", int(box[1] * shape[1])))
+                bndbox.appendChild(create_text_element(doc, "ymin", int(box[0] * shape[0])))
+                bndbox.appendChild(create_text_element(doc, "xmax", int(box[3] * shape[1])))
+                bndbox.appendChild(create_text_element(doc, "ymax", int(box[2] * shape[0])))
+            else:
+                bndbox.appendChild(create_text_element(doc, "xmin", int(box[1])))
+                bndbox.appendChild(create_text_element(doc, "ymin", int(box[0])))
+                bndbox.appendChild(create_text_element(doc, "xmax", int(box[3])))
+                bndbox.appendChild(create_text_element(doc, "ymax", int(box[2])))
             object.appendChild(bndbox)
             objectlist.appendChild(object)
     else:
@@ -197,10 +203,16 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
             object.appendChild(create_text_element(doc,"truncated",trun))
             object.appendChild(create_text_element(doc,"difficult",dif))
             bndbox = doc.createElement("bndbox")
-            bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
-            bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
-            bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
-            bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
+            if is_relative_coordinate:
+                bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
+                bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
+                bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
+                bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
+            else:
+                bndbox.appendChild(create_text_element(doc, "xmin", int(box[1])))
+                bndbox.appendChild(create_text_element(doc, "ymin", int(box[0])))
+                bndbox.appendChild(create_text_element(doc, "xmax", int(box[3])))
+                bndbox.appendChild(create_text_element(doc, "ymax", int(box[2])))
             object.appendChild(bndbox)
             objectlist.appendChild(object)
 
@@ -388,10 +400,16 @@ class PascalVOCData(object):
         full_path,img_size,category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
         '''
         for img_file, xml_file in self.files:
-            shape, bboxes, labels_names, difficult, truncated = read_voc_xml(xml_file,
+            #print(xml_file)
+            try:
+                shape, bboxes, labels_names, difficult, truncated = read_voc_xml(xml_file,
                                                                             adjust=None,
                                                                             aspect_range=None,
                                                                             has_probs=False)
+            except:
+                print(f"Read {xml_file} faild.")
+                continue
+
             if self.label_text2id is not None:
                 labels = [self.label_text2id(x) for x in labels_names]
             else:

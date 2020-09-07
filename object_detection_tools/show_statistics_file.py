@@ -8,6 +8,8 @@ if len(sys.argv)>=2:
 else:
     data_path = wmlu.home_dir("ai/mldata2/0day/bbox.dat")
     data_path = wmlu.home_dir("ai/mldata2/0day/qc_data_org.dat")
+    data_path = wmlu.home_dir("ai/mldata2/0day/cell_data.dat")
+
 
 print(f"Data path {data_path}")
 

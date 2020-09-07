@@ -1454,3 +1454,15 @@ def conv2d(inputs,
             outputs = utils.collect_named_outputs(outputs_collections, sc.name+"_pre_act", outputs)
             outputs = activation_fn(outputs)
         return utils.collect_named_outputs(outputs_collections, sc.name, outputs)
+
+def upsample(x,scale_factor=2,mode=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
+    if len(x.get_shape()==4):
+        B,H,W,_ = btf.combined_static_and_dynamic_shape(x)
+    elif len(x.get_shape()==3):
+        H, W, _ = btf.combined_static_and_dynamic_shape(x)
+    else:
+        raise NotImplementedError("Error")
+
+    if isinstance(scale_factor,(int,float)):
+        scale_factor = [scale_factor,scale_factor]
+    return tf.image.resize(x,[H*scale_factor[0],W*scale_factor[1]],method=mode)

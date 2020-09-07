@@ -314,7 +314,7 @@ def concat_images(images,margin=10):
         return tf.concat(new_images,axis=2)
 '''
 img:[H,W]/[H,W,C]
-rect:[ymin,xmin,ymax,xmax]
+rect:[ymin,xmin,ymax,xmax] absolute coordinate
 '''
 def sub_image(img,rect):
     return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
@@ -503,7 +503,7 @@ class NPImagePatch(object):
         return net
 
 '''
-bboxes:[N,4],[ymin,xmin,ymax,xmax]
+bboxes:[N,4],[ymin,xmin,ymax,xmax], absolute coordinate
 '''
 def remove_boxes_of_img(img,bboxes,default_value=[127,127,127]):
     if not isinstance(bboxes,np.ndarray):

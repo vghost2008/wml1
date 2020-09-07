@@ -1,6 +1,6 @@
 import logging
 import wmodule
-from object_detection2.modeling.backbone.build import build_backbone
+from object_detection2.modeling.backbone.build import build_backbone,build_backbone_by_name
 from object_detection2.modeling.proposal_generator.build import build_proposal_generator
 from .build import META_ARCH_REGISTRY
 from object_detection2.modeling.roi_heads.roi_heads import build_roi_heads
@@ -32,6 +32,9 @@ class GeneralizedRCNN(MetaArch):
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
         self.proposal_generator = build_proposal_generator(cfg,parent=self,*args,**kwargs)
         self.roi_heads = build_roi_heads(cfg,parent=self,*args,**kwargs)
+        self.roi_heads_backbone = None
+        if cfg.MODEL.ROI_HEADS.BACKBONE != "":
+            self.roi_heads_backbone = build_backbone_by_name(cfg.MODEL.ROI_HEADS.BACKBONE,cfg,parent=self,*args,**kwargs)
 
     def forward(self, batched_inputs):
         """
@@ -65,6 +68,10 @@ class GeneralizedRCNN(MetaArch):
         使用主干网络生成一个FeatureMap, 如ResNet的Res4(stride=16)
         '''
         features = self.backbone(batched_inputs)
+        if self.roi_heads_backbone is not None:
+            roi_features = self.roi_heads_backbone(batched_inputs)
+        else:
+            roi_features = features
 
         if self.proposal_generator:
             proposals, proposal_losses = self.proposal_generator(batched_inputs, features)
@@ -73,7 +80,7 @@ class GeneralizedRCNN(MetaArch):
             proposals = {"proposal_boxes":batched_inputs["proposals"]}
             proposal_losses = {}
 
-        results, detector_losses = self.roi_heads(batched_inputs, features, proposals)
+        results, detector_losses = self.roi_heads(batched_inputs, roi_features, proposals)
 
         if len(results)>0:
             wsummary.detection_image_summary(images=batched_inputs[IMAGE],
@@ -109,6 +116,10 @@ class GeneralizedRCNN(MetaArch):
 
         batched_inputs = self.preprocess_image(batched_inputs)
         features = self.backbone(batched_inputs)
+        if self.roi_heads_backbone is not None:
+            roi_features = self.roi_heads_backbone(batched_inputs)
+        else:
+            roi_features = features
 
         if detected_instances is None:
             if self.proposal_generator:
@@ -117,10 +128,10 @@ class GeneralizedRCNN(MetaArch):
                 assert "proposals" in batched_inputs[0]
                 proposals = [x["proposals"].to(self.device) for x in batched_inputs]
 
-            results, _ = self.roi_heads(batched_inputs, features, proposals)
+            results, _ = self.roi_heads(batched_inputs, roi_features, proposals)
         else:
             detected_instances = [x.to(self.device) for x in detected_instances]
-            results = self.roi_heads.forward_with_given_boxes(features, detected_instances)
+            results = self.roi_heads.forward_with_given_boxes(roi_features, detected_instances)
         instance_masks = None if not self.cfg.MODEL.MASK_ON else results.get(RD_MASKS,None)
         if instance_masks is not None:
             shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])

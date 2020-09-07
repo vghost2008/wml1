@@ -92,6 +92,9 @@ class TMAP(object):
     def depth(self):
         return self._depth
 
+    def img_shape(self,scale=-1):
+        return [self.height(scale),self.width(scale),self.depth()]
+
     def get_focus_number(self):
         '''
         获取对焦层数
@@ -174,6 +177,13 @@ class TMAP(object):
             for i in range(-nr,nr+1):
                 self.set_focus_layer(i)
                 yield self.crop_img(left, top, width, height, scale)
+
+    def crop_img_by_rect(self,rect,scale=-1,layer=None):
+        left = rect[1]
+        top = rect[0]
+        width = rect[3]-rect[1]
+        height = rect[2]-rect[0]
+        return self.crop_img(left,top,width,height,scale,layer)
 
     def crop_img(self,left=0,top=0,width=-1,height=-1,scale=-1,layer=None):
         '''

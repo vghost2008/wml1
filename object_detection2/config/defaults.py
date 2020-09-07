@@ -277,6 +277,7 @@ _C.MODEL.RETINANET_PG.ACTIVATION_FN = "relu"
 _C.MODEL.ROI_HEADS = CN()
 _C.MODEL.ROI_HEADS.NAME = "Res5ROIHeads"
 _C.MODEL.ROI_HEADS.HOOK = ""
+_C.MODEL.ROI_HEADS.BACKBONE = ""
 # Number of foreground classes
 _C.MODEL.ROI_HEADS.NUM_CLASSES = 80
 # Names of the input feature maps to be used by ROI heads
@@ -493,6 +494,8 @@ _C.MODEL.RETINANET.OUTPUTS = "RetinaNetOutputs"
 _C.MODEL.RETINANET.NORM = "BN"
 _C.MODEL.RETINANET.ACTIVATION_FN = "relu"
 _C.MODEL.RETINANET.MATCHER = "Matcher"
+_C.MODEL.RETINANET.BOX_REG_LOSS_SCALE = 1.0
+_C.MODEL.RETINANET.BOX_CLS_LOSS_SCALE = 1.0
 
 # ---------------------------------------------------------------------------- #
 # CornerNet Head

@@ -3,6 +3,7 @@ import tensorflow as tf
 import wml_utils as wmlu
 import object_detection2.config as config
 import argparse
+import os
 
 def default_argument_parser():
     """
@@ -45,3 +46,20 @@ def default_argument_parser():
     parser.add_argument("--gpus", nargs='+',type=int, help="gpus for training.")
     parser.add_argument("--restore", type=str, help="restore option.",default="auto")  #auto, ckpt,finetune, none
     return parser
+
+def get_config_file(name:str):
+    CONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/"
+    COCOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/coco/"
+    MODCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistod/"
+    search_dirs = [COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR]
+    if os.path.exists(name):
+        return name
+    if not name.endswith(".yaml"):
+        name = name+".yaml"
+
+    for dir in search_dirs:
+        path = os.path.join(dir,name)
+        if os.path.exists(path):
+            return path
+
+    return name

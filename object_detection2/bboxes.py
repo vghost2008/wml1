@@ -102,7 +102,8 @@ def bboxes_filter_center(labels, bboxes, margins=[0., 0., 0., 0.],
 '''
 def bboxes_filter_overlap(labels, bboxes,
                           threshold=0.5, assign_negative=False,
-                          scope=None):
+                          scope=None,
+                          return_ignore_mask=False):
 
     with tf.name_scope(scope, 'bboxes_filter', [labels, bboxes]):
         scores = bboxes_intersection(tf.constant([0, 0, 1, 1], bboxes.dtype),
@@ -118,8 +119,13 @@ def bboxes_filter_overlap(labels, bboxes,
             bboxes = tf.boolean_mask(bboxes, mask)
 
         bboxes = tf_correct_yxminmax_boxes(bboxes)
-        return labels, bboxes,mask
 
+        if return_ignore_mask:
+            ignore_mask = tf.logical_not(mask)
+            ignore_mask = tf.logical_and(ignore_mask,tf.greater_equal(scores,1e-3))
+            return labels, bboxes,mask,ignore_mask
+        else:
+            return labels, bboxes,mask
 
 def bboxes_filter_labels(labels, bboxes,
                          out_labels=[], num_classes=np.inf,
@@ -320,11 +326,26 @@ def to_yxminmax(data):
     return data
 
 '''
-input:[ymin,xmin,ymax,xmax]
+input:[4]/[N,4] [ymin,xmin,ymax,xmax]
 output:[xmin,ymin,width,height]
 '''
-def to_xyminwh(bbox):
-    return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
+def to_xyminwh(bbox,is_absolute_coordinate=True):
+    if not isinstance(bbox,np.ndarray):
+        bbox = np.array(bbox)
+    if len(bbox.shape)>= 2:
+        ymin = bbox[...,0]
+        xmin = bbox[...,1]
+        ymax = bbox[...,2]
+        xmax = bbox[...,3]
+        w = xmax-xmin
+        h = ymax-ymin
+        return np.stack([xmin,ymin,w,h],axis=-1)
+
+    else:
+        if is_absolute_coordinate:
+            return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
+        else:
+            return (bbox[1],bbox[0],bbox[3]-bbox[1],bbox[2]-bbox[0])
 '''
 将以ymin,xmin,ymax,xmax表示的box转换为以cy,cx表示的box
 对data的shape没有限制
@@ -568,14 +589,16 @@ def cut_contourv2(segmentation,rect):
 bbox:(xmin,ymin,width,height)
 '''
 def random_int_in_bbox(bbox):
-    x = random.randint(bbox[0],bbox[0]+bbox[2]-1)
-    y = random.randint(bbox[1],bbox[1]+bbox[3]-1)
+    x = random.randint(int(bbox[0]),int(bbox[0]+bbox[2]-1))
+    y = random.randint(int(bbox[1]),int(bbox[1]+bbox[3]-1))
     return x,y
 
 '''
 bbox:(xmin,ymin,width,height)
 size:(width,height) the size of return bbox
 random return a box with center point in the input bbox
+output:
+[xmin,ymin,width,height]
 '''
 def random_bbox_in_bbox(bbox,size):
     x,y = random_int_in_bbox(bbox)
@@ -617,20 +640,75 @@ def random_bbox_in_bboxes(bboxes,size,weights=None,labels=None):
         return random_bbox_in_bbox(bboxes[index],size)
 
 '''
-bbox:[(xmin,ymin,width,height),....]
+bbox:[(xmin,ymin,width,height),....] (format="xyminwh") or [(ymin,xmin,ymax,xmax),...] (format="yxminmax")
 return a list of new bbox with the size scale times of the input
 '''
-def expand_bbox(bboxes,scale=2):
-    res_bboxes = []
-    for bbox in bboxes:
-        cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
-        new_width = bbox[2]*scale
-        new_height = bbox[3]*scale
-        min_x = cx-new_width//2
-        min_y = cy-new_height//2
-        res_bboxes.append((min_x,min_y,new_width,new_height))
+def expand_bbox(bboxes,scale=2,format="xyminwh"):
+    if format == "xyminwh":
+        res_bboxes = []
+        for bbox in bboxes:
+            cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
+            new_width = bbox[2]*scale
+            new_height = bbox[3]*scale
+            min_x = cx-new_width//2
+            min_y = cy-new_height//2
+            res_bboxes.append((min_x,min_y,new_width,new_height))
 
-    return res_bboxes
+        return res_bboxes
+    elif format == "yxminmax":
+        if not isinstance(bboxes,np.ndarray):
+            bboxes = np.array(bboxes)
+        ymin = bboxes[...,0]
+        xmin = bboxes[...,1]
+        ymax = bboxes[...,2]
+        xmax = bboxes[...,3]
+        h = ymax-ymin
+        cy = (ymax+ymin)/2
+        w = xmax-xmin
+        cx = (xmax+xmin)/2
+        nh = h*scale/2
+        nw = w*scale/2
+        nymin = cy-nh
+        nymax = cy+nh
+        nxmin = cx-nw
+        nxmax = cx+nw
+
+        return np.stack([nymin,nxmin,nymax,nxmax],axis=-1)
+
+'''
+bbox:[(xmin,ymin,width,height),....] (format="xyminwh") or [(ymin,xmin,ymax,xmax),...] (format="yxminmax")
+size:[H,W]
+return a list of new bbox with the size 'size' 
+'''
+def expand_bbox_by_size(bboxes,size,format="xyminwh"):
+    res_bboxes = []
+    if format == "xyminwh":
+        for bbox in bboxes:
+            cx,cy = bbox[0]+bbox[2]//2,bbox[1]+bbox[3]//2
+            new_width = size[1]
+            new_height = size[0]
+            min_x = max(cx-new_width//2,0)
+            min_y = max(cy-new_height//2,0)
+            res_bboxes.append((min_x,min_y,new_width,new_height))
+
+        return res_bboxes
+    elif format == "yxminmax":
+        if not isinstance(bboxes,np.ndarray):
+            bboxes = np.array(bboxes)
+        ymin = bboxes[...,0]
+        xmin = bboxes[...,1]
+        ymax = bboxes[...,2]
+        xmax = bboxes[...,3]
+        cy = (ymax + ymin) / 2
+        cx = (xmax + xmin) / 2
+        nh = size[0]//2
+        nw = size[1]//2
+        nymin = cy-nh
+        nymax = cy+nh
+        nxmin = cx-nw
+        nxmax = cx+nw
+
+        return np.stack([nymin,nxmin,nymax,nxmax],axis=-1)
 '''
 bboxes:[N,4]
 '''
@@ -984,13 +1062,25 @@ def batch_bboxes_pair_wrapv2(bboxes0,bboxes1,fn,len0=None,dtype=None,scope=None)
 用于删除同类别且有重叠的bboxes
 如果box[i],与box[j]的交叉面积占box[j]面积的百分比大于threshold则删除box[j]
 这种处理倾向于删除面积小的boxes
+bboxes:[N,4] relative coordinate or absolute coordinate
+labels:[N]
+return:
+bboxes:[Y,4],keep_pos:[N]
 '''
 @btf.add_name_scope
-def remove_bboxes_by_overlay(bboxes,labels=None,threshold=0.5):
+def remove_bboxes_by_overlap(bboxes,labels=None,threshold=0.5):
     scores = get_bboxes_intersection_matrix(bboxes,bboxes)
     R,_ = btf.combined_static_and_dynamic_shape(scores)
     scores = scores*(1.0-tf.eye(R))
-    faild_pos = tf.greater(scores,threshold)
+    scores_t = tf.transpose(scores)
+    scores_x = tf.reshape(tf.cast(tf.range(R*R),tf.float32),[R,R])
+    scores_xt = tf.transpose(scores_x)
+    faild_pos0 = tf.logical_and(tf.greater(scores,threshold),tf.less_equal(scores_t,threshold))
+    faild_pos1 = tf.logical_and(tf.logical_and(tf.greater(scores,threshold),tf.greater(scores_t,threshold)),tf.greater(scores,scores_t))
+    faild_pos2 = tf.logical_and(tf.logical_and(tf.greater(scores,threshold),tf.greater(scores_t,threshold)),tf.equal(scores,scores_t))
+    faild_pos2 = tf.logical_and(tf.greater(scores_x,scores_xt),faild_pos2)
+    faild_pos = tf.logical_or(faild_pos0,faild_pos1)
+    faild_pos = tf.logical_or(faild_pos,faild_pos2)
     if labels is not None:
         labels0 = tf.reshape(labels,[R,1])
         labels0 = tf.tile(labels0,[1,R])
@@ -1004,12 +1094,12 @@ def remove_bboxes_by_overlay(bboxes,labels=None,threshold=0.5):
     bboxes = tf.boolean_mask(bboxes,keep_pos)
     return bboxes,keep_pos
 
-def batched_remove_bboxes_by_overlay(bboxes,labels=None,length=None,threshold=0.5):
+def batched_remove_bboxes_by_overlap(bboxes,labels=None,length=None,threshold=0.5):
     def fn0(boxes,label,l):
         nr,_ = btf.combined_static_and_dynamic_shape(boxes)
         boxes = boxes[:l,:]
         label = label[:l]
-        boxes,keep_pos = remove_bboxes_by_overlay(boxes,label,threshold)
+        boxes,keep_pos = remove_bboxes_by_overlap(boxes,label,threshold)
         n_nr = btf.combined_static_and_dynamic_shape(keep_pos)[0]
         padding_nr = nr-n_nr
         keep_pos = tf.pad(keep_pos,[[0,padding_nr]])
@@ -1021,7 +1111,7 @@ def batched_remove_bboxes_by_overlay(bboxes,labels=None,length=None,threshold=0.
     def fn1(boxes,l):
         nr,_ = btf.combined_static_and_dynamic_shape(boxes)
         boxes = boxes[:l,:]
-        boxes,keep_pos = remove_bboxes_by_overlay(boxes,None,threshold)
+        boxes,keep_pos = remove_bboxes_by_overlap(boxes,None,threshold)
         n_nr,_ = btf.combined_static_and_dynamic_shape(boxes)
         padding_nr = nr-n_nr
         boxes = tf.pad(boxes,[[0,padding_nr],[0,0]])

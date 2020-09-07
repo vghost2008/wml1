@@ -154,6 +154,8 @@ class RetinaNetGIOUOutputs(wmodule.WChildModule):
         box = self.box2box_transform.apply_deltas(pred_anchor_deltas,anchors)
         reg_loss_sum = 1.0-odl.giou(box,gt_anchors_deltas)
         loss_box_reg = tf.reduce_sum(reg_loss_sum) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
+        loss_cls = loss_cls*self.cfg.BOX_CLS_LOSS_SCALE
+        loss_box_reg = loss_box_reg*self.cfg.BOX_REG_LOSS_SCALE
 
         return {"loss_cls": loss_cls, "loss_box_reg": loss_box_reg}
 

@@ -161,6 +161,9 @@ class RetinaNetOutputs(wmodule.WChildModule):
             reduction=tf.losses.Reduction.SUM,
         ) / tf.cast(tf.maximum(1, num_foreground),tf.float32)
 
+        loss_cls = loss_cls*self.cfg.BOX_CLS_LOSS_SCALE
+        loss_box_reg = loss_box_reg*self.cfg.BOX_REG_LOSS_SCALE
+
         return {"loss_cls": loss_cls, "loss_box_reg": loss_box_reg}
 
     @wmlt.add_name_scope

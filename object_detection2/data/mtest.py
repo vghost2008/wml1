@@ -38,13 +38,14 @@ aa = trans.RandomSelectSubTransform([
 
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
-    return [ trans.WDistortColor(),
-             trans.RandomNoise(0.5,100),
-            trans.MaskNHW2HWN(),
-            trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
-                                     max_size=cfg.INPUT.MAX_SIZE_TRAIN,
-                                     align=cfg.INPUT.SIZE_ALIGN),
-            trans.MaskHWN2NHW(),
+    return [ trans.MaskNHW2HWN(),
+             trans.SampleDistortedBoundingBox(min_object_covered=0.3,
+                 aspect_ratio_range=(0.2, 0.5),
+                 area_range=(0.1, 1.0),
+                 max_attempts=100,
+                 filter_threshold=0.3,
+                 ),
+             trans.MaskHWN2NHW(),
             trans.BBoxesRelativeToAbsolute(),
             trans.UpdateHeightWidth(),
             trans.AddBoxLens(),

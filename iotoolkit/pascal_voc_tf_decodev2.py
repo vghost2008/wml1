@@ -6,6 +6,7 @@ import numpy as np
 from collections import OrderedDict
 import object_detection.utils as odu
 from semantic.visualization_utils import STANDARD_COLORS
+from object_detection2.standard_names import *
 import semantic.toolkit as smt
 import wml_tfutils as wmlt
 import time
@@ -97,11 +98,15 @@ labels:[X]
 bboxes:[X,4]
 mask:[X,H,W]
 '''
-def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",id_to_label={},transforms=None,has_file_index=True,filter_func=None):
+def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",id_to_label={},transforms=None,has_file_index=True,filter_func=None,filter_empty=True):
     '''
     id_to_label:first id is the category_id in coco, second label is the label id for model
     '''
     dataset = get_database(dataset_dir=data_dir,num_parallel=num_parallel,file_pattern=file_pattern)
+    def filter_func_empty(x):
+        return tf.greater(tf.shape(x[GT_BOXES])[0],0)
+    if filter_empty:
+        dataset = dataset.filter(filter_func_empty)
     if filter_func is not None:
         dataset = dataset.filter(filter_func)
     if transforms is not None:
