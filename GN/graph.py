@@ -138,9 +138,7 @@ class DynamicAdjacentMatrix:
         return res
 
 
-    def reduce_edges_data_for_point(self,i):
-        edges_indexs = self.points_to_edges_index[0][i]
-        nr = self.points_to_edges_index[1][i]
+    def reduce_edges_data_for_point(self,edges_indexs,nr):
         s_edges_indexs,r_edges_indexs = tf.unstack(edges_indexs[:,:nr],axis=0)
         s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=self.default_value_s)
         r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=self.default_value_r)
@@ -149,8 +147,7 @@ class DynamicAdjacentMatrix:
 
         r_edge = self.redges_reducer_for_points(r_edge)
 
-        res = tf.concat([s_edge,r_edge],axis=-1)
-        return res
+        return [s_edge,r_edge]
 
     def reduce_edges_data_for_global(self):
         res = self.edges_reducer_for_global(self.edges_data)
@@ -177,18 +174,21 @@ class DynamicAdjacentMatrix:
         if point_fn is None:
             return
         with tf.variable_scope(scope,default_name="UpdatePoints"):
-            def fn(i):
-                edges = self.reduce_edges_data_for_point(i)
-                point = tf.expand_dims(self.points_data[i],axis=0)
+            def fn(point_data,edges_index,nr):
+                edges = self.reduce_edges_data_for_point(edges_index,nr)
+                point = tf.expand_dims(point_data,axis=0)
                 if use_global_attr:
-                    net = tf.concat([point, edges, self.global_attr], axis=1)
+                    net = tf.concat([point]+ edges+[ self.global_attr], axis=1)
                 else:
-                    net = tf.concat([point, edges], axis=1)
+                    net = tf.concat([point]+ edges, axis=1)
                 output = point_fn(net)
                 output = tf.squeeze(output,axis=0)
                 return output
 
-        self.points_data = tf.map_fn(fn,elems=self.point_indexs,dtype=self.points_data.dtype,parallel_iterations=100)
+        self.points_data = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),
+                                     elems=(self.points_data,self.points_to_edges_index[0],self.points_to_edges_index[1]),
+                                     dtype=self.points_data.dtype,
+                                     parallel_iterations=100)
 
     def update_global(self,global_fn,scope=None):
         if global_fn is None:

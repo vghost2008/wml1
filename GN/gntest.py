@@ -56,7 +56,9 @@ class WMLTest(tf.test.TestCase):
                 return tf.map_fn(fn,elems=(x))
             A.update_points(update_points)
             sess.run(tf.global_variables_initializer())
-            self.assertAllClose(A.points_data.eval(),[[35.5],[38.0],[40.5]],atol=1e-5)
+            points_data = A.points_data.eval()
+            print(points_data)
+            self.assertAllClose(points_data,[[35.5],[38.0],[40.5]],atol=1e-5)
             
     def test_update_globals(self):
         with self.test_session() as sess:
