@@ -287,7 +287,7 @@ class BBDNet(WModule):
         else:
             raise NotImplementedError(f"Error net data input.")
 
-        map_data = tf.zeros_like(map_data)
+        #map_data = tf.zeros_like(map_data)
         bbd_net = BBDNetForOneImg(self.cfg,
                                 bboxes,
                                 probs,

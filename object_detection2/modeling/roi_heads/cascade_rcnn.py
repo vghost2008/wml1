@@ -65,6 +65,7 @@ class CascadeROIHeads(StandardROIHeads):
                 )
 
     def forward(self, inputs, features, proposals: ProposalsData):
+        self.batched_inputs = inputs
         proposals_boxes = proposals[PD_BOXES]
         img_size = get_img_size_from_batched_inputs(inputs)
         if self.is_training:
@@ -83,7 +84,7 @@ class CascadeROIHeads(StandardROIHeads):
             return {}, losses
         else:
             pred_instances = self._forward_box(inputs,features_list, proposals)
-            pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances)
+            pred_instances = self.forward_with_given_boxes(inputs,features, pred_instances,img_size=img_size)
             return pred_instances, {}
 
     def _forward_box(self, inputs,features, proposals):

@@ -160,24 +160,30 @@ class DynamicAdjacentMatrix:
         res = self.points_reducer_for_global(self.points_data)
         return res
 
-    def update_edges(self,edge_fn,scope=None):
+    def update_edges(self,edge_fn,scope=None,use_global_attr=True):
         if edge_fn is None:
             return
         with tf.variable_scope(scope,default_name="UpdateEddges"):
             senders, receivers = self.gather_points_data_for_edges()
             points_data = tf.concat([senders,receivers],axis=1)
-            globals_data = self.gather_globals_data_for_edges()
-            data_in = tf.concat([points_data,self.edges_data,globals_data],axis=1)
+            if use_global_attr:
+                globals_data = self.gather_globals_data_for_edges()
+                data_in = tf.concat([points_data,self.edges_data,globals_data],axis=1)
+            else:
+                data_in = tf.concat([points_data, self.edges_data], axis=1)
             self.edges_data = edge_fn(data_in)
 
-    def update_points(self,point_fn,scope=None):
+    def update_points(self,point_fn,scope=None,use_global_attr=True):
         if point_fn is None:
             return
         with tf.variable_scope(scope,default_name="UpdatePoints"):
             def fn(i):
                 edges = self.reduce_edges_data_for_point(i)
                 point = tf.expand_dims(self.points_data[i],axis=0)
-                net = tf.concat([point, edges, self.global_attr], axis=1)
+                if use_global_attr:
+                    net = tf.concat([point, edges, self.global_attr], axis=1)
+                else:
+                    net = tf.concat([point, edges], axis=1)
                 output = point_fn(net)
                 output = tf.squeeze(output,axis=0)
                 return output
@@ -194,10 +200,11 @@ class DynamicAdjacentMatrix:
             output = global_fn(net)
             self.global_attr = output
 
-    def update(self,point_fn,edge_fn,global_fn,scopes=[None,None,None]):
-        self.update_edges(edge_fn,scopes[1])
-        self.update_points(point_fn,scopes[0])
-        self.update_global(global_fn,scopes[2])
+    def update(self,point_fn,edge_fn,global_fn,scopes=[None,None,None],use_global_attr=True):
+        self.update_edges(edge_fn,scopes[1],use_global_attr=use_global_attr)
+        self.update_points(point_fn,scopes[0],use_global_attr=use_global_attr)
+        if use_global_attr:
+            self.update_global(global_fn,scopes[2])
         return {"edges":self.edges_data,"nodes":self.points_data,"global":self.global_attr}
 
     def update_edges_independent(self,edge_fn,scope=None):
@@ -225,12 +232,12 @@ class DynamicAdjacentMatrix:
         self.update_global_independent(global_fn,scopes[2])
         return {"edges":self.edges_data,"nodes":self.points_data,"global":self.global_attr}
 
-    def concat(self,datas):
+    def concat(self,datas,use_global_attr=True):
         if "edges" in datas and datas["edges"] is not None:
             self.edges_data = tf.concat([self.edges_data,datas["edges"]],axis=1)
         if "nodes" in datas and datas["nodes"] is not None:
             self.points_data = tf.concat([self.points_data,datas["nodes"]],axis=1)
-        if "global" in datas and datas["global"] is not None:
+        if use_global_attr and "global" in datas and datas["global"] is not None:
             self.global_attr = tf.concat([self.global_attr,datas["global"]],axis=1)
 
     @staticmethod

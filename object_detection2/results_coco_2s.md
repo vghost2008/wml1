@@ -88,6 +88,8 @@
 |4)+GIOUoutputs+no cls loss weight|0.295|0.493|0.308|0.042|0.207|0.437|0.263|0.389|0.403|0.055|0.347|0.559|
 |4)+GIOUoutputs+reg loss x8 + low box reg threshold(sephv21)|0.299|0.466|0.321|0.041|0.207|0.437|0.275|0.398|0.409|0.059|0.352|0.562|
 |4) + cls loss weight+p3 output (sephv22)|0.313|0.500|0.331|0.043|0.236|0.455|0.277|0.405|0.418|0.058|0.377|0.571|
+|Cascade|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|
+
 
 ####segm
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
