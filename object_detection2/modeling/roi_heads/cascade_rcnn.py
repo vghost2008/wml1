@@ -66,6 +66,7 @@ class CascadeROIHeads(StandardROIHeads):
 
     def forward(self, inputs, features, proposals: ProposalsData):
         proposals_boxes = proposals[PD_BOXES]
+        img_size = get_img_size_from_batched_inputs(inputs)
         if self.is_training:
             proposals = self.label_and_sample_proposals(inputs,proposals_boxes)
 
@@ -77,8 +78,8 @@ class CascadeROIHeads(StandardROIHeads):
             if self.train_on_pred_boxes:
                 # proposals里面的box已经是采样的结果,无需再进行采样操作
                 proposals = self.label_and_sample_proposals(inputs, proposals.boxes, do_sample=False)
-            losses.update(self._forward_mask(inputs,features_list, proposals))
-            losses.update(self._forward_keypoint(inputs,features_list, proposals))
+            losses.update(self._forward_mask(inputs,features_list, proposals,img_size=img_size))
+            losses.update(self._forward_keypoint(inputs,features_list, proposals,img_size=img_size))
             return {}, losses
         else:
             pred_instances = self._forward_box(inputs,features_list, proposals)

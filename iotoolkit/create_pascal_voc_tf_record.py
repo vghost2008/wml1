@@ -145,7 +145,7 @@ class VOCMaker(object):
     将所有图像文件按SAMPLES_PER_FILES(200)一批保存在tfrecored文件中
     '''
     def multi_thread_to_tfrecords(self,dataset_dir, output_dir, shuffling=False,fidx=0):
-        files = wmlu.recurse_get_filepath_in_dir(dataset_dir,suffix=".xml")
+        files = wmlu.recurse_get_filepath_in_dir(dataset_dir,suffix=".jpg")
 
         return self.multi_thread_to_tfrecords_by_files(files,output_dir,shuffling,fidx)
     '''

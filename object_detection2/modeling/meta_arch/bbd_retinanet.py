@@ -11,13 +11,14 @@ from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 from object_detection2.modeling.onestage_heads.build import build_retinanet_head
+from object_detection2.modeling.bbdnet.bbdnet import BBDNet
 
 slim = tf.contrib.slim
 
-__all__ = ["RetinaNet"]
+__all__ = ["BBDRetinaNet"]
 
 @META_ARCH_REGISTRY.register()
-class RetinaNet(MetaArch):
+class BBDRetinaNet(MetaArch):
     """
     Implement RetinaNet (https://arxiv.org/abs/1708.02002).
     """
@@ -70,12 +71,12 @@ class RetinaNet(MetaArch):
         """
         batched_inputs = self.preprocess_image(batched_inputs)
 
-        features = self.backbone(batched_inputs)
+        bb_features = self.backbone(batched_inputs)
         if len(self.in_features) == 0:
-            print(f"Error no input features for retinanet, use all features {features.keys()}")
-            features = list(features.values())
+            print(f"Error no input features for retinanet, use all features {bb_features.keys()}")
+            features = list(bb_features.values())
         else:
-            features = [features[f] for f in self.in_features]
+            features = [bb_features[f] for f in self.in_features]
         pred_logits, pred_anchor_deltas= self.head(features)
         anchors = self.anchor_generator(batched_inputs,features)
         gt_boxes = batched_inputs.get(GT_BOXES,None)
@@ -97,15 +98,56 @@ class RetinaNet(MetaArch):
         )
         outputs.batched_inputs = batched_inputs
 
-        if self.is_training:
-            if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
-                results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
-                                            box_delta=pred_anchor_deltas, anchors=anchors)
-            else:
-                results = {}
 
-            return results,outputs.losses()
+        if hasattr(self.head,'logits_before_outputs'):
+            map_data = tf.concat([self.head.logits_before_outputs,self.head.regs_before_outputs],axis=-1)
+            print("Use direct map attr.")
+        else:
+            print("Use crop map attr.")
+            map_data = bb_features[self.cfg.MODEL.BBDNET.MAP_DATA]
+        bbd_net_input = {}
+        bbd_net_input['net_data'] = map_data
+        bbd_net_input['base_net'] = features[-1]
+        bbd_net = BBDNet(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+                         threshold=0.02)
+        loss = {}
+        if self.is_training:
+            results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
+                                            box_delta=pred_anchor_deltas, anchors=anchors)
+            bbd_net_input.update(results)
+            bbd_net_input[GT_BOXES] = batched_inputs[GT_BOXES]
+            bbd_net_input[GT_LABELS] = batched_inputs[GT_LABELS]
+            bbd_net_input[GT_LENGTH] = batched_inputs[GT_LENGTH]
+            if self.cfg.MODEL.BBDNET.END2END_TRAIN:
+                loss.update(outputs.losses())
+            ###
+            t_pred_logits = general_to_N_HWA_K_and_concat(pred_logits, K=self.num_classes)
+            t_probs = tf.nn.sigmoid(t_pred_logits)
+            t_probs = wmlt.batch_gather(t_probs, results[RD_INDICES])
+            bbd_net_input[RD_RAW_PROBABILITY] = t_probs
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+            loss.update(bbd_loss)
+
         else:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                         box_delta=pred_anchor_deltas, anchors=anchors)
-            return results,{}
+            bbd_net_input.update(results)
+            ###
+            t_pred_logits = general_to_N_HWA_K_and_concat(pred_logits, K=self.num_classes)
+            t_probs = tf.nn.sigmoid(t_pred_logits)
+            t_probs = wmlt.batch_gather(t_probs, results[RD_INDICES])
+            bbd_net_input[RD_RAW_PROBABILITY] = t_probs
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+
+        if global_cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+            wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                             boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                             lengths=results[RD_LENGTH],
+                                             scores=results[RD_PROBABILITY],
+                                             name="BBDRetinaNet_result",
+                                             category_index=DataLoader.category_index)
+            return results,loss

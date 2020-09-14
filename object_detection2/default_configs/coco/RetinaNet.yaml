@@ -26,8 +26,8 @@ MODEL:
     ACTIVATION_FN: "NA"
     OUTPUTS: "RetinaNetGIOUOutputs"
 DATASETS:
-  TRAIN: "coco_2014_train"
-  TEST: "coco_2014_eval"
+  TRAIN: "coco_2017_train"
+  TEST: "coco_2017_eval"
   #TRAIN: "mnistod_train"
   #TEST: "mnistod_eval"
   SKIP_CROWD_DURING_TRAINING: False

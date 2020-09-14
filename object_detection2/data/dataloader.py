@@ -3,6 +3,7 @@ import wmodule
 import iotoolkit.transform as trans
 import wsummary
 import tensorflow as tf
+from .buildin_filter import *
 from .build_dataprocess import DATAPROCESS_REGISTRY
 import socket
 from collections import Iterable
@@ -38,6 +39,10 @@ class DataLoader(wmodule.WModule):
         print("Trans on single img:",self.trans_on_single_img)
         data = func(path,transforms=self.trans_on_single_img,num_parallel=num_parallel,
                     filter_empty=self.cfg.INPUT.FILTER_EMPTY)
+        if len(self.cfg.INPUT.EXTRA_FILTER) > 1:
+            filter = build_filter(self.cfg.INPUT.EXTRA_FILTER)
+            print(f"extra filter {self.cfg.INPUT.EXTRA_FILTER}")
+            data = data.filter(filter)
         if is_training:
             data = data.repeat()
             batch_size = self.cfg.SOLVER.IMS_PER_BATCH

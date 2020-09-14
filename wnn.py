@@ -912,7 +912,7 @@ def expand_spatial(net,size):
 
 def get_variables_of_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES,scopes=None,re_pattern=None):
     scopes_list = []
-    if scopes is None and re_pattern is None:
+    if scopes is None and re_pattern is None or len(scopes)==0:
         return tf.get_collection(key)
     elif isinstance(scopes,str):
         scopes_list = [scope.strip() for scope in scopes.split(',')]
@@ -966,6 +966,7 @@ def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
     logits=None,
     gamma=2.0,
     alpha=0.25,
+    weights=None, #weights.shape=labels.shape
     name=None):
     with tf.name_scope(name,default_name="sigmoid_cross_entropy_with_logits_FL"):
         per_entry_cross_ent = (tf.nn.sigmoid_cross_entropy_with_logits(
@@ -982,6 +983,8 @@ def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
                                  (1 - labels) * (1 - alpha))
         focal_cross_entropy_loss = (modulating_factor * alpha_weight_factor *
                                     per_entry_cross_ent)
+        if weights is not None:
+            focal_cross_entropy_loss = focal_cross_entropy_loss*weights
         return focal_cross_entropy_loss
 
 def sparse_softmax_cross_entropy_with_logits_alpha_balanced(

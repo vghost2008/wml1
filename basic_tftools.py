@@ -60,6 +60,22 @@ def static_or_dynamic_map_fn(fn, elems, dtype=None,
         return tf.map_fn(fn, elems, dtype, parallel_iterations, back_prop)
     arg_tuples = zip(*[tf.unstack(elem) for elem in elems])
     outputs = [fn(arg_tuple) for arg_tuple in arg_tuples]
+  elif isinstance(elems, dict):
+        for k,elem in elems.items():
+            if not isinstance(elem, tf.Tensor):
+                raise ValueError('`elems` must be a Tensor or list of Tensors.')
+
+        elem_shapes = [elem.shape.as_list() for k,elem in elems.items()]
+        # Fall back on tf.map_fn if shapes of each entry of `elems` are None or fail
+        # to all be the same size along the batch dimension.
+        for elem_shape in elem_shapes:
+            if (not elem_shape or not elem_shape[0]
+                    or elem_shape[0] != elem_shapes[0][0]):
+                return tf.map_fn(fn, elems, dtype, parallel_iterations, back_prop)
+        args_dicts = unstack_tensor_in_dict(elems,axis=0)
+        outputs = [fn(args_dict) for args_dict in args_dicts]
+        outputs = stack_tensor_in_dict(outputs,axis=0)
+        return outputs
   else:
     if not isinstance(elems, tf.Tensor):
       raise ValueError('`elems` must be a Tensor or list of Tensors.')
@@ -388,8 +404,8 @@ def PrintSummaryV2(v0,v,name="v",extern_vars=[],with_global_step=False):
         extern_vars = extern_vars+[tf.train.get_or_create_global_step()]
     return tf.Print(v0,[name,tf.reduce_max(v),tf.reduce_min(v),tf.reduce_mean(v),tf.shape(v)]+extern_vars,summarize=100)
 
-def PrintNaNorInf(v,name="is_nan_or_inf"):
-    return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))],summarize=100)
+def PrintNaNorInf(v,extern_vars=[],name="is_nan_or_inf"):
+    return tf.Print(v,[name,tf.reduce_any(tf.is_nan(v)),tf.reduce_any(tf.is_inf(v))]+extern_vars,summarize=100)
 
 def PrintShape(v,datas,name="shape",extern_vars=[],with_global_step=False):
     if with_global_step:
@@ -429,3 +445,38 @@ def squeeze_to_one(input,axes):
         new_shape = new_shape+shape[axes[-1]+1:]
 
     return tf.reshape(input,new_shape)
+
+def unstack_tensor_in_dict(datas,axis=0):
+    datas_dict = {}
+    datas_list = []
+    dims = None
+    for k,v in datas.items():
+        datas_dict[k] = tf.unstack(v,axis=axis)
+        if dims is None:
+            dims = len(datas_dict[k])
+        elif len(datas_dict[k]) != dims:
+            print(f"Error dims for {k}, expect {dims}.")
+            raise ValueError("")
+
+    for i in range(dims):
+        tmp_dict = {}
+        for k,v in datas_dict.items():
+            tmp_dict[k] = v[i]
+        datas_list.append(tmp_dict)
+
+    return datas_list
+
+def stack_tensor_in_dict(datas,axis=0):
+    dims = len(datas)
+    datas_dict = {}
+    for k,v in datas[0].items():
+        datas_dict[k] = [v]
+    for i in range(1,dims):
+        for k, v in datas[i].items():
+            datas_dict[k].append(v)
+    res_data = {}
+    for k,v in datas_dict.items():
+        res_data[k] = tf.stack(v,axis=axis)
+
+    return res_data
+

@@ -133,7 +133,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
 
     return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)
 
-def trans_img_short_size_to(img_size,short_size=512):
+def trans_img_short_size_to(img_size,short_size=640):
     img_short_size = min(img_size[0],img_size[1])
     scale = short_size/img_short_size
     return [x*scale for x in img_size]
@@ -298,7 +298,7 @@ def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
-    data.read_data('/home/wj/ai/mldata3/cell/verify')
+    data.read_data('/home/wj/ai/mldata3/cell/stage01_verify_preprocv3_1')
 
     return data.get_items()
 
@@ -306,6 +306,13 @@ def coco2014_dataset():
     data = COCOData()
     data.read_data(wmlu.home_dir("ai/mldata/coco/annotations/instances_train2014.json"), 
                    image_dir=wmlu.home_dir("ai/mldata/coco/train2014"))
+
+    return data.get_items()
+
+def coco2017_dataset():
+    data = COCOData()
+    data.read_data(wmlu.home_dir("ai/mldata2/coco/annotations/instances_train2017.json"),
+                   image_dir=wmlu.home_dir("ai/mldata2/coco/train2017"))
 
     return data.get_items()
 
@@ -326,17 +333,25 @@ def labelme_dataset():
 
 if __name__ == "__main__":
     nr = 100
-    def trans_img_size(img_size):
+    def trans_img_long_size(img_size):
         if img_size[0]<img_size[1]:
             k = 512/img_size[1]
         else:
             k = 512 / img_size[0]
         return [k*img_size[0],k*img_size[1]]
-    statics = statistics_boxes_with_datas(pascal_voc_dataset(),
+    
+    def trans_img_short_size(img_size,min_size=640):
+        if img_size[0]<img_size[1]:
+            k = min_size/img_size[0]
+        else:
+            k = min_size/ img_size[1]
+        return [k*img_size[0],k*img_size[1]]
+
+    statics = statistics_boxes_with_datas(coco2017_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,
-                                          trans_img_size=None)
+                                          trans_img_size=trans_img_short_size)
 
     statistics_boxes(statics[0], nr=nr)
     statistics_boxes_by_different_area(statics[0],nr=nr,bin_size=5)

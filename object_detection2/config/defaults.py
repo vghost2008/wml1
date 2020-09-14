@@ -11,6 +11,7 @@ _C.MODEL.MIN_BOXES_AREA_TEST = 0.
 _C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
 _C.MODEL.WEIGHTS = ""
 _C.MODEL.ONLY_SCOPE = ""
+_C.MODEL.EXCLUDE_SCOPE = ""
 
 # -----------------------------------------------------------------------------
 # INPUT
@@ -39,8 +40,9 @@ _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = False
 _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
 _C.INPUT.ROTATE_ANY_ANGLE.PROBABILITY = 0.5
-_C.INPUT.SHUFFLE_BUFFER_SIZE = 2048
+_C.INPUT.SHUFFLE_BUFFER_SIZE = 1024  #tensorflow models use 2048 as default value
 _C.INPUT.FILTER_EMPTY = True
+_C.INPUT.EXTRA_FILTER = ""
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -456,6 +458,7 @@ _C.MODEL.SSD.NMS_THRESH_TEST = 0.5
 # ---------------------------------------------------------------------------- #
 _C.MODEL.RETINANET = CN()
 
+_C.MODEL.RETINANET.HEAD_NAME = "RetinaNetHead"
 # This is the number of foreground classes.
 _C.MODEL.RETINANET.NUM_CLASSES = 80
 
@@ -496,6 +499,7 @@ _C.MODEL.RETINANET.ACTIVATION_FN = "relu"
 _C.MODEL.RETINANET.MATCHER = "Matcher"
 _C.MODEL.RETINANET.BOX_REG_LOSS_SCALE = 1.0
 _C.MODEL.RETINANET.BOX_CLS_LOSS_SCALE = 1.0
+_C.MODEL.RETINANET.CLASSES_WISE_NMS = True
 
 # ---------------------------------------------------------------------------- #
 # CornerNet Head
@@ -712,7 +716,14 @@ _C.MODEL.EFFICIENTNETS.FROZEN_BN = False
 _C.MODEL.EFFICIENTNETS.MAKE_C6C7 = "C6"
 _C.MODEL.EFFICIENTNETS.NORM = "BN"
 _C.MODEL.EFFICIENTNETS.ACTIVATION_FN = "relu"
-
+#
+_C.MODEL.BBDNET = CN()
+_C.MODEL.BBDNET.USE_GLOBAL_ATTR = True
+_C.MODEL.BBDNET.USE_GLOBAL_LOSS = True
+_C.MODEL.BBDNET.USE_EDGE_LOSS = True
+_C.MODEL.BBDNET.MAP_DATA = "P3"
+_C.MODEL.BBDNET.END2END_TRAIN = False
+_C.MODEL.BBDNET.SCORE_THRESH_TEST = 0.02
 # ---------------------------------------------------------------------------- #
 # Solver
 # ---------------------------------------------------------------------------- #
@@ -753,6 +764,9 @@ _C.SOLVER.BIAS_LR_FACTOR = 1.0
 _C.SOLVER.WEIGHT_DECAY_BIAS = _C.SOLVER.WEIGHT_DECAY
 _C.SOLVER.LR_DECAY_TYPE = "piecewise"
 _C.SOLVER.LR_DECAY_FACTOR = 0.1
+_C.SOLVER.TRAIN_SCOPES = ""
+_C.SOLVER.TRAIN_REPATTERN = ""
+_C.SOLVER.FILTER_NAN_AND_INF_GRADS = False
 
 # ---------------------------------------------------------------------------- #
 # Specific test options

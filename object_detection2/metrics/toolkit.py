@@ -401,6 +401,9 @@ class COCOMaskEvaluation(GeneralCOCOEvaluation):
 
 
 class COCOEvaluation(object):
+    '''
+    num_classes: 不包含背景 
+    '''
     def __init__(self,categories_list=None,num_classes=None,mask_on=False):
         self.box_evaluator = COCOBoxEvaluation(categories_list=categories_list,
                                                num_classes=num_classes)
@@ -442,12 +445,14 @@ class ClassesWiseModelPerformace(object):
     def select_bboxes_and_labels(bboxes,labels,classes):
         if len(labels) == 0:
             return np.array([]),np.array([])
+        if not isinstance(labels,np.ndarray):
+            labels = np.array(labels)
         mask = np.equal(labels,classes)
         rbboxes = bboxes[mask,:]
         rlabels = labels[mask]
         return rbboxes,rlabels
 
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None):
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=None):
         if not isinstance(gtboxes,np.ndarray):
             gtboxes = np.array(gtboxes)
         if not isinstance(gtlabels,np.ndarray):
@@ -459,7 +464,7 @@ class ClassesWiseModelPerformace(object):
             lboxes,llabels = self.select_bboxes_and_labels(boxes,labels,classes)
             if lgtlabels.shape[0]==0:
                 continue
-            self.data[i](lgtboxes,lgtlabels,lboxes,llabels)
+            self.data[i](lgtboxes,lgtlabels,lboxes,llabels,img_size=img_size)
         return self.mp(gtboxes,gtlabels,boxes,labels)
 
     def show(self):

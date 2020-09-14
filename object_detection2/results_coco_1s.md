@@ -42,7 +42,13 @@
 |1)+FPN DB+cosine+等比例搜索anchor|0.333|0.528|0.353|0.071|0.241|0.458|0.300|0.475|0.505|0.177|0.433|0.648|
 |1)+FPN DB+cosine+BalanceBackboneHook|0.341|0.533|0.362|0.065|0.270|0.457|0.304|0.481|0.509|0.146|0.466|0.647|
 |1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs|0.342|0.534|0.363|0.065|0.266|0.463|0.307|0.483|0.513|0.152|0.467|0.655|
-|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputsV2|0.342+bs=3x3|0.527|0.365|0.053|0.269|0.468|0.304|0.480|0.509|0.122|0.470|0.656|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+bs=3x3|0.342|0.527|0.365|0.053|0.269|0.468|0.304|0.480|0.509|0.122|0.470|0.656|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+bs=3x3(coco2017)|0.337|0.527|0.362|0.078|0.272|0.461|0.300|0.472|0.502|0.151|0.469|0.645|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputsV3+bs=3x3(coco2017)|0.325|0.517|0.344|0.071|0.260|0.444|0.291|0.458|0.482|0.135|0.447|0.622|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+sep head+bs=3x3(coco2017)|0.335|0.525|0.356|0.081|0.273|0.454|0.300|0.473|0.502|0.156|0.461|0.642|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+dataset filter+bs=3x3(coco2017)|0.338|0.526|0.360|0.083|0.276|0.462|0.300|0.476|0.506|0.162|0.471|0.646|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputsV2+bs=3x3|0.335|0.526|0.355|0.063|0.266|0.453|0.302|0.484|0.515|0.149|0.472|0.656|
+|1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+bs=3x3+3 anchor|0.320|0.523|0.334|0.076|0.245|0.427|0.290|0.466|0.495|0.186|0.446|0.615|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS2+1anchor+bs=3x3|0.295|0.480|0.307|0.060|0.206|0.415|0.285|0.431|0.461|0.151|0.369|0.613|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS3+bs=3x3|0.323|0.526|0.338|0.072|0.253|0.433|0.297|0.462|0.493|0.169|0.447|0.624|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS4+bs=3x3|0.329|0.533|0.346|0.072|0.257|0.440|0.299|0.465|0.495|0.161|0.451|0.625|
@@ -53,7 +59,6 @@
 |2)|0.339|0.531|0.362|0.063|0.270|0.455|0.304|0.481|0.510|0.145|0.473|0.648|
 |EfficientDet-D0|0.329|0.558|0.347|0.049|0.259|0.433|0.284|0.443|0.470|0.117|0.419|0.588|
 |FCOS|0.332|0.529|0.354|0.081|0.268|0.451|0.291|0.455|0.476|0.141|0.444|0.608|
-
 
 ```
 1) RetinaNet+EvoNormS0+FPN EvoNormS0+GIOUOutput

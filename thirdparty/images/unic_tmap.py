@@ -239,7 +239,7 @@ class TMAP(object):
         for y in range(0,self.height(scale),height):
             for x in range(0, self.width(scale), width):
                 if with_pos_info:
-                    yield self.crop_img(x,y,width,height,scale),x,y
+                    yield self.crop_img(x,y,width,height,scale),x,y #x,y为左上角坐标
                 else:
                     yield self.crop_img(x,y,width,height,scale)
 

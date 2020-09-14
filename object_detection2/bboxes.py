@@ -182,7 +182,8 @@ def npbboxes_jaccard(bbox_ref, bboxes, name=None):
 '''
 box0:[N,4], or [1,4],[ymin,xmin,ymax,xmax],...
 box1:[N,4]
-返回box0,box1交叉面积占box0的百分比
+return:
+[N],返回box0,box1交叉面积占box0的百分比
 '''
 def npbboxes_intersection_of_box0(box0,box1):
 

@@ -105,6 +105,102 @@ for i in range(1,81):
 for k,v in COMPRESSED_ID_TO_ID.items():
     COMPRESSED_ID_TO_TEXT[k] = ID_TO_TEXT[v]['name']
 
+COCO_CLASSES_FREQ = {
+"person": 30.52,
+"car": 5.10,
+"chair": 4.48,
+"book": 2.87,
+"bottle": 2.83,
+"cup": 2.40,
+"dining table": 1.83,
+"bowl": 1.67,
+"traffic light": 1.50,
+"handbag": 1.44,
+"umbrella": 1.33,
+"bird": 1.26,
+"boat": 1.25,
+"truck": 1.16,
+"bench": 1.14,
+"sheep": 1.11,
+"banana": 1.10,
+"kite": 1.06,
+"motorcycle": 1.01,
+"backpack": 1.01,
+"potted plant": 1.01,
+"cow": 0.95,
+"wine glass": 0.92,
+"carrot": 0.91,
+"knife": 0.90,
+"broccoli": 0.85,
+"donut": 0.83,
+"bicycle": 0.83,
+"skis": 0.77,
+"vase": 0.77,
+"horse": 0.77,
+"tie": 0.76,
+"cell phone": 0.75,
+"orange": 0.74,
+"cake": 0.74,
+"sports ball": 0.74,
+"clock": 0.74,
+"suitcase": 0.72,
+"spoon": 0.72,
+"surfboard": 0.71,
+"bus": 0.71,
+"apple": 0.68,
+"pizza": 0.68,
+"tv": 0.68,
+"couch": 0.67,
+"remote": 0.66,
+"sink": 0.65,
+"skateboard": 0.64,
+"elephant": 0.64,
+"dog": 0.64,
+"fork": 0.64,
+"zebra": 0.62,
+"airplane": 0.60,
+"giraffe": 0.60,
+"laptop": 0.58,
+"tennis racket": 0.56,
+"teddy bear": 0.56,
+"cat": 0.55,
+"train": 0.53,
+"sandwich": 0.51,
+"bed": 0.49,
+"toilet": 0.48,
+"baseball glove": 0.44,
+"oven": 0.39,
+"baseball bat": 0.38,
+"hot dog": 0.34,
+"keyboard": 0.33,
+"snowboard": 0.31,
+"frisbee": 0.31,
+"refrigerator": 0.31,
+"mouse": 0.26,
+"stop sign": 0.23,
+"toothbrush": 0.23,
+"fire hydrant": 0.22,
+"microwave": 0.19,
+"scissors": 0.17,
+"bear": 0.15,
+"parking meter": 0.15,
+"toaster": 0.03,
+"hair drier": 0.02
+}
+ID_TO_FREQ = np.ones(shape=[91],dtype=np.float32)
+for i in range(1,91):
+    if i in ID_TO_TEXT:
+        name = ID_TO_TEXT[i]['name']
+        if name not in COCO_CLASSES_FREQ:
+            print(f"Error {i}/{name}")
+            raise ValueError(name)
+        else:
+            ID_TO_FREQ[i] = COCO_CLASSES_FREQ[name]
+COMPRESSED_ID_TO_FREQ = np.ones(shape=[81],dtype=np.float32)
+for i in range(1,81):
+    id = COMPRESSED_ID_TO_ID[i]
+    COMPRESSED_ID_TO_FREQ[i] = ID_TO_FREQ[id]
+
 class COCOData:
     def __init__(self,filter=None,include_masks=True):
         self.images = None

@@ -382,6 +382,13 @@ def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annot
 
 class PascalVOCData(object):
     def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None):
+        '''
+
+        :param label_text2id: trans a single label text to id
+        :param shuffle:
+        :param image_sub_dir:
+        :param xml_sub_dir:
+        '''
         self.files = None
         self.label_text2id = label_text2id
         self.shuffle = shuffle

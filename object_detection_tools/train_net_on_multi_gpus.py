@@ -102,6 +102,8 @@ def main(_):
         pass
     elif args.restore == "none":
         pass
+    elif args.restore == "ckpt_nogs":
+        pass
     else:
         raise NotImplementedError("Error")
     trainer.resume_or_load(**kwargs,option=args.restore)

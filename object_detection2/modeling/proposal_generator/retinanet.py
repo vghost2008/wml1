@@ -1,5 +1,5 @@
 #coding=utf-8
-from object_detection2.modeling.meta_arch.retinanet import RetinaNetHead as RetinaNetHead
+from object_detection2.modeling.onestage_heads.retinanet_head import RetinaNetHead as RetinaNetHead
 from object_detection2.modeling.proposal_generator.rpn_outputs import find_top_rpn_proposals
 from object_detection2.standard_names import *
 from object_detection2.modeling.build import build_outputs

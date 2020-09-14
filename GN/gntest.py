@@ -10,7 +10,7 @@ class WMLTest(tf.test.TestCase):
         with self.test_session() as sess:
             adj_mt = tf.convert_to_tensor(np.array([[0,1,1],[1,0,1],[1,1,0]],dtype=np.int32))
             points_data = np.array([[1],[2],[3]],dtype=np.float32)
-            A = DynamicAdjacentMatrix(adj_mt=adj_mt,points_data=points_data,edges_data=None)
+            A = DynamicAdjacentMatrix(adj_mt=adj_mt,points_data=points_data,edges_data=None,edges_data_dim=1,max_nodes_edge_nr=3)
             senders_indexs, receivers_indexs = tf.unstack(A.edges_to_points_index, axis=1)
             e_data_s = tf.gather(points_data, senders_indexs)
             e_data_r = tf.gather(points_data, receivers_indexs)
@@ -22,10 +22,12 @@ class WMLTest(tf.test.TestCase):
             self.assertAllEqual(A.real_edge_nr.eval(),6)
             self.assertAllEqual(A.edges_to_points_index.eval(),[[0,1],[0,2],[1,0],[1,2],[2,0],[2,1]])
             wmlu.show_nparray(A.edges_to_points_index.eval())
-            datas = [[[0,1],[2,4]],[[2,3],[0,5]],[[4,5],[1,3]]]
-            for i,x in enumerate(A.points_to_edges_index):
-                for j,y in enumerate(x):
-                    self.assertAllEqual(y.eval(),datas[i][j])
+            target_length = [2,2,2]
+            target_p2e = [[[0,1,0], [2,4,0]] , [[2,3,0], [0,5,0]] , [[4,5,0], [1,3,0]] ]
+            data = A.points_to_edges_index[0].eval()
+            leng = A.points_to_edges_index[1].eval()
+            self.assertAllEqual(target_length,leng)
+            self.assertAllEqual(target_p2e,data)
 
     def test_update_edges(self):
         with self.test_session() as sess:
@@ -53,6 +55,7 @@ class WMLTest(tf.test.TestCase):
                     return tf.reshape(tf.reduce_sum(x),[1])
                 return tf.map_fn(fn,elems=(x))
             A.update_points(update_points)
+            sess.run(tf.global_variables_initializer())
             self.assertAllClose(A.points_data.eval(),[[35.5],[38.0],[40.5]],atol=1e-5)
             
     def test_update_globals(self):

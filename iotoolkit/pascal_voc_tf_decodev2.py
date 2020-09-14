@@ -113,6 +113,9 @@ def get_data(data_dir,num_parallel=8,log_summary=True,file_pattern="*.tfrecord",
         if isinstance(transforms,Iterable):
             transforms = WTransformList(list(transforms))
         dataset = dataset.map(transforms,num_parallel_calls=num_parallel)
+    if filter_empty:
+        #处理后有的bbox可能消失了
+        dataset = dataset.filter(filter_func_empty)
     with tf.name_scope('data_provider'):
         pass
     '''

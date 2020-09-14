@@ -21,7 +21,10 @@ class WModule(object):
             else:
                 return self.parent.maped_attr[item]
         else:
-            return self.__dict__[item]
+            if item in self.__dict__:
+                return self.__dict__[item]
+            else:
+                raise AttributeError(r"object has no attribute '%s'" % item)
 
     def __setattr__(self, key, value):
         if key == "maped_attr":

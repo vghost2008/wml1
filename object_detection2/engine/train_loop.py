@@ -455,6 +455,15 @@ class SimpleTrainer(TrainerBase):
         tower_grads = []
         if len(self.gpus) == 0:
             self.gpus = [0]
+        if len(self.cfg.SOLVER.TRAIN_SCOPES)>1:
+            train_scopes = self.cfg.SOLVER.TRAIN_SCOPES
+        else:
+            train_scopes = None
+        if len(self.cfg.SOLVER.TRAIN_REPATTERN)>1:
+            train_repattern = self.cfg.SOLVER.TRAIN_REPATTERN
+        else:
+            train_repattern = None
+
         for i in range(len(self.gpus)):
             scope = tf.get_variable_scope()
             if i>0:
@@ -485,12 +494,32 @@ class SimpleTrainer(TrainerBase):
                     grads = [tf.reduce_sum(tf.abs(x)) for x in grads]
                     loss_values[0] = tf.Print(loss_values[0],grads+["grads"],summarize=100)'''
 
-                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_values)
+                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_values,
+                                                                          scopes=train_scopes,
+                                                                          re_pattern=train_repattern)
+                #
+                if self.cfg.SOLVER.FILTER_NAN_AND_INF_GRADS:
+                    grads = [list(x) for x in grads]
+                    for i,(g, v) in enumerate(grads):
+                        g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
+                                                                                               stddev=1e-5),
+                                     g)
+                        grads[i][0] = g
+                #
                 tower_grads.append(grads)
+        '''tower_grads[0] = [list(x) for x in tower_grads[0]]
+        for i,(g,v) in enumerate(tower_grads[0]):
+            tower_grads[0][i][0] = tf.Print(g,["B_"+v.name,tf.reduce_min(g),tf.reduce_mean(g),tf.reduce_max(g)])'''
+
         if self.cfg.SOLVER.CLIP_NORM>1:
             avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
         else:
             avg_grads = wnn.average_grads(tower_grads, clip_norm=None)
+
+        '''avg_grads = [list(x) for x in avg_grads]
+        for i,(g,v) in enumerate(avg_grads):
+            avg_grads[i][0] = tf.Print(g,[v.name,tf.reduce_min(g),tf.reduce_mean(g),tf.reduce_max(g)])'''
+
         opt0 = wnn.apply_gradientsv3(avg_grads, self.global_step, opt)
         opt1 = wnn.get_batch_norm_ops()
         self.train_op = tf.group(opt0, opt1)
@@ -535,12 +564,16 @@ class SimpleTrainer(TrainerBase):
                 ckpt_path = self.cfg.MODEL.WEIGHTS
         elif option == "ckpt":
             pass
+        elif option == "ckpt_nogs":
+            pass
         elif option == "none":
             return
         else:
             raise NotImplementedError("Error")
         if sess is None:
             sess = self.sess
+        if len(self.cfg.MODEL.EXCLUDE_SCOPE) > 1 and self.model.is_training:
+            kwargs['exclude'] = self.cfg.MODEL.EXCLUDE_SCOPE
         wnn.restore_variables(sess,ckpt_path,**kwargs)
 
     def run_step(self):

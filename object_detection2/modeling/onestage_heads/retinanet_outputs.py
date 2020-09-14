@@ -195,9 +195,10 @@ class RetinaNetOutputs(wmodule.WChildModule):
         box_delta = tf.concat(box_delta,axis=1)
 
         results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],anchors,anchors_size),elems=[box_cls,box_delta],
-                                                dtype=[tf.float32,tf.int32,tf.float32,tf.int32],
+                                                dtype=[tf.float32,tf.int32,tf.float32,tf.int32,tf.int32],
                                                 back_prop=False)
-        outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[3]}
+        outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[4],
+                   RD_INDICES:results[3]}
         if global_cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
             wsummary.detection_image_summary(images=inputs[IMAGE],
                                              boxes=outdata[RD_BOXES], classes=outdata[RD_LABELS],
@@ -228,12 +229,15 @@ class RetinaNetOutputs(wmodule.WChildModule):
         boxes_all = []
         scores_all = []
         class_idxs_all = []
+        res_indexs_all = []
 
         # Iterate over every feature level
+        N,_ = wmlt.combined_static_and_dynamic_shape(box_cls)
+        indexs = tf.split(tf.range(N),num_or_size_splits=anchors_size)
         box_cls = tf.split(box_cls,num_or_size_splits=anchors_size)
         box_delta = tf.split(box_delta,num_or_size_splits=anchors_size)
         anchors = tf.split(anchors,num_or_size_splits=anchors_size)
-        for box_cls_i, box_reg_i, anchors_i in zip(box_cls, box_delta, anchors):
+        for box_cls_i, box_reg_i, anchors_i,indexs_i in zip(box_cls, box_delta, anchors,indexs):
             # (HxWxAxK,)
             box_cls_i = tf.nn.sigmoid(tf.reshape(box_cls_i,[-1]))
 
@@ -253,25 +257,29 @@ class RetinaNetOutputs(wmodule.WChildModule):
             #after nms this will be fixed
             anchor_idxs = topk_idxs // self.num_classes
             classes_idxs = topk_idxs % self.num_classes
-
             box_reg_i = tf.gather(box_reg_i,anchor_idxs)
             anchors_i = tf.gather(anchors_i,anchor_idxs)
+            indexs_i = tf.gather(indexs_i,anchor_idxs)
+
             # predict boxes
             predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i)
 
             boxes_all.append(predicted_boxes)
             scores_all.append(predicted_prob)
             class_idxs_all.append(classes_idxs)
+            res_indexs_all.append(indexs_i)
 
-        boxes_all, scores_all, class_idxs_all= [
-            tf.concat(x,axis=0) for x in [boxes_all, scores_all, class_idxs_all]
+        boxes_all, scores_all, class_idxs_all,res_indexs_all = [
+            tf.concat(x,axis=0) for x in [boxes_all, scores_all, class_idxs_all,res_indexs_all]
         ]
-        x,y = wmlt.sort_data(key=scores_all,datas=[boxes_all,class_idxs_all])
-        boxes_all,class_idxs_all = y
+        x,y = wmlt.sort_data(key=scores_all,datas=[boxes_all,class_idxs_all,res_indexs_all])
+        boxes_all,class_idxs_all,res_indexs_all = y
         scores_all,_ = x
-        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
+        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
+                                k=self.max_detections_per_image)
         boxes,labels,nms_idxs = nms(bboxes=boxes_all,classes=class_idxs_all)
         scores = tf.gather(scores_all,nms_idxs)
+        res_indexs_all = tf.gather(res_indexs_all,nms_idxs)
 
         candiate_nr = self.max_detections_per_image
         #labels = tf.Print(labels,[tf.shape(labels)],name="XXXXXXXXXXXXXXXXXXXX",summarize=100)
@@ -280,6 +288,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         boxes = tf.pad(boxes, paddings=[[0, candiate_nr - lens], [0, 0]])
         labels = tf.pad(labels, paddings=[[0, candiate_nr - lens]])
         scores = tf.pad(scores, paddings=[[0, candiate_nr - lens]])
+        res_indexs_all = tf.pad(res_indexs_all, paddings=[[0, candiate_nr - lens]])
 
-        return [boxes,labels,scores,lens]
+        return [boxes,labels,scores,res_indexs_all,lens]
 
