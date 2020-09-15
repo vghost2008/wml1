@@ -49,9 +49,9 @@ class DynamicAdjacentMatrix:
             #[points_nr,2] list,value is tf.Tensor, Tensor's shape is [], tensor's value is [0,edge_nr)
             self.points_to_edges_index = self.make_points_to_edges_indexs()
         #输入为[X,edge_hiden_size],输出为[1,edge_hiden_size]
-        self.sedges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
+        self.sedges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=False)
         #输入为[X,node_hiden_size],输出为[1,node_hiden_size]
-        self.redges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
+        self.redges_reducer_for_points = functools.partial(tf.reduce_mean,axis=0,keepdims=False)
         #输入为[X,edge_hiden_size],输出为[1,edge_hiden_size]
         self.edges_reducer_for_global = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
         #输入为[X,node_hiden_size],输出为[1,node_hiden_size]
@@ -64,6 +64,8 @@ class DynamicAdjacentMatrix:
             self.default_value_r = tf.get_variable("default_edge_r",shape=[1,edges_data_dim],
                                               dtype=tf.float32,
                                               initializer=tf.zeros_initializer,trainable=True)
+        self.use_sent_edges_for_node = True
+        self.use_received_edges_for_node = True
 
     def get_offset_index_for_p2e(self):
         index0 = wmlt.mask_to_indices(self.line_mask)
@@ -140,14 +142,19 @@ class DynamicAdjacentMatrix:
 
     def reduce_edges_data_for_point(self,edges_indexs,nr):
         s_edges_indexs,r_edges_indexs = tf.unstack(edges_indexs[:,:nr],axis=0)
-        s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=self.default_value_s)
-        r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=self.default_value_r)
 
-        s_edge = self.sedges_reducer_for_points(s_edge)
+        res = []
+        if self.use_sent_edges_for_node:
+            s_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,s_edges_indexs,default_value=self.default_value_s)
+            s_edge = self.sedges_reducer_for_points(s_edge)
+            res.append(s_edge)
 
-        r_edge = self.redges_reducer_for_points(r_edge)
+        if self.use_received_edges_for_node:
+            r_edge = DynamicAdjacentMatrix.safe_gather(self.edges_data,r_edges_indexs,default_value=self.default_value_r)
+            r_edge = self.redges_reducer_for_points(r_edge)
+            res.append(r_edge)
 
-        return [s_edge,r_edge]
+        return res
 
     def reduce_edges_data_for_global(self):
         res = self.edges_reducer_for_global(self.edges_data)
@@ -176,19 +183,17 @@ class DynamicAdjacentMatrix:
         with tf.variable_scope(scope,default_name="UpdatePoints"):
             def fn(point_data,edges_index,nr):
                 edges = self.reduce_edges_data_for_point(edges_index,nr)
-                point = tf.expand_dims(point_data,axis=0)
                 if use_global_attr:
-                    net = tf.concat([point]+ edges+[ self.global_attr], axis=1)
+                    net = tf.concat([point_data]+ edges+[ tf.squeeze(self.global_attr,axis=0)], axis=-1)
                 else:
-                    net = tf.concat([point]+ edges, axis=1)
-                output = point_fn(net)
-                output = tf.squeeze(output,axis=0)
-                return output
+                    net = tf.concat([point_data]+ edges, axis=-1)
+                return net
 
-        self.points_data = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),
+        net = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),
                                      elems=(self.points_data,self.points_to_edges_index[0],self.points_to_edges_index[1]),
                                      dtype=self.points_data.dtype,
                                      parallel_iterations=100)
+        self.points_data = point_fn(net)
 
     def update_global(self,global_fn,scope=None):
         if global_fn is None:

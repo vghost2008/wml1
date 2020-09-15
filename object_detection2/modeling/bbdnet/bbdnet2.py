@@ -33,7 +33,7 @@ class BBDNetForOneImg(AbstractBBDNet):
     classes_num: ...
     '''
 
-    def __init__(self, cfg,boxes, probability, map_data, classes_num, base_net, is_training=False, rnn_nr=3):
+    def __init__(self, cfg,boxes, probability, map_data, classes_num, base_net, is_training=False, rnn_nr=3,preprocess_nr=2):
         super().__init__(cfg,boxes, probability, map_data, classes_num, base_net, is_training)
         self.mid_edges_outputs = []
         self.mid_global_outputs = []
@@ -42,6 +42,7 @@ class BBDNetForOneImg(AbstractBBDNet):
         self.conv_activation_fn = None
         self.normalizer_fn,self.normalizer_params = wnnl.layer_norm,{}
         self.activation_fn = tf.nn.relu
+        self.preprocess_nr = preprocess_nr
         with tf.variable_scope("BBDNet",reuse=tf.AUTO_REUSE):
             with slim.arg_scope([slim.fully_connected],
                                 normalizer_fn=self.normalizer_fn,
@@ -95,7 +96,9 @@ class BBDNetForOneImg(AbstractBBDNet):
         self.A = DynamicAdjacentMatrix(adj_mt=adj_mt,
                                        points_data=points_data,
                                        edges_data=None,
-                                       edges_data_dim=EDGE_HIDDEN_SIZE)
+                                       edges_data_dim=EDGE_HIDDEN_SIZE,
+                                       max_nodes_edge_nr=32)
+        self.A.use_sent_edges_for_node = self.cfg.MODEL.BBDNET.USE_SENT_EDGES_FOR_NODE
         # global encode
         if self.cfg.MODEL.BBDNET.USE_GLOBAL_ATTR:
             with tf.variable_scope("InitGlobalAttr"):
@@ -140,7 +143,7 @@ class BBDNetForOneImg(AbstractBBDNet):
             with tf.variable_scope("NodesOutput", reuse=tf.AUTO_REUSE):
                 # net = AbstractBBDNet.max_pool(net)
                 net = slim.fully_connected(net,  POINT_HIDDEN_SIZE)
-                net = slim.fully_connected(net, self.classes_num,
+                net = slim.fully_connected(net, self.classes_num+1,
                                            normalizer_fn=None,
                                            activation_fn=None)
                 return net
@@ -149,7 +152,7 @@ class BBDNetForOneImg(AbstractBBDNet):
             with tf.variable_scope("EdgesOutput", reuse=tf.AUTO_REUSE):
                 # net = AbstractBBDNet.max_pool(net)
                 net = slim.fully_connected(net,  EDGE_HIDDEN_SIZE)
-                net = slim.fully_connected(net, self.classes_num*2,
+                net = slim.fully_connected(net, self.classes_num+1,
                                            normalizer_fn=None,
                                            activation_fn=None)
                 return net
@@ -166,7 +169,7 @@ class BBDNetForOneImg(AbstractBBDNet):
         else:
             global_output_fn = None
 
-        for i in range(2):
+        for i in range(self.preprocess_nr):
             with tf.variable_scope(f"Layer_{i}"):
                 if i > 0:
                     self.A.concat(latent0)
@@ -205,17 +208,12 @@ class BBDNetForOneImg(AbstractBBDNet):
         if self.cfg.MODEL.BBDNET.USE_EDGE_LOSS:
             with tf.name_scope("edges_loss"):
                 senders_indexs, receivers_indexs = tf.unstack(self.A.edges_to_points_index, axis=1)
-                senders_y = tf.gather(y, senders_indexs)
                 receivers_y = tf.gather(y, receivers_indexs)
                 scale = 10.0
                 for i, logits in enumerate(self.mid_edges_outputs):
-                    logits = tf.split(logits,num_or_size_splits=2,axis=-1)
-                    loss0 = self._loss(logits[0], senders_y)*scale
-                    loss1 = self._loss(logits[1], receivers_y)*scale
+                    loss0 = self._loss(logits, receivers_y)*scale
                     wsummary.histogram_or_scalar(loss0,f"edge_loss_s_{i}")
-                    wsummary.histogram_or_scalar(loss1,f"edge_loss_r_{i}")
                     loss_list.append(loss0)
-                    loss_list.append(loss1)
 
         if self.cfg.MODEL.BBDNET.USE_GLOBAL_LOSS:
             with tf.name_scope("global_loss"):
@@ -224,7 +222,7 @@ class BBDNetForOneImg(AbstractBBDNet):
                 gy = tf.expand_dims(gy, axis=0)
                 for i, logits in enumerate(self.mid_global_outputs):
                     scale = 0.1
-                    loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=gy))*scale
+                    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=gy))*scale
                     loss_list.append(loss)
 
         return tf.add_n(loss_list)
@@ -247,7 +245,7 @@ class BBDNetForOneImg(AbstractBBDNet):
             return out
 
 class BBDNet2(WModule):
-    def __init__(self,num_classes,max_node_nr=100,cfg=None,parent=None,*args,**kwargs):
+    def __init__(self,num_classes,max_node_nr=128,cfg=None,parent=None,*args,**kwargs):
         super().__init__(cfg=cfg,parent=parent,*args,**kwargs)
         self.num_classes = num_classes
         self.threshold = self.cfg.MODEL.BBDNET.SCORE_THRESH_TEST
@@ -271,6 +269,11 @@ class BBDNet2(WModule):
     def process_one_image(self,datas):
         l = tf.minimum(datas[RD_LENGTH],self.max_node_nr)
         bboxes = tf.stop_gradient(datas[RD_BOXES][:l])
+        raw_bboxes = bboxes
+        if self.cfg.MODEL.BBDNET.ABSOLUTE_BBOXES:
+            print("use absolute bboxes for bbdnet.")
+            img_size = tf.to_float(tf.shape(datas[IMAGE]))
+            bboxes = odb.tfrelative_boxes_to_absolutely_boxes(bboxes,width=img_size[1],height=img_size[0])
         #bboxes = tf.zeros_like(bboxes)
         probs = tf.stop_gradient(datas[RD_RAW_PROBABILITY][:l])
         #probs = tf.zeros_like(probs)
@@ -282,7 +285,7 @@ class BBDNet2(WModule):
             map_data = tf.stop_gradient(tf.gather(datas['net_data'],datas[RD_INDICES][:l]))
         elif len(net_data.get_shape()) == 3:
             pooler = odl.WROIAlign(bin_size=[1,1],output_size=[7,7])
-            net_data = pooler(tf.expand_dims(net_data,axis=0),tf.expand_dims(bboxes,axis=0))
+            net_data = pooler(tf.expand_dims(net_data,axis=0),tf.expand_dims(raw_bboxes,axis=0))
             map_data = tf.stop_gradient(net_data)
             print(f"Crop bbox attr for bbdnet.")
         else:
@@ -296,11 +299,12 @@ class BBDNet2(WModule):
                                 self.num_classes,
                                 base_net, 
                                 self.is_training,
-                                rnn_nr=3)
+                                rnn_nr=self.cfg.MODEL.BBDNET.NUM_PROCESSING_STEPS,
+                                  preprocess_nr=self.cfg.MODEL.BBDNET.NUM_PREPROCESSING_STEPS)
         outputs = {}
         if self.is_training:
-            fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(bboxes,threshold=0.05)
-            y, y_scores = wop.boxes_match_with_pred(boxes=tf.expand_dims(bboxes,axis=0),
+            fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,threshold=0.05)
+            y, y_scores = wop.boxes_match_with_pred(boxes=tf.expand_dims(raw_bboxes,axis=0),
                                                     plabels=tf.expand_dims(raw_plabels,axis=0),
                                                     gboxes=tf.expand_dims(datas[GT_BOXES],axis=0),
                                                     glabels=tf.expand_dims(datas[GT_LABELS],axis=0),
@@ -308,7 +312,7 @@ class BBDNet2(WModule):
                                                     threshold=0.5)
             outputs['bbd_net_loss'] = bbd_net.loss(tf.squeeze(y,axis=0))
         else:
-            fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(bboxes,threshold=self.threshold)
+            fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,threshold=self.threshold)
 
         r_l = tf.shape(flabels)[0]
         pad_nr = return_nr-r_l

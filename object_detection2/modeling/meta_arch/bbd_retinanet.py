@@ -13,6 +13,7 @@ from object_detection2.datadef import *
 from object_detection2.modeling.onestage_heads.build import build_retinanet_head
 from object_detection2.modeling.bbdnet.bbdnet import BBDNet
 from object_detection2.modeling.bbdnet.bbdnet2 import BBDNet2
+from object_detection2.modeling.bbdnet.bbdnet3 import BBDNet3
 
 slim = tf.contrib.slim
 
@@ -109,7 +110,8 @@ class BBDRetinaNet(MetaArch):
         bbd_net_input = {}
         bbd_net_input['net_data'] = map_data
         bbd_net_input['base_net'] = features[-1]
-        bbd_net = BBDNet2(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+        bbd_net_input[IMAGE] = batched_inputs[IMAGE]
+        bbd_net = BBDNet3(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
                          threshold=0.02)
         loss = {}
         if self.is_training:

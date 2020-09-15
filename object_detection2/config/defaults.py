@@ -724,6 +724,11 @@ _C.MODEL.BBDNET.USE_EDGE_LOSS = True
 _C.MODEL.BBDNET.MAP_DATA = "P3"
 _C.MODEL.BBDNET.END2END_TRAIN = False
 _C.MODEL.BBDNET.SCORE_THRESH_TEST = 0.02
+_C.MODEL.BBDNET.ABSOLUTE_BBOXES = False
+_C.MODEL.BBDNET.USE_SENT_EDGES_FOR_NODE = True
+_C.MODEL.BBDNET.NUM_PREPROCESSING_STEPS = 2
+_C.MODEL.BBDNET.NUM_PROCESSING_STEPS = 3
+
 # ---------------------------------------------------------------------------- #
 # Solver
 # ---------------------------------------------------------------------------- #

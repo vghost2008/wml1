@@ -977,12 +977,13 @@ def sigmoid_cross_entropy_with_logits_FL(  # pylint: disable=invalid-name
         modulating_factor = 1.0
         if gamma is not None:
             modulating_factor = tf.pow(1.0 - p_t, gamma)
-        alpha_weight_factor = 1.0
-        if alpha is not None:
+        if alpha is not None and alpha>0:
           alpha_weight_factor = (labels* alpha +
                                  (1 - labels) * (1 - alpha))
-        focal_cross_entropy_loss = (modulating_factor * alpha_weight_factor *
+          focal_cross_entropy_loss = (modulating_factor * alpha_weight_factor *
                                     per_entry_cross_ent)
+        else:
+          focal_cross_entropy_loss = (modulating_factor * per_entry_cross_ent)
         if weights is not None:
             focal_cross_entropy_loss = focal_cross_entropy_loss*weights
         return focal_cross_entropy_loss

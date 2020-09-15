@@ -48,18 +48,22 @@ class AbstractBBDNet:
         self.base_net = base_net
         self.mid_outputs = []
 
-    def get_predict(self,proposal_boxes,threshold=None):
-        probs = tf.nn.sigmoid(self.logits)
-        probs,raw_labels= tf.nn.top_k(probs,k=1)
-        raw_labels = raw_labels+1
-        raw_labels = tf.where(tf.greater(probs,threshold),raw_labels,tf.zeros_like(raw_labels))
-        raw_labels = tf.reshape(raw_labels,[-1])
-        probs = tf.reshape(probs,[-1])
-        mask = tf.greater(raw_labels,0)
-        boxes = tf.boolean_mask(proposal_boxes,mask)
-        labels = tf.boolean_mask(raw_labels,mask)
-        probs = tf.boolean_mask(probs,mask)
-        return boxes,labels,probs,raw_labels
+    def get_predict(self, proposal_boxes, threshold=None):
+        probs = tf.nn.softmax(self.logits)
+        if threshold is not None:
+            probs = probs[..., 1:]
+        probs, raw_labels = tf.nn.top_k(probs, k=1)
+        if threshold is not None:
+            raw_labels = raw_labels + 1
+        raw_labels = tf.reshape(raw_labels, [-1])
+        probs = tf.reshape(probs, [-1])
+        mask = tf.greater(raw_labels, 0)
+        if threshold is not None:
+            mask = tf.logical_and(mask, tf.greater(probs, threshold))
+        boxes = tf.boolean_mask(proposal_boxes, mask)
+        labels = tf.boolean_mask(raw_labels, mask)
+        probs = tf.boolean_mask(probs, mask)
+        return boxes, labels, probs, raw_labels
 
     '''
     y:[batch_size,k] target label
@@ -79,9 +83,9 @@ class AbstractBBDNet:
     def _loss(self,logits,y):
         assert y.get_shape().ndims==1, "error"
         assert logits.get_shape().ndims==2, "error"
-        y = tf.one_hot(y,depth=self.classes_num+1)
-        y = y[...,1:]
-        return tf.reduce_mean(wnn.sigmoid_cross_entropy_with_logits_FL(labels=y,logits=logits))
+        return tf.reduce_mean(wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=y,
+                                                                                            logits=logits,
+                                                                                            alpha=None))
 
 
     @staticmethod
