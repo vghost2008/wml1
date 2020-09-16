@@ -558,6 +558,7 @@ class SimpleTrainer(TrainerBase):
             if self.model.is_training and self.cfg.MODEL.WEIGHTS != "":
                 print(f"Use {self.cfg.MODEL.WEIGHTS} instead of {ckpt_path}.")
                 ckpt_path = self.cfg.MODEL.WEIGHTS
+
         elif option == "finetune":
             if self.model.is_training:
                 print(f"Use {self.cfg.MODEL.WEIGHTS} instead of {ckpt_path}.")
@@ -572,8 +573,7 @@ class SimpleTrainer(TrainerBase):
             raise NotImplementedError("Error")
         if sess is None:
             sess = self.sess
-        if len(self.cfg.MODEL.EXCLUDE_SCOPE) > 1 and self.model.is_training:
-            kwargs['exclude'] = self.cfg.MODEL.EXCLUDE_SCOPE
+
         wnn.restore_variables(sess,ckpt_path,**kwargs)
 
     def run_step(self):

@@ -334,6 +334,8 @@ def safe_reduce_mean(input_tensor,
 
         if math.fabs(default_value)<1e-8:
             return tf.zeros(shape_i,dtype=input_tensor.dtype)
+        else:
+            return tf.ones(shape_i,dtype=input_tensor.dtype)*default_value
 
     def get_normal_value():
         return tf.reduce_mean(input_tensor,axis=axis,keepdims=keepdims,name=name,

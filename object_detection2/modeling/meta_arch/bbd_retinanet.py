@@ -111,8 +111,12 @@ class BBDRetinaNet(MetaArch):
         bbd_net_input['net_data'] = map_data
         bbd_net_input['base_net'] = features[-1]
         bbd_net_input[IMAGE] = batched_inputs[IMAGE]
-        bbd_net = BBDNet3(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
-                         threshold=0.02)
+        if self.cfg.MODEL.BBDNET.NAME == "BBDNET2":
+            bbd_net = BBDNet2(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+                             threshold=0.02)
+        else:
+            bbd_net = BBDNet3(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES, cfg=self.cfg, parent=self,
+                              threshold=0.02)
         loss = {}
         if self.is_training:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,

@@ -85,7 +85,8 @@ def main(_):
         if len(cfg.MODEL.WEIGHTS) > 3:
             if cfg.MODEL.ONLY_SCOPE != "":
                 kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
-
+            if len(cfg.MODEL.EXCLUDE_SCOPE) > 1:
+                kwargs['exclude'] = cfg.MODEL.EXCLUDE_SCOPE
             def func(v):
                 name = v.name[:-2]
                 if "BatchNorm" in name:
@@ -98,6 +99,10 @@ def main(_):
         kwargs = {'extend_vars': trainer.global_step}
         pass
     elif args.restore == "finetune":
+        if cfg.MODEL.ONLY_SCOPE != "":
+            kwargs["only_scope"] = cfg.MODEL.ONLY_SCOPE
+        if len(cfg.MODEL.EXCLUDE_SCOPE) > 1:
+            kwargs['exclude'] = cfg.MODEL.EXCLUDE_SCOPE
         kwargs = {'extend_vars': trainer.global_step}
         pass
     elif args.restore == "none":

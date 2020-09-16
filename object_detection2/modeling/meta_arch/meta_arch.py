@@ -88,13 +88,11 @@ class MetaArch(wmodule.WModule):
         kwargs['boxes'] = boxes
         kwargs['labels'] = labels
         kwargs['probability'] = probability
-        '''if min(image.shape[0],image.shape[1])>self.cfg.INPUT.MIN_SIZE_TEST:
-            h = image.shape[0]
-            w = image.shape[1]
-            scale = self.cfg.INPUT.MIN_SIZE_TEST/min(w,h)
-            kwargs['img_size'] = [h*scale,w*scale]
-        else:
-            kwargs['img_size'] = image.shape[0:2]'''
+        '''size = list(datas['size'])
+        if min(size[0])>image.shape[0]
+            size[0] = image.shape[0]
+            size[1] = image.shape[1]
+        = image.shape[0:2]'''
         kwargs['img_size'] = image.shape[0:2]
 
         if RD_MASKS in datas and GT_MASKS in datas:

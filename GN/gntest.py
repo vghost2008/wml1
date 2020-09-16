@@ -10,24 +10,24 @@ class WMLTest(tf.test.TestCase):
         with self.test_session() as sess:
             adj_mt = tf.convert_to_tensor(np.array([[0,1,1],[1,0,1],[1,1,0]],dtype=np.int32))
             points_data = np.array([[1],[2],[3]],dtype=np.float32)
-            A = DynamicAdjacentMatrix(adj_mt=adj_mt,points_data=points_data,edges_data=None,edges_data_dim=1,max_nodes_edge_nr=3)
-            senders_indexs, receivers_indexs = tf.unstack(A.edges_to_points_index, axis=1)
-            e_data_s = tf.gather(points_data, senders_indexs)
-            e_data_r = tf.gather(points_data, receivers_indexs)
+            A = DynamicAdjacentMatrix(adj_mt=adj_mt,points_data=points_data,edges_data=None,edges_data_dim=1)
+            e_data_s = tf.gather(points_data, A.senders_indexs)
+            e_data_r = tf.gather(points_data, A.receivers_indexs)
             e_data0 = e_data_r + e_data_s
             e_data1 = e_data_r - e_data_s
             A.edges_data = e_data0
+            edges_to_points_index = tf.stack([A.senders_indexs,A.receivers_indexs],axis=1)
             self.assertAllClose(e_data0.eval(),[[3],[4],[3],[5],[4],[5]],atol=1e-4)
             self.assertAllClose(e_data1.eval(),[[1],[2],[-1],[1],[-2],[-1]],atol=1e-4)
             self.assertAllEqual(A.real_edge_nr.eval(),6)
-            self.assertAllEqual(A.edges_to_points_index.eval(),[[0,1],[0,2],[1,0],[1,2],[2,0],[2,1]])
-            wmlu.show_nparray(A.edges_to_points_index.eval())
+            self.assertAllEqual(edges_to_points_index.eval(),[[0,1],[0,2],[1,0],[1,2],[2,0],[2,1]])
+            wmlu.show_nparray(edges_to_points_index.eval())
             target_length = [2,2,2]
             target_p2e = [[[0,1,0], [2,4,0]] , [[2,3,0], [0,5,0]] , [[4,5,0], [1,3,0]] ]
-            data = A.points_to_edges_index[0].eval()
+            '''data = A.points_to_edges_index[0].eval()
             leng = A.points_to_edges_index[1].eval()
             self.assertAllEqual(target_length,leng)
-            self.assertAllEqual(target_p2e,data)
+            self.assertAllEqual(target_p2e,data)'''
 
     def test_update_edges(self):
         with self.test_session() as sess:
@@ -49,6 +49,7 @@ class WMLTest(tf.test.TestCase):
             points_data = np.array([[1],[2],[3]],dtype=np.float32)
             edges_data = np.array([[5],[6],[7],[8],[9],[10]],dtype=np.float32)
             A = DynamicAdjacentMatrix(adj_mt=adj_mt,points_data=points_data,edges_data=edges_data)
+            A.edges_reducer_for_points = tf.unsorted_segment_mean
             A.global_attr = tf.convert_to_tensor(np.array([[21]],dtype=np.float32))
             def update_points(x):
                 def fn(x):
@@ -59,7 +60,27 @@ class WMLTest(tf.test.TestCase):
             points_data = A.points_data.eval()
             print(points_data)
             self.assertAllClose(points_data,[[35.5],[38.0],[40.5]],atol=1e-5)
-            
+
+    def test_update_points2(self):
+        with self.test_session() as sess:
+            adj_mt = tf.convert_to_tensor(
+                np.array([[0, 1, 1, 0], [1, 0, 0, 1], [1, 1, 0, 0], [1, 1, 1, 0]], dtype=np.int32))
+            points_data = np.array([[1], [2], [3], [4]], dtype=np.float32)
+            edges_data = np.array([[5], [6], [7], [8], [9], [10], [11], [12], [9]], dtype=np.float32)
+            A = DynamicAdjacentMatrix(adj_mt=adj_mt, points_data=points_data, edges_data=edges_data)
+            A.global_attr = tf.convert_to_tensor(np.array([[21]], dtype=np.float32))
+
+            def update_points(x):
+                return x
+
+            A.update_points(update_points)
+            points_data = A.points_data.eval()
+            target_points_data = [[1.0,11.0,27.0,21.0],
+                                [2.0,15.0,27.0,21.0],
+                                [3.0,19.0,15.0,21.0],
+                                [4.0,32.0,8.0,21.0]]
+            self.assertAllClose(points_data,target_points_data,atol=1e-4)
+
     def test_update_globals(self):
         with self.test_session() as sess:
             adj_mt = tf.convert_to_tensor(np.array([[0,1,1],[1,0,1],[1,1,0]],dtype=np.int32))

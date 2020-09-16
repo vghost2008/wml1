@@ -728,6 +728,7 @@ _C.MODEL.BBDNET.ABSOLUTE_BBOXES = False
 _C.MODEL.BBDNET.USE_SENT_EDGES_FOR_NODE = True
 _C.MODEL.BBDNET.NUM_PREPROCESSING_STEPS = 2
 _C.MODEL.BBDNET.NUM_PROCESSING_STEPS = 3
+_C.MODEL.BBDNET.NAME = "BBDNET3"
 
 # ---------------------------------------------------------------------------- #
 # Solver

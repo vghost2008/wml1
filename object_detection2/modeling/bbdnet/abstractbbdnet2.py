@@ -8,6 +8,7 @@ import wnnlayer as wnnl
 import wml_tfutils as wmlt
 from functools import partial
 import wnn
+import basic_tftools as btf
 slim = tf.contrib.slim
 
 FLAGS = tf.app.flags.FLAGS
@@ -83,10 +84,14 @@ class AbstractBBDNet:
     def _loss(self,logits,y):
         assert y.get_shape().ndims==1, "error"
         assert logits.get_shape().ndims==2, "error"
-        return tf.reduce_mean(wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=y,
-                                                                                            logits=logits,
-                                                                                            alpha=None))
-
+        loss0 = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=y,
+                                                                logits=logits,
+                                                                alpha=None)
+        pmask = tf.greater(y,0)
+        nmask = tf.logical_not(pmask)
+        ploss = btf.safe_reduce_mean(tf.boolean_mask(loss0, pmask))
+        nloss = btf.safe_reduce_mean(tf.boolean_mask(loss0, nmask))
+        return ploss+nloss
 
     @staticmethod
     def linear(x,dims,scope=None):

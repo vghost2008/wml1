@@ -304,7 +304,7 @@ class BBDNet2(WModule):
         outputs = {}
         if self.is_training:
             fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,threshold=0.05)
-            y, y_scores = wop.boxes_match_with_pred(boxes=tf.expand_dims(raw_bboxes,axis=0),
+            y, y_scores,indexs = wop.boxes_match_with_pred(boxes=tf.expand_dims(raw_bboxes,axis=0),
                                                     plabels=tf.expand_dims(raw_plabels,axis=0),
                                                     gboxes=tf.expand_dims(datas[GT_BOXES],axis=0),
                                                     glabels=tf.expand_dims(datas[GT_LABELS],axis=0),

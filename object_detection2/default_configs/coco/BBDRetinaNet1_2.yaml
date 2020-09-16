@@ -1,7 +1,8 @@
 MODEL:
   META_ARCHITECTURE: "BBDRetinaNet"
-  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
-  ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
+  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  WEIGHTS: "/home/wj/ai/tmp3/object_detection2/RetinaNetCOCODemon"
+  #ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   EXCLUDE_SCOPE: "BBDNet"
   BACKBONE:
@@ -28,6 +29,7 @@ MODEL:
     OUTPUTS: "RetinaNetGIOUOutputs"
     NMS_THRESH_TEST: 0.7
   BBDNET:
+    NAME: "BBDNET2"
     SCORE_THRESH_TEST: 0.02
     USE_GLOBAL_LOSS: False
 DATASETS:
@@ -38,7 +40,7 @@ DATASETS:
   SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
   IMS_PER_BATCH: 2
-  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
+  BASE_LR: 0.001  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 200
   CLIP_NORM: 32
   STEPS: (100,60000)

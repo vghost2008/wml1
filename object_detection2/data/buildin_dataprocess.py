@@ -133,14 +133,15 @@ def coco(cfg,is_training):
             trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
                                        trans.FixDataInfo()]
     else:
-        trans_on_single_img = [trans.MaskNHW2HWN(),
-                                    trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TEST,
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
+                               trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TEST,
                                                              max_size=cfg.INPUT.MAX_SIZE_TEST,
                                                              align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
-                                    trans.MaskHWN2NHW(),
-                                    trans.BBoxesRelativeToAbsolute(),
-                                    trans.AddBoxLens(),
-                                    ]
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
         trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
                                    trans.FixDataInfo()]
 
