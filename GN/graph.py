@@ -5,6 +5,9 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import functools
 import wtfop.wtfop_ops as wop
+import basic_tftools as btf
+
+slim = tf.contrib.slim
 
 class DynamicAdjacentMatrix:
     '''
@@ -54,13 +57,6 @@ class DynamicAdjacentMatrix:
         #输入为[X,node_hiden_size],输出为[1,node_hiden_size]
         self.points_reducer_for_global = functools.partial(tf.reduce_mean,axis=0,keepdims=True)
 
-        with tf.variable_scope("default_edge_value", reuse=tf.AUTO_REUSE):
-            self.default_value_s = tf.get_variable("default_edge_s",shape=[1,edges_data_dim],
-                                              dtype=tf.float32,
-                                              initializer=tf.zeros_initializer,trainable=True)
-            self.default_value_r = tf.get_variable("default_edge_r",shape=[1,edges_data_dim],
-                                              dtype=tf.float32,
-                                              initializer=tf.zeros_initializer,trainable=True)
         self.use_sent_edges_for_node = True
         self.use_received_edges_for_node = True
 
@@ -85,7 +81,7 @@ class DynamicAdjacentMatrix:
                 i = index // p_nr
                 j = tf.mod(index, p_nr)
                 return tf.concat([tf.reshape(i,[1]),tf.reshape(j,[1])],axis=0)
-            
+
             indexs = tf.map_fn(fn,elems=(edge_index),back_prop=False)
 
             return tf.unstack(tf.stop_gradient(indexs),axis=1)
@@ -114,6 +110,7 @@ class DynamicAdjacentMatrix:
         r_edges_indexs = tf.boolean_mask(r_edges_indexs,mask)
         r_edges_indexs = to_realedge_indices(r_edges_indexs)
         points_to_sedges,points_to_redges = tf.unstack(datas,axis=0)
+        #points_to_sedges = tf.Print(points_to_sedges,["shape g:",tf.shape(points_to_sedges),i,tf.shape(s_edges_indexs)])
         points_to_sedges = wop.set_value(points_to_sedges,i,tf.reshape(s_edges_indexs,[-1,1]))
         points_to_redges = wop.set_value(points_to_redges,i,tf.reshape(r_edges_indexs,[-1,1]))
         return tf.stack([points_to_sedges,points_to_redges],axis=0)
@@ -146,12 +143,13 @@ class DynamicAdjacentMatrix:
             return
         with tf.variable_scope(scope,default_name="UpdateEddges"):
             senders, receivers = self.gather_points_data_for_edges()
-            points_data = tf.concat([senders,receivers],axis=1)
+            datas = [senders,receivers]
             if use_global_attr:
                 globals_data = self.gather_globals_data_for_edges()
-                data_in = tf.concat([points_data,self.edges_data,globals_data],axis=1)
+                datas = datas+[self.edges_data,globals_data]
             else:
-                data_in = tf.concat([points_data, self.edges_data], axis=1)
+                datas = datas+[self.edges_data]
+            data_in = tf.concat(datas,axis=1)
             self.edges_data = edge_fn(data_in)
 
     def update_points(self,point_fn,scope=None,use_global_attr=True):
@@ -185,10 +183,13 @@ class DynamicAdjacentMatrix:
             self.global_attr = output
 
     def update(self,point_fn,edge_fn,global_fn,scopes=[None,None,None],use_global_attr=True):
-        self.update_edges(edge_fn,scopes[1],use_global_attr=use_global_attr)
-        self.update_points(point_fn,scopes[0],use_global_attr=use_global_attr)
         if use_global_attr:
             self.update_global(global_fn,scopes[2])
+        self.update_edges(edge_fn,scopes[1],use_global_attr=use_global_attr)
+        self.update_points(point_fn,scopes[0],use_global_attr=use_global_attr)
+        return {"edges":self.edges_data,"nodes":self.points_data,"global":self.global_attr}
+
+    def datas(self):
         return {"edges":self.edges_data,"nodes":self.points_data,"global":self.global_attr}
 
     def update_edges_independent(self,edge_fn,scope=None):
@@ -223,3 +224,121 @@ class DynamicAdjacentMatrix:
             self.points_data = tf.concat([self.points_data,datas["nodes"]],axis=1)
         if use_global_attr and "global" in datas and datas["global"] is not None:
             self.global_attr = tf.concat([self.global_attr,datas["global"]],axis=1)
+
+    def gru_concat(self,datas,use_global_attr=True):
+        with tf.variable_scope("gru_concat",reuse=tf.AUTO_REUSE):
+            if "edges" in datas and datas["edges"] is not None:
+                self.edges_data = self.__gru(self.edges_data,datas["edges"],scope="edge_gru")
+            if "nodes" in datas and datas["nodes"] is not None:
+                self.points_data = self.__gru(self.points_data,datas["nodes"],scope="node_gru")
+            if use_global_attr and "global" in datas and datas["global"] is not None:
+                self.global_attr = self.__gru(self.global_attr,datas["global"],scope="global_gru")
+
+    def __gru(self,h,x,scope=None):
+        with tf.variable_scope(scope,default_name="GRU"):
+            dim = btf.channel(h)
+            input0 = tf.concat([h,x],axis=-1)
+            net = slim.fully_connected(input0,dim*2,activation_fn=None,normalizer_fn=None)
+            net = tf.nn.sigmoid(net)
+            r,z = tf.split(net,num_or_size_splits=2,axis=-1)
+            input1 = tf.concat([r*h,x],axis=-1)
+            h_hat = slim.fully_connected(input1,dim,activation_fn=tf.nn.tanh,normalizer_fn=None)
+            h_t = (1-z)*h+z*h_hat
+            #y = slim.fully_connected(h_t,dim,activation_fn=tf.nn.sigmoid,normalizer_fn=None)
+            return h_t
+
+class DynamicAdjacentMatrixAtt(DynamicAdjacentMatrix):
+    def __init__(self,adj_mt,points_data,edges_data,edges_data_dim=None,axis=1):
+        self.max_nodes_edge_nr = 32
+        super().__init__(adj_mt,points_data,edges_data,edges_data_dim,axis)
+        self.points_to_edges_index = self.make_points_to_edges_indexs()
+        with tf.variable_scope("default_edge_value", reuse=tf.AUTO_REUSE):
+            assert edges_data_dim is not None or edges_data is not None, "Error edges data"
+            if edges_data_dim is None:
+                edges_data_dim = edges_data.get_shape().as_list()[-1]
+            self.default_value_s = tf.get_variable("default_edge_s",shape=[1,edges_data_dim],
+                                              dtype=tf.float32,initializer=tf.zeros_initializer,trainable=True)
+            self.default_value_r = tf.get_variable("default_edge_r",shape=[1,edges_data_dim],
+                                              dtype=tf.float32,
+                                              initializer=tf.zeros_initializer,trainable=True)
+        self.edges_reducer_for_points = functools.partial(tf.reduce_mean, axis=0, keepdims=False)
+        
+    def make_points_to_edges_indexs(self):
+        with tf.variable_scope("make_points_to_edges_index"):
+            return tf.map_fn(self.make_point_to_edges_indexs,elems=self.point_indexs,dtype=(tf.int32,tf.int32),
+                             back_prop=False)
+
+    def make_point_to_edges_indexs(self,i):
+
+        s_edges_indexs = self.point_indexs+i*self.points_size()
+
+        def to_realedge_indices(indices):
+            offset = tf.gather(self.p2e_offset_index,indices)
+            #offset = tf.Print(offset,["offset",offset],summarize=100)
+            return indices-offset
+
+        mask = self.adj_mt[i]
+        s_edges_indexs = tf.boolean_mask(s_edges_indexs,mask)
+        s_edges_indexs = to_realedge_indices(s_edges_indexs)
+
+        r_edges_indexs = self.point_indexs*self.points_size()+i
+        r_edges_indexs = tf.convert_to_tensor(r_edges_indexs)
+        mask = self.adj_mt[:,i]
+        r_edges_indexs = tf.boolean_mask(r_edges_indexs,mask)
+        r_edges_indexs = to_realedge_indices(r_edges_indexs)
+        res = [s_edges_indexs,r_edges_indexs]
+        res = tf.stack(res,axis=0)
+        nr = tf.shape(res)[1]
+        r_nr = tf.minimum(nr,self.max_nodes_edge_nr)
+        res = tf.cond(tf.greater(nr,self.max_nodes_edge_nr),lambda:res[:,:self.max_nodes_edge_nr],
+                      lambda:tf.pad(res,paddings=[[0,0],[0,self.max_nodes_edge_nr-nr]]))
+        return res,r_nr
+
+    def reduce_edges_data_for_point(self,point_data,edges_indexs,nr):
+        s_edges_indexs,r_edges_indexs = tf.unstack(edges_indexs[:,:nr],axis=0)
+
+        res = []
+        point_data = tf.expand_dims(point_data,axis=0)
+        if self.use_sent_edges_for_node:
+            s_edge = self.safe_gather(self.edges_data,s_edges_indexs,default_value=self.default_value_s)
+            s_edge = self.edges_reducer_for_points(s_edge)
+            s_edge = self.attention(point_data,s_edge,s_edge)
+            s_edge = tf.squeeze(s_edge,axis=0)
+            res.append(s_edge)
+
+        if self.use_received_edges_for_node:
+            r_edge = self.safe_gather(self.edges_data,r_edges_indexs,default_value=self.default_value_r)
+            r_edge = self.attention(point_data,r_edge,r_edge)
+            r_edge = tf.squeeze(r_edge,axis=0)
+            res.append(r_edge)
+
+        return res
+
+    def attention(self,Q, K, V):
+        with tf.variable_scope("Attention"):
+            A = tf.matmul(Q, K, transpose_b=True, name="MatMul_QK") * tf.rsqrt(tf.cast(tf.shape(V)[-1], tf.float32))
+            A = tf.nn.softmax(A)
+            O = tf.matmul(A, V, name="MatMul_AV")
+            return O
+        
+    def update_points(self,point_fn,scope=None,use_global_attr=True):
+        if point_fn is None:
+            return
+        with tf.variable_scope(scope,default_name="UpdatePoints"):
+            def fn(point_data,edges_index,nr):
+                edges = self.reduce_edges_data_for_point(point_data,edges_index,nr)
+                if use_global_attr:
+                    net = tf.concat([point_data]+ edges+[ tf.squeeze(self.global_attr,axis=0)], axis=-1)
+                else:
+                    net = tf.concat([point_data]+ edges, axis=-1)
+                return net
+
+        net = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),
+                                     elems=(self.points_data,self.points_to_edges_index[0],self.points_to_edges_index[1]),
+                                     dtype=self.points_data.dtype,
+                                     parallel_iterations=100)
+        self.points_data = point_fn(net)
+
+    def safe_gather(self,params, indices,default_value):
+        return tf.cond(tf.greater(tf.shape(indices)[0],0),lambda:tf.gather(params,indices),lambda:default_value)
+

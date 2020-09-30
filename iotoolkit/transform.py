@@ -678,7 +678,7 @@ class RandomSelectSubTransform(WTransform):
         return f"{type(self).__name}: "+str(self.trans)
 
 class AddBoxLens(WTransform):
-    def __init__(self,box_key="gt_boxes",gt_len_key="gt_length"):
+    def __init__(self,box_key=GT_BOXES,gt_len_key=GT_LENGTH):
         self.box_key = box_key
         self.gt_len_key = gt_len_key
 

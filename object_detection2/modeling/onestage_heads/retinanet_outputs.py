@@ -167,7 +167,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         return {"loss_cls": loss_cls, "loss_box_reg": loss_box_reg}
 
     @wmlt.add_name_scope
-    def inference(self, inputs,box_cls, box_delta,anchors):
+    def inference(self, inputs,box_cls, box_delta,anchors,output_fix_nr=0):
         """
         Arguments:
             inputs: same as RetinaNet.forward's batched_inputs
@@ -194,7 +194,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         box_cls = tf.concat(box_cls,axis=1)
         box_delta = tf.concat(box_delta,axis=1)
 
-        results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],anchors,anchors_size),elems=[box_cls,box_delta],
+        results = wmlt.static_or_dynamic_map_fn(lambda x:self.inference_single_image(x[0],x[1],anchors,anchors_size,output_fix_nr),elems=[box_cls,box_delta],
                                                 dtype=[tf.float32,tf.int32,tf.float32,tf.int32,tf.int32],
                                                 back_prop=False)
         outdata = {RD_BOXES:results[0],RD_LABELS:results[1],RD_PROBABILITY:results[2],RD_LENGTH:results[4],
@@ -209,7 +209,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         return outdata
 
     @wmlt.add_name_scope
-    def inference_single_image(self, box_cls, box_delta, anchors,anchors_size):
+    def inference_single_image(self, box_cls, box_delta, anchors,anchors_size,output_fix_nr=0):
         """
         Single-image inference. Return bounding-box detection results by thresholding
         on scores and applying non-maximum suppression (NMS).
@@ -275,8 +275,13 @@ class RetinaNetOutputs(wmodule.WChildModule):
         x,y = wmlt.sort_data(key=scores_all,datas=[boxes_all,class_idxs_all,res_indexs_all])
         boxes_all,class_idxs_all,res_indexs_all = y
         scores_all,_ = x
-        nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
+        if output_fix_nr < 5:
+            nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
                                 k=self.max_detections_per_image)
+        else:
+            nms = functools.partial(wop.boxes_nms_nr2, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
+                                    k=output_fix_nr,
+                                    allow_less_output=True)
         boxes,labels,nms_idxs = nms(bboxes=boxes_all,classes=class_idxs_all)
         scores = tf.gather(scores_all,nms_idxs)
         res_indexs_all = tf.gather(res_indexs_all,nms_idxs)

@@ -64,7 +64,7 @@ class TMAP(object):
             self._width = img_size.width
             self._height = img_size.height
             self._depth = img_size.depth
-            if self._width>0 and self._height>0 and self._depth>0:
+            if self._width>0 and self._height>0 and self._depth>0 and self.scan_scale>0:
                 return True
             else:
                 print(f"Error size {self._width,self._height,self._depth}")
@@ -194,6 +194,9 @@ class TMAP(object):
         :param scale:
         :return:
         '''
+
+        if not self.is_open:
+            raise ValueError(f"File not open.")
 
         lib = self.tmap_libs
 

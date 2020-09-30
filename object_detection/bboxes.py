@@ -425,10 +425,11 @@ def to_xyminwh(bbox):
     return (bbox[1],bbox[0],bbox[3]-bbox[1]+1,bbox[2]-bbox[0]+1)
 
 def scale_bboxes(bboxes,scale):
+    if isinstance(scale,(float,int)):
+        scale = [scale,scale]
     old_shape = tf.shape(bboxes)
     data = tf.reshape(bboxes,[-1,4])
-    data = tf.transpose(data,perm=[1,0])
-    ymin,xmin,ymax,xmax = tf.unstack(data,axis=0)
+    ymin,xmin,ymax,xmax = tf.unstack(data,axis=1)
     cy = (ymin+ymax)/2.
     cx = (xmin+xmax)/2.
     h = ymax-ymin
@@ -439,8 +440,7 @@ def scale_bboxes(bboxes,scale):
     ymax = cy + h / 2.
     xmin = cx - w / 2.
     xmax = cx + w / 2.
-    data = tf.stack([ymin, xmin, ymax, xmax], axis=0)
-    data = tf.transpose(data, perm=[1, 0])
+    data = tf.stack([ymin, xmin, ymax, xmax], axis=1)
     data = tf.reshape(data, old_shape)
     return data
 '''

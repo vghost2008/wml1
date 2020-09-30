@@ -112,7 +112,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False):
     if has_probs:
         return shape, np.array(bboxes), labels_text, difficult, truncated,probs
     else:
-        return shape, np.array(bboxes), labels_text, difficult, truncated
+        return shape, np.array(bboxes), labels_text, difficult, truncated,1.0
 
 def create_text_element(doc,name,value):
     if not isinstance(value,str):
@@ -271,7 +271,7 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
 file_path:图像文件路径
 bboxes:相对坐标
 '''
-def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated=None,probs=None,img_shape=None):
+def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -288,7 +288,8 @@ def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated
     base_name = base_name[:-4]+".xml"
     save_path = os.path.join(dir_path,base_name)
     wmli.imwrite(img_save_path,img)
-    write_voc_xml(save_path,img_save_path,img_shape,bboxes,labels,difficult,truncated,probs=probs)
+    write_voc_xml(save_path,img_save_path,img_shape,bboxes,labels,difficult,truncated,probs=probs,
+                  is_relative_coordinate=is_relative_coordinate)
 
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
@@ -381,7 +382,7 @@ def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annot
             os.remove(file)
 
 class PascalVOCData(object):
-    def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None):
+    def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False):
         '''
 
         :param label_text2id: trans a single label text to id
@@ -394,6 +395,7 @@ class PascalVOCData(object):
         self.shuffle = shuffle
         self.xml_sub_dir = xml_sub_dir
         self.image_sub_dir = image_sub_dir
+        self.has_probs = has_probs
         
     def read_data(self,dir_path):
         self.files = getVOCFiles(dir_path,image_sub_dir=self.image_sub_dir,
@@ -409,10 +411,10 @@ class PascalVOCData(object):
         for img_file, xml_file in self.files:
             #print(xml_file)
             try:
-                shape, bboxes, labels_names, difficult, truncated = read_voc_xml(xml_file,
+                shape, bboxes, labels_names, difficult, truncated,probs = read_voc_xml(xml_file,
                                                                             adjust=None,
                                                                             aspect_range=None,
-                                                                            has_probs=False)
+                                                                            has_probs=self.has_probs)
             except:
                 print(f"Read {xml_file} faild.")
                 continue
@@ -422,7 +424,7 @@ class PascalVOCData(object):
             else:
                 labels = None
             #使用difficult表示is_crowd
-            yield img_file, shape[:2],labels, labels_names, bboxes, None, None, difficult, None
+            yield img_file, shape[:2],labels, labels_names, bboxes, None, None, difficult, probs
 
     def get_boxes_items(self):
         '''

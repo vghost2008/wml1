@@ -2,6 +2,9 @@
 import numpy as np
 import math
 
+'''
+bboxes:[X,4], ymin,xmin,ymax,xmax, relative coordinate
+'''
 def bboxes_jaccard(bboxes1, bboxes2):
 
     bboxes1 = np.transpose(bboxes1)

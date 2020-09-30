@@ -1,6 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 from .build import META_ARCH_REGISTRY
+from object_detection2.modeling.bbdnet.build import build_bbdnet
 from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.backbone.build import build_backbone
 from object_detection2.modeling.anchor_generator import build_anchor_generator
@@ -11,9 +12,6 @@ from object_detection2.modeling.onestage_heads.retinanet_outputs import *
 from .meta_arch import MetaArch
 from object_detection2.datadef import *
 from object_detection2.modeling.onestage_heads.build import build_retinanet_head
-from object_detection2.modeling.bbdnet.bbdnet import BBDNet
-from object_detection2.modeling.bbdnet.bbdnet2 import BBDNet2
-from object_detection2.modeling.bbdnet.bbdnet3 import BBDNet3
 
 slim = tf.contrib.slim
 
@@ -52,6 +50,14 @@ class BBDRetinaNet(MetaArch):
             k = self.anchor_generator.num_cell_anchors[0],
         )
 
+    @wmlt.add_name_scope
+    def merge_features(self,features):
+        tower_nets = [features[0]]
+        shape = wmlt.combined_static_and_dynamic_shape(tower_nets[0])
+        for net in features[1:]:
+            tower_nets.append(tf.image.resize_bilinear(net,shape[1:3]))
+        tower_nets = tf.concat(tower_nets,axis=-1)
+        return tower_nets
 
     def forward(self, batched_inputs):
         """
@@ -110,17 +116,19 @@ class BBDRetinaNet(MetaArch):
         bbd_net_input = {}
         bbd_net_input['net_data'] = map_data
         bbd_net_input['base_net'] = features[-1]
+        tower_nets0 = self.merge_features(self.head.logits_pre_outputs)
+        tower_nets1 = self.merge_features(self.head.bbox_reg_pre_outputs)
+        tower_nets = tf.concat([tower_nets0,tower_nets1],axis=-1)
         bbd_net_input[IMAGE] = batched_inputs[IMAGE]
-        if self.cfg.MODEL.BBDNET.NAME == "BBDNET2":
-            bbd_net = BBDNet2(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
-                             threshold=0.02)
-        else:
-            bbd_net = BBDNet3(num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES, cfg=self.cfg, parent=self,
-                              threshold=0.02)
+        bbd_net_input['tower_nets'] = tower_nets
+        bbd_net = build_bbdnet(self.cfg.MODEL.BBDNET.NAME,
+                               num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+                               threshold=0.02)
         loss = {}
         if self.is_training:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
-                                            box_delta=pred_anchor_deltas, anchors=anchors)
+                                            box_delta=pred_anchor_deltas, anchors=anchors,
+                                            output_fix_nr=96)
             bbd_net_input.update(results)
             bbd_net_input[GT_BOXES] = batched_inputs[GT_BOXES]
             bbd_net_input[GT_LABELS] = batched_inputs[GT_LABELS]

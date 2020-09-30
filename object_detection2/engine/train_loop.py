@@ -451,7 +451,12 @@ class SimpleTrainer(TrainerBase):
                                      warmup_steps=self.cfg.SOLVER.WARMUP_ITERS)
         tf.summary.scalar("lr",lr)
         self.max_train_step = steps[-1]
-        opt = wnn.str2optimizer("Momentum", lr,momentum=0.9)
+
+        if self.cfg.SOLVER.OPTIMIZER == "Momentum":
+            opt = wnn.str2optimizer("Momentum", lr,momentum=self.cfg.SOLVER.OPTIMIZER_momentum)
+        else:
+            opt = wnn.str2optimizer(self.cfg.SOLVER.OPTIMIZER, lr)
+
         tower_grads = []
         if len(self.gpus) == 0:
             self.gpus = [0]
@@ -483,6 +488,9 @@ class SimpleTrainer(TrainerBase):
                 for k,v in loss_dict.items():
                     all_loss_dict[k+f"_stage{i}"] = v
                     tf.summary.scalar(f"loss/{k}",v)
+                    ##
+                    #v = tf.Print(v,[k,tf.is_nan(v), tf.is_inf(v)])
+                    ##
                     v = tf.cond(tf.logical_or(tf.is_nan(v), tf.is_inf(v)), lambda: tf.zeros_like(v), lambda: v)
                     loss_values.append(v)
 
@@ -507,9 +515,11 @@ class SimpleTrainer(TrainerBase):
                         grads[i][0] = g
                 #
                 tower_grads.append(grads)
+        ########################
         '''tower_grads[0] = [list(x) for x in tower_grads[0]]
         for i,(g,v) in enumerate(tower_grads[0]):
             tower_grads[0][i][0] = tf.Print(g,["B_"+v.name,tf.reduce_min(g),tf.reduce_mean(g),tf.reduce_max(g)])'''
+        ########################
 
         if self.cfg.SOLVER.CLIP_NORM>1:
             avg_grads = wnn.average_grads(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)

@@ -39,6 +39,7 @@ class VOCMaker(object):
 
         self.category_id_filter = _category_id_filter
         self.image_preprocess = None
+        #输入为list(str)
         self.labels_text_to_labels = _labels_text_to_labels
 
     '''

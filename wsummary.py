@@ -106,18 +106,24 @@ def detection_image_summary(images,
   Returns:
     4D image tensor of type uint8, with boxes drawn on top.
   """
+  assert len(boxes.get_shape()) == 3, f"error boxes dims {len(boxes.get_shape())}"
+  assert len(images.get_shape()) == 4, f"error images dims {len(images.get_shape())}"
   images = images[:max_outputs]
   boxes = boxes[:max_outputs]
   if classes is not None:
       classes = classes[:max_outputs]
+      assert len(classes.get_shape()) == 2, f"error classes dims {len(classes.get_shape())}"
   if scores is not None:
       scores = scores[:max_outputs]
+      assert len(scores.get_shape()) == 2, f"error scores dims {len(scores.get_shape())}"
   if instance_masks is not None:
       instance_masks = instance_masks[:max_outputs]
+      assert len(instance_masks.get_shape()) == 4, f"error instance mask dims {len(instance_masks.get_shape())}"
   if keypoints is not None:
       keypoints = keypoints[:max_outputs]
   if lengths is not None:
       lengths = lengths[:max_outputs]
+      assert len(lengths.get_shape()) == 1, f"error length dims {len(lengths.get_shape())}"
 
   with tf.device(":/cpu:0"):
     if images.get_shape().as_list()[0] is None:
@@ -159,33 +165,33 @@ def variable_summaries(var,name):
     tf.summary.scalar(name+'/stddev', stddev)
     tf.summary.histogram(name+'/hisogram', var)
 
-def variable_summaries_v2(var, name):
+def variable_summaries_v2(var, name,family=None):
     if var is None or name is None:
         return
     if var.dtype != tf.float32:
         var = tf.cast(var, tf.float32)
     if isSingleValueTensor(var):
         var = tf.reshape(var,())
-        tf.summary.scalar(name, var)
+        tf.summary.scalar(name, var,family=family)
         return
     mean = tf.reduce_mean(var)
-    tf.summary.scalar(name+'/max', tf.reduce_max(var))
-    tf.summary.scalar(name+'/min', tf.reduce_min(var))
-    tf.summary.scalar(name+'/mean', mean)
+    tf.summary.scalar(name+'/max', tf.reduce_max(var),family=family)
+    tf.summary.scalar(name+'/min', tf.reduce_min(var),family=family)
+    tf.summary.scalar(name+'/mean', mean,family=family)
     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar(name+'/stddev', stddev)
-    tf.summary.histogram(name+'/hisogram', var)
+    tf.summary.scalar(name+'/stddev', stddev,family=family)
+    tf.summary.histogram(name+'/hisogram', var,family=family)
 
-def histogram(var,name):
+def histogram(var,name,family=None):
     if not isSingleValueTensor(var):
-        tf.summary.histogram(name, var)
+        tf.summary.histogram(name, var,family=family)
 
-def histogram_or_scalar(var,name):
+def histogram_or_scalar(var,name,family=None):
     if not isSingleValueTensor(var):
-        tf.summary.histogram(name, var)
+        tf.summary.histogram(name, var,family=family)
     else:
         var = tf.reshape(var,())
-        tf.summary.scalar(name, var)
+        tf.summary.scalar(name, var,family=family)
 
 def image_summaries(var,name,max_outputs=3):
     if var.get_shape().ndims==3:
@@ -297,3 +303,14 @@ def summary_image_with_box(image,
                                                               category_index=category_index,
                                                               max_boxes_to_draw=max_boxes_to_draw)
         tf.summary.image(name, image_with_box)
+
+def summary_graph(img,points,adj_mt,name="summary_graph",is_relative_coordinate=True):
+    img = imv.draw_graph(img,points,adj_mt,is_relative_coordinate)
+    tf.summary.image(name,tf.expand_dims(img,axis=0))
+
+def summary_graph_by_bboxes(img,bboxes,adj_mt,name="summary_graph",is_relative_coordinate=True):
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=-1)
+    cx = (xmin+xmax)/2
+    cy = (ymin+ymax)/2
+    points = tf.stack([cx,cy],axis=-1)
+    summary_graph(img,points,adj_mt,name,is_relative_coordinate)

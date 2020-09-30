@@ -4,11 +4,12 @@ from GN.graph import DynamicAdjacentMatrix
 import wsummary
 import object_detection.bboxes as odb
 from wtfop.wtfop_ops import adjacent_matrix_generator_by_iou
+from object_detection2.modeling.box_regression import Box2BoxTransform
 import wnnlayer as wnnl
 import wml_tfutils as wmlt
 from functools import partial
-import wnn
 import basic_tftools as btf
+import wnn
 slim = tf.contrib.slim
 
 FLAGS = tf.app.flags.FLAGS
@@ -34,6 +35,7 @@ class AbstractBBDNet:
 
         self.cfg = cfg
         self.logits = None
+        self.pred_bboxes_deltas = None
         #edges between guidepost
         self.boxes = boxes
         self.probability = probability
@@ -48,6 +50,9 @@ class AbstractBBDNet:
         self.is_training = is_training
         self.base_net = base_net
         self.mid_outputs = []
+        self.mid_bboxes_outputs = []
+        self.box2box_transform = Box2BoxTransform()
+
 
     def get_predict(self, proposal_boxes, threshold=None):
         probs = tf.nn.softmax(self.logits)
@@ -62,8 +67,10 @@ class AbstractBBDNet:
         if threshold is not None:
             mask = tf.logical_and(mask, tf.greater(probs, threshold))
         boxes = tf.boolean_mask(proposal_boxes, mask)
+        pred_deltas = tf.boolean_mask(self.pred_bboxes_deltas,mask)
         labels = tf.boolean_mask(raw_labels, mask)
         probs = tf.boolean_mask(probs, mask)
+        boxes = self.box2box_transform.apply_deltas(pred_deltas,boxes)
         return boxes, labels, probs, raw_labels
 
     '''
@@ -72,9 +79,10 @@ class AbstractBBDNet:
     def loss(self,y):
         assert y.get_shape().ndims==1, "error"
         loss = []
+        print(f"Mid outputs nr {len(self.mid_outputs)} {len(self.mid_bboxes_outputs)}")
         with tf.variable_scope("losses"):
             for i,logits in enumerate(self.mid_outputs):
-                scale = 100.0
+                scale = 1.0
                 loss0 = self._loss(logits,y)*scale
                 wsummary.histogram_or_scalar(loss0,f"node_loss_{i}")
                 loss.append(loss0)
@@ -84,10 +92,25 @@ class AbstractBBDNet:
     def _loss(self,logits,y):
         assert y.get_shape().ndims==1, "error"
         assert logits.get_shape().ndims==2, "error"
-        loss0 = wnn.sparse_softmax_cross_entropy_with_logits_FL(labels=y,
-                                                                logits=logits,
-                                                                alpha=None)
-        pmask = tf.greater(y,0)
+        loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,
+                                                                logits=logits)
+        with tf.device(":/cpu:0"):
+            values, indices = tf.nn.top_k(logits)
+        plabels = tf.reshape(indices, [-1])
+        pmask = tf.logical_or(tf.greater(y, 0), tf.greater(plabels, 0))
+        nmask = tf.logical_not(pmask)
+        ploss = btf.safe_reduce_mean(tf.boolean_mask(loss0, pmask))
+        nloss = btf.safe_reduce_mean(tf.boolean_mask(loss0, nmask))
+        return ploss+nloss
+
+    def _lossv2(self,logits,y):
+        assert y.get_shape().ndims==1, "error"
+        assert logits.get_shape().ndims==2, "error"
+        logits = tf.squeeze(logits,axis=-1)
+        loss0 = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.cast(y,tf.float32),
+                                                        logits=logits)
+        plabels = tf.cast(tf.greater(tf.nn.sigmoid(logits),0.5),tf.int32)
+        pmask = tf.logical_or(tf.greater(y, 0), tf.greater(plabels, 0))
         nmask = tf.logical_not(pmask)
         ploss = btf.safe_reduce_mean(tf.boolean_mask(loss0, pmask))
         nloss = btf.safe_reduce_mean(tf.boolean_mask(loss0, nmask))
@@ -99,42 +122,34 @@ class AbstractBBDNet:
             net = slim.fully_connected(x, dims,activation_fn=None)
             return net
 
-    @staticmethod
-    def _mlp(x,dims,scope=None,pool=False):
+    def _mlp(self,x,dims,scope=None,pool=False):
         with tf.variable_scope(scope,default_name="MLP",reuse=tf.AUTO_REUSE):
             mid_dims = dims if not pool else 2*dims
-            net = slim.fully_connected(x, mid_dims)
+            net = slim.fully_connected(x, mid_dims,normalizer_fn=self.normalizer_fn)
             if pool:
                 x = tf.expand_dims(net,axis=-1)
                 x = tf.layers.max_pooling1d(x,strides=2,pool_size=2)
                 net = tf.squeeze(x,axis=-1)
             return net
 
-    @staticmethod
-    def res_mlp(x,dims,scope=None,pool=False):
+    def res_mlp(self,x,dims,scope=None):
         with tf.variable_scope(scope,default_name="bottleneck_v1",reuse=tf.AUTO_REUSE):
             in_dims = x.get_shape().as_list()[-1]
-            mid_dims = dims if not pool else 2*dims
-            half_mid_dims = mid_dims//2
             net = x
-            #net = wmlt.PrintNaNorInf(net,name="is_nan_inf_in_mlp")
-            if in_dims != mid_dims:
-                x = slim.fully_connected(x, mid_dims,activation_fn=None,
+            if in_dims != dims:
+                x = slim.fully_connected(x, dims,activation_fn=None,
                                          normalizer_fn=None,
                                          scope = "shortcut")
-            net = slim.fully_connected(net, half_mid_dims)
-            net = slim.fully_connected(net, half_mid_dims)
-            net = slim.fully_connected(net, mid_dims)
-            if pool:
-                net = AbstractBBDNet.max_pool(net,strides=2,pool_size=2)
-            return net+x
+            normalizer_fn = self.normalizer_fn
+            net = slim.fully_connected(net, dims,normalizer_fn=normalizer_fn)
+            net = slim.fully_connected(net, dims,normalizer_fn=normalizer_fn)
+            net = slim.fully_connected(net, dims,normalizer_fn=None)
+            return normalizer_fn(net+x)
 
-    @staticmethod
-    def res_block(x,dims,unit_nr=3,scope=None,pool=False):
+    def res_block(self,x,dims,unit_nr=1,scope=None):
         with tf.variable_scope(scope,default_name="block",reuse=tf.AUTO_REUSE):
             for i in range(unit_nr):
-                is_pool = pool and (i==unit_nr-1)
-                x = AbstractBBDNet.res_mlp(x,dims,f"unit_{i+1}",is_pool)
+                x = self.res_mlp(x,dims,f"unit_{i+1}")
             return x
 
     @staticmethod
@@ -144,12 +159,11 @@ class AbstractBBDNet:
         net = tf.squeeze(net,axis=-1)
         return net
 
-    @staticmethod
-    def mlp(x,dims,scope=None,layer=4,pool_last=False):
+    def mlp(self,x,dims,scope=None,layer=4,pool_last=False):
         with tf.variable_scope(scope,default_name="MLP"):
             mid_dims = dims if not pool_last else 2*dims
             for i in range(layer):
-                x = AbstractBBDNet._mlp(x,mid_dims,scope=f"SubLayer{i}")
+                x = self._mlp(x,mid_dims,scope=f"SubLayer{i}")
             if pool_last:
                 x = tf.expand_dims(x,axis=-1)
                 x = tf.layers.max_pooling1d(x,strides=2,pool_size=2)

@@ -729,6 +729,9 @@ _C.MODEL.BBDNET.USE_SENT_EDGES_FOR_NODE = True
 _C.MODEL.BBDNET.NUM_PREPROCESSING_STEPS = 2
 _C.MODEL.BBDNET.NUM_PROCESSING_STEPS = 3
 _C.MODEL.BBDNET.NAME = "BBDNET3"
+_C.MODEL.BBDNET.EDGES_REDUCER_FOR_POINTS = "sum"
+_C.MODEL.BBDNET.RES_UNIT_NR = 4
+_C.MODEL.BBDNET.DIMS = [96,96,96]
 
 # ---------------------------------------------------------------------------- #
 # Solver
@@ -773,6 +776,8 @@ _C.SOLVER.LR_DECAY_FACTOR = 0.1
 _C.SOLVER.TRAIN_SCOPES = ""
 _C.SOLVER.TRAIN_REPATTERN = ""
 _C.SOLVER.FILTER_NAN_AND_INF_GRADS = False
+_C.SOLVER.OPTIMIZER = "Momentum"
+_C.SOLVER.OPTIMIZER_momentum = 0.9
 
 # ---------------------------------------------------------------------------- #
 # Specific test options

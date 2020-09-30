@@ -1,7 +1,8 @@
 MODEL:
   META_ARCHITECTURE: "BBDRetinaNet"
-  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
-  ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
+  #WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  WEIGHTS: "/home/wj/ai/tmp3/object_detection2/RetinaNetCOCODemon"
+  #ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   EXCLUDE_SCOPE: "BBDNet"
   BACKBONE:
@@ -26,29 +27,39 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     OUTPUTS: "RetinaNetGIOUOutputs"
-    HEAD_NAME: "RetinaNetSepHead"
     NMS_THRESH_TEST: 0.7
+  BBDNET:
+    NAME: "BBDNet7"
+    SCORE_THRESH_TEST: 0.02
+    USE_GLOBAL_LOSS: False
+    ABSOLUTE_BBOXES: False
+    USE_SENT_EDGES_FOR_NODE: False
+    NUM_PROCESSING_STEPS: 6
+    NUM_PREPROCESSING_STEPS: 1
+    EDGES_REDUCER_FOR_POINTS: "sum"
+    RES_UNIT_NR: 1
+    DIMS: [96,96,96]
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
   #TRAIN: "mnistod_train"
   #TEST: "mnistod_eval"
-  SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
-  IMS_PER_BATCH: 2
-  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
-  WARMUP_ITERS: 1000
-  CLIP_NORM: 32
-  STEPS: (80000,100000,120000)
+  IMS_PER_BATCH: 3
+  BASE_LR: 0.01
+  WARMUP_ITERS: 10
+  CLIP_NORM: 0
+  STEPS: (100,120000)
   LR_DECAY_TYPE: "cosine"
-  TRAIN_SCOPES: "BBDNet"
+  TRAIN_SCOPES: ".*BBDNet"
+  FILTER_NAN_AND_INF_GRADS: True
 INPUT:
   MIN_SIZE_TRAIN: (512,544,576,608,640)
   MAX_SIZE_TRAIN: 800
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
-  SHUFFLE_BUFFER_SIZE: 1024
+  SHUFFLE_BUFFER_SIZE: 512
   #DATAPROCESS: "SSD_Fix_Size"
 VERSION: 2
 GLOBAL:

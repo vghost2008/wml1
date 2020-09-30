@@ -39,11 +39,11 @@ DATASETS:
   #TEST: "mnistod_eval"
   SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
-  IMS_PER_BATCH: 2
-  BASE_LR: 0.001  # Note that RetinaNet uses a different default learning rate
+  IMS_PER_BATCH: 3
+  BASE_LR: 0.0001  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 200
-  CLIP_NORM: 32
-  STEPS: (100,60000)
+  CLIP_NORM: 8
+  STEPS: (100,120000)
   LR_DECAY_TYPE: "cosine"
   TRAIN_SCOPES: "BBDNet"
 INPUT:
@@ -52,7 +52,7 @@ INPUT:
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
-  SHUFFLE_BUFFER_SIZE: 1024
+  SHUFFLE_BUFFER_SIZE: 512
   #DATAPROCESS: "SSD_Fix_Size"
 VERSION: 2
 GLOBAL:

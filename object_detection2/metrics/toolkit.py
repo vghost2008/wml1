@@ -237,6 +237,43 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
     else:
         return precision,recall
 
+class PrecisionAndRecall:
+    def __init__(self,threshold=0.5,num_classes=90,*args,**kwargs):
+        self.threshold = threshold
+        self.gtboxes = []
+        self.gtlabels = []
+        self.boxes = []
+        self.labels = []
+        self.precision = None
+        self.recall = None
+        self.total_test_nr = 0
+        self.num_classes = num_classes
+
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],
+                 gtmasks=None,
+                 masks=None,is_crowd=None):
+        if gtboxes.shape[0]>0:
+            self.gtboxes.append(gtboxes)
+            self.gtlabels.append(np.array(gtlabels)+self.total_test_nr*self.num_classes)
+        if boxes.shape[0]>0:
+            self.boxes.append(boxes)
+            self.labels.append(np.array(labels)+self.total_test_nr*self.num_classes)
+        self.total_test_nr += 1
+
+    def evaluate(self):
+        if self.total_test_nr==0 or len(self.boxes)==0 or len(self.labels)==0:
+            self.precision,self.recall = 0,0
+            return
+        gtboxes = np.concatenate(self.gtboxes,axis=0)
+        gtlabels = np.concatenate(self.gtlabels,axis=0)
+        boxes = np.concatenate(self.boxes,axis=0)
+        labels = np.concatenate(self.labels,axis=0)
+        self.precision,self.recall = getPrecision(gtboxes, gtlabels, boxes, labels, threshold=self.threshold,
+                                                  auto_scale_threshold=False, ext_info=False)
+    def show(self):
+        self.evaluate()
+        print(f"Total test nr {self.total_test_nr}, precision {self.precision}, recall {self.recall}")
+
 class ModelPerformance:
     def __init__(self,threshold,no_mAP=False,no_F1=False):
         self.total_map = 0.

@@ -16,6 +16,7 @@ import time
 from tensorflow.contrib.framework.python.ops import add_arg_scope
 import basic_tftools as btf
 from collections import Iterable
+import wsummary
 
 DATA_FORMAT_NHWC = 'NHWC'
 slim = tf.contrib.slim
@@ -424,6 +425,45 @@ def layer_norm(x,scope="layer_norm"):
     return tf.contrib.layers.layer_norm(
         inputs=x, begin_norm_axis=-1, begin_params_axis=-1, scope=scope)
 
+def graph_norm(input,decay=0.99,scale=True):
+    last_dim_size = input.get_shape().as_list()[-1]
+    with tf.variable_scope("BatchNorm"):
+        if scale:
+            gamma = tf.get_variable(name="gamma",shape=(last_dim_size),initializer=tf.ones_initializer())
+        else:
+            gamma = None
+        offset = tf.get_variable(name="beta",shape=(last_dim_size),initializer=tf.zeros_initializer())
+        c_mean, c_variance = tf.nn.moments(input, list(range(len(input.get_shape()) - 1)))
+        '''wsummary.variable_summaries_v2(c_mean, "graph_norm_mean", "layer_norm")
+        wsummary.variable_summaries_v2(c_variance, "graph_norm_variance", "layer_norm")
+        wsummary.variable_summaries_v2(input, "net", "net")'''
+        output = tf.nn.batch_normalization(input, c_mean, c_variance, offset, gamma, 1E-6, "BN")
+    return output
+
+def group_graph_norm(x,G=16,decay=0.99,scale=True,offset=True,epsilon=1e-8):
+    with tf.variable_scope("group_graph_norm"):
+        dtype = x.dtype
+        N,C = wmlt.combined_static_and_dynamic_shape(x)
+        gamma = tf.get_variable(name="gamma",shape=[1,G,C//G],initializer=tf.ones_initializer(),dtype=dtype)
+        if offset:
+            beta = tf.get_variable(name="beta",shape=[1,G,C//G],initializer=tf.zeros_initializer(),dtype=dtype)
+        x = wmlt.reshape(x, [N,G, C // G,])
+        mean, var = tf.nn.moments(x, [0,2], keep_dims=True)
+        gain = tf.math.rsqrt(var+epsilon)
+        offset_value = -mean*gain
+        if scale:
+            gain *= gamma
+            if offset_value is not None:
+                offset_value *= gamma
+        if offset:
+            if offset_value is not None:
+                offset_value += beta
+            else:
+                offset_value = beta
+        x = x*gain+offset_value
+        x = wmlt.reshape(x, [N,C])
+        return x
+    return output
 
 @add_arg_scope
 def instance_norm(x, eps=1e-5):

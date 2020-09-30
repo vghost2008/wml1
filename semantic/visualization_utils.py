@@ -33,6 +33,7 @@ import six
 import tensorflow as tf
 import cv2 as cv
 import cv2
+import sys
 
 _TITLE_LEFT_MARGIN = 10
 _TITLE_TOP_MARGIN = 10
@@ -617,6 +618,8 @@ def visualize_boxes_and_labels_on_image_array(
   if not max_boxes_to_draw:
     max_boxes_to_draw = boxes.shape[0]
   for i in range(min(max_boxes_to_draw, boxes.shape[0])):
+    #print(boxes.shape,scores,i)
+    #sys.stdout.flush()
     if scores is None or scores[i] > min_score_thresh:
       box = tuple(boxes[i].tolist())
       if instance_masks is not None:

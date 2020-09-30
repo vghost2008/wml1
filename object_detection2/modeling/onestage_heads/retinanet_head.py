@@ -40,6 +40,8 @@ class RetinaNetHead(wmodule.WChildModule):
         self.normalizer_fn, self.norm_params = odtk.get_norm(self.cfg.NORM, is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
+        self.logits_pre_outputs = []
+        self.bbox_reg_pre_outputs = []
 
     def forward(self, features):
         """
@@ -64,6 +66,8 @@ class RetinaNetHead(wmodule.WChildModule):
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         logits = []
         bbox_reg = []
+        self.logits_pre_outputs = []
+        self.bbox_reg_pre_outputs = []
         for j, feature in enumerate(features):
             channels = feature.get_shape().as_list()[-1]
             with tf.variable_scope("WeightSharedConvolutionalBoxPredictor", reuse=tf.AUTO_REUSE):
@@ -81,6 +85,7 @@ class RetinaNetHead(wmodule.WChildModule):
                                                          **self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
+                self.bbox_reg_pre_outputs.append(net)
                 _bbox_reg = slim.conv2d(net, self.num_anchors * 4, [3, 3], activation_fn=None,
                                         normalizer_fn=None,
                                         scope="BoxPredictor")
@@ -100,6 +105,7 @@ class RetinaNetHead(wmodule.WChildModule):
                                                          **self.norm_params)
                         if self.activation_fn is not None:
                             net = self.activation_fn(net)
+                self.logits_pre_outputs.append(net)
                 _logits = slim.conv2d(net, self.num_anchors * num_classes, [3, 3], activation_fn=None,
                                       normalizer_fn=None,
                                       biases_initializer=tf.constant_initializer(value=bias_value),

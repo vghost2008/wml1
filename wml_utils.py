@@ -493,6 +493,17 @@ class AvgTimeThis():
     def __str__(self):
         return "AVG: "+str(self.get_time())+ f", test_nr = {self.step}, {self.datas}"
 
+class MovingAvg(object):
+    def __init__(self,init_val = 0.0,momentum=0.99):
+        self.v = init_val
+        self.momentum = momentum
+
+    def __call__(self, v):
+        self.v = self.v*self.momentum+v*(1-self.momentum)
+
+    def value(self):
+        return self.v
+
 
 def time_this(func):
     @wraps(func)
@@ -625,3 +636,5 @@ def sync_data_dir(src_dir,dst_dir):
     print(cmd)
     os.system(cmd)
     sys.stdout.flush()
+
+

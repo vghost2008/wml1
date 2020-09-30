@@ -298,7 +298,7 @@ def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
-    data.read_data('/home/wj/ai/mldata3/cell/stage01_verify_preprocv3_1')
+    data.read_data('/2_data/wj/mldata/cell/rdatav1_proc/')
 
     return data.get_items()
 
@@ -347,11 +347,11 @@ if __name__ == "__main__":
             k = min_size/ img_size[1]
         return [k*img_size[0],k*img_size[1]]
 
-    statics = statistics_boxes_with_datas(coco2017_dataset(),
+    statics = statistics_boxes_with_datas(pascal_voc_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,
-                                          trans_img_size=trans_img_short_size)
+                                          trans_img_size=None)
 
     statistics_boxes(statics[0], nr=nr)
     statistics_boxes_by_different_area(statics[0],nr=nr,bin_size=5)

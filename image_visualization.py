@@ -86,7 +86,12 @@ def draw_detection_image_summary(images,
                                  lengths=None,
                                  max_boxes_to_draw=20,
                                  min_score_thresh=0.2):
-
+    assert len(boxes.get_shape())==3,"bboxes must be 3 dimenstion."
+    assert len(images.get_shape())==4,"images must be 4 dimenstion."
+    if classes is not None:
+        assert len(classes.get_shape())==2,"classes must be 2 dimenstion."
+    if scores is not None:
+        assert len(scores.get_shape())==2,"scores must be 2 dimenstion."
     if images.dtype == tf.float32 or images.dtype == tf.float64:
         min = tf.reduce_min(images)
         max = tf.reduce_max(images)
@@ -301,3 +306,40 @@ def draw_polygon(img,polygon,color=(255,255,255),is_line=True,isClosed=True):
         return cv2.polylines(img, [polygon], color=color,isClosed=isClosed)
     else:
         return cv2.fillPoly(img,[polygon],color=color)
+
+'''
+img: [H,W,C]
+points: [N,2] (x,y), relative coordinate (if relative_coordinate=True) or absolute coordinate (if relative_coordinate=False)
+adj_mt: [N,N]
+'''
+def draw_graph(img,points,adj_mt,relative_coordinate=True):
+    if relative_coordinate:
+        shape = tf.shape(img)
+        points = points*tf.cast(tf.convert_to_tensor([[shape[1],shape[0]]]),tf.float32)
+    points = tf.to_int32(points)
+    old_shape = btf.combined_static_and_dynamic_shape(img)
+    img = tf.py_func(__draw_graph,inp=(img,points,adj_mt),Tout=img.dtype,stateful=False)
+    return tf.reshape(img,old_shape)
+
+def __draw_graph(img,points,adj_mt,radius=5,color=(0,0,255),thickness=2):
+    nr = adj_mt.shape[0]
+    if nr != adj_mt.shape[1] or nr != points.shape[0]:
+        print(f"Error graph adj shape {points.shape} {adj_mt.shape}")
+        return img
+    for i in range(nr):
+        for j in range(nr):
+            if adj_mt[i,j] ==0:
+                continue
+            if i==j:
+                cv2.circle(img,tuple(points[i]),radius,color)
+            else:
+                cv2.line(img,tuple(points[i]),tuple(points[j]),color,thickness)
+
+    return img
+
+def draw_graph_by_bboxes(img,bboxes,adj_mt,relative_coordinate=True):
+    ymin, xmin, ymax, xmax = tf.unstack(bboxes, axis=-1)
+    cx = (xmin + xmax) / 2
+    cy = (ymin + ymax) / 2
+    points = tf.stack([cx, cy], axis=-1)
+    return draw_graph(img,points,adj_mt,relative_coordinate)

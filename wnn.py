@@ -95,7 +95,7 @@ def build_learning_rate(initial_lr,
       return lr
 
 def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes_pattern=None,clip_norm=None,loss=None,
-                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None,num_epochs_per_decay=None):
+                 colocate_gradients_with_ops=False,optimizer="Adam",scope=None,num_epochs_per_decay=None,optimizer_args=None):
     with tf.name_scope(name=scope,default_name="train_op"):
         num_batches_per_epoch=float(FLAGS.example_size)/batch_size
         if num_epochs_per_decay is None:
@@ -120,7 +120,9 @@ def get_train_op(global_step,batch_size=32,learning_rate=1E-3,scopes=None,scopes
         variables_not_to_train = get_variables_not_to_train(variables_to_train)
         show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
         logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
-        opt = str2optimizer(optimizer,lr)
+        if optimizer_args is None:
+            optimizer_args = {}
+        opt = str2optimizer(optimizer,lr,**optimizer_args)
 
         if loss is not None:
             total_loss = loss

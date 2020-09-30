@@ -14,6 +14,7 @@ from object_detection2.standard_names import *
 import object_detection2.od_toolkit as odt
 import wtfop.wtfop_ops as wop
 import object_detection2.wlayers as odl
+from .build import BBDNET_MODEL
 
 slim = tf.contrib.slim
 
@@ -50,6 +51,7 @@ class BBDNetForOneImg(AbstractBBDNet):
 
     def build_net(self):
         adj_mt = adjacent_matrix_generator_by_iou(bboxes=self.boxes, threshold=0.3, keep_connect=True)
+        adj_mt = tf.Print(adj_mt,[tf.shape(adj_mt)])
         if len(self.map_data.get_shape()) == 4:
             with tf.variable_scope("smooth_map_data"):
                 chl = btf.channel(self.map_data)
@@ -245,6 +247,7 @@ class BBDNetForOneImg(AbstractBBDNet):
             out = normalizer_fn(out, **normalizer_params)
             return out
 
+@BBDNET_MODEL.register()
 class BBDNet(WModule):
     def __init__(self,num_classes,max_node_nr=100,cfg=None,parent=None,*args,**kwargs):
         super().__init__(cfg=cfg,parent=parent,*args,**kwargs)
