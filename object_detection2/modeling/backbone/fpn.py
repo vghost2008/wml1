@@ -5,6 +5,7 @@ import functools
 from .backbone import Backbone
 from .build import BACKBONE_REGISTRY,build_backbone_by_name
 from .resnet import build_resnet_backbone
+from .resnetv2 import build_resnetv2_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
 import object_detection2.od_toolkit as odt
@@ -235,6 +236,30 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
         backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
     """
     bottom_up = build_resnet_backbone(cfg, *args,**kwargs)
+    in_features = cfg.MODEL.FPN.IN_FEATURES
+    out_channels = cfg.MODEL.FPN.OUT_CHANNELS
+    backbone = FPN(
+        bottom_up=bottom_up,
+        in_features=in_features,
+        out_channels=out_channels,
+        top_block=LastLevelP6P7(out_channels,cfg,*args,**kwargs),
+        fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
+        cfg=cfg,
+        *args,
+        **kwargs
+    )
+    return backbone
+
+@BACKBONE_REGISTRY.register()
+def build_retinanet_resnetv2_fpn_backbone(cfg, *args,**kwargs):
+    """
+    Args:
+        cfg: a CfgNode
+
+    Returns:
+        backbone (Backbone): backbone module, must be a subclass of :class:`Backbone`.
+    """
+    bottom_up = build_resnetv2_backbone(cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
     backbone = FPN(
