@@ -380,9 +380,10 @@ class BBDNet2(WModule):
                                 preprocess_nr=self.cfg.MODEL.BBDNET.NUM_PREPROCESSING_STEPS)
         outputs = {}
         if self.is_training:
-            fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,threshold=0.05)
+            fboxes, flabels, probs, raw_plabels,raw_probs = bbd_net.get_predict(raw_bboxes,threshold=0.05)
             y, y_scores,indexs = wop.boxes_match_with_pred(boxes=tf.expand_dims(raw_bboxes,axis=0),
                                                     plabels=tf.expand_dims(raw_plabels,axis=0),
+                                                    pprobs=tf.expand_dims(raw_probs, axis=0),
                                                     gboxes=tf.expand_dims(datas[GT_BOXES],axis=0),
                                                     glabels=tf.expand_dims(datas[GT_LABELS],axis=0),
                                                     glens=tf.reshape(datas[GT_LENGTH],[1]),

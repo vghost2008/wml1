@@ -315,6 +315,7 @@ _C.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
 # Overlap threshold used for non-maximum suppression (suppress boxes with
 # IoU >= this threshold)
 _C.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
+_C.MODEL.ROI_HEADS.CLASSES_WISE_NMS = True
 # If True, augment proposals with ground-truth boxes before sampling proposals to
 # train ROI heads.
 _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_GT = True

@@ -62,6 +62,7 @@ class AbstractBBDNet:
         if threshold is not None:
             raw_labels = raw_labels + 1
         raw_labels = tf.reshape(raw_labels, [-1])
+        raw_probs = tf.reshape(probs, [-1])
         probs = tf.reshape(probs, [-1])
         mask = tf.greater(raw_labels, 0)
         if threshold is not None:
@@ -71,7 +72,7 @@ class AbstractBBDNet:
         labels = tf.boolean_mask(raw_labels, mask)
         probs = tf.boolean_mask(probs, mask)
         boxes = self.box2box_transform.apply_deltas(pred_deltas,boxes)
-        return boxes, labels, probs, raw_labels
+        return boxes, labels, probs, raw_labels,raw_probs
 
     '''
     y:[batch_size,k] target label
