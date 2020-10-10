@@ -20,6 +20,7 @@ class ResNet(Backbone):
         self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.RESNETS.NORM, self.is_training)
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.RESNETS.ACTIVATION_FN)
         self.out_channels = cfg.MODEL.RESNETS.OUT_CHANNELS
+        self.scope_name = "50"
 
     def forward(self, x):
         res = collections.OrderedDict()
@@ -35,16 +36,20 @@ class ResNet(Backbone):
                                              is_training=train_bn)):
             with tf.variable_scope("FeatureExtractor"):
                 if self.cfg.MODEL.RESNETS.DEPTH == 101:
-                    print("ResNet-100")
+                    print("ResNet-101")
+                    self.scope_name = "101"
                     _,end_points = resnet_v1_101(x['image'],output_stride=None)
                 elif self.cfg.MODEL.RESNETS.DEPTH == 152:
-                    print("ResNet-150")
+                    print("ResNet-152")
+                    self.scope_name = "152"
                     _, end_points = resnet_v1_152(x['image'], output_stride=None)
                 elif self.cfg.MODEL.RESNETS.DEPTH == 200:
-                    print("ResNet-150")
+                    print("ResNet-200")
+                    self.scope_name = "200"
                     _, end_points = resnet_v1_200(x['image'], output_stride=None)
                 else:
                     print("ResNet-50")
+                    self.scope_name = "50"
                     _,end_points = resnet_v1_50(x['image'],output_stride=None)
 
         self.end_points = end_points
@@ -53,9 +58,9 @@ class ResNet(Backbone):
         keys2 = ["block1","block2","block3","block4"] #block3,block4都是1/32
         values2 = ["res1","res2","res3","res4"] #block3,block4都是1/32
         for i in range(1,6):
-            res[f"C{i}"] = end_points["FeatureExtractor/resnet_v1_50/"+keys[i-1]]
+            res[f"C{i}"] = end_points[f"FeatureExtractor/resnet_v1_{self.scope_name}/"+keys[i-1]]
         for i,k in enumerate(keys2):
-            res[values2[i]] = end_points["FeatureExtractor/resnet_v1_50/"+keys2[i]]
+            res[values2[i]] = end_points[f"FeatureExtractor/resnet_v1_{self.scope_name}/"+keys2[i]]
 
         if self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6":
             res[f"C{6}"] = slim.avg_pool2d(res["C5"],kernel_size=1, stride=2, padding="SAME")

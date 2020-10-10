@@ -35,39 +35,43 @@ class ResNetV2(Backbone):
                                              is_training=train_bn)):
             if self.cfg.MODEL.RESNETS.DEPTH == 101:
                 print("ResNet-100")
-                _,end_points = resnet_v2_101(x['image'],output_stride=None,block4_stride=2)
+                _,end_points = resnet_v2_101(x['image'],output_stride=None,block4_stride=2,is_training=train_bn)
             elif self.cfg.MODEL.RESNETS.DEPTH == 152:
                 print("ResNet-150")
-                _, end_points = resnet_v2_152(x['image'], output_stride=None)
+                _, end_points = resnet_v2_152(x['image'], output_stride=None,is_training=train_bn)
             elif self.cfg.MODEL.RESNETS.DEPTH == 200:
                 print("ResNet-150")
-                _, end_points = resnet_v2_200(x['image'], output_stride=None)
+                _, end_points = resnet_v2_200(x['image'], output_stride=None,is_training=train_bn)
             else:
                 print("ResNet-50")
-                _,end_points = resnet_v2_50(x['image'],output_stride=None)
+                _,end_points = resnet_v2_50(x['image'],output_stride=None,is_training=train_bn)
 
         self.end_points = end_points
 
-        keys = ["conv1","block1/unit_2/bottleneck_v1","block1","block2","block4"] #block3,block4都是1/32
+        if self.cfg.MODEL.RESNETS.DEPTH>50: 
+            keys = ["conv1","block1/unit_2/bottleneck_v2","block1","block2","block3","block4"] #block3,block4都是1/32
+        else:
+            keys = ["conv1","block1/unit_2/bottleneck_v2","block1","block2","block4"] 
         keys2 = ["block1","block2","block3","block4"] #block3,block4都是1/32
         values2 = ["res1","res2","res3","res4"] #block3,block4都是1/32
-        for i in range(1,6):
+        for i in range(1,len(keys)+1):
             res[f"C{i}"] = end_points[f"resnet_v2_{self.cfg.MODEL.RESNETS.DEPTH}/"+keys[i-1]]
         for i,k in enumerate(keys2):
             res[values2[i]] = end_points[f"resnet_v2_{self.cfg.MODEL.RESNETS.DEPTH}/"+keys2[i]]
 
+        next_nr = len(keys)+1
         if self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6":
-            res[f"C{6}"] = slim.avg_pool2d(res["C5"],kernel_size=1, stride=2, padding="SAME")
+            res[f"C{next_nr}"] = slim.avg_pool2d(res["C5"],kernel_size=1, stride=2, padding="SAME")
         elif self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6C7":
             with tf.variable_scope("FeatureExtractor"):
-                last_feature = res["C5"]
+                last_feature = res[f"C{next_nr-1}"]
                 for i in range(2):
                     last_feature = slim.conv2d(last_feature, self.out_channels, [3, 3], stride=2,
                                                activation_fn=self.activation_fn,
                                                normalizer_fn=self.normalizer_fn,
                                                normalizer_params=self.norm_params,
                                                scope=f"conv{i + 1}")
-                    res[f"C{6+i}"] = last_feature
+                    res[f"C{next_nr+i}"] = last_feature
         return res
 
 
