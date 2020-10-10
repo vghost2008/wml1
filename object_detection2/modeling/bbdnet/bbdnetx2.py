@@ -395,7 +395,7 @@ class BBDNetX2(WModule):
             img_size = tf.to_float(tf.shape(datas[IMAGE]))
             bboxes = odb.tfrelative_boxes_to_absolutely_boxes(bboxes,width=img_size[1],height=img_size[0])
         #bboxes = tf.zeros_like(bboxes)
-        probs = tf.stop_gradient(datas[RD_RAW_PROBABILITY][:l])
+        probs = tf.stop_gradient(datas[RD_PROBABILITY][:l])
         labels = tf.stop_gradient(datas[RD_LABELS][:l])
         #probs = tf.zeros_like(probs)
         return_nr = tf.shape(datas[RD_LABELS])[0]
