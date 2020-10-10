@@ -1,8 +1,12 @@
 import logging
 import wmodule
+import wml_tfutils as wmlt
 from object_detection2.modeling.backbone.build import build_backbone,build_backbone_by_name
+from object_detection2.modeling.bbdnet.build import build_bbdnet
 from object_detection2.modeling.proposal_generator.build import build_proposal_generator
 from .build import META_ARCH_REGISTRY
+from object_detection2.datadef import *
+from object_detection2.config.config import global_cfg
 from object_detection2.modeling.roi_heads.roi_heads import build_roi_heads
 import wsummary
 from object_detection2.standard_names import *
@@ -18,7 +22,7 @@ from .meta_arch import MetaArch
 from object_detection2.data.dataloader import DataLoader
 
 @META_ARCH_REGISTRY.register()
-class GeneralizedRCNN(MetaArch):
+class GeneralizedGRCNN(MetaArch):
     """
     Generalized R-CNN. Any models that contains the following three components:
     1. Per-image feature extraction (aka backbone)
@@ -32,6 +36,8 @@ class GeneralizedRCNN(MetaArch):
         self.backbone = build_backbone(cfg,parent=self,*args,**kwargs)
         self.proposal_generator = build_proposal_generator(cfg,parent=self,*args,**kwargs)
         self.roi_heads = build_roi_heads(cfg,parent=self,*args,**kwargs)
+        self.roi_heads.disable_training()
+        self.proposal_generator.disable_training()
         self.roi_heads_backbone = None
         if cfg.MODEL.ROI_HEADS.BACKBONE != "":
             self.roi_heads_backbone = build_backbone_by_name(cfg.MODEL.ROI_HEADS.BACKBONE,cfg,parent=self,*args,**kwargs)
@@ -68,6 +74,7 @@ class GeneralizedRCNN(MetaArch):
         使用主干网络生成一个FeatureMap, 如ResNet的Res4(stride=16)
         '''
         features = self.backbone(batched_inputs)
+        bb_features = [features[f] for f in self.cfg.MODEL.ROI_HEADS.IN_FEATURES]
         if self.roi_heads_backbone is not None:
             roi_features = self.roi_heads_backbone(batched_inputs)
         else:
@@ -82,15 +89,53 @@ class GeneralizedRCNN(MetaArch):
 
         results, detector_losses = self.roi_heads(batched_inputs, roi_features, proposals)
 
+        print("Use crop map attr.")
+        bbd_net_input = {}
+        #bbd_net_input['net_data'] = map_data
+        bbd_net_input['base_net'] = bb_features[-1]
+        bbd_net_input[IMAGE] = batched_inputs[IMAGE]
+        bbd_net_input['net_data'] = bb_features
+        bbd_net = build_bbdnet(self.cfg.MODEL.BBDNET.NAME,
+                               num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+                               threshold=0.02)
         if len(results)>0:
             wsummary.detection_image_summary(images=batched_inputs[IMAGE],
-                                         boxes=results[RD_BOXES], classes=results[RD_LABELS],
-                                         lengths=results[RD_LENGTH],
-                                         scores=results[RD_PROBABILITY],
-                                         name="RCNN_result",
-                                         category_index=DataLoader.category_index)
+                                             boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                             lengths=results[RD_LENGTH],
+                                             scores=results[RD_PROBABILITY],
+                                             name="RCNN_result",
+                                             category_index=DataLoader.category_index)
 
         losses = {}
+        if self.is_training:
+            bbd_net_input.update(results)
+            bbd_net_input[GT_BOXES] = batched_inputs[GT_BOXES]
+            bbd_net_input[GT_LABELS] = batched_inputs[GT_LABELS]
+            bbd_net_input[GT_LENGTH] = batched_inputs[GT_LENGTH]
+            ###
+            bbd_net_input[RD_RAW_PROBABILITY] = results[RD_PROBABILITY]
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+            losses.update(bbd_loss)
+
+        else:
+            bbd_net_input.update(results)
+            ###
+            bbd_net_input[RD_RAW_PROBABILITY] = results[RD_PROBABILITY]
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+
+        if global_cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+            wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                             boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                             lengths=results[RD_LENGTH],
+                                             scores=results[RD_PROBABILITY],
+                                             name="GRCNN_result",
+                                             category_index=DataLoader.category_index)
+
+
         losses.update(detector_losses)
         losses.update(proposal_losses)
         return results,losses
@@ -116,6 +161,7 @@ class GeneralizedRCNN(MetaArch):
 
         batched_inputs = self.preprocess_image(batched_inputs)
         features = self.backbone(batched_inputs)
+        bb_features = [features[f] for f in self.cfg.MODEL.ROI_HEADS.IN_FEATURES]
         if self.roi_heads_backbone is not None:
             roi_features = self.roi_heads_backbone(batched_inputs)
         else:
@@ -132,7 +178,47 @@ class GeneralizedRCNN(MetaArch):
         else:
             detected_instances = [x.to(self.device) for x in detected_instances]
             results = self.roi_heads.forward_with_given_boxes(roi_features, detected_instances)
+
         instance_masks = None if not self.cfg.MODEL.MASK_ON else results.get(RD_MASKS,None)
+        print("Use crop map attr.")
+        bbd_net_input = {}
+        #bbd_net_input['net_data'] = map_data
+        bbd_net_input['base_net'] = bb_features[-1]
+        bbd_net_input[IMAGE] = batched_inputs[IMAGE]
+        bbd_net_input['net_data'] = bb_features
+        bbd_net = build_bbdnet(self.cfg.MODEL.BBDNET.NAME,
+                               num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
+                               threshold=0.02)
+
+        losses = {}
+        if self.is_training:
+            bbd_net_input.update(results)
+            bbd_net_input[GT_BOXES] = batched_inputs[GT_BOXES]
+            bbd_net_input[GT_LABELS] = batched_inputs[GT_LABELS]
+            bbd_net_input[GT_LENGTH] = batched_inputs[GT_LENGTH]
+            ###
+            bbd_net_input[RD_RAW_PROBABILITY] = results[RD_PROBABILITY]
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+            losses.update(bbd_loss)
+
+        else:
+            bbd_net_input.update(results)
+            ###
+            bbd_net_input[RD_RAW_PROBABILITY] = results[RD_PROBABILITY]
+            ###
+            bbd_loss,bbd_outputs = bbd_net(bbd_net_input)
+            results.update(bbd_outputs)
+
+        if global_cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+            wsummary.detection_image_summary(images=batched_inputs[IMAGE],
+                                             boxes=results[RD_BOXES], classes=results[RD_LABELS],
+                                             lengths=results[RD_LENGTH],
+                                             scores=results[RD_PROBABILITY],
+                                             name="GRCNN_result",
+                                             category_index=DataLoader.category_index)
+
         if instance_masks is not None:
             shape = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
             instance_masks = tf.cast(instance_masks>0.5,tf.float32)
@@ -159,44 +245,3 @@ class GeneralizedRCNN(MetaArch):
             return self._postprocess(results, batched_inputs),None
         else:
             return results,None
-
-@META_ARCH_REGISTRY.register()
-class ProposalNetwork(MetaArch):
-    def __init__(self, cfg,parent=None,*args,**kwargs):
-        del parent
-        super().__init__(cfg,*args,**kwargs)
-        self.backbone = build_backbone(cfg,parent=self)
-        self.proposal_generator = build_proposal_generator(cfg,*args,**kwargs,parent=self)
-
-    def forward(self, inputs):
-        """
-        Args:
-            Same as in :class:`GeneralizedRCNN.forward`
-
-        Returns:
-            list[dict]:
-                Each dict is the output for one input image.
-                The dict contains one key "proposals" whose value is a
-                :class:`Instances` with keys "proposal_boxes" and "objectness_logits".
-        """
-        inputs = self.preprocess_image(inputs)
-        features = self.backbone(inputs)
-        outdata,proposal_losses = self.proposal_generator(inputs, features)
-        wsummary.detection_image_summary(images=inputs['image'],boxes=outdata[PD_BOXES],name="proposal_boxes")
-        return outdata,proposal_losses
-
-    def doeval(self,evaler,datas):
-        assert datas[GT_BOXES].shape[0]==1,"Error batch size"
-        image = datas[IMAGE]
-        gt_boxes = datas[GT_BOXES][0]
-        gt_labels = np.ones_like(datas[GT_LABELS][0],dtype=np.int32)
-        boxes = datas[PD_BOXES][0]
-        probability = datas[PD_PROBABILITY][0]
-        labels = np.ones_like(probability,dtype=np.int32)
-        size = list(datas['size'])
-        if size[0]>image.shape[1]:
-            size[0] = image.shape[1]
-            size[1] = image.shape[2]
-        evaler(gtboxes=gt_boxes,gtlabels=gt_labels,boxes=boxes,labels = labels,
-               probability=probability,
-               img_size=size)

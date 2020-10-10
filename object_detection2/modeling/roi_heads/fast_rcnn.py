@@ -419,8 +419,16 @@ class FastRCNNOutputs(wmodule.WChildModule):
             list[Tensor]: same as fast_rcnn_inference.
         """
         with tf.name_scope("fast_rcnn_outputs_inference"):
-            nms = functools.partial(wop.boxes_nms, threshold=nms_thresh,
-                                    classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
+            output_fix_nr = self.cfg.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES
+            if output_fix_nr < 5:
+                nms = functools.partial(wop.boxes_nms, threshold=nms_thresh,
+                                        classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,
+                k=self.max_detections_per_image)
+            else:
+                nms = functools.partial(wop.boxes_nms_nr2, threshold=nms_thresh,
+                                        classes_wise = self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,
+                                        k=output_fix_nr,
+                                        allow_less_output=True)
 
             if proposal_boxes is None:
                 proposal_boxes = self.proposals[PD_BOXES]

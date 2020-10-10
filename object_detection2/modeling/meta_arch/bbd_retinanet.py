@@ -128,7 +128,7 @@ class BBDRetinaNet(MetaArch):
         if self.is_training:
             results = outputs.inference(inputs=batched_inputs,box_cls=pred_logits,
                                             box_delta=pred_anchor_deltas, anchors=anchors,
-                                            output_fix_nr=96)
+                                            output_fix_nr=self.cfg.MODEL.BBDNET.BBOXES_NR)
             bbd_net_input.update(results)
             bbd_net_input[GT_BOXES] = batched_inputs[GT_BOXES]
             bbd_net_input[GT_LABELS] = batched_inputs[GT_LABELS]
@@ -139,6 +139,7 @@ class BBDRetinaNet(MetaArch):
             t_pred_logits = general_to_N_HWA_K_and_concat(pred_logits, K=self.num_classes)
             t_probs = tf.nn.sigmoid(t_pred_logits)
             t_probs = wmlt.batch_gather(t_probs, results[RD_INDICES])
+            #t_probs = tf.Print(t_probs,["pl:",t_probs[1][33],results[RD_LABELS][1][33]],summarize=100)
             bbd_net_input[RD_RAW_PROBABILITY] = t_probs
             ###
             bbd_loss,bbd_outputs = bbd_net(bbd_net_input)

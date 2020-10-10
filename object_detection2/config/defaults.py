@@ -328,6 +328,7 @@ _C.MODEL.ROI_HEADS.PRED_IOU_VERSION = 0
 _C.MODEL.ROI_HEADS.OUTPUTS = "FastRCNNOutputs"
 _C.MODEL.ROI_HEADS.BOX_REG_LOSS_SCALE = 1.0
 _C.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE = 1.0
+_C.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES = 0
 
 # ---------------------------------------------------------------------------- #
 # Box Head
@@ -733,6 +734,8 @@ _C.MODEL.BBDNET.NAME = "BBDNET3"
 _C.MODEL.BBDNET.EDGES_REDUCER_FOR_POINTS = "sum"
 _C.MODEL.BBDNET.RES_UNIT_NR = 4
 _C.MODEL.BBDNET.DIMS = [96,96,96]
+_C.MODEL.BBDNET.BBOXES_NR = 96
+_C.MODEL.BBDNET.SHALLOW_GRAPH = False
 
 # ---------------------------------------------------------------------------- #
 # Solver

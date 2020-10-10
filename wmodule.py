@@ -3,6 +3,7 @@
 class WModule(object):
     def __init__(self,cfg,parent=None,is_training=False,*args,**kwargs):
         self.maped_attr = {"is_training":is_training}
+        self.local_attr = {}
         self.cfg = cfg
         self.parent = parent
         self.childs = []
@@ -13,12 +14,16 @@ class WModule(object):
         self.childs.append(obj)
 
     def __getattr__(self,item):
-        if item == "maped_attr":
+        if item == "maped_attr" or item == 'local_attr':
             return self.__dict__[item]
+        elif item in self.local_attr:
+            return self.local_attr[item]
         elif item in self.maped_attr:
             if self.parent is None:
                 return self.maped_attr[item]
-            else:
+            elif item in self.parent.local_attr:
+                return self.parent.local_attr[item]
+            elif item in self.parent.maped_attr:
                 return self.parent.maped_attr[item]
         else:
             if item in self.__dict__:
@@ -39,6 +44,9 @@ class WModule(object):
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args,**kwargs)
+
+    def disable_training(self):
+        self.local_attr['is_training'] = False
 
 class WChildModule(WModule):
     def __init__(self,*args,**kwargs):

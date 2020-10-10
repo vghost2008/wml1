@@ -88,12 +88,12 @@ class MetaArch(wmodule.WModule):
         kwargs['boxes'] = boxes
         kwargs['labels'] = labels
         kwargs['probability'] = probability
-        '''size = list(datas['size'])
-        if min(size[0])>image.shape[0]
+
+        size = list(datas['size'])
+        if size[0]>image.shape[0]:
             size[0] = image.shape[0]
             size[1] = image.shape[1]
-        = image.shape[0:2]'''
-        kwargs['img_size'] = image.shape[0:2]
+        #kwargs['img_size'] = image.shape[0:2]
 
         if RD_MASKS in datas and GT_MASKS in datas:
             gt_masks = datas[GT_MASKS][0]

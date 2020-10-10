@@ -509,9 +509,14 @@ class SimpleTrainer(TrainerBase):
                 if self.cfg.SOLVER.FILTER_NAN_AND_INF_GRADS:
                     grads = [list(x) for x in grads]
                     for i,(g, v) in enumerate(grads):
-                        g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
+                        try:
+                            if g is not None:
+                                g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
                                                                                                stddev=1e-5),
                                      g)
+                        except:
+                            print(f"Error {g}/{v}")
+                            raise Exception("Error")
                         grads[i][0] = g
                 #
                 tower_grads.append(grads)

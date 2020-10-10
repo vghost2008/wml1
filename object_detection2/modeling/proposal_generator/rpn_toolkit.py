@@ -93,10 +93,13 @@ def find_top_rpn_proposals_for_single_level(
         probability,indices = tf.nn.top_k(pred_objectness_logits,
                                           k=tf.minimum(pre_nms_topk,tf.shape(pred_objectness_logits)[1]))
         proposals = wmlt.batch_gather(proposals,indices)
+        batch_size = pred_objectness_logits.get_shape().as_list()[0]
+        if not is_training and batch_size>1:
+            print("RPN: Inference on multi images.")
 
         def fn(bboxes,probability):
             labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
-            if is_training:
+            if is_training or batch_size>1:
                 boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
                 probability = tf.gather(probability,indices)
             else:
