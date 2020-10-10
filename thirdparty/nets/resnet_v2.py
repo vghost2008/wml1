@@ -278,13 +278,14 @@ def resnet_v2_101(inputs,
                   output_stride=None,
                   spatial_squeeze=True,
                   reuse=None,
+                  block4_stride=1,
                   scope='resnet_v2_101'):
   """ResNet-101 model of [1]. See resnet_v2() for arg and return description."""
   blocks = [
       resnet_v2_block('block1', base_depth=64, num_units=3, stride=2),
       resnet_v2_block('block2', base_depth=128, num_units=4, stride=2),
       resnet_v2_block('block3', base_depth=256, num_units=23, stride=2),
-      resnet_v2_block('block4', base_depth=512, num_units=3, stride=1),
+      resnet_v2_block('block4', base_depth=512, num_units=3, stride=block4_stride),
   ]
   return resnet_v2(inputs, blocks, num_classes, is_training=is_training,
                    global_pool=global_pool, output_stride=output_stride,
