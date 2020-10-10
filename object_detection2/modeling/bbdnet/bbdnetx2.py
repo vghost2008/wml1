@@ -368,7 +368,10 @@ class BBDNetX2(WModule):
                                         )
             #datas[RD_BOXES] = tf.Print(datas[RD_BOXES],[tf.shape(datas[RD_RAW_PROBABILITY]),tf.shape(datas[RD_BOXES]),datas[RD_LENGTH],"shape0"],summarize=100)
             B,box_nr,_ = wmlt.combined_static_and_dynamic_shape(datas[RD_BOXES])
-            box_features = box_pooler(datas['net_data'], datas[RD_BOXES], img_size=img_size)
+            net_data = datas['net_data']
+            if isinstance(net_data,tf.Tensor):
+                net_data = [net_data]
+            box_features = box_pooler(net_data, datas[RD_BOXES], img_size=img_size)
             M,R,R,C = wmlt.combined_static_and_dynamic_shape(box_features)
             box_features = tf.reshape(box_features,[B,box_nr,R,R,C])
 

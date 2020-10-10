@@ -40,6 +40,8 @@ MODEL:
     RES_UNIT_NR: 1
     DIMS: [128,128,96]
     SHALLOW_GRAPH: True
+    BBOXES_NR: 96
+    MAP_DATA: "P3;P4;P5"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"

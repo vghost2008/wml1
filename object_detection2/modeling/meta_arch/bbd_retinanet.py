@@ -112,7 +112,12 @@ class BBDRetinaNet(MetaArch):
             print("Use direct map attr.")
         else:
             print("Use crop map attr.")
-            map_data = bb_features[self.cfg.MODEL.BBDNET.MAP_DATA]
+            if ";" in self.cfg.MODEL.BBDNET.MAP_DATA:
+                keys = self.cfg.MODEL.BBDNET.MAP_DATA.split(";")
+                map_data = [bb_features[x] for x in keys]
+            else:
+                keys = self.cfg.MODEL.BBDNET.MAP_DATA
+                map_data = bb_features[keys]
         bbd_net_input = {}
         bbd_net_input['net_data'] = map_data
         bbd_net_input['base_net'] = features[-1]
