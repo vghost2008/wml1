@@ -422,8 +422,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             output_fix_nr = self.cfg.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES
             if output_fix_nr < 5:
                 nms = functools.partial(wop.boxes_nms, threshold=nms_thresh,
-                                        classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,
-                k=self.max_detections_per_image)
+                                        classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
             else:
                 nms = functools.partial(wop.boxes_nms_nr2, threshold=nms_thresh,
                                         classes_wise = self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,

@@ -193,7 +193,7 @@ class ProposalNetwork(MetaArch):
         boxes = datas[PD_BOXES][0]
         probability = datas[PD_PROBABILITY][0]
         labels = np.ones_like(probability,dtype=np.int32)
-        size = list(datas['size'])
+        size = list(datas['size'][0])
         if size[0]>image.shape[1]:
             size[0] = image.shape[1]
             size[1] = image.shape[2]

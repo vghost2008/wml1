@@ -89,7 +89,7 @@ class MetaArch(wmodule.WModule):
         kwargs['labels'] = labels
         kwargs['probability'] = probability
 
-        size = list(datas['size'])
+        size = list(datas['size'][0])
         if size[0]>image.shape[0]:
             size[0] = image.shape[0]
             size[1] = image.shape[1]
