@@ -9,6 +9,7 @@ MODEL:
   RESNETS:
     DEPTH: 50
     FROZEN_BN: True
+    MAKE_C6C7: "C6"
   ROI_HEADS:
     #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
@@ -32,10 +33,10 @@ MODEL:
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
   FPN:
-    IN_FEATURES: ["C3","C4","C5"]
+    IN_FEATURES: ["C3","C4","C5","C6"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    LAST_LEVEL_NUM_CONV: 1
+    LAST_LEVEL_NUM_CONV: 0
     BACKBONE_HOOK: ("","BalanceBackboneHookV2")
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
@@ -67,6 +68,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_3"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

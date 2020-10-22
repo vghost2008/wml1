@@ -126,11 +126,15 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
                                   normalizer_params=normalizer_params,
                                   scope=f"smooth")
             for i, (k, v) in enumerate(end_points):
+                with tf.name_scope(f"smooth_low_feature{i}"):
+                    index = int(k[1:])
+                    low_feature = low_features[f"C{index}"]
+                    channel = v.get_shape().as_list()[-1]
+                    low_feature = slim.conv2d(low_feature,channel,[1,1],activation_fn=None,
+                                              normalizer_fn=None)
                 with tf.name_scope(f"merge{i}"):
                     shape = wmlt.combined_static_and_dynamic_shape(v)
                     v0 = tf.image.resize_bilinear(net, shape[1:3])
-                    index = int(k[1:])
-                    low_feature = low_features[f"C{index}"]
                     res[k] = tf.concat([v + v0,low_feature],axis=-1)
 
             return res
