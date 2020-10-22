@@ -146,6 +146,7 @@ class CascadeROIHeads(StandardROIHeads):
             proposals_boxes = proposals.boxes #when training proposals is EncodedData
         else:
             proposals_boxes = proposals[PD_BOXES] #when inference, proposals is a dict which is the output of rpn
+        self.t_proposal_boxes = proposals_boxes
         box_features = self.box_pooler(features, proposals_boxes,img_size=img_size)
         # The original implementation averages the losses among heads,
         # but scale up the parameter gradients of the heads.
@@ -207,7 +208,6 @@ class CascadeROIHeads(StandardROIHeads):
                                                                     scores=scores,
                                                                     logmask=logmask,
                                                                     name="label_and_sample_proposals_summary_by_gtboxes")
-
 
             res = EncodedData(gt_logits_i,scores,indices,proposals,gt_boxes,gt_labels)
 

@@ -693,6 +693,7 @@ class StandardROIHeads(ROIHeads):
             proposal_boxes = proposals.boxes #when training proposals's EncodedData
         else:
             proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
+        self.t_proposal_boxes = proposal_boxes
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         if self.roi_hook is not None:
             box_features = self.roi_hook(box_features,self.batched_inputs)
