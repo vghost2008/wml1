@@ -49,6 +49,7 @@ class PredictModel(object):
         self.trainer.resume_or_load(sess=self.sess)
 
     def predictImages(self,imgs):
+        print(imgs.shape)
         feed_dict = {self.input_imgs:imgs}
         if self.step % self.log_step == 0:
             res_data = dict(self.trainer.res_data_for_eval)

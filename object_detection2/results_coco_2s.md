@@ -60,6 +60,7 @@
 ####bbox
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
+|MaskRCNNFPNCOCODemon-sephNv15|0.385|0.582|0.417|0.156|0.383|0.497|0.317|0.486|0.507|0.290|0.515|0.603|
 |base line|0.267|0.444|0.284|0.029|0.194|0.385|0.249|0.376|0.391|0.034|0.346|0.540|
 |cosine+EvoNormS0 mask head|0.285|0.470|0.304|0.028|0.213|0.413|0.258|0.386|0.400|0.030|0.358|0.555|
 |P3output+cosine|0.283|0.471|0.299|0.031|0.210|0.412|0.258|0.386|0.401|0.035|0.354|0.556|
@@ -76,6 +77,9 @@
 |3) |0.306|0.479|0.324|0.055|0.219|0.433|0.279|0.415|0.430|0.092|0.393|0.559|
 |4) |0.314|0.502|0.332|0.039|0.228|0.456|0.276|0.406|0.421|0.056|0.375|0.571|
 |4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
+|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|
+|4) + cls loss weight + roi nr=512 + 1 anchor(sephv14_1)|0.325|0.522|0.350|0.067|0.313|0.486|0.281|0.407|0.418|0.108|0.440|0.587|
+|5) + cls loss weight + roi nr=512 + 1 anchor(sephv14_2)|0.326|0.519|0.349|0.071|0.315|0.488|0.279|0.407|0.418|0.107|0.440|0.588|
 |4) + cls loss weight +RPN evo normal(sephv17)|0.314|0.501|0.337|0.050|0.231|0.453|0.279|0.405|0.417|0.063|0.371|0.569|
 |4) + cls loss weight + no balance sample(sephv16)|0.311|0.495|0.332|0.045|0.229|0.453|0.275|0.401|0.411|0.056|0.355|0.569|
 |4) + cls loss weight + no neg balance sample(sephv18)|0.314|0.506|0.334|0.047|0.231|0.451|0.277|0.407|0.420|0.061|0.374|0.570|
@@ -89,7 +93,6 @@
 |4)+GIOUoutputs+reg loss x8 + low box reg threshold(sephv21)|0.299|0.466|0.321|0.041|0.207|0.437|0.275|0.398|0.409|0.059|0.352|0.562|
 |4) + cls loss weight+p3 output (sephv22)|0.313|0.500|0.331|0.043|0.236|0.455|0.277|0.405|0.418|0.058|0.377|0.571|
 |Cascade|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|
-
 
 ####segm
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -112,6 +115,7 @@
 - 2) use cosine + BalanceBackboneHook + Mask Head EvoNormS0
 - 3) sephv2+cosine+EvoNormS0+ASTTMatcher+class loss linear scalear+new rcn sample+p2 output
 - 4) sephv2+cosine+EvoNormS0+ASTTMatcher3+new rcn sample
+- 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
 ```
 
 ###bbox

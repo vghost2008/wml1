@@ -350,7 +350,7 @@ class BBDNetX2(WModule):
     def __init__(self,num_classes,max_node_nr=96,cfg=None,parent=None,*args,**kwargs):
         super().__init__(cfg=cfg,parent=parent,*args,**kwargs)
         self.num_classes = num_classes
-        self.threshold = [self.cfg.MODEL.BBDNET.SCORE_THRESH_TEST,0.5]
+        self.threshold = [self.cfg.MODEL.BBDNET.SCORE_THRESH_TEST,0.2]
         self.max_node_nr = max_node_nr
         self.conv_normalizer_fn,self.conv_normalizer_params = odt.get_norm('evo_norm_s0',True)
         self.conv_activation_fn = None

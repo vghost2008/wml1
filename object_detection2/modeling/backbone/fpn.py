@@ -157,8 +157,10 @@ class FPN(Backbone):
                 for i in range(len(res)):
                     output_feature_map_keys.append(f"P{self.stage+i+1}")
         res = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
+        self.low_features = bottom_up_features
         if self.hook_after is not None:
             res = self.hook_after(res,x)
+        res.update(bottom_up_features)
         return res
 
 class LastLevelMaxPool(wmodule.WChildModule):

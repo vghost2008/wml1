@@ -4,14 +4,12 @@ from GN.graph import DynamicAdjacentMatrix,DynamicAdjacentMatrixShallow
 import image_visualization as imv
 import wsummary
 import object_detection.bboxes as odb
-from object_detection2.modeling.poolers import ROIPooler
-from wtfop.wtfop_ops import adjacent_matrix_generator_by_iouv3
-from object_detection2.odtools import *
+from wtfop.wtfop_ops import adjacent_matrix_generator_by_iouv4
 import wnnlayer as wnnl
 import wml_tfutils as wmlt
 import basic_tftools as btf
 from functools import partial
-from .abstractbbdnetx1 import AbstractBBDNet
+from .abstractbbdnetx3 import AbstractBBDNet
 import nlp.wlayers as nlpl
 from wmodule import WModule
 from object_detection2.standard_names import *
@@ -63,7 +61,7 @@ class BBDNetForOneImg(AbstractBBDNet):
                 self.build_net()
 
     def build_net(self):
-        adj_mt = adjacent_matrix_generator_by_iouv3(bboxes=self.boxes, threshold=0.3, keep_connect=False)
+        adj_mt = adjacent_matrix_generator_by_iouv4(bboxes=self.boxes, labels=self.input_labels,threshold=0.3, keep_connect=False)
         '''adj_mt = adjacent_matrix_generator_by_iouv2(bboxes=self.boxes,
                                                   labels=self.input_labels,
                                                   probs=self.probability,
@@ -90,8 +88,7 @@ class BBDNetForOneImg(AbstractBBDNet):
             net2_0 = slim.fully_connected(self.map_data, self.POINT_HIDDEN_SIZE // 2)
             # process probability
             net2_1 = slim.fully_connected(self.probability, self.POINT_HIDDEN_SIZE // 2)
-            #net2_0 = tf.Print(net2_0,[tf.shape(self.map_data),tf.shape(self.probability),tf.shape(net2_1),"shape"])
-            net2 = tf.concat([net2_0,net2_1],axis=-1,name="concat_net2_0_net2_1")
+            net2 = tf.concat([net2_0, net2_1], axis=-1,name="concat_map_data_procs")
             # Fusion all parts of node.
             net = tf.concat([net0, net2], axis=1,name="concat_net0_net2")
             #net = tf.zeros_like(net)
@@ -108,7 +105,6 @@ class BBDNetForOneImg(AbstractBBDNet):
         else:
             global_fn = None
             global_fn_i = None
-
         if self.cfg.MODEL.BBDNET.SHALLOW_GRAPH:
             grapy_t = DynamicAdjacentMatrixShallow
         else:
@@ -177,16 +173,6 @@ class BBDNetForOneImg(AbstractBBDNet):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
 
-        def output_fn(net):
-            with tf.variable_scope("NodesOutput", reuse=tf.AUTO_REUSE):
-                # net = AbstractBBDNet.max_pool(net)
-                net = slim.fully_connected(net,  self.POINT_HIDDEN_SIZE)
-                net = slim.fully_connected(net, self.classes_num+1,
-                                           biases_initializer=tf.constant_initializer(value=bias_value),
-                                           normalizer_fn=None,
-                                           activation_fn=None)
-                return net
-
         def bboxes_output_fn(net):
             with tf.variable_scope("NodesBBoxesOutput", reuse=tf.AUTO_REUSE):
                 # net = AbstractBBDNet.max_pool(net)
@@ -216,18 +202,6 @@ class BBDNetForOneImg(AbstractBBDNet):
                                            activation_fn=None)
                 net = tf.squeeze(net,axis=-1)
                 return net
-        if self.cfg.MODEL.BBDNET.USE_GLOBAL_ATTR and self.cfg.MODEL.BBDNET.USE_GLOBAL_LOSS:
-            def global_output_fn(net):
-                with tf.variable_scope("GlobalOutput", reuse=tf.AUTO_REUSE):
-                    # net = AbstractBBDNet.max_pool(net)
-                    net = slim.fully_connected(net, max(self.GLOBAL_HIDDEN_SIZE // 2,self.classes_num+1))
-                    net = slim.fully_connected(net, self.classes_num,
-                                               normalizer_fn=None,
-                                               activation_fn=None)
-                    net = tf.reshape(net,[-1])
-                    return net
-        else:
-            global_output_fn = None
 
         for i in range(self.preprocess_nr):
             with tf.variable_scope(f"Layer_{i}"):
@@ -240,19 +214,15 @@ class BBDNetForOneImg(AbstractBBDNet):
         print("Rnn nr:", self.rnn_nr)
         for i in range(self.rnn_nr):
             with tf.variable_scope("LayerRNN"):
-                self.A.concat(latent0,use_global_attr=True)
-                self.A.update_independent(point_fn_i,edge_fn_i,global_fn_i,["UpdatePoint_i","UpdateEdge_i","UpdateGlobal_i"])
-                self.A.update(point_fn, edge_fn, global_fn, ["UpdatePoint", "UpdateEdge", "UpdateGlobal"],
-                              use_global_attr=True)
+                self.A.concat(latent0,use_global_attr=False)
+                self.A.update_independent(point_fn_i,edge_fn_i,None,["UpdatePoint_i","UpdateEdge_i","UpdateGlobal_i"])
+                self.A.update(point_fn, edge_fn, None, ["UpdatePoint", "UpdateEdge", "UpdateGlobal"],
+                              use_global_attr=False)
             if i>0 or self.rnn_nr==1:
-                self.mid_outputs.append(output_fn(self.A.points_data))
                 self.mid_bboxes_outputs.append(bboxes_output_fn(self.A.points_data))
                 self.mid_nms_outputs.append(nms_output_fn(self.A.points_data))
                 if edge_output_fn is not None:
                     self.mid_edges_outputs.append(edge_output_fn(self.A.edges_data))
-                if global_output_fn is not None:
-                    self.mid_global_outputs.append(global_output_fn(self.A.global_attr))
-        self.logits = self.mid_outputs[-1]
         self.pred_bboxes_deltas = self.mid_bboxes_outputs[-1]
         self.nms_logits = self.mid_nms_outputs[-1]
         return self.logits
@@ -260,8 +230,7 @@ class BBDNetForOneImg(AbstractBBDNet):
     '''
     y:[batch_size,k] target label
     '''
-    def loss(self, y,nms_y,indices,bboxes,gboxes,glabels,glens):
-        assert y.get_shape().ndims == 1, "error"
+    def loss(self, nms_y,indices,bboxes,gboxes,glabels,glens):
         loss_list = []
         with tf.name_scope("bboxes_regression_loss"):
             foreground_idxs = tf.greater_equal(indices,0)
@@ -283,14 +252,9 @@ class BBDNetForOneImg(AbstractBBDNet):
         wsummary.histogram_or_scalar(box_loss,"box_loss")
         loss_list.append(box_loss)
 
-        with tf.name_scope("nodes_loss"):
-            node_loss = super().loss(y)
-            loss_list.append(node_loss)
-
         with tf.name_scope("nms_loss"):
-            scale = 1.0
+            scale = 200.0
             for i, logits in enumerate(self.mid_nms_outputs):
-                #logits = tf.Print(logits,[nms_y,logits],summarize=1000)
                 nms_loss = self._lossv2(logits, nms_y,log=False)
                 wmlt.variable_summaries_v2(nms_loss, f"nms_loss_{i}")
                 loss_list.append(nms_loss * scale)
@@ -305,37 +269,10 @@ class BBDNetForOneImg(AbstractBBDNet):
                     wmlt.variable_summaries_v2(e_loss, f"e_loss_{i}")
                     loss_list.append(e_loss * scale)
 
-        if self.cfg.MODEL.BBDNET.USE_GLOBAL_LOSS:
-            scale = 1.0
-            with tf.name_scope("global_loss"):
-                data = tf.zeros(shape=[self.classes_num+1])
-                gy = wop.set_value(tensor=data,v=tf.constant(1,dtype=tf.float32,shape=()),index=tf.reshape(y,[-1,1]))
-                gy = gy[1:]
-                for i, logits in enumerate(self.mid_global_outputs):
-                    loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=gy))*scale
-                    loss_list.append(loss)
-
         return tf.add_n(loss_list)
 
-
-    @staticmethod
-    def self_attenation(net, n_head=1, keep_prob=None, is_training=False, scope=None,
-                        normalizer_fn=wnnl.layer_norm, normalizer_params=None):
-        with tf.variable_scope(scope, default_name="non_local"):
-            shape = net.get_shape().as_list()
-            channel = shape[-1]
-            out = nlpl.self_attenation(net, n_head=n_head, keep_prob=keep_prob, is_training=is_training,
-                                       use_mask=False)
-            out = tf.layers.dense(out, channel,
-                                  kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
-            out = out + net
-            if normalizer_params is None:
-                normalizer_params = {}
-            out = normalizer_fn(out, **normalizer_params)
-            return out
-
 @BBDNET_MODEL.register()
-class BBDNetX1(WModule):
+class BBDNetX3(WModule):
     def __init__(self,num_classes,max_node_nr=96,cfg=None,parent=None,*args,**kwargs):
         super().__init__(cfg=cfg,parent=parent,*args,**kwargs)
         self.num_classes = num_classes
@@ -348,20 +285,14 @@ class BBDNetX1(WModule):
     def forward(self,datas):
         datas = dict(datas)
         loss = {}
-        with tf.variable_scope("BBDNet"):
-            img_size = get_img_size_from_batched_inputs(datas)
-            box_pooler = ROIPooler(cfg=self.cfg.MODEL.ROI_BOX_HEAD, parent=self,
-                                        output_size=7,
-                                        bin_size=[1,1],
-                                        pooler_type=self.cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE,
-                                        )
-            #datas[RD_BOXES] = tf.Print(datas[RD_BOXES],[tf.shape(datas[RD_RAW_PROBABILITY]),tf.shape(datas[RD_BOXES]),datas[RD_LENGTH],"shape0"],summarize=100)
-            B,box_nr,_ = wmlt.combined_static_and_dynamic_shape(datas[RD_BOXES])
-            box_features = box_pooler(datas['net_data'], datas[RD_BOXES], img_size=img_size)
-            M,R,R,C = wmlt.combined_static_and_dynamic_shape(box_features)
-            box_features = tf.reshape(box_features,[B,box_nr,R,R,C])
-
-            datas['net_data'] = box_features
+        '''with tf.variable_scope("BBDNet"):
+            map_data = tf.stop_gradient(datas['tower_nets'])
+            map_data = slim.conv2d(map_data, 256, [1,1], normalizer_fn=self.conv_normalizer_fn,
+                                   normalizer_params=self.conv_normalizer_params,
+                                   activation_fn=self.conv_activation_fn,
+                                   scope="smooth_tower_nets")
+            datas['net_data'] = map_data
+            datas.pop('tower_nets')'''
 
         if self.is_training:
             res = wmlt.static_or_dynamic_map_fn(self.process_one_image,elems=datas,
@@ -384,13 +315,22 @@ class BBDNetX1(WModule):
             img_size = tf.to_float(tf.shape(datas[IMAGE]))
             bboxes = odb.tfrelative_boxes_to_absolutely_boxes(bboxes,width=img_size[1],height=img_size[0])
         #bboxes = tf.zeros_like(bboxes)
-        probs = tf.stop_gradient(datas[RD_RAW_PROBABILITY][:l])
+        #probs = tf.stop_gradient(datas[RD_RAW_PROBABILITY][:l])
         labels = tf.stop_gradient(datas[RD_LABELS][:l])
+        raw_probs = datas[RD_PROBABILITY][:l]
+        probs = tf.expand_dims(raw_probs,axis=-1)
         #probs = tf.zeros_like(probs)
         return_nr = tf.shape(datas[RD_LABELS])[0]
         base_net = tf.stop_gradient(datas['base_net'])
         #base_net = tf.zeros_like(base_net)
-        map_data = datas['net_data'][:l]
+        net_data = datas['net_data']
+        if len(net_data.get_shape()) == 3:
+            pooler = odl.WROIAlign(bin_size=[1,1],output_size=[7,7])
+            crop_bboxes = odb.scale_bboxes(raw_bboxes,0.1)
+            map_data = pooler(tf.expand_dims(net_data,axis=0),tf.expand_dims(crop_bboxes,axis=0))
+            print(f"Crop bbox attr for bbdnet.")
+        else:
+            raise NotImplementedError(f"Error net data input.")
 
         #map_data = tf.zeros_like(map_data)
         bbd_net = BBDNetForOneImg(self.cfg,
@@ -404,22 +344,26 @@ class BBDNetX1(WModule):
                                 rnn_nr=self.cfg.MODEL.BBDNET.NUM_PROCESSING_STEPS,
                                 preprocess_nr=self.cfg.MODEL.BBDNET.NUM_PREPROCESSING_STEPS)
         outputs = {}
+        raw_labels = labels
         if self.is_training:
+            #for box regression loss
             y, y_scores, indexs = self.matcher(boxes=tf.expand_dims(raw_bboxes, axis=0),
                                                gboxes=tf.expand_dims(datas[GT_BOXES], axis=0),
                                                glabels=tf.expand_dims(datas[GT_LABELS], axis=0),
                                                glength=tf.reshape(datas[GT_LENGTH], [1]))
-            nms_y, nms_y_scores,nms_indexs = wop.boxes_match(boxes=tf.expand_dims(raw_bboxes,axis=0),
+            nms_y, nms_y_scores,nms_indexs = wop.boxes_match_with_predv3(boxes=tf.expand_dims(raw_bboxes,axis=0),
+                                                    plabels=tf.expand_dims(raw_labels, axis=0),
+                                                    pprobs=tf.expand_dims(raw_probs, axis=0),
                                                     gboxes=tf.expand_dims(datas[GT_BOXES],axis=0),
                                                     glabels=tf.expand_dims(datas[GT_LABELS],axis=0),
                                                     glens=tf.reshape(datas[GT_LENGTH],[1]),
+                                                    sort_by_probs=False,
                                                     threshold=0.5)
             y = tf.squeeze(y,axis=0)
             nms_y = tf.squeeze(nms_y,axis=0)
             nms_y = tf.cast(tf.greater(nms_y, 0), tf.int32)
             m_bboxes = tf.boolean_mask(raw_bboxes, y > 0)
             m_nms_bboxes = tf.boolean_mask(raw_bboxes, nms_y > 0)
-            #m_bboxes = tf.Print(m_bboxes,["info",tf.shape(datas[IMAGE]),tf.shape(m_bboxes),tf.boolean_mask(y, y > 0)],summarize=128)
             img = datas[IMAGE]
             img = imv.draw_graph_by_bboxes(img,raw_bboxes,bbd_net.adj_mt)
             tf.summary.image("img_with_graph",tf.expand_dims(img,axis=0))
@@ -440,15 +384,14 @@ class BBDNetX1(WModule):
                                              classes=tf.expand_dims(tf.boolean_mask(nms_y, nms_y > 0),axis=0),
                                              category_index=DataLoader.category_index,
                                              name='match_nms_boxes')
-            outputs['bbd_net_loss'] = bbd_net.loss(y,
-                                                   nms_y,
+            outputs['bbd_net_loss'] = bbd_net.loss(nms_y,
                                                    indices=tf.squeeze(indexs,axis=0),
                                                    bboxes=raw_bboxes,
                                                    gboxes=datas[GT_BOXES],
                                                    glabels=datas[GT_LABELS],
                                                    glens=tf.reshape(datas[GT_LENGTH],[1]))
 
-        fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,threshold=self.threshold)
+        fboxes, flabels, probs, raw_plabels = bbd_net.get_predict(raw_bboxes,raw_labels,raw_probs,threshold=self.threshold)
 
         r_l = tf.shape(flabels)[0]
         pad_nr = return_nr-r_l

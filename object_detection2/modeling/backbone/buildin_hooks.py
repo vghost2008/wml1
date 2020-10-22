@@ -102,9 +102,10 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
         super().__init__(cfg, parent, *args, **kwargs)
 
     def forward(self, features, batched_inputs):
+        low_features = self.parent.low_features
         normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
         res = OrderedDict()
-        with tf.variable_scope("BalanceBackboneHook"):
+        with tf.variable_scope("BalanceBackboneHookV2"):
             del batched_inputs
             ref_index = 1
             end_points = list(features.items())
@@ -113,14 +114,6 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
             with tf.name_scope("fusion"):
                 shape0 = wmlt.combined_static_and_dynamic_shape(v0)
                 for i, (k, v) in enumerate(end_points):
-                    with tf.variable_scope("smooth1", reuse=tf.AUTO_REUSE):
-                        v = slim.conv2d(v, v.get_shape().as_list()[-1], [3, 3],
-                                        rate=(i + 1) * 2,
-                                        normalizer_fn=None,
-                                        activation_fn=None,
-                                        biases_initializer=None)
-                    with tf.variable_scope(f"normalizer{i}"):
-                        v = normalizer_fn(v, **normalizer_params)
                     if i == ref_index:
                         net = v
                     else:
@@ -131,15 +124,17 @@ class BalanceBackboneHookV2(wmodule.WChildModule):
                                   activation_fn=None,
                                   normalizer_fn=normalizer_fn,
                                   normalizer_params=normalizer_params,
-                                  scope=f"smooth0")
+                                  scope=f"smooth")
             for i, (k, v) in enumerate(end_points):
-                with tf.name_scope(f"merge_{k}"):
+                with tf.name_scope(f"merge{i}"):
                     shape = wmlt.combined_static_and_dynamic_shape(v)
                     v0 = tf.image.resize_bilinear(net, shape[1:3])
-                    v = v + v0
-                res[k] = v
+                    index = int(k[1:])
+                    low_feature = low_features[f"C{index}"]
+                    res[k] = tf.concat([v + v0,low_feature],axis=-1)
 
             return res
+
 
 @BACKBONE_HOOK_REGISTRY.register()
 class DeformConvBackboneHook(wmodule.WChildModule):

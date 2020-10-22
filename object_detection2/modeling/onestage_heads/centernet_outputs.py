@@ -267,9 +267,10 @@ class CenterNetOutputs(wmodule.WChildModule):
         return outdata
 
     @staticmethod
-    def pixel_nms(heat,kernel=[3,3]):
+    def pixel_nms(heat,kernel=[3,3],epsilon=1e-8):
         hmax=tf.nn.max_pool(heat,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
-        mask=tf.cast(tf.equal(hmax,heat),tf.float32)
+        mask=tf.less_equal(tf.abs(hmax-heat),epsilon)
+        mask = tf.cast(mask,tf.float32)
         return mask*heat
 
     @staticmethod

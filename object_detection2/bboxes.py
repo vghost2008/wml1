@@ -181,7 +181,7 @@ def npbboxes_jaccard(bbox_ref, bboxes, name=None):
 
 '''
 box0:[N,4], or [1,4],[ymin,xmin,ymax,xmax],...
-box1:[N,4]
+box1:[N,4], or [1,4]
 return:
 [N],返回box0,box1交叉面积占box0的百分比
 '''

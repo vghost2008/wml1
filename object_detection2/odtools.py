@@ -173,3 +173,26 @@ def get_random_cut_bboxes_rectv2(bboxes,size,img_size,labels=None,force_cut_labe
 
         res.append(rect)
     return res
+
+def filter_by_classeswise_thresholds(labels,bboxes,probs,thresholds):
+    '''
+
+    :param labels: [N]
+    :param bboxes: [N,4]
+    :param probs: [N]
+    :param thresholds: 不包含背景0
+    :return:
+    '''
+    n_labels = []
+    n_bboxes = []
+    n_probs = []
+
+    for i,l in enumerate(labels):
+        tp = thresholds[l-1]
+        p = probs[i]
+        if tp<=p:
+            n_labels.append(l)
+            n_bboxes.append(bboxes[i])
+            n_probs.append(p)
+
+    return np.array(n_labels),np.array(n_bboxes),np.array(n_probs)

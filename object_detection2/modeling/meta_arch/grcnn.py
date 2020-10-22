@@ -74,6 +74,7 @@ class GeneralizedGRCNN(MetaArch):
         使用主干网络生成一个FeatureMap, 如ResNet的Res4(stride=16)
         '''
         features = self.backbone(batched_inputs)
+        print(features.keys())
         bb_features = [features[f] for f in self.cfg.MODEL.ROI_HEADS.IN_FEATURES]
         if self.roi_heads_backbone is not None:
             roi_features = self.roi_heads_backbone(batched_inputs)
@@ -95,6 +96,7 @@ class GeneralizedGRCNN(MetaArch):
         bbd_net_input['base_net'] = bb_features[-1]
         bbd_net_input[IMAGE] = batched_inputs[IMAGE]
         bbd_net_input['net_data'] = bb_features
+        bbd_net_input['low_net_data'] = features['C3']
         bbd_net = build_bbdnet(self.cfg.MODEL.BBDNET.NAME,
                                num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
                                threshold=0.02)
@@ -186,6 +188,7 @@ class GeneralizedGRCNN(MetaArch):
         bbd_net_input['base_net'] = bb_features[-1]
         bbd_net_input[IMAGE] = batched_inputs[IMAGE]
         bbd_net_input['net_data'] = bb_features
+        bbd_net_input['low_net_data'] = features['C3']
         bbd_net = build_bbdnet(self.cfg.MODEL.BBDNET.NAME,
                                num_classes=self.cfg.MODEL.RETINANET.NUM_CLASSES,cfg=self.cfg,parent=self,
                                threshold=0.02)

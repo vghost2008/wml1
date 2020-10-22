@@ -30,7 +30,7 @@ class AbstractBBDNet:
     '''
     def __init__(self,cfg,boxes,probability,map_data,classes_num,base_net,is_training=False):
         assert boxes.get_shape().ndims==2, "error"
-        assert probability is None or probability.get_shape().ndims==1, "error"
+        assert probability is None or probability.get_shape().ndims==2, "error"
         assert map_data.get_shape().ndims==2 or map_data.get_shape().ndims==4, "error"
 
         self.cfg = cfg
@@ -38,7 +38,7 @@ class AbstractBBDNet:
         self.pred_bboxes_deltas = None
         #edges between guidepost
         self.boxes = boxes
-        self.probability = tf.expand_dims(probability,axis=-1)
+        self.probability = probability
         self.map_data = map_data
         self.classes_num = classes_num
 
@@ -65,16 +65,11 @@ class AbstractBBDNet:
         mask = tf.greater(probs, threshold)
         return probs,mask
 
-    def get_predict(self, proposal_boxes, threshold=None):
-        probs = tf.nn.softmax(self.logits)
-        with tf.device(":/cpu:0"):
-            probs, raw_labels = tf.nn.top_k(probs, k=1)
+    def get_predict(self, proposal_boxes, raw_labels,raw_probs,threshold=None):
         raw_labels = tf.reshape(raw_labels, [-1])
-        probs = tf.reshape(probs, [-1])
-        mask = tf.greater(raw_labels, 0)
+        probs = tf.reshape(raw_probs, [-1])
         nms_probs,nms_mask = self.get_nms_predict(threshold[1])
-        mask = tf.logical_and(mask, tf.greater(probs, threshold[0]))
-        mask = tf.logical_and(mask, nms_mask)
+        mask =  nms_mask
         boxes = tf.boolean_mask(proposal_boxes, mask)
         pred_deltas = tf.boolean_mask(self.pred_bboxes_deltas,mask)
         labels = tf.boolean_mask(raw_labels, mask)
@@ -82,49 +77,12 @@ class AbstractBBDNet:
         boxes = self.box2box_transform.apply_deltas(pred_deltas,boxes)
         return boxes, labels, probs, raw_labels
 
-    '''
-    y:[batch_size,k] target label
-    '''
-    def loss(self,y):
-        assert y.get_shape().ndims==1, "error"
-        loss = []
-        print(f"Mid outputs nr {len(self.mid_outputs)} {len(self.mid_bboxes_outputs)}")
-        with tf.variable_scope("losses"):
-            for i,logits in enumerate(self.mid_outputs):
-                scale = 1.0
-                loss0 = self._loss(logits,y)*scale
-                wsummary.histogram_or_scalar(loss0,f"node_loss_{i}")
-                loss.append(loss0)
-
-        return tf.add_n(loss)
-
-    def _loss(self,logits,y):
-        assert y.get_shape().ndims==1, "error"
-        assert logits.get_shape().ndims==2, "error"
-        loss0 = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,
-                                                                logits=logits)
-        with tf.device(":/cpu:0"):
-            values, indices = tf.nn.top_k(logits)
-        plabels = tf.reshape(indices, [-1])
-        pmask = tf.logical_or(tf.greater(y, 0), tf.greater(plabels, 0))
-        nmask = tf.logical_not(pmask)
-        ploss = btf.safe_reduce_mean(tf.boolean_mask(loss0, pmask))
-        nloss = btf.safe_reduce_mean(tf.boolean_mask(loss0, nmask))
-        return ploss+nloss
-
     def _lossv2(self,logits,y,log=False):
         assert y.get_shape().ndims==1, "error"
         assert logits.get_shape().ndims==1, "error"
-        loss0 = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.cast(y,tf.float32),
+        loss0 = wnn.sigmoid_cross_entropy_with_logits_FL(labels=tf.cast(y,tf.float32),
                                                         logits=logits)
-        plabels = tf.cast(tf.greater(tf.nn.sigmoid(logits),0.5),tf.int32)
-        pmask = tf.logical_or(tf.greater(y, 0), tf.greater(plabels, 0))
-        nmask = tf.logical_not(pmask)
-        ploss = btf.safe_reduce_mean(tf.boolean_mask(loss0, pmask))
-        nloss = btf.safe_reduce_mean(tf.boolean_mask(loss0, nmask))
-        if log:
-            ploss = tf.Print(ploss, [ploss, nloss,pmask,nmask,y,logits], summarize=1000)
-        return ploss+nloss
+        return tf.reduce_mean(loss0)
 
     @staticmethod
     def linear(x,dims,scope=None):
@@ -152,9 +110,8 @@ class AbstractBBDNet:
                                          scope = "shortcut")
             normalizer_fn = self.normalizer_fn
             net = slim.fully_connected(net, dims,normalizer_fn=normalizer_fn)
-            net = slim.fully_connected(net, dims,normalizer_fn=normalizer_fn)
-            net = slim.fully_connected(net, dims,normalizer_fn=None)
-            return normalizer_fn(net+x)
+            net = slim.fully_connected(net, dims,normalizer_fn=None,activation_fn=None)
+            return tf.nn.leaky_relu(normalizer_fn(net+x))
 
     def res_block(self,x,dims,unit_nr=1,scope=None):
         with tf.variable_scope(scope,default_name="block",reuse=tf.AUTO_REUSE):

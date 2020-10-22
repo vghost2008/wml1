@@ -262,7 +262,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
             indexs_i = tf.gather(indexs_i,anchor_idxs)
 
             # predict boxes
-            predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i)
+            predicted_boxes = self.box2box_transform.apply_deltas(deltas=box_reg_i, boxes=anchors_i)
 
             boxes_all.append(predicted_boxes)
             scores_all.append(predicted_prob)

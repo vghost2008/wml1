@@ -301,3 +301,37 @@ class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
 
         return base_value+regression*multi
 
+class OffsetBox2BoxTransform(AbstractBox2BoxTransform):
+    kAutoScale = 1.0
+    def get_deltas(self,boxes,gboxes,labels,indices,img_size=None):
+        """
+        the labels,indices is the output of matcher
+        boxes:[batch_size,N,4]
+        gboxes:[batch_size,M,4]
+        labels:[batch_size,N]
+        indices:[batch_size,N]
+        output:
+        [batch_size,N,4]
+        """
+        with tf.name_scope("get_deltas"):
+            rgtboxes = wmlt.batch_gather(gboxes,tf.nn.relu(indices))
+            scale = tf.sqrt(odb.box_area(boxes))*self.kAutoScale
+            deltas = (rgtboxes-boxes)/tf.expand_dims(scale,axis=-1)
+            return deltas
+
+    def apply_deltas(self,deltas,boxes,img_size=None):
+        '''
+        :param deltas: [batch_size,N,4]/[N,4]
+        :param boxes: [batch_size,N,4]/[N.4]
+        :return:
+        '''
+        with tf.name_scope("get_deltas"):
+            scale = tf.sqrt(odb.box_area(boxes))*self.kAutoScale
+            gtboxes = deltas*tf.expand_dims(scale,axis=-1)+boxes
+            gtboxes = tf.clip_by_value(gtboxes,0,1.0)
+            ymin,xmin,ymax,xmax = tf.unstack(gtboxes,axis=-1)
+            ymax = tf.maximum(ymin,ymax)
+            xmax = tf.maximum(xmin,xmax)
+            gtboxes = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
+            return gtboxes
+

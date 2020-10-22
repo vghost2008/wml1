@@ -741,6 +741,7 @@ def miou_of_multi_label(logits,labels,threshold=0.5):
 #每个小项单独计算正确率
 def sigmoid_accuracy_ratio(logits,labels,threshold=0.5):
     with tf.name_scope("accuracy_ratio"):
+        assert len(logits.get_shape())==len(labels.get_shape()),"Error shape"
         prob = tf.sigmoid(logits)
         actually_get = prob>threshold
         actually_get = tf.cast(actually_get,labels.dtype)
@@ -752,6 +753,7 @@ def sigmoid_accuracy_ratio(logits,labels,threshold=0.5):
 #每一个小项都正确才算正确
 def sigmoid_accuracy_ratiov2(logits,labels,threshold=0.5):
     with tf.name_scope("accuracy_ratio"):
+        assert len(logits.get_shape())==len(labels.get_shape()),"Error shape"
         prob = tf.sigmoid(logits)
         if prob.get_shape().ndims>1:
             classes_nr = prob.get_shape().as_list()[1]

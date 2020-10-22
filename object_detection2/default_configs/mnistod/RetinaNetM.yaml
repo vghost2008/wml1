@@ -22,6 +22,8 @@ MODEL:
     IOU_LABELS: [0, -1, 1]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
+    OUTPUTS: "RetinaNetGIOUOutputs"
+
 DATASETS:
   TRAIN: "mnistod_train"
   TEST: "mnistod_eval"
@@ -36,5 +38,5 @@ INPUT:
   MIN_SIZE_TEST: 224
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinaNetDemon"
-  LOG_STEP: 200
+  PROJ_NAME: "RetinaNetMDemon"
+  LOG_STEP: 100
