@@ -289,6 +289,7 @@ _C.MODEL.ROI_HEADS.IN_FEATURES = ["res4"]
 # IOU overlap ratios [IOU_THRESHOLD]
 # Overlap threshold for an RoI to be considered background (if < IOU_THRESHOLD)
 # Overlap threshold for an RoI to be considered foreground (if >= IOU_THRESHOLD)
+_C.MODEL.ROI_HEADS.MATCHER = "Matcher"
 _C.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.5]
 _C.MODEL.ROI_HEADS.IOU_LABELS = [0, 1]
 _C.MODEL.ROI_HEADS.POS_LABELS_THRESHOLD = -1.0

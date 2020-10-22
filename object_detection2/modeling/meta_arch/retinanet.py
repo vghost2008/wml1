@@ -4,7 +4,7 @@ from .build import META_ARCH_REGISTRY
 from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.backbone.build import build_backbone
 from object_detection2.modeling.anchor_generator import build_anchor_generator
-from object_detection2.modeling.box_regression import Box2BoxTransform,OffsetBox2BoxTransform
+from object_detection2.modeling.box_regression import Box2BoxTransform
 from object_detection2.modeling.build_matcher import build_matcher
 from object_detection2.standard_names import *
 from object_detection2.modeling.onestage_heads.retinanet_outputs import *
@@ -39,8 +39,7 @@ class RetinaNet(MetaArch):
                                   *args,**kwargs)
 
         # Matching and loss
-        #self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RPN.BBOX_REG_WEIGHTS)
-        self.box2box_transform = OffsetBox2BoxTransform()
+        self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.RPN.BBOX_REG_WEIGHTS)
         self.anchor_matcher = build_matcher(
             cfg.MODEL.RETINANET.MATCHER,
             thresholds=cfg.MODEL.RETINANET.IOU_THRESHOLDS,

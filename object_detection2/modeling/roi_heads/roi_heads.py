@@ -2,7 +2,8 @@
 from thirdparty.registry import Registry
 import wmodule
 from object_detection2.modeling.matcher import Matcher
-from object_detection2.modeling.box_regression import Box2BoxTransform
+from object_detection2.modeling.box_regression import Box2BoxTransform,OffsetBox2BoxTransform
+from object_detection2.modeling.build_matcher import build_matcher
 from functools import partial
 import tensorflow as tf
 from thirdparty.nets.resnet_v1 import *
@@ -62,7 +63,8 @@ class ROIHeads(wmodule.WChildModule):
         # fmt: on
 
         # Matcher to assign box proposals to gt boxes
-        self.proposal_matcher = Matcher(
+        self.proposal_matcher = build_matcher(
+            cfg.MODEL.ROI_HEADS.MATCHER,
             cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS,
             allow_low_quality_matches=False,
             cfg=cfg,
@@ -70,7 +72,8 @@ class ROIHeads(wmodule.WChildModule):
         )
         self.roi_hook = build_roi_heads_hook(cfg,parent=self)
         # Box2BoxTransform for bounding box regression
-        self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS)
+        #self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS)
+        self.box2box_transform = OffsetBox2BoxTransform(scale=False,is_training=self.is_training,const_scale=0.02)
 
     '''
     随机在输入中选择指定数量的box
