@@ -885,12 +885,13 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
                       normalizer_fn=None,
                       scope="attn_conv")
         normalizer_params  = normalizer_params or {}
+        gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+        out = gamma*out+net
         if normalizer_fn is not None:
-            out = normalizer_fn(out+net,**normalizer_params)
+            out = normalizer_fn(out,**normalizer_params)
         if activation_fn is not None:
             out = activation_fn(out)
-        gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
-        return gamma*out+net
+        return out
 
 def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
     def reshape_net(net):
@@ -929,6 +930,58 @@ def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
         out = slim.conv2d(out,channel,[1,1],normalizer_fn=None)
         normalizer_params  = normalizer_params or {}
         out = normalizer_fn(out+net,**normalizer_params)
+        return out
+
+def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,is_training=False,scope=None,
+                      conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
+                      activation_fn=tf.nn.relu,
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None):
+    def reshape_net(net):
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [shape[0],shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    if isinstance(inner_dims_multiplier,int):
+        inner_dims_multiplier = [inner_dims_multiplier]
+    if len(inner_dims_multiplier) == 1:
+        inner_dims_multiplier = inner_dims_multiplier*3
+
+    with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
+        shape = wmlt.combined_static_and_dynamic_shape(V)
+        channel = btf.channel(V)
+        m_channelq = btf.channel(Q)//inner_dims_multiplier[0]
+        m_channelk = btf.channel(K)//inner_dims_multiplier[1]
+        m_channelv = btf.channel(V)//inner_dims_multiplier[2]
+        net = V
+
+        Q = conv_op(Q,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
+        K = conv_op(K,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")
+        V = conv_op(V,m_channelv,[1,1],activation_fn=None,normalizer_fn=None,scope="v_conv")
+        if pool_op is not None:
+            K = pool_op(K,kernel_size=2, stride=2,padding="SAME")
+            V = pool_op(V,kernel_size=2, stride=2,padding="SAME")
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+                                        use_mask=False)
+        out = restore_shape(out,shape,m_channelv)
+        out = conv_op(out,channel,[1,1],
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      scope="attn_conv")
+        normalizer_params  = normalizer_params or {}
+        gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+        out = gamma*out+net
+        if normalizer_fn is not None:
+            out = normalizer_fn(out,**normalizer_params)
+        if activation_fn is not None:
+            out = activation_fn(out)
         return out
 
 def augmented_conv2d(net,Fout,dv,kernel=[3,3],n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
