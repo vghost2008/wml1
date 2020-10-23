@@ -106,7 +106,6 @@ _C.MODEL.TWOWAYFPN.BACKBONE = ""
 # Options: "" (no norm), "GN", "BN"
 _C.MODEL.TWOWAYFPN.NORM = ""
 _C.MODEL.TWOWAYFPN.ACTIVATION_FN = "relu"
-_C.MODEL.TWOWAYFPN.LAST_LEVEL_NUM_CONV = 2
 
 # Types for fusing the TWOWAYFPN top-down and lateral features. Can be either "sum" or "avg"
 _C.MODEL.TWOWAYFPN.FUSE_TYPE = "sum"

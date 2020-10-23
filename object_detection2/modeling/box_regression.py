@@ -309,6 +309,7 @@ class OffsetBox2BoxTransform(AbstractBox2BoxTransform):
         self.const_scale = const_scale
     def get_deltas(self,boxes,gboxes,labels,indices,img_size=None):
         """
+        the output is the offset of left-top corner and bottom-right corner
         the labels,indices is the output of matcher
         boxes:[batch_size,N,4]
         gboxes:[batch_size,M,4]

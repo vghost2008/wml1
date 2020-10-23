@@ -142,8 +142,13 @@ def coco(cfg,is_training):
                                trans.BBoxesRelativeToAbsolute(),
                                trans.AddBoxLens(),
                                ]
-        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
-                                   trans.FixDataInfo()]
+        if cfg.INPUT.SIZE_ALIGN_FOR_TEST > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
 
     return (trans_on_single_img,trans_on_batch_img)
 

@@ -1,3 +1,4 @@
+#用于测试BalanceBackboneHook的效果
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -38,6 +39,7 @@ MODEL:
     OUT_CHANNELS: 128
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
+    BACKBONE_HOOK: ("","BalanceBackboneHook")
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
@@ -72,8 +74,9 @@ INPUT:
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
   SIZE_ALIGN: 128
+  SIZE_ALIGN_FOR_TEST: 128
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv23"
+  PROJ_NAME: "MaskRCNNBIFPNCOCODemon-sephv1_1"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

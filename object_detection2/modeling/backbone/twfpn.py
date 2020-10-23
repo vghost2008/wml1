@@ -8,16 +8,13 @@ from .resnet import build_resnet_backbone
 from .shufflenetv2 import build_shufflenetv2_backbone
 import collections
 import object_detection2.od_toolkit as odt
-from .build import build_backbone_hook
+from .build import build_backbone_hook_by_name
+import wnnlayer as wnnl
 from itertools import count
 
 slim = tf.contrib.slim
 
 class TwoWayFPN(Backbone):
-    """
-    Implement 'EfficientPS: Efficient Panoptic Segmentation'
-    """
-
     def __init__(
         self, cfg,bottom_up, in_features, out_channels, fuse_type="sum",
             parent=None,*args,**kwargs
@@ -38,7 +35,7 @@ class TwoWayFPN(Backbone):
                 ones. It can be "sum" (default), which sums up element-wise; or "avg",
                 which takes the element-wise mean of the two.
         """
-        stage = int(in_features[0][1:])
+        stage = int(in_features[-1][1:])
         super(TwoWayFPN, self).__init__(cfg,parent=parent,*args,**kwargs)
         assert isinstance(bottom_up, Backbone)
 
@@ -55,7 +52,12 @@ class TwoWayFPN(Backbone):
         self.stage = stage
         #Detectron2默认没有使用normalizer, 但在测试数据集上发现不使用normalizer网络不收敛
         self.normalizer_fn,self.normalizer_params = odt.get_norm(self.cfg.MODEL.TWOWAYFPN.NORM,self.is_training)
-        self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.TWOWAYFPN,parent=self)
+        self.hook0_before,self.hook0_after = build_backbone_hook_by_name(cfg.MODEL.TWOWAYFPN.BACKBONE_HOOK,cfg,parent=self)
+        if len(cfg.MODEL.TWOWAYFPN.BACKBONE_HOOK)>=4:
+            self.hook1_before,self.hook1_after = build_backbone_hook_by_name(cfg.MODEL.TWOWAYFPN.BACKBONE_HOOK[2:],cfg,parent=self)
+        else:
+            self.hook1_before, self.hook1_after = build_backbone_hook_by_name(["",""],cfg,
+                                                                              parent=self)
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.TWOWAYFPN.ACTIVATION_FN)
 
 
@@ -77,78 +79,79 @@ class TwoWayFPN(Backbone):
                 ["p2", "p3", ..., "p6"].
         """
         bottom_up_features = self.bottom_up(x)
-        if self.hook_before is not None:
-            bottom_up_features = self.hook_before(bottom_up_features,x)
-        feature_maps = [bottom_up_features[f] for f in self.in_features]
-        use_depthwise = self.use_depthwise
-        depths = self.out_channels
-        weight_decay = 1e-4
+        image_features = [bottom_up_features[f] for f in self.in_features]
+        res0 = self.forward_with_given_features(x,image_features,[self.hook0_before,self.hook0_after],'FPN_a')
+        res1 = self.forward_with_given_features(x,image_features,[self.hook1_before,self.hook1_after],'FPN_b')
+        return [res0,res1]
 
-        if use_depthwise:
-            conv_op = functools.partial(slim.separable_conv2d,
-                                        depth_multiplier=1,
-                                        normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.normalizer_params,
-                                        activation_fn=self.activation_fn)
-        else:
-            conv_op = functools.partial(slim.conv2d,
-                                        weights_regularizer=slim.l2_regularizer(weight_decay),
-                                        normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.normalizer_params,
-                                        activation_fn=self.activation_fn)
+    def forward_with_given_features(self, x,image_features,hooks,scope):
+        with tf.variable_scope(scope):
+            hook_before,hook_after = hooks
+            if hook_before is not None:
+                image_features = hook_before(image_features,x)
+            use_depthwise = self.use_depthwise
+            depth = self.out_channels
+            fusion_fn = odt.get_fusion_fn(self._fuse_type)
+            with tf.variable_scope(self.scope, 'top_down'):
+                num_levels = len(image_features)
+                output_feature_maps_list = []
+                output_feature_map_keys = []
+                padding = 'SAME'
+                kernel_size = 3
+                weight_decay = 1e-4
+                if self.normalizer_fn is not None:
+                    normalizer_fn = functools.partial(self.normalizer_fn,**self.normalizer_params)
+                else:
+                    normalizer_fn = None
+                if use_depthwise:
+                    conv_op = functools.partial(slim.separable_conv2d,
+                                                depth_multiplier=1,
+                                                normalizer_fn=normalizer_fn,
+                                                activation_fn=self.activation_fn)
+                else:
+                    conv_op = functools.partial(slim.conv2d,
+                                                weights_regularizer=slim.l2_regularizer(weight_decay),
+                                                normalizer_fn=normalizer_fn,
+                                                activation_fn=self.activation_fn)
+                if self.cfg.MODEL.FPN.ENABLE_DROPBLOCK and self.is_training:
+                    keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                             max_keep_prob=self.cfg.MODEL.FPN.KEEP_PROB)
+                    if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                        tf.summary.scalar(name="fpn_keep_prob",tensor=keep_prob)
+                    image_features = [wnnl.dropblock(x,keep_prob,self.is_training,block_size=self.cfg.MODEL.FPN.DROPBLOCK_SIZE) for x in image_features]
 
-        mid_feature_maps_td = []
-        mid_feature_maps_bu = []
-        out_feature_maps = []
-        out_feature_map_keys = []
-        with tf.variable_scope("two_way_fpn"):
-            feature_maps.reverse()
-            with tf.variable_scope("top_down"):
-                last = None
-                for i in range(len(feature_maps)):
-                    with tf.variable_scope(f"down_node{i}"):
-                        net = conv_op(feature_maps[i],depths,[1,1])
-                        if last is not None:
-                            shape = tf.shape(feature_maps[i])[1:3]
-                            last = self.interpolate_op(last, size=shape, name=f"upsample{i}")
-                            last = last+net
-                            #last = odt.fusion([last, net], depth=depths, scope=f"td_fusion{i}")
-                        else:
-                            last = net
-                        mid_feature_maps_td.append(last)
+                with slim.arg_scope(
+                        [slim.conv2d], padding=padding, stride=1):
+                    prev_features = slim.conv2d(
+                        image_features[-1],
+                        depth, [1, 1], activation_fn=None, normalizer_fn=None,
+                        scope='projection_%d' % num_levels)
+                    output = conv_op(prev_features, depth,[kernel_size, kernel_size], scope=f"output_{num_levels}")
+                    output_feature_maps_list.append(output)
+                    output_feature_map_keys.append(f"P{self.stage}")
 
-            mid_feature_maps_td.reverse()
-
-            with tf.variable_scope("bottom_up"):
-                feature_maps.reverse()
-                last = None
-                for i in range(len(feature_maps)):
-                    with tf.variable_scope(f"up_node{i}"):
-                        net = conv_op(feature_maps[i],depths,[1,1])
-                        if last is not None:
-                            last = slim.avg_pool2d(last, [2, 2], padding='SAME', stride=2, scope=f"avg_pool{i}")
-                            last = last+net
-                            #last = odt.fusion([last, net], depth=depths, scope=f"bu_fusion{i}")
-                        else:
-                            last = net
-                        mid_feature_maps_bu.append(last)
-
-            with tf.variable_scope("output_smooth"):
-                for i,net0,net1 in zip(count(),mid_feature_maps_td,mid_feature_maps_bu):
-                    net = net0+net1
-                    net = slim.separable_conv2d(net,256,[3,3],
-                                                activation_fn=self.activation_fn,
-                                                normalizer_fn=self.normalizer_fn,
-                                                normalizer_params=self.normalizer_params,
-                                                depth_multiplier=1)
-                    out_feature_maps.append(net)
-                    out_feature_map_keys.append(f"P{self.stage+i}")
-
-        res = collections.OrderedDict(zip(out_feature_map_keys, out_feature_maps))
-        if self.hook_after is not None:
-            res = self.hook_after(res,x)
-        return res
-
+                    for level in reversed(range(num_levels - 1)):
+                        lateral_features = slim.conv2d(
+                            image_features[level], depth, [1, 1],
+                            activation_fn=None, normalizer_fn=None,
+                            scope='projection_%d' % (level + 1))
+                        shape = tf.shape(lateral_features)[1:3]
+                        top_down = self.interpolate_op(prev_features, shape)
+                        #prev_features = top_down + lateral_features
+                        prev_features = fusion_fn([top_down,lateral_features])
+                        output_feature_maps_list.append(conv_op(
+                            prev_features,
+                            depth, [kernel_size, kernel_size],
+                            scope=f'output_{level + 1}'))
+                        output_feature_map_keys.append(f"P{self.stage+level-num_levels+1}")
+            output_feature_map_keys.reverse()
+            output_feature_maps_list.reverse()
+            res = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
+            self.low_features = bottom_up_features
+            if hook_after is not None:
+                res = hook_after(res,x)
+            res.update(bottom_up_features)
+            return res
 
 
 @BACKBONE_REGISTRY.register()

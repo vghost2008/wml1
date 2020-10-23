@@ -1,4 +1,3 @@
-#用于测试在rcnn中使用OffsetBoxTransform的效果
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -6,18 +5,18 @@ MODEL:
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
-    NAME: "build_retinanet_resnet_fpn_backbone"
+    NAME: "build_resnet_bifpn_backbone"
   RESNETS:
     DEPTH: 50
     FROZEN_BN: True
+    MAKE_C6C7: "C6"
   ROI_HEADS:
-    OUTPUTS: "FastRCNNGIOUOutputs"
+    #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
-    IN_FEATURES: ["P3"]
-    BATCH_SIZE_PER_IMAGE: 128
+    IN_FEATURES: ["P3","P4","P5","P6"]
+    BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    BOX_REG_LOSS_SCALE: 8.0
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
@@ -33,6 +32,12 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
+  BIFPN:
+    IN_FEATURES: ["C3","C4", "C5","C6"]
+    REPEAT: 2
+    OUT_CHANNELS: 128
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
@@ -40,7 +45,7 @@ MODEL:
     LAST_LEVEL_NUM_CONV: 1
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
-    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+    ASPECT_RATIOS: [[0.5,1.0,2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
@@ -66,8 +71,10 @@ INPUT:
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
+  SIZE_ALIGN: 128
+  SIZE_ALIGN_FOR_TEST: 128
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv24"
+  PROJ_NAME: "MaskRCNNBIFPNCOCODemon-sephv1"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

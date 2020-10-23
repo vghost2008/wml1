@@ -398,6 +398,9 @@ class PascalVOCData(object):
         self.has_probs = has_probs
         
     def read_data(self,dir_path):
+        print(f"Read {dir_path}")
+        if not os.path.exists(dir_path):
+            print(f"Data path {dir_path} not exists.")
         self.files = getVOCFiles(dir_path,image_sub_dir=self.image_sub_dir,
                                  xml_sub_dir=self.xml_sub_dir)
         if self.shuffle:

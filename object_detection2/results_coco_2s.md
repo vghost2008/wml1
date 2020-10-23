@@ -121,6 +121,19 @@
 |4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|
 
+##Effect of neck
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
+
+##Effect of neck hook
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|balance hook|0.330|0.517|0.356|0.065|0.320|0.494|0.282|0.410|0.422|0.104|0.446|0.589|titan 0.2829|
+
+
 ##Effect of giououtputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
