@@ -1,6 +1,6 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
-  MASK_ON: True
+  MASK_ON: False
   WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
@@ -10,19 +10,21 @@ MODEL:
     DEPTH: 50
     FROZEN_BN: True
   ROI_HEADS:
-    OUTPUTS: "FastRCNNOutputs"
+    #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
-    BATCH_SIZE_PER_IMAGE: 128
+    BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    OUTPUTS: "RPNGIOUOutputs"
+    SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
-    NAME: "FastRCNNConvFCHead"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
-    NORM: "GN"
+    NUM_CONV: 4
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -31,23 +33,21 @@ MODEL:
     NUM_CONV: 4
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
-    BACKBONE_HOOK: ("","")
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
-    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+    ASPECT_RATIOS: [[1.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
     PRE_NMS_TOPK_TEST: 6000 # Per FPN level
-    # Detectron1 uses 2000 proposals per-batch,
-    # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
-    # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
     POST_NMS_TOPK_TRAIN: 1000
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
+    MATCHER: "ATSSMatcher4"
+    #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
@@ -66,5 +66,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-3-base"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_2"
+  SUMMARY_LEVEL: -1
   LOG_STEP: 200
