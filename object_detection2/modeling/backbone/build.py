@@ -67,3 +67,14 @@ def build_backbone_hook_by_name(names,cfg,*args,**kwargs):
     if len(bhn1) > 0:
         hook1 = BACKBONE_HOOK_REGISTRY.get(bhn1)(cfg,*args,**kwargs)
     return hook0,hook1
+
+def build_hook_by_name(name,cfg,*args,**kwargs):
+    """
+    cfg: only child part
+    Returns:
+        an instance of :class:`Backbone`
+    """
+    hook = None
+    if len(name) > 0:
+        hook = BACKBONE_HOOK_REGISTRY.get(name)(cfg,*args,**kwargs)
+    return hook

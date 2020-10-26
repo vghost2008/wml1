@@ -442,3 +442,141 @@ class FastRCNNConvHead(wmodule.WChildModule):
                 return cls_x,box_x,msk_x
             else:
                 return cls_x,box_x
+
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNConvFCHeadV5(wmodule.WChildModule):
+    """
+    Rethinking Classification and Localization for Object Detection
+    """
+
+    def __init__(self, cfg,*args,**kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg,*args,**kwargs)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+
+
+    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
+        with tf.variable_scope(scope,reuse=reuse):
+            cfg = self.cfg
+            conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+            num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+            fc_dim     = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+            num_fc     = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+
+            assert num_conv + num_fc > 0
+
+            assert len(x) == 2,"error feature map length"
+            cls_x = x[0]
+            box_x = wnnl.non_local_blockv3(x[0],x[1],x[1],inner_dims_multiplier=[1,1,1],
+                                           normalizer_params=self.norm_params,
+                                           normalizer_fn=self.normalizer_fn,
+                                           activation_fn=self.activation_fn)
+            with tf.variable_scope("ClassPredictionTower"):
+                if num_fc>0:
+                    if len(cls_x.get_shape()) > 2:
+                        shape = wmlt.combined_static_and_dynamic_shape(cls_x)
+                        dim = 1
+                        for i in range(1,len(shape)):
+                            dim = dim*shape[i]
+                        cls_x = tf.reshape(cls_x,[shape[0],dim])
+                    for _ in range(num_fc):
+                        cls_x = slim.fully_connected(cls_x,fc_dim,
+                                                     activation_fn=self.activation_fn,
+                                                     normalizer_fn=self.normalizer_fn,
+                                                     normalizer_params=self.norm_params)
+            with tf.variable_scope("BoxPredictionTower"):
+                nets = []
+                for _ in range(num_conv):
+                    box_x = slim.conv2d(box_x,conv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params)
+                    nets.append(box_x)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                with tf.variable_scope("BoxIOUPredictionTower"):
+                    net = nets[-2]
+                    iou_x = slim.conv2d(net,conv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x,box_x,iou_x
+            else:
+                return cls_x,box_x
+
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNConvFCHeadV6(wmodule.WChildModule):
+    """
+    Rethinking Classification and Localization for Object Detection
+    """
+
+    def __init__(self, cfg,*args,**kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg,*args,**kwargs)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+
+
+    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
+        with tf.variable_scope(scope,reuse=reuse):
+            cfg = self.cfg
+            conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+            num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+            fc_dim     = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+            num_fc     = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+
+            assert num_conv + num_fc > 0
+
+            assert len(x) == 2,"error feature map length"
+            cls_x = x[0]
+            box_x = wnnl.non_local_blockv3(x[1],x[0],x[0],inner_dims_multiplier=[1,1,1],
+                                           normalizer_params=self.norm_params,
+                                           normalizer_fn=self.normalizer_fn,
+                                           activation_fn=self.activation_fn)
+            with tf.variable_scope("ClassPredictionTower"):
+                if num_fc>0:
+                    if len(cls_x.get_shape()) > 2:
+                        shape = wmlt.combined_static_and_dynamic_shape(cls_x)
+                        dim = 1
+                        for i in range(1,len(shape)):
+                            dim = dim*shape[i]
+                        cls_x = tf.reshape(cls_x,[shape[0],dim])
+                    for _ in range(num_fc):
+                        cls_x = slim.fully_connected(cls_x,fc_dim,
+                                                     activation_fn=self.activation_fn,
+                                                     normalizer_fn=self.normalizer_fn,
+                                                     normalizer_params=self.norm_params)
+            with tf.variable_scope("BoxPredictionTower"):
+                nets = []
+                for _ in range(num_conv):
+                    box_x = slim.conv2d(box_x,conv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params)
+                    nets.append(box_x)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                with tf.variable_scope("BoxIOUPredictionTower"):
+                    net = nets[-2]
+                    iou_x = slim.conv2d(net,conv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x,box_x,iou_x
+            else:
+                return cls_x,box_x

@@ -63,6 +63,7 @@ class ResNet(Backbone):
             res[values2[i]] = end_points[f"FeatureExtractor/resnet_v1_{self.scope_name}/"+keys2[i]]
 
         if self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6":
+            #res[f"C{6}"] = slim.max_pool2d(res["C5"], kernel_size=2,stride=2,padding="SAME")
             res[f"C{6}"] = slim.conv2d(res["C5"], self.out_channels, [3, 3], stride=2,
                                        activation_fn=self.activation_fn,
                                        normalizer_fn=self.normalizer_fn,

@@ -96,8 +96,11 @@ class ROIPooler(wmodule.WChildModule):
             self.level_pooler = MixPool(bin_size=bin_size, output_size=output_size)
         elif pooler_type == "ROIMultiScale":
             self.level_pooler = WROIMultiScale(bin_size=bin_size, output_size=output_size)
+        elif pooler_type == "PointPool":
+            self.level_pooler = WROIPointPool()
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
+        self.level_assignments = None
 
     def forward(self, x, bboxes,img_size):
         """
@@ -122,6 +125,7 @@ class ROIPooler(wmodule.WChildModule):
             level_assignments = assign_boxes_to_levels(
                 bboxes, 0, level_num-1, self.canonical_box_size, self.canonical_level,img_size
             )
+            self.level_assignments = level_assignments
 
             features = []
             for net in x:

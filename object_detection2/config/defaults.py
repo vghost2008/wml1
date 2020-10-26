@@ -210,6 +210,7 @@ _C.MODEL.RPN.SORT_RESULTS = False
 _C.MODEL.RPN.MATCHER = "Matcher"
 _C.MODEL.RPN.NORM = ""
 _C.MODEL.RPN.ACTIVATION_FN = "relu"
+_C.MODEL.RPN.HOOK = ""
 
 # ---------------------------------------------------------------------------- #
 # RetinaNet proposal generator options

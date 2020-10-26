@@ -12,6 +12,7 @@ import wsummary
 from .build import HEAD_OUTPUTS
 import object_detection2.wlayers as odl
 from object_detection2.modeling.matcher import Matcher
+import object_detection2.bboxes as odb
 
 slim = tf.contrib.slim
 
@@ -190,6 +191,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
     def get_pred_iou_loss(self):
         if self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 1:
             return self.get_pred_iou_lossv1()
+        elif self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 3:
+            return self.get_pred_centerness_loss()
 
         gt_scores = self.proposals[ED_SCORES]
         gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
@@ -235,6 +238,43 @@ class FastRCNNOutputs(wmodule.WChildModule):
             tf.summary.scalar("iou_neg_loss",loss_neg)
 
             loss = loss_pos+loss_neg
+
+        return loss
+
+    def get_pred_centerness_loss(self):
+        with tf.name_scope("get_pred_centerness_loss"):
+            gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes, tf.nn.relu(self.proposals.indices))
+            batch_size, box_nr, box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
+            proposal_bboxes = tf.reshape(self.proposals.boxes, [batch_size * box_nr, box_dim])
+            cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
+            num_classes = self.pred_class_logits.get_shape().as_list()[-1]
+            fg_num_classes = num_classes - 1
+            pred_iou_logits = self.pred_iou_logits
+
+            fg_inds = tf.greater(self.gt_classes, 0)
+            pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas, fg_inds)
+            proposal_bboxes = tf.boolean_mask(proposal_bboxes, fg_inds)
+            gt_logits_i = tf.boolean_mask(self.gt_classes, fg_inds)
+            pred_iou_logits_pos = tf.reshape(tf.boolean_mask(pred_iou_logits, fg_inds),[-1])
+            if not cls_agnostic_bbox_reg:
+                pred_proposal_deltas = tf.reshape(pred_proposal_deltas, [-1, fg_num_classes, box_dim])
+                pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i - 1)
+
+            pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas, boxes=proposal_bboxes)
+            pred_bboxes = odb.to_cxyhw(pred_bboxes)
+            gt_bboxes = odb.to_cxyhw(pred_bboxes)
+            deltas = tf.abs(gt_bboxes[...,:2]-pred_bboxes[...,:2])
+            wsummary.histogram_or_scalar(deltas,"centerness_deltas")
+            centerness = 1-tf.reduce_max(deltas/(gt_bboxes[...,2:]+1e-8),axis=-1,keepdims=False)
+            wsummary.histogram_or_scalar(centerness,"centerness")
+            loss_pos = wnn.sigmoid_cross_entropy_with_logits_FL(labels=centerness,
+                                                                logits=pred_iou_logits_pos)
+            wsummary.histogram_or_scalar(tf.nn.sigmoid(pred_iou_logits_pos),"pred_centerness")
+            loss_pos = tf.reduce_mean(loss_pos)
+
+            tf.summary.scalar("centerness_loss",loss_pos)
+
+            loss = loss_pos
 
         return loss
 
@@ -476,12 +516,18 @@ class FastRCNNOutputs(wmodule.WChildModule):
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])
             if pred_iou_logits is not None:
-                ious = tf.reshape(ious,[batch_size,-1])
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 3:
+                    ious = tf.reshape(ious,[batch_size,-1,1])
+                    probability = probability*ious
+                    ious = None
+                    print("Pred centerness.")
+                else:
+                    ious = tf.reshape(ious,[batch_size,-1])
 
             pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
             classes_wise = (L != box_dim)
 
-            if pred_iou_logits is None:
+            if pred_iou_logits is None or ious is None:
                 boxes, labels, probability, res_indices, lens = tf.map_fn(
                     lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
                                                     score_thresh,
@@ -492,6 +538,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                     dtype=(tf.float32, tf.int32, tf.float32, tf.int32, tf.int32)
                 )
             else:
+                #nms时使用iou排序
                 boxes, labels, probability, res_indices, lens = tf.map_fn(
                     lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
                                                               score_thresh,

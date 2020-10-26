@@ -298,31 +298,23 @@ def npminxywh_toyxminmax(data):
 对data的shape没有限制
 '''
 def to_cxyhw(data):
-    old_shape = btf.combined_static_and_dynamic_shape(data)
-    data = tf.reshape(data,[-1,4])
-    data = tf.transpose(data,perm=[1,0])
-    ymin,xmin,ymax,xmax = tf.unstack(data,axis=0)
+    ymin,xmin,ymax,xmax = tf.unstack(data,axis=-1)
     cy = (ymin+ymax)/2.
     cx = (xmin+xmax)/2.
     h = ymax-ymin
     w = xmax-xmin
-    data = tf.stack([cy,cx,h,w],axis=0)
-    data = tf.transpose(data,perm=[1,0])
-    data = tf.reshape(data,old_shape)
+    data = tf.stack([cy,cx,h,w],axis=-1)
     return data
 '''
 将以cy,cx,h,w表示的box转换为以ymin,xmin,ymax,xmax表示的box
 '''
 def to_yxminmax(data):
-    old_shape = btf.combined_static_and_dynamic_shape(data)
-    data = tf.reshape(data,[-1,4])
-    cy, cx, h, w = tf.unstack(data,axis=1)
+    cy, cx, h, w = tf.unstack(data,axis=-1)
     ymin = cy-h/2.
     ymax = cy+h/2.
     xmin = cx-w/2.
     xmax = cx+w/2.
-    data = tf.stack([ymin,xmin,ymax,xmax],axis=1)
-    data = tf.reshape(data,old_shape)
+    data = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
 
     return data
 

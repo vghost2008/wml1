@@ -149,6 +149,24 @@ class WROIMultiScale:
         net1 = self.pool1(net,odb.scale_bboxes(bboxes,scale=[self.scale,self.scale]))
         return net0,net1
 
+class WROIPointPool:
+    '''
+    bin_size:(h,w)每一个格子的大小
+
+    '''
+    def __init__(self,*args,**kwargs):
+        self.pool = WROIAlign(bin_size=[1,1], output_size=[3,3])
+
+    '''
+    bboxes:[batch_size,X,4]
+    net:[batch_size,H,W,C]
+    输出：[Y,pool_height,pool_width,num_channels] //num_channels为fmap的通道数, Y=batch_size*X
+    '''
+    def __call__(self, net,bboxes):
+        net = self.pool(net,odb.scale_bboxes(bboxes,scale=[0.1,0.1]))
+        net = net[:,1,1,:]
+        return net
+
 
 class WROIKeepRatio:
     '''

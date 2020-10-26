@@ -206,3 +206,40 @@ class MakeAnchorsForRetinaNet(wmodule.WChildModule):
         target_shape = (ref_size/size)*ref_shape*tf.stack([tf.sqrt(ratio),tf.rsqrt(ratio)],axis=0)
         shape = tf.to_int32(target_shape)
         return tf.where(shape>0,shape,tf.ones_like(shape))
+
+
+@BACKBONE_HOOK_REGISTRY.register()
+class BalanceBackboneHookV3(wmodule.WChildModule):
+    def __init__(self, cfg, parent, *args, **kwargs):
+        super().__init__(cfg, parent, *args, **kwargs)
+
+    def forward(self, features, batched_inputs):
+        normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
+        res = []
+        with tf.variable_scope("BalanceBackboneHook"):
+            del batched_inputs
+            ref_index = 1
+            end_points = list(features)
+            v0 = end_points[ref_index]
+            mfeatures = []
+            with tf.name_scope("fusion"):
+                shape0 = wmlt.combined_static_and_dynamic_shape(v0)
+                for i, v in enumerate(end_points):
+                    if i == ref_index:
+                        net = v
+                    else:
+                        net = tf.image.resize_bilinear(v, shape0[1:3], name=f"resize{i}")
+                    mfeatures.append(net)
+                net = tf.add_n(mfeatures) / float(len(mfeatures))
+                net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
+                                  activation_fn=None,
+                                  normalizer_fn=normalizer_fn,
+                                  normalizer_params=normalizer_params,
+                                  scope=f"smooth")
+            for i, v in enumerate(end_points):
+                with tf.name_scope(f"merge{i}"):
+                    shape = wmlt.combined_static_and_dynamic_shape(v)
+                    v0 = tf.image.resize_bilinear(net, shape[1:3])
+                    res.append(v + v0)
+
+            return res

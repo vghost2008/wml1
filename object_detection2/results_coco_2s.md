@@ -116,23 +116,28 @@
 |MaskRCNNFPNCOCODemon-sephNv15|0.385|0.582|0.417|0.156|0.383|0.497|0.317|0.486|0.507|0.290|0.515|0.603|
 
 ##Effect of roi nr
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
-|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|-|
+|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|Cascade+roi nr=128|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|-|
+|Cascade+roi nr=512|0.357|0.519|0.387|0.079|0.337|0.535|0.303|0.441|0.454|0.129|0.470|0.633|titan 0.1136|
 
 ##Effect of neck
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
 |4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
+|4) + cls loss weight + roi nr=512(wtwfpn v1)|0.326|0.514|0.353|0.066|0.312|0.492|0.280|0.407|0.419|0.101|0.438|0.588|titan 0.2636|
 
 ##Effect of neck hook
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
 |balance hook|0.330|0.517|0.356|0.065|0.320|0.494|0.282|0.410|0.422|0.104|0.446|0.589|titan 0.2829|
-
+|balance hookV2|0.329|0.518|0.352|0.069|0.315|0.488|0.283|0.412|0.424|0.111|0.445|0.589|titan 0.3068|
+|4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
+|4) + cls loss weight + roi nr=512 + balance hook(bifpn v1_1)|0.331|0.511|0.356|0.082|0.320|0.483|0.282|0.413|0.425|0.136|0.445|0.581|1080ti 0.2723|
 
 ##Effect of giououtputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -174,6 +179,14 @@
 |4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
 |4) + cls loss weight+p3 output (sephv22)|0.313|0.500|0.331|0.043|0.236|0.455|0.277|0.405|0.418|0.058|0.377|0.571|
 
+##Effect of head
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
+|4) + cls loss weight + roi nr=512 + sephv6(sephv25_1)|0.329|0.516|0.354|0.062|0.315|0.493|0.283|0.410|0.422|0.099|0.443|0.592|1080ti 0.2807|
+
+
 ```
 - 1) use nonlocal and fusebackbone+cosine
 - 2) use cosine + BalanceBackboneHook + Mask Head EvoNormS0
@@ -181,6 +194,12 @@
 - 4) sephv2+cosine+EvoNormS0+ASTTMatcher3+new rcn sample
 - 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
 ```
+
+##Effect of RCNN box transform
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
+|4) + cls loss weight + offset encode(sephv24)|0.317|0.499|0.336|0.065|0.296|0.482|0.279|0.410|0.423|0.116|0.441|0.594|
 
 ###bbox
 

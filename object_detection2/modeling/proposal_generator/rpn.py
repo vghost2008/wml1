@@ -11,6 +11,7 @@ import wsummary
 from object_detection2.modeling.build import build_outputs
 from object_detection2.modeling.build_matcher import build_matcher
 import object_detection2.od_toolkit as odtk
+from object_detection2.modeling.backbone.build import build_hook_by_name
 
 slim = tf.contrib.slim
 
@@ -34,6 +35,7 @@ class StandardRPNHead(wmodule.WChildModule):
         self.box_dim = self.anchor_generator.box_dim
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.MODEL.RPN.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.MODEL.RPN.ACTIVATION_FN)
+        self.hook = build_hook_by_name(self.cfg.MODEL.RPN.HOOK,self.cfg,parent=self)
 
     def forward(self,inputs,features):
         '''
@@ -47,6 +49,9 @@ class StandardRPNHead(wmodule.WChildModule):
         del inputs
         pred_objectness_logits = []
         pred_anchor_deltas = []
+
+        if self.hook is not None:
+            features = self.hook(features,{})
 
         for i,x in enumerate(features):
             channel = x.get_shape()[-1]
