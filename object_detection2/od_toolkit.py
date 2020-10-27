@@ -120,6 +120,7 @@ def get_fusion_fn(name):
     fusion_dict = {"concat":concat_fusion,
                    "sum":sum_fusion,
                    "avg":avg_fusion,
+                   "mix_fusion":mix_fusion,
                    "wsum":fusion}
     if len(name) == 0:
         return sum_fusion
@@ -159,6 +160,22 @@ def avg_fusion(feature_maps,*args,scope=None,**kwargs):
 
 def concat_fusion(feature_maps,*args,scope=None,**kwargs):
     return tf.concat(feature_maps,axis=-1,name=scope)
+
+def mix_fusion(feature_maps,*args,concat_nr=32,scope=None,**kwargs):
+    concat_feature_maps = []
+    sum_feature_maps = []
+    with tf.name_scope(scope,default_name="mix_fusion"):
+        concat_feature_maps.append(feature_maps[-1][..., :concat_nr])
+        for net in feature_maps:
+            sum_feature_maps.append(net[...,concat_nr:])
+        if len(feature_maps) == 2:
+            s_net = tf.add(sum_feature_maps[0],sum_feature_maps[1])
+        else:
+            s_net = tf.add_n(sum_feature_maps)
+
+        concat_feature_maps.append(s_net)
+
+        return tf.concat(concat_feature_maps,axis=-1)
 
 def boolean_mask_on_instances(instances,mask,labels_key=RD_LABELS,length_key=RD_LENGTH,exclude=[IMAGE]):
     res = {}

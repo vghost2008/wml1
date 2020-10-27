@@ -32,8 +32,6 @@
 |use nolocal|0.274|0.437|0.293|0.019|0.197|0.405|0.256|0.377|0.388|0.022|0.332|0.547|
 |use FuseBackbone|0.307|0.484|0.329|0.027|0.234|0.448|0.274|0.407|0.419|0.031|0.374|0.581|
 
-
-
 ####segm
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -186,6 +184,17 @@
 |4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
 |4) + cls loss weight + roi nr=512 + sephv6(sephv25_1)|0.329|0.516|0.354|0.062|0.315|0.493|0.283|0.410|0.422|0.099|0.443|0.592|1080ti 0.2807|
 
+##Effect of RCNN box transform
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
+|4) + cls loss weight + offset encode(sephv24)|0.317|0.499|0.336|0.065|0.296|0.482|0.279|0.410|0.423|0.116|0.441|0.594|
+
+#Effect of pred iou and centerness
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|
+|sephv2+cosine+EvoNormS head+pred iou1|0.306|0.478|0.329|0.031|0.225|0.447|0.271|0.406|0.419|0.034|0.369|0.584|
 
 ```
 - 1) use nonlocal and fusebackbone+cosine
@@ -195,11 +204,6 @@
 - 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
 ```
 
-##Effect of RCNN box transform
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
-|4) + cls loss weight + offset encode(sephv24)|0.317|0.499|0.336|0.065|0.296|0.482|0.279|0.410|0.423|0.116|0.441|0.594|
 
 ###bbox
 
