@@ -56,7 +56,7 @@ def replace_with_gtlabels(bboxes,labels,length,gtbboxes,gtlabels,gtlength,thresh
     labels = tf.where(tf.greater(n_labels,0),n_labels,labels)
     return labels
 
-def replace_with_gtbboxes(bboxes,labels,length,gtbboxes,gtlabels,gtlength,threshold=0.5):
+def replace_with_gtbboxes(bboxes,labels,length,gtbboxes,gtlabels,gtlength,threshold=0.2):
     parent = WModule(cfg=None)
     matcher = Matcher(
         thresholds=[threshold],

@@ -191,10 +191,12 @@
 |4) + cls loss weight + offset encode(sephv24)|0.317|0.499|0.336|0.065|0.296|0.482|0.279|0.410|0.423|0.116|0.441|0.594|
 
 #Effect of pred iou and centerness
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|
-|sephv2+cosine+EvoNormS head+pred iou1|0.306|0.478|0.329|0.031|0.225|0.447|0.271|0.406|0.419|0.034|0.369|0.584|
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|-|
+|sephv2+cosine+EvoNormS head+pred iou1|0.306|0.478|0.329|0.031|0.225|0.447|0.271|0.406|0.419|0.034|0.369|0.584|-|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|0.3069|
+|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness|0.332|0.512|0.361|0.065|0.315|0.500|0.284|0.409|0.420|0.099|0.439|0.595|0.0976|
 
 ```
 - 1) use nonlocal and fusebackbone+cosine

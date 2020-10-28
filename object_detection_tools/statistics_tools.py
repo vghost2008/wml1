@@ -298,7 +298,7 @@ def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
-    data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/verify_0928_1_p1_proc')
+    data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/rdatav1_proc_m')
 
     return data.get_items()
 
