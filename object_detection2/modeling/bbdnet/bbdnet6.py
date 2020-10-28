@@ -19,7 +19,7 @@ import object_detection2.wlayers as odl
 import functools
 import math
 from object_detection2.data.dataloader import DataLoader
-from object_detection2.modeling.matcher import ATSSMatcher2
+from object_detection2.modeling.matcher import ATSSMatcher4
 from .build import BBDNET_MODEL
 
 
@@ -320,7 +320,7 @@ class BBDNet6(WModule):
         self.num_classes = num_classes
         self.threshold = self.cfg.MODEL.BBDNET.SCORE_THRESH_TEST
         self.max_node_nr = max_node_nr
-        self.matcher = ATSSMatcher2(cfg=self.cfg, parent=self)
+        self.matcher = ATSSMatcher4(cfg=self.cfg, parent=self)
 
     def forward(self,datas):
         datas = dict(datas)

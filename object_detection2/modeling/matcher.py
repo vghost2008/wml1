@@ -67,19 +67,19 @@ class ATSSMatcher(wmodule.WChildModule):
         print(f"ATSSMatcher v1.0 k={k}")
 
     @staticmethod
-    def moments(data,threshold,axes=-1,keep_dims=True):
+    def moments(data,threshold,axes=-1):
         mask = tf.greater_equal(data,threshold)
         mask_f = tf.cast(mask,data.dtype)
         data_f = tf.where(mask,data,tf.zeros_like(data))
-        data_sum = tf.reduce_sum(data_f,axis=axes,keepdims=keep_dims)
-        data_nr = tf.maximum(tf.reduce_sum(mask_f,axis=axes,keepdims=keep_dims),1)
+        data_sum = tf.reduce_sum(data_f,axis=axes,keepdims=True)
+        data_nr = tf.maximum(tf.reduce_sum(mask_f,axis=axes,keepdims=True),1)
         data_mean = data_sum/data_nr
         s_diff = tf.squared_difference(data, tf.stop_gradient(data_mean))
         s_diff = tf.where(mask,s_diff,tf.zeros_like(s_diff))
         variance = tf.reduce_sum(
             s_diff,
             axis=axes,
-            keepdims=keep_dims,
+            keepdims=True,
             name="variance")/data_nr
         return data_mean,variance
 
@@ -126,7 +126,7 @@ class ATSSMatcher(wmodule.WChildModule):
 
             pos_indices = tf.concat(pos_indices,axis=-1)
             pos_ious = btf.batch_gather(iou_matrix,pos_indices,name="gather_pos_ious")
-            iou_mean,iou_var = self.moments(pos_ious,threshold=self.MIN_IOU_THRESHOLD,keep_dims=True,axes=[-1])
+            iou_mean,iou_var = self.moments(pos_ious,threshold=self.MIN_IOU_THRESHOLD,axes=[-1])
             #wsummary.histogram_or_scalar(iou_mean,"iou_mean")
             with tf.device("/cpu:0"):
                 max_iou_threshold = tf.reduce_max(pos_ious,axis=-1,keepdims=True)
@@ -152,78 +152,6 @@ class ATSSMatcher(wmodule.WChildModule):
                 #iou_matrix=iou_matrix[:1,:glength[0]]
                 #iou_matrix = tf.reduce_sum(iou_matrix,axis=-1)
                 #wsummary.histogram_or_scalar(iou_matrix,"iou_matrix")
-
-            if self.same_pos_label:
-                labels = tf.where(tf.greater(labels, 0), tf.ones_like(labels) * self.same_pos_label, labels)
-            return tf.stop_gradient(labels),tf.stop_gradient(scores),tf.stop_gradient(index)
-
-@MATCHER.register()
-class ATSSMatcher2(wmodule.WChildModule):
-    MIN_IOU_THRESHOLD = 0.1
-    def __init__(self,same_pos_label=None,*args,**kwargs):
-        '''
-        '''
-        super().__init__(*args,**kwargs)
-        self.same_pos_label = same_pos_label
-
-        print(f"ATSSMatcher v2.0")
-
-    @wmlt.add_name_scope
-    def get_threshold(self,iou_matrix):
-        B,X,Y = btf.combined_static_and_dynamic_shape(iou_matrix)
-        iou_matrix = tf.reshape(iou_matrix,[B*X,Y])
-        def fn(ious):
-            mask = tf.greater(ious,self.MIN_IOU_THRESHOLD)
-            def fn0():
-                p_ious = tf.boolean_mask(ious,mask)
-                mean,var = tf.nn.moments(p_ious,axes=-1)
-                std = tf.sqrt(var)
-                return mean+std
-            def fn1():
-                return tf.constant(1.0,dtype=tf.float32)
-            return tf.cond(tf.reduce_any(mask),fn0,fn1)
-        threshold = tf.map_fn(fn,elems=iou_matrix,back_prop=False)
-        threshold = tf.reshape(threshold,[B,X,1])
-        return tf.stop_gradient(threshold)
-
-    def forward(self,boxes,gboxes,glabels,glength,*args,**kwargs):
-        '''
-        :param boxes: [1,X,4] or [batch_size,X,4] proposal boxes
-        :param gboxes: [batch_size,Y,4] groundtruth boxes
-        :param glabels: [batch_size,Y] groundtruth labels
-        :param glength: [batch_size] boxes size
-        :return:
-        labels: [batch_size,X,4], the label of boxes, -1 indict ignored box, which will not calculate loss,
-        0 is background
-        scores: [batch_size,X], the overlap score with boxes' match gt box
-        indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
-        '''
-        with tf.name_scope("ATTSMatcher2"):
-            iou_matrix = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
-                                                      fn=odb.get_iou_matrix,
-                                                      len0=glength,
-                                                      scope="get_iou_matrix")
-            is_center_in_gtboxes = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
-                                                                fn=odb.is_center_in_boxes,
-                                                                len0=glength,
-                                                                dtype=tf.bool,
-                                                                scope="get_is_center_in_gtbboxes")
-            wsummary.variable_summaries_v2(iou_matrix,"iou_matrix")
-
-            with tf.device("/cpu:0"):
-                iou_threshold = self.get_threshold(iou_matrix)
-                is_pos = tf.logical_and(iou_matrix>iou_threshold,is_center_in_gtboxes)
-                iou_matrix = tf.where(is_pos,iou_matrix,tf.zeros_like(iou_matrix))
-                scores,index = tf.nn.top_k(tf.transpose(iou_matrix,perm=[0,2,1]),k=1)
-                B,Y,_ = btf.combined_static_and_dynamic_shape(gboxes)
-                index = tf.squeeze(index,axis=-1)
-                scores = tf.squeeze(scores,axis=-1)
-                labels = wmlt.batch_gather(glabels,index,name="gather_labels",
-                                           parallel_iterations=B,
-                                           back_prop=False)
-                is_good_score = tf.greater(scores,self.MIN_IOU_THRESHOLD)
-                labels = tf.where(is_good_score,labels,tf.zeros_like(labels))
-                index = tf.where(is_good_score,index,tf.ones_like(index)*-1)
 
             if self.same_pos_label:
                 labels = tf.where(tf.greater(labels, 0), tf.ones_like(labels) * self.same_pos_label, labels)
@@ -277,7 +205,7 @@ class ATSSMatcher3(wmodule.WChildModule):
         scores: [batch_size,X], the overlap score with boxes' match gt box
         indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
         '''
-        with tf.name_scope("ATTSMatcher2"):
+        with tf.name_scope("ATTSMatcher3"):
             iou_matrix = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
                                                       fn=odb.get_iou_matrix,
                                                       len0=glength,
@@ -317,6 +245,9 @@ class ATSSMatcher3(wmodule.WChildModule):
 
 @MATCHER.register()
 class ATSSMatcher4(wmodule.WChildModule):
+    '''
+    相比于ATSSMatcher3, ATSSMatcher4不会处理threshold[0]与threshold[1]之间的这部分样本
+    '''
     MIN_IOU_THRESHOLD = 0.1
     def __init__(self,thresholds,same_pos_label=None,*args,**kwargs):
         '''
@@ -398,65 +329,84 @@ class ATSSMatcher4(wmodule.WChildModule):
             return tf.stop_gradient(labels),tf.stop_gradient(scores),tf.stop_gradient(index)
 
 @MATCHER.register()
-class ATSSMatcher5(wmodule.WChildModule):
+class DynamicMatcher(wmodule.WChildModule):
     MIN_IOU_THRESHOLD = 0.1
-    def __init__(self,thresholds,same_pos_label=None,k=1,*args,**kwargs):
+    def __init__(self,thresholds=[0.0],same_pos_label=None,*args,**kwargs):
         '''
         '''
         super().__init__(*args,**kwargs)
         self.same_pos_label = same_pos_label
         self.thresholds = thresholds
-        self.k = k
 
-        print(f"ATSSMatcher v5.0, thresholds={self.thresholds}")
+        print(f"DynamicMatcher v1.0, thresholds={self.thresholds}")
+
+    @staticmethod
+    def moments(data,weights,threshold,axes=-1):
+        mask = tf.greater_equal(data,threshold)
+        mask_f = tf.cast(mask,data.dtype)
+        if weights.dtype != data.dtype:
+            weights = tf.cast(weights,data.dtype)
+        mask_wf = mask_f*weights
+        data_f = tf.where(mask,data,tf.zeros_like(data))
+        data_wf = data_f*weights
+        data_sum = tf.reduce_sum(data_wf,axis=axes,keepdims=True)
+        data_nr = tf.maximum(tf.reduce_sum(mask_wf,axis=axes,keepdims=True),1)
+        data_mean = data_sum/data_nr
+        s_diff = tf.squared_difference(data, tf.stop_gradient(data_mean))
+        s_diff = tf.where(mask,s_diff,tf.zeros_like(s_diff))*weights
+        variance = tf.reduce_sum(
+            s_diff,
+            axis=axes,
+            keepdims=True,
+            name="variance")/data_nr
+        return data_mean,variance
 
     @wmlt.add_name_scope
-    def get_threshold(self,iou_matrix):
+    def get_threshold(self,iou_matrix,anchor_weights):
         '''
         iou_matrix: [B,GT_nr,Anchor_nr]
         X = GT_nr, Y=Anchor_nr
         return:
         [B,GT]
         '''
-        B,X,Y = btf.combined_static_and_dynamic_shape(iou_matrix)
-        iou_matrix = tf.reshape(iou_matrix,[B*X,Y])
-        def fn(ious):
-            mask = tf.greater(ious,self.MIN_IOU_THRESHOLD)
-            def fn0():
-                p_ious = tf.boolean_mask(ious,mask)
-                mean,var = tf.nn.moments(p_ious,axes=-1)
-                std = tf.sqrt(var)
-                return mean+std
-            def fn1():
-                return tf.constant(1.0,dtype=tf.float32)
-            return tf.cond(tf.reduce_any(mask),fn0,fn1)
-        threshold = tf.map_fn(fn,elems=iou_matrix,back_prop=False)
-        threshold = tf.reshape(threshold,[B,X])
-        return tf.stop_gradient(threshold)
+        B,GT_nr,Anchor_nr = wmlt.combined_static_and_dynamic_shape(iou_matrix)
+        anchor_weights = tf.reshape(anchor_weights,[1,1,Anchor_nr])
+        iou_mean, iou_var = self.moments(iou_matrix, weights=anchor_weights,
+                                         threshold=self.MIN_IOU_THRESHOLD, axes=[-1])
+        iou_std = tf.sqrt(iou_var)
+        iou_threshold = iou_mean + iou_std
+        iou_threshold = tf.squeeze(iou_threshold,axis=-1)
 
-    def forward(self,boxes,gboxes,glabels,glength,*args,**kwargs):
+        return tf.stop_gradient(iou_threshold)
+
+    @wmlt.add_name_scope
+    def get_anchor_weights(self,boxes_len):
+
+        boxes_len_f = [tf.to_float(x) for x in boxes_len]
+        scales = [tf.to_float(boxes_len[0])/x for x in boxes_len_f]
+        weights = []
+        for s,l in zip(scales,boxes_len):
+            w = tf.ones(shape=[l],dtype=tf.float32)*s
+            weights.append(w)
+
+        return tf.concat(weights,axis=-1)
+
+
+    def forward(self,boxes,gboxes,glabels,glength,boxes_len,*args,**kwargs):
         '''
         :param boxes: [1,X,4] or [batch_size,X,4] proposal boxes
         :param gboxes: [batch_size,Y,4] groundtruth boxes
         :param glabels: [batch_size,Y] groundtruth labels
         :param glength: [batch_size] boxes size
+        :param boxes_len: [len0,len1,len2,...] sum(boxes_len)=X, boxes len in each layer
         :return:
         labels: [batch_size,X,4], the label of boxes, -1 indict ignored box, which will not calculate loss,
         0 is background
         scores: [batch_size,X], the overlap score with boxes' match gt box
         indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
         '''
-        with tf.name_scope("ATTSMatcher4"):
-            AB,X,_ = wmlt.combined_static_and_dynamic_shape(boxes)
-            k = self.k
-            nr = X//k
-            index = tf.range(nr,dtype=tf.int32)*k+3  #ratio=0.5,1.0,2.0, 取1.0
-            index = tf.tile(tf.expand_dims(index,axis=0),[AB,1])
-            t_boxes = wmlt.batch_gather(boxes,index)
-            iou_matrix0 = odb.batch_bboxes_pair_wrapv2(gboxes,t_boxes,
-                                                      fn=odb.get_iou_matrix,
-                                                      len0=glength,
-                                                      scope="get_iou_matrix0")
+        with tf.name_scope("DynamicMatcher"):
+            assert isinstance(boxes_len,(list,tuple)), "error boxes len type."
             iou_matrix = odb.batch_bboxes_pair_wrapv2(gboxes,boxes,
                                                       fn=odb.get_iou_matrix,
                                                       len0=glength,
@@ -469,8 +419,11 @@ class ATSSMatcher5(wmodule.WChildModule):
             wsummary.variable_summaries_v2(iou_matrix,"iou_matrix")
 
             with tf.device("/cpu:0"):
-                iou_threshold = self.get_threshold(iou_matrix0)
-                iou_threshold = tf.minimum(iou_threshold,self.thresholds[-1])
+                anchor_weights = self.get_anchor_weights(boxes_len)
+                iou_threshold = self.get_threshold(iou_matrix,anchor_weights)
+                if self.thresholds[-1]>self.MIN_IOU_THRESHOLD:
+                    print(f"DynamicMatcher use thresholds ceiling {self.thresholds[-1]}.")
+                    iou_threshold = tf.minimum(iou_threshold,self.thresholds[-1])
                 iou_matrix = tf.where(is_center_in_gtboxes,iou_matrix,tf.zeros_like(iou_matrix))
                 scores,index = tf.nn.top_k(tf.transpose(iou_matrix,perm=[0,2,1]),k=1)
                 B,Y,_ = btf.combined_static_and_dynamic_shape(gboxes)
