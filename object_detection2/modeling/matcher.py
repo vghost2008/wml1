@@ -72,7 +72,7 @@ class ATSSMatcher(wmodule.WChildModule):
         mask_f = tf.cast(mask,data.dtype)
         data_f = tf.where(mask,data,tf.zeros_like(data))
         data_sum = tf.reduce_sum(data_f,axis=axes,keepdims=keep_dims)
-        data_nr = tf.maximum(1,tf.reduce_sum(mask_f,axis=axes,keepdims=keep_dims))
+        data_nr = tf.maximum(tf.reduce_sum(mask_f,axis=axes,keepdims=keep_dims),1)
         data_mean = data_sum/data_nr
         s_diff = tf.squared_difference(data, tf.stop_gradient(data_mean))
         s_diff = tf.where(mask,s_diff,tf.zeros_like(s_diff))
