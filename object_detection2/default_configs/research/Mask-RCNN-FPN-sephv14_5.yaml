@@ -1,3 +1,4 @@
+#用于对比roi使用matcherv2 vs matcher
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False

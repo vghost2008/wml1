@@ -10,7 +10,6 @@ MODEL:
     DEPTH: 50
     FROZEN_BN: True
   ROI_HEADS:
-    #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "CascadeROIHeads"
     IN_FEATURES: ["P2","P3","P4","P5","P6"]
     BATCH_SIZE_PER_IMAGE: 512

@@ -124,12 +124,18 @@ class GeneralizedRCNN(MetaArch):
         features = self.backbone(batched_inputs)
         if self.roi_heads_backbone is not None:
             roi_features = self.roi_heads_backbone(batched_inputs)
+            pg_features = features
         else:
-            roi_features = features
+            if isinstance(features,(list,tuple)):
+                pg_features = features[0]
+                roi_features = features[1]
+            else:
+                pg_features = features
+                roi_features = features
 
         if detected_instances is None:
             if self.proposal_generator:
-                proposals, _ = self.proposal_generator(batched_inputs, features)
+                proposals, _ = self.proposal_generator(batched_inputs, pg_features)
             else:
                 assert "proposals" in batched_inputs[0]
                 proposals = [x["proposals"].to(self.device) for x in batched_inputs]

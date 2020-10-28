@@ -44,7 +44,6 @@ class TwoWayFPN(Backbone):
         self.in_features = in_features
         self.bottom_up = bottom_up
         self.out_channels = out_channels
-        assert fuse_type in {"avg", "sum"}
         self._fuse_type = fuse_type
         self.scope = "TwoWayFPN"
         self.use_depthwise = False
@@ -80,11 +79,11 @@ class TwoWayFPN(Backbone):
         """
         bottom_up_features = self.bottom_up(x)
         image_features = [bottom_up_features[f] for f in self.in_features]
-        res0 = self.forward_with_given_features(x,image_features,[self.hook0_before,self.hook0_after],'FPN_a')
-        res1 = self.forward_with_given_features(x,image_features,[self.hook1_before,self.hook1_after],'FPN_b')
+        res0 = self.forward_with_given_features(x,image_features,bottom_up_features,[self.hook0_before,self.hook0_after],'FPN_a')
+        res1 = self.forward_with_given_features(x,image_features,bottom_up_features,[self.hook1_before,self.hook1_after],'FPN_b')
         return [res0,res1]
 
-    def forward_with_given_features(self, x,image_features,hooks,scope):
+    def forward_with_given_features(self, x,image_features,bottom_up_features,hooks,scope):
         with tf.variable_scope(scope):
             hook_before,hook_after = hooks
             if hook_before is not None:

@@ -245,6 +245,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         with tf.name_scope("get_pred_centerness_loss"):
             gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes, tf.nn.relu(self.proposals.indices))
             batch_size, box_nr, box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
+            gt_proposal_deltas = tf.reshape(gt_proposal_deltas, [batch_size * box_nr, box_dim])
             proposal_bboxes = tf.reshape(self.proposals.boxes, [batch_size * box_nr, box_dim])
             cls_agnostic_bbox_reg = self.pred_proposal_deltas.get_shape().as_list()[-1] == box_dim
             num_classes = self.pred_class_logits.get_shape().as_list()[-1]
@@ -252,6 +253,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             pred_iou_logits = self.pred_iou_logits
 
             fg_inds = tf.greater(self.gt_classes, 0)
+            gt_proposal_deltas = tf.boolean_mask(gt_proposal_deltas, fg_inds)
             pred_proposal_deltas = tf.boolean_mask(self.pred_proposal_deltas, fg_inds)
             proposal_bboxes = tf.boolean_mask(proposal_bboxes, fg_inds)
             gt_logits_i = tf.boolean_mask(self.gt_classes, fg_inds)
@@ -261,9 +263,9 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 pred_proposal_deltas = wmlt.select_2thdata_by_index_v2(pred_proposal_deltas, gt_logits_i - 1)
 
             pred_bboxes = self.box2box_transform.apply_deltas(pred_proposal_deltas, boxes=proposal_bboxes)
-            pred_bboxes = odb.to_cxyhw(pred_bboxes)
-            gt_bboxes = odb.to_cxyhw(pred_bboxes)
-            deltas = tf.abs(gt_bboxes[...,:2]-pred_bboxes[...,:2])
+            pred_bboxes = odb.to_cxyhw(proposal_bboxes)
+            gt_bboxes = odb.to_cxyhw(gt_proposal_deltas)
+            deltas = tf.abs(gt_bboxes[...,:2]-pred_bboxes[...,:2])*2
             wsummary.histogram_or_scalar(deltas,"centerness_deltas")
             centerness = 1-tf.reduce_max(deltas/(gt_bboxes[...,2:]+1e-8),axis=-1,keepdims=False)
             wsummary.histogram_or_scalar(centerness,"centerness")
@@ -561,7 +563,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         results = {RD_BOXES:boxes,RD_LABELS:labels,RD_PROBABILITY:probability,RD_INDICES:res_indices,RD_LENGTH:lens}
         if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
             with tf.device("/cpu:0"):
-                if pred_iou_logits is not None:
+                if pred_iou_logits is not None and ious is not None:
                     ious = wmlt.batch_gather(ious,res_indices)
                 else:
                     ious = None
