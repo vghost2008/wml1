@@ -46,7 +46,7 @@ class RetinaNet(MetaArch):
             allow_low_quality_matches=True,
             cfg=cfg,
             parent=self,
-            k = self.anchor_generator.num_cell_anchors[0],
+            k = self.anchor_generator.num_cell_anchors[0]*9,
         )
 
 
