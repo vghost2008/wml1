@@ -26,12 +26,15 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     CLS_AGNOSTIC_BBOX_REG: True
+    canonical_box_size: 224.0
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
+  ROI_BOX_CASCADE_HEAD:
+    CANONICAL_BOX_SIZE_SCALE: (1.0,1.0,1.0)
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
@@ -68,6 +71,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "CascadeMaskRCNN1"
+  PROJ_NAME: "CascadeMaskRCNN"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

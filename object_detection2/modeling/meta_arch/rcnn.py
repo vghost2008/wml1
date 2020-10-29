@@ -193,6 +193,8 @@ class ProposalNetwork(MetaArch):
         """
         inputs = self.preprocess_image(inputs)
         features = self.backbone(inputs)
+        if isinstance(features,(list,tuple)):
+            features = features[0]
         outdata,proposal_losses = self.proposal_generator(inputs, features)
         wsummary.detection_image_summary(images=inputs['image'],boxes=outdata[PD_BOXES],name="proposal_boxes")
         return outdata,proposal_losses

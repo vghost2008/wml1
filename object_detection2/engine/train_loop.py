@@ -161,8 +161,12 @@ class TrainerBase:
         self.iter = self.start_iter = start_iter
         self.max_iter = max_iter
 
-        evaler = mt.COCOEvaluation(num_classes=self.cfg.DATASETS.NUM_CLASSES,
-                                   mask_on=self.cfg.MODEL.MASK_ON)
+        if self.cfg.GLOBAL.EVAL_TYPE == "COCO":
+            evaler = mt.COCOEvaluation(num_classes=self.cfg.DATASETS.NUM_CLASSES,
+                                       mask_on=self.cfg.MODEL.MASK_ON)
+        elif self.cfg.GLOBAL.EVAL_TYPE == "recall" or self.cfg.GLOBAL.EVAL_TYPE == "precision":
+            evaler = mt.PrecisionAndRecall(num_classes=self.cfg.DATASETS.NUM_CLASSES,
+                                           threshold=0.5)
 
         try:
             self.before_train()

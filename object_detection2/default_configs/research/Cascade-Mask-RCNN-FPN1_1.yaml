@@ -1,4 +1,4 @@
-#用于测试pred centerness的作用
+#用于测试CANONICAL_BOX_SIZE_SCALE的作用
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -11,14 +11,12 @@ MODEL:
     DEPTH: 50
     FROZEN_BN: True
   ROI_HEADS:
-    #OUTPUTS: "FastRCNNGIOUOutputs"
-    NAME: "StandardROIHeads"
+    NAME: "CascadeROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    PRED_IOU_VERSION: 3
-    PRED_IOU: True
+    #BOX_REG_LOSS_SCALE: 8.0
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
@@ -28,12 +26,16 @@ MODEL:
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
+    CLS_AGNOSTIC_BBOX_REG: True
+    canonical_box_size: 128.0
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
+  ROI_BOX_CASCADE_HEAD:
+    CANONICAL_BOX_SIZE_SCALE: (0.5,1.0,2.0)
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
@@ -50,25 +52,26 @@ MODEL:
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher3"
-    #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
 SOLVER:
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 3
   BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
   STEPS: (80000,100000,120000)
   LR_DECAY_TYPE: "cosine"
 INPUT:
+  #MIN_SIZE_TRAIN: (800,832,864,896,928,960)
   MIN_SIZE_TRAIN: (512,544,576,608,640)
-  MAX_SIZE_TRAIN: 800
+  MAX_SIZE_TRAIN: 1333
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
+  SHUFFLE_BUFFER_SIZE: 1024
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_6"
+  PROJ_NAME: "CascadeMaskRCNN1"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

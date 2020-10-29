@@ -1,5 +1,6 @@
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
+  #META_ARCHITECTURE: "ProposalNetwork"
   MASK_ON: False
   WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
@@ -17,7 +18,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.005
+    SCORE_THRESH_TEST: 0.002
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
@@ -48,6 +49,7 @@ MODEL:
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher3"
     #OUTPUTS: "RPNGIOUOutputs"
+    #NMS_THRESH: 0.5
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
@@ -69,5 +71,6 @@ GLOBAL:
   PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14"
   SUMMARY_LEVEL: -1
   #RESEARCH: ["result_classes"]
-  RESEARCH: ["result_bboxes"]
+  #RESEARCH: ["result_bboxes"]
+  #EVAL_TYPE: "recall"
   LOG_STEP: 200

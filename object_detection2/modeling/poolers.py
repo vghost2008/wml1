@@ -50,6 +50,7 @@ class ROIPooler(wmodule.WChildModule):
         output_size=[7,7],
         bin_size=[2,2],
         pooler_type="ROIAlign",
+        canonical_box_scale=1.0,
         **kwargs,
     ):
         """
@@ -77,7 +78,7 @@ class ROIPooler(wmodule.WChildModule):
         """
         super().__init__(cfg=cfg,parent=parent,**kwargs)
 
-        canonical_box_size=cfg.canonical_box_size,
+        canonical_box_size=int(cfg.canonical_box_size*canonical_box_scale),
         canonical_level=cfg.canonical_level,
 
         if isinstance(output_size, int):

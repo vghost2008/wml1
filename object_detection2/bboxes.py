@@ -380,6 +380,54 @@ def scale_bboxes(bboxes,scale,correct=False):
     return data
 
 '''
+boxes:[...,4] ymin,xmin,ymax,xmax
+scale:float
+'''
+@btf.add_name_scope
+def get_bboxes_patchs(bboxes,scale=0.816,correct=False):
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=-1)
+    cy = (ymin+ymax)/2.
+    cx = (xmin+xmax)/2.
+    h = ymax-ymin
+    w = xmax-xmin
+    h = scale*h
+    w = scale*w
+    ymin0 = cy - h / 2.
+    ymax0 = cy + h / 2.
+    xmin0 = cx - w / 2.
+    xmax0 = cx + w / 2.
+
+    ymin1 = ymin
+    ymax1 = ymin1+h
+    xmin1 = xmin
+    xmax1 = xmin+w
+
+    ymin2 = ymin
+    ymax2 = ymin1+h
+    xmin2 = xmax-w
+    xmax2 = xmax
+
+    ymin3 = ymax-h
+    ymax3 = ymax
+    xmin3 = xmax-w
+    xmax3 = xmax
+
+    ymin4 = ymax-h
+    ymax4 = ymax
+    xmin4 = xmin
+    xmax4 = xmin+w
+
+    data0 = tf.stack([ymin, xmin, ymax, xmax], axis=-1)
+    data1 = tf.stack([ymin0, xmin0, ymax0, xmax0], axis=-1)
+    data2 = tf.stack([ymin1, xmin1, ymax1, xmax1], axis=-1)
+    data3 = tf.stack([ymin2, xmin2, ymax2, xmax2], axis=-1)
+    data4 = tf.stack([ymin3, xmin3, ymax3, xmax3], axis=-1)
+    data5 = tf.stack([ymin4, xmin4, ymax4, xmax4], axis=-1)
+    data = tf.concat([data0, data1,data2,data3,data4,data5],axis=-2)
+    if correct:
+        data = tf_correct_yxminmax_boxes(data)
+    return data
+'''
 data:[N,4]
 校正ymin,xmin,ymax,xmax表示的box中的不合法数据
 '''

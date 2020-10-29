@@ -1,4 +1,4 @@
-#用于测试pred centerness的作用
+#用于测试DynamicMatcher with 1 anchor
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -17,8 +17,6 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    PRED_IOU_VERSION: 3
-    PRED_IOU: True
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
@@ -41,7 +39,7 @@ MODEL:
     LAST_LEVEL_NUM_CONV: 1
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
-    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+    ASPECT_RATIOS: [[1.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
@@ -49,7 +47,7 @@ MODEL:
     POST_NMS_TOPK_TRAIN: 1000
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
-    MATCHER: "ATSSMatcher3"
+    MATCHER: "DynamicMatcher"
     #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
@@ -69,6 +67,8 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_6"
-  SUMMARY_LEVEL: -1
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_11"
+  SUMMARY_LEVEL: 0
+  #RESEARCH: ["result_classes"]
+  #RESEARCH: ["result_bboxes"]
   LOG_STEP: 200

@@ -377,6 +377,7 @@ _C.MODEL.ROI_BOX_CASCADE_HEAD.BBOX_REG_WEIGHTS = (
     (30.0, 30.0, 15.0, 15.0),
 )
 _C.MODEL.ROI_BOX_CASCADE_HEAD.IOUS = (0.5, 0.6, 0.7)
+_C.MODEL.ROI_BOX_CASCADE_HEAD.CANONICAL_BOX_SIZE_SCALE = (1.0,1.0,1.0)
 
 
 # ---------------------------------------------------------------------------- #
@@ -812,6 +813,7 @@ _C.GLOBAL.RESEARCH = [""] #result_classes, result_bboxes
 _C.GLOBAL.LOG_STEP = 200
 _C.GLOBAL.SAVE_STEP = 500
 _C.GLOBAL.GPU_MEM_FRACTION=0.0
+_C.GLOBAL.EVAL_TYPE = "COCO"
 _C.log_dir = ""
 _C.ckpt_dir = ""
 #BalanceBackboneHookV2
