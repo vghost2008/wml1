@@ -56,8 +56,14 @@ class StandardRPNHead(wmodule.WChildModule):
         for i,x in enumerate(features):
             channel = x.get_shape()[-1]
             with tf.variable_scope("StandardRPNHead",reuse=tf.AUTO_REUSE):
+                if self.normalizer_fn is not None:
+                    biases_initializer = None
+                else:
+                    biases_initializer = tf.zeros_initializer()
+
                 t = slim.conv2d(x,channel,[3,3],normalizer_fn=None,
                                 activation_fn=None,
+                                biases_initializer=biases_initializer,
                                 padding="SAME")
 
                 if self.normalizer_fn is not None:

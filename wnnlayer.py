@@ -845,7 +845,8 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
 def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
-                      gamma_initializer=tf.constant_initializer(0.0),reuse=None):
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None,
+                      weighed_sum=True):
     def reshape_net(net):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         new_shape = [shape[0],shape[1]*shape[2],shape[3]]
@@ -885,8 +886,12 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
                       normalizer_fn=None,
                       scope="attn_conv")
         normalizer_params  = normalizer_params or {}
-        gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
-        out = gamma*out+net
+        if weighed_sum:
+            gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+            out = gamma*out+net
+        else:
+            out = out+net
+
         if normalizer_fn is not None:
             out = normalizer_fn(out,**normalizer_params)
         if activation_fn is not None:

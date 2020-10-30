@@ -17,7 +17,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.005
+    SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV5"
     NUM_FC: 2
@@ -70,5 +70,5 @@ GLOBAL:
   PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv25"
   SUMMARY_LEVEL: -1
   #RESEARCH: ["result_classes"]
-  RESEARCH: ["result_bboxes"]
+  #RESEARCH: ["result_bboxes"]
   LOG_STEP: 200

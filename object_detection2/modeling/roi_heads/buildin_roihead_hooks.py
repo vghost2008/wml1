@@ -14,10 +14,12 @@ class NonLocalROIHeadsHook(wmodule.WChildModule):
         del batched_inputs
         cls_net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook_cls",
                                          normalizer_fn=wnnl.evo_norm_s0,
-                                         activation_fn=None)
+                                         activation_fn=None,
+                                         weighed_sum=False)
         reg_net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook_reg",
                                          normalizer_fn=wnnl.evo_norm_s0,
-                                         activation_fn=None)
+                                         activation_fn=None,
+                                         weighed_sum=False)
         return cls_net,reg_net
 
 @ROI_HEADS_HOOK.register()

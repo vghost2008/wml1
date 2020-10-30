@@ -1,4 +1,4 @@
-#用于测试DynamicMatcher
+#用于测试DynamicMatcher, 不设置阀值
 MODEL:
   META_ARCHITECTURE: "RetinaNet"
   WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
@@ -23,7 +23,7 @@ MODEL:
   RETINANET:
     #IN_FEATURES: ["P2","P3","P4"]
     IN_FEATURES: ["P3","P4","P5","P6","P7"]
-    IOU_THRESHOLDS: [0.4, 0.5]
+    IOU_THRESHOLDS: [0.0, 0.0]
     IOU_LABELS: [0, -1, 1]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
@@ -52,5 +52,5 @@ INPUT:
   #DATAPROCESS: "SSD_Fix_Size"
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "RetinaNetCOCODemon1_4"
+  PROJ_NAME: "RetinaNetCOCODemon1_5"
   LOG_STEP: 200

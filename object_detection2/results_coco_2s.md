@@ -91,6 +91,8 @@
 |4)+GIOUoutputs+reg loss x8 + low box reg threshold(sephv21)|0.299|0.466|0.321|0.041|0.207|0.437|0.275|0.398|0.409|0.059|0.352|0.562|
 |4) + cls loss weight+p3 output (sephv22)|0.313|0.500|0.331|0.043|0.236|0.455|0.277|0.405|0.418|0.058|0.377|0.571|
 |Cascade|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|
+|gev1|0.327|0.515|0.349|0.066|0.314|0.491|0.283|0.413|0.424|0.106|0.449|0.595|
+
 
 ####segm
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -127,6 +129,17 @@
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
 |4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
 |4) + cls loss weight + roi nr=512(wtwfpn v1)|0.326|0.514|0.353|0.066|0.312|0.492|0.280|0.407|0.419|0.101|0.438|0.588|titan 0.2636|
+|4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)|0.326|0.513|0.351|0.060|0.311|0.493|0.282|0.406|0.418|0.094|0.438|0.589|titan 0.0946|
+|4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)+NRPNT|0.328|0.518|0.353|0.062|0.313|0.497|0.285|0.414|0.427|0.102|0.451|0.597|titan 0.3328|
+
+
+##Effect of neck fusion
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14)(sum)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|4) + cls loss weight + roi nr=512(v14_8)(mix_fusion)|0.330|0.520|0.355|0.071|0.318|0.493|0.284|0.417|0.430|0.118|0.455|0.597|1080ti 0.3738|
+|4) + cls loss weight + roi nr=512(wtwfpn v1)|0.326|0.514|0.353|0.066|0.312|0.492|0.280|0.407|0.419|0.101|0.438|0.588|titan 0.2636|
+|4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)|0.326|0.513|0.351|0.060|0.311|0.493|0.282|0.406|0.418|0.094|0.438|0.589|titan 0.0946|
 
 ##Effect of neck hook
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
@@ -136,6 +149,7 @@
 |balance hookV2|0.329|0.518|0.352|0.069|0.315|0.488|0.283|0.412|0.424|0.111|0.445|0.589|titan 0.3068|
 |4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
 |4) + cls loss weight + roi nr=512 + balance hook(bifpn v1_1)|0.331|0.511|0.356|0.082|0.320|0.483|0.282|0.413|0.425|0.136|0.445|0.581|1080ti 0.2723|
+
 
 ##Effect of giououtputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -183,6 +197,7 @@
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
 |4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
 |4) + cls loss weight + roi nr=512 + sephv6(sephv25_1)|0.329|0.516|0.354|0.062|0.315|0.493|0.283|0.410|0.422|0.099|0.443|0.592|1080ti 0.2807|
+|4) + cls loss weight + roi nr=512 + nonlocal head hook (sephv14_7)|0.328|0.514|0.352|0.065|0.312|0.492|0.283|0.415|0.427|0.107|0.455|0.594|titan 0.1693|
 
 ##Effect of RCNN box transform
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -190,13 +205,36 @@
 |4) + cls loss weight (sephv14)|0.315|0.503|0.334|0.047|0.230|0.458|0.280|0.407|0.420|0.062|0.374|0.572|
 |4) + cls loss weight + offset encode(sephv24)|0.317|0.499|0.336|0.065|0.296|0.482|0.279|0.410|0.423|0.116|0.441|0.594|
 
-#Effect of pred iou and centerness
+##Effect of pred iou and centerness
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |sephv2+cosine+EvoNormS head|0.300|0.479|0.328|0.036|0.223|0.437|0.270|0.406|0.421|0.039|0.376|0.581|-|
 |sephv2+cosine+EvoNormS head+pred iou1|0.306|0.478|0.329|0.031|0.225|0.447|0.271|0.406|0.419|0.034|0.369|0.584|-|
-|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|0.3069|
-|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness|0.332|0.512|0.361|0.065|0.315|0.500|0.284|0.409|0.420|0.099|0.439|0.595|0.0976|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness|0.332|0.512|0.361|0.065|0.315|0.500|0.284|0.409|0.420|0.099|0.439|0.595|titan 0.0976|
+|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness + NRPNT|0.334|0.514|0.363|0.064|0.316|0.501|0.284|0.414|0.426|0.104|0.446|0.600|titan 0.1551|
+
+##Effect of rpn threshold
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness|0.332|0.512|0.361|0.065|0.315|0.500|0.284|0.409|0.420|0.099|0.439|0.595|titan 0.0976|
+|4) + cls loss weight + roi nr=512(sephv14_6) + 3 anchor+pred centerness + NRPNT|0.334|0.514|0.363|0.064|0.316|0.501|0.284|0.414|0.426|0.104|0.446|0.600|titan 0.1551|
+|4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)|0.326|0.513|0.351|0.060|0.311|0.493|0.282|0.406|0.418|0.094|0.438|0.589|titan 0.0946|
+|4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)+NRPNT|0.328|0.518|0.353|0.062|0.313|0.497|0.285|0.414|0.427|0.102|0.451|0.597|titan 0.3328|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor+NRPNT|0.332|0.519|0.360|0.066|0.317|0.495|0.285|0.417|0.429|0.121|0.454|0.593|titan 0.2044|
+|4) + cls loss weight + roi nr=512(wtwfpn v1)|0.326|0.514|0.353|0.066|0.312|0.492|0.280|0.407|0.419|0.101|0.438|0.588|titan 0.2636|
+|4) + cls loss weight + roi nr=512(wtwfpn v1)+NRPNT|0.328|0.517|0.354|0.066|0.315|0.494|0.282|0.413|0.426|0.107|0.450|0.593|titan 0.2027|
+|4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
+|4) + cls loss weight + roi nr=512 + sephv5(sephv25)+NRPNT|0.323|0.513|0.344|0.062|0.309|0.486|0.281|0.409|0.422|0.105|0.448|0.587|1080ti 0.3940|
+
+
+##Effect of rpn hook
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor+NRPNT|0.332|0.519|0.360|0.066|0.317|0.495|0.285|0.417|0.429|0.121|0.454|0.593|titan 0.2044|
+|4) + cls loss weight + roi nr=512 + rpn balance hook (sephv26) + 3 anchor+NRPNT|0.327|0.515|0.349|0.066|0.314|0.491|0.283|0.413|0.424|0.106|0.449|0.595|1080ti 0.3572|
+
 
 ```
 - 1) use nonlocal and fusebackbone+cosine
@@ -204,6 +242,7 @@
 - 3) sephv2+cosine+EvoNormS0+ASTTMatcher+class loss linear scalear+new rcn sample+p2 output
 - 4) sephv2+cosine+EvoNormS0+ASTTMatcher3+new rcn sample
 - 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
+- 6) NRPNT:表示RPN不设置threshold, 默认rpn threshold=0.005
 ```
 
 

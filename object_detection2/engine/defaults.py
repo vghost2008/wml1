@@ -20,7 +20,7 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNetBBD.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv14_8.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="Mask-RCNN-TWFPN-sephv1.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-box-free.yaml", metavar="FILE", help="path to config file")
     parser.add_argument("--research-file", default="research.txt", metavar="FILE", help="path to config file")
     parser.add_argument(
