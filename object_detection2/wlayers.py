@@ -135,9 +135,10 @@ class WROIMultiScale:
         assert(len(bin_size)>=2)
         self.bin_size = list(bin_size)
         self.output_size = output_size
-        self.scale = 1.5
+        self.scale = 1.8571428571428572
+        output_size1 = [int(x*self.scale+0.2) for x in output_size]
         self.pool0 = WROIAlign(bin_size=[1,1],output_size=output_size)
-        self.pool1 = WROIAlign(bin_size=[1,1], output_size=output_size)
+        self.pool1 = WROIAlign(bin_size=[1,1], output_size=output_size1)
 
     '''
     bboxes:[batch_size,X,4]

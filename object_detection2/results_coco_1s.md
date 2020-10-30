@@ -83,13 +83,13 @@
 |1)+FPN DB+cosine+BalanceBackboneHook+GIOUOutputs+bs=3x3|0.342|0.527|0.365|0.053|0.269|0.468|0.304|0.480|0.509|0.122|0.470|0.656|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS+1anchor+bs=3x3(1_3)|0.314|0.517|0.328|0.109|0.302|0.437|0.285|0.458|0.486|0.247|0.494|0.617|
 |1)+FPN DB+cosine+BalanceBackboneHook+DynamicMatcher+1anchor+bs=3x3(1_4)|0.318|0.522|0.332|0.111|0.307|0.444|0.290|0.454|0.483|0.224|0.498|0.619|
+|1)+FPN DB+cosine+BalanceBackboneHook+DynamicMatcher(no threshold)+1anchor+bs=3x3(1_5)|0.317|0.521|0.334|0.111|0.305|0.443|0.289|0.453|0.482|0.232|0.498|0.619|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS2+1anchor+bs=3x3|0.295|0.480|0.307|0.060|0.206|0.415|0.285|0.431|0.461|0.151|0.369|0.613|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS3+bs=3x3|0.323|0.526|0.338|0.072|0.253|0.433|0.297|0.462|0.493|0.169|0.447|0.624|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS4+bs=3x3|0.329|0.533|0.346|0.072|0.257|0.440|0.299|0.465|0.495|0.161|0.451|0.625|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS5+bs=3x3|0.324|0.512|0.341|0.055|0.253|0.446|0.297|0.449|0.473|0.096|0.407|0.632|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS3+9anchor+bs=3x3|0.315|0.504|0.329|0.058|0.247|0.430|0.294|0.447|0.471|0.107|0.400|0.630|
 |1)+FPN DB+cosine+BalanceBackboneHook+ATSS3+3anchor+bs=3x3|0.322|0.524|0.335|0.074|0.253|0.430|0.297|0.463|0.495|0.162|0.446|0.625|
-
 
 ##Effect of giou outputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|

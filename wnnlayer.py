@@ -940,7 +940,9 @@ def non_local_blockv2(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=Fal
 def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
-                      gamma_initializer=tf.constant_initializer(0.0),reuse=None):
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None,
+                      weighed_sum=True,
+                      skip_connect=True):
     def reshape_net(net):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         new_shape = [shape[0],shape[1]*shape[2],shape[3]]
@@ -957,8 +959,9 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
         inner_dims_multiplier = inner_dims_multiplier*3
 
     with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
-        shape = wmlt.combined_static_and_dynamic_shape(V)
+        shape = wmlt.combined_static_and_dynamic_shape(Q)
         channel = btf.channel(V)
+        shape[-1] = channel
         m_channelq = btf.channel(Q)//inner_dims_multiplier[0]
         m_channelk = btf.channel(K)//inner_dims_multiplier[1]
         m_channelv = btf.channel(V)//inner_dims_multiplier[2]
@@ -981,8 +984,12 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
                       normalizer_fn=None,
                       scope="attn_conv")
         normalizer_params  = normalizer_params or {}
-        gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
-        out = gamma*out+net
+        if skip_connect:
+            if weighed_sum:
+                gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+                out = gamma*out+net
+            else:
+                out = out + net
         if normalizer_fn is not None:
             out = normalizer_fn(out,**normalizer_params)
         if activation_fn is not None:

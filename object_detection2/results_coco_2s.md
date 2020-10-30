@@ -184,6 +184,9 @@
 |4) + cls loss weight + roi nr=512(sephv14) + 3 anchor|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|
 |4) + cls loss weight + roi nr=512 + 1 anchor(sephv14_1)|0.325|0.522|0.350|0.067|0.313|0.486|0.281|0.407|0.418|0.108|0.440|0.587|
 |5) + cls loss weight + roi nr=512 + 1 anchor(sephv14_2)|0.326|0.519|0.349|0.071|0.315|0.488|0.279|0.407|0.418|0.107|0.440|0.588|
+|7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|
+|7) + cls loss weight + roi nr=512(sephv14_9) + 1 anchor|0.331|0.538|0.358|0.089|0.322|0.479|0.283|0.425|0.441|0.159|0.461|0.592|
+
 
 ##Effect of RCNN output layers number.
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -243,6 +246,7 @@
 - 4) sephv2+cosine+EvoNormS0+ASTTMatcher3+new rcn sample
 - 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
 - 6) NRPNT:表示RPN不设置threshold, 默认rpn threshold=0.005
+- 7) sephv2+cosine+EvoNormS0+ASTTMatcher+new rcn sample
 ```
 
 
