@@ -152,9 +152,11 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
     labels_to_file={}
     example_nrs = []
     classeswise_boxes = {}
+    total_file_nr = 0
 
     for data in datas:
         file, img_size,category_ids, labels_text, bboxes, binary_mask, area, is_crowd, _ = data
+        total_file_nr += 1
         if bboxes.shape[0]<1:
             print(f"{file} no annotation, skip")
             continue
@@ -218,11 +220,12 @@ def statistics_boxes_with_datas(datas,label_encoder=default_encode_label,labels_
     print("\n--->BBoxes count:")
     for k,v in labels_counter:
         print("{:>8}:{:<8}, {:>4.2f}%".format(k,v,v*100./total_nr))
+    print(f"Total file count {total_file_nr}.")
     print("\n--->File count:")
     label_file_count= list(label_file_count.items())
     label_file_count.sort(key=lambda x:x[1],reverse=True)
     for k,v in label_file_count:
-        print("{:>8}:{:<8}".format(k,v))
+        print("{:>8}:{:<8}, {:>4.2f}".format(k,v,v*100./total_file_nr))
     print("\n--->org statistics:")
     org_labels_counter= list(org_labels_counter.items())
     org_labels_counter.sort(key=lambda x:x[1],reverse=True)
@@ -298,6 +301,7 @@ def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
+    #data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/verify_p03_1020_2_proc')
     data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/rdatasv2_pos_proc_m')
 
     return data.get_items()

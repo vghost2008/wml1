@@ -8,7 +8,7 @@ def name_dict_nr2id_dict_nr(data,name_to_id,scale=1):
     res = {}
     for k,v in data.items():
         id = name_to_id(k)
-        res[id] = v*scale
+        res[id] = int(v*scale)
     return res
 
 def count_file(data):
