@@ -32,5 +32,5 @@ class OneHeadNonLocalROIHeadsHook(wmodule.WChildModule):
         net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook",
                                          normalizer_fn=wnnl.evo_norm_s0,
                                          activation_fn=None,
-                                         reuse=reuse)
+                                         weighed_sum=False)
         return net

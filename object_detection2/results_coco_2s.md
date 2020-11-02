@@ -149,7 +149,8 @@
 |balance hookV2|0.329|0.518|0.352|0.069|0.315|0.488|0.283|0.412|0.424|0.111|0.445|0.589|titan 0.3068|
 |4) + cls loss weight + roi nr=512(bifpn v1)|0.330|0.511|0.354|0.077|0.315|0.485|0.283|0.409|0.421|0.120|0.439|0.580|1080ti 0.2742|
 |4) + cls loss weight + roi nr=512 + balance hook(bifpn v1_1)|0.331|0.511|0.356|0.082|0.320|0.483|0.282|0.413|0.425|0.136|0.445|0.581|1080ti 0.2723|
-
+|7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
+|7) + cls loss weight + roi nr=512(sephv14_13) + 3 anchor + Nonlocal hook|0.340|0.503|0.365|0.072|0.326|0.505|0.294|0.436|0.450|0.133|0.478|0.615|titan 0.1286|
 
 ##Effect of giououtputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -186,6 +187,8 @@
 |5) + cls loss weight + roi nr=512 + 1 anchor(sephv14_2)|0.326|0.519|0.349|0.071|0.315|0.488|0.279|0.407|0.418|0.107|0.440|0.588|
 |7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|
 |7) + cls loss weight + roi nr=512(sephv14_9) + 1 anchor|0.331|0.538|0.358|0.089|0.322|0.479|0.283|0.425|0.441|0.159|0.461|0.592|
+|8) + cls loss weight + roi nr=512(sephv14_11) + 1 anchor|0.326|0.523|0.354|0.065|0.316|0.486|0.280|0.410|0.423|0.103|0.451|0.591|
+
 
 
 ##Effect of RCNN output layers number.
@@ -200,6 +203,7 @@
 |4) + cls loss weight + roi nr=512(sephv14)|0.331|0.518|0.359|0.067|0.314|0.493|0.284|0.412|0.423|0.117|0.443|0.588|1080ti 0.3069|
 |4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
 |4) + cls loss weight + roi nr=512 + sephv6(sephv25_1)|0.329|0.516|0.354|0.062|0.315|0.493|0.283|0.410|0.422|0.099|0.443|0.592|1080ti 0.2807|
+|7) + cls loss weight + roi nr=512 + sephv7(sephv25_2)|0.335|0.539|0.362|0.086|0.323|0.487|0.287|0.427|0.442|0.154|0.460|0.594|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook (sephv14_7)|0.328|0.514|0.352|0.065|0.312|0.492|0.283|0.415|0.427|0.107|0.455|0.594|titan 0.1693|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook(no gamma scale) (sephv14_7)|0.328|0.516|0.355|0.066|0.314|0.491|0.283|0.413|0.426|0.109|0.451|0.591|
 
@@ -240,6 +244,20 @@
 |4) + cls loss weight + roi nr=512(sephv14) + 3 anchor+NRPNT|0.332|0.519|0.360|0.066|0.317|0.495|0.285|0.417|0.429|0.121|0.454|0.593|titan 0.2044|
 |4) + cls loss weight + roi nr=512 + rpn balance hook (sephv26) + 3 anchor+NRPNT|0.327|0.515|0.349|0.066|0.314|0.491|0.283|0.413|0.424|0.106|0.449|0.595|1080ti 0.3572|
 
+##Effect of rpn 
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|4) + cls loss weight + roi nr=512(sephv14) + 3 anchor+NRPNT|0.332|0.519|0.360|0.066|0.317|0.495|0.285|0.417|0.429|0.121|0.454|0.593|titan 0.2044|
+|4) + cls loss weight + roi nr=512 + RPN evo normal (sephv14_12) + 3 anchor+NRPNT|0.325|0.512|0.348|0.068|0.311|0.487|0.281|0.407|0.418|0.112|0.439|0.589|1080ti 0.2895|
+
+
+##Cascade rcnn
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|time cost|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|Cascade+roi nr=128|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|-|
+|Cascade+roi nr=512|0.357|0.519|0.387|0.079|0.337|0.535|0.303|0.441|0.454|0.129|0.470|0.633|titan 0.1136|
+|Cascade+roi nr=512+min iou threshold=0.4|0.342|0.503|0.366|0.076|0.319|0.515|0.297|0.436|0.449|0.140|0.461|0.623|titan 0.039|
+
 
 ```
 - 1) use nonlocal and fusebackbone+cosine
@@ -249,53 +267,5 @@
 - 5) sephv2+cosine+EvoNormS0+ASTTMatcher4+new rcn sample
 - 6) NRPNT:表示RPN不设置threshold, 默认rpn threshold=0.005
 - 7) sephv2+cosine+EvoNormS0+ASTTMatcher+new rcn sample
-```
-
-
-###bbox
-
-```
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.306
-Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.479
-Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.324
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.055
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.219
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.433
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.279
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.415
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.430
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.092
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.393
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.559
-
-```
-
-##coco/Mask-RCNN-FPN-sephv10.yaml
-
-- batch_size: 4 on 3 gpu
-- ROIHeads: StandardROIHeads
-- backbone resnet50, FrozenBN
-- FPN normal: EnvNormS0
-- Head normal: EnvNormS0
-- iterator: 120k
-- train time: 30.0h
-- eval time: 0.1687s/img
-- ANCHOR SIZES: [[64],[128], [256], [512]] 
-- new rcn sample
-
-###bbox
-```
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.304
-Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.486
-Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.328
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.036
-Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.226
-Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.440
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.269
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.400
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.414
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.045
-Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.371
-Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.566
-
+- 8) sephv2+cosine+EvoNormS0+DynamicMatcher+new rcn sample
 ```
