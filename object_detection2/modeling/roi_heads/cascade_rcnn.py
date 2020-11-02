@@ -34,30 +34,13 @@ class CascadeROIHeads(StandardROIHeads):
             "CascadeROIHeads only support class-agnostic regression now!"
         assert cascade_ious[0] == cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS[0]
 
-        cb_scale = cfg.MODEL.ROI_BOX_CASCADE_HEAD.CANONICAL_BOX_SIZE_SCALE
         # fmt: on
-        self.box_pooler = [
-        ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
+        self.box_pooler = ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
             output_size=pooler_resolution,
             pooler_type=pooler_type,
             bin_size=bin_size,
-            canonical_box_scale=cb_scale[0],
             *args,**kwargs
-        ),
-        ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
-            output_size=pooler_resolution,
-            pooler_type=pooler_type,
-            bin_size=bin_size,
-            canonical_box_scale=cb_scale[1],
-            *args,**kwargs
-        ),
-        ROIPooler(cfg=cfg.MODEL.ROI_BOX_HEAD,parent=self,
-            output_size=pooler_resolution,
-            pooler_type=pooler_type,
-            bin_size=bin_size,
-            canonical_box_scale=cb_scale[2],
-            *args,**kwargs
-        )]
+        )
 
         self.box_head = []
         self.box_predictor = []
@@ -164,7 +147,7 @@ class CascadeROIHeads(StandardROIHeads):
         else:
             proposals_boxes = proposals[PD_BOXES] #when inference, proposals is a dict which is the output of rpn
         self.t_proposal_boxes = proposals_boxes
-        box_features = self.box_pooler[stage](features, proposals_boxes,img_size=img_size)
+        box_features = self.box_pooler(features, proposals_boxes,img_size=img_size)
         # The original implementation averages the losses among heads,
         # but scale up the parameter gradients of the heads.
         # This is equivalent to adding the losses among heads,

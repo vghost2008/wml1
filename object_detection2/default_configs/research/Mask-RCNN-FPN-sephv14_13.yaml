@@ -1,4 +1,4 @@
-#用于ATSSMatcher with 3 anchor
+#用于NonLocalBackboneHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False

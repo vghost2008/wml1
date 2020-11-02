@@ -201,6 +201,8 @@
 |4) + cls loss weight + roi nr=512 + sephv5(sephv25)|0.321|0.511|0.342|0.059|0.308|0.484|0.279|0.404|0.415|0.098|0.437|0.583|1080ti 0.0998|
 |4) + cls loss weight + roi nr=512 + sephv6(sephv25_1)|0.329|0.516|0.354|0.062|0.315|0.493|0.283|0.410|0.422|0.099|0.443|0.592|1080ti 0.2807|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook (sephv14_7)|0.328|0.514|0.352|0.065|0.312|0.492|0.283|0.415|0.427|0.107|0.455|0.594|titan 0.1693|
+|4) + cls loss weight + roi nr=512 + nonlocal head hook(no gamma scale) (sephv14_7)|0.328|0.516|0.355|0.066|0.314|0.491|0.283|0.413|0.426|0.109|0.451|0.591|
+
 
 ##Effect of RCNN box transform
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|

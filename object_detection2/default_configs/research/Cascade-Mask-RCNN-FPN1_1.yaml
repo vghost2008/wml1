@@ -17,6 +17,7 @@ MODEL:
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
     #BOX_REG_LOSS_SCALE: 8.0
+    IOU_THRESHOLDS: [0.4]
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
@@ -27,7 +28,7 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     CLS_AGNOSTIC_BBOX_REG: True
-    canonical_box_size: 128.0
+    #canonical_box_size: 128.0
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -35,7 +36,8 @@ MODEL:
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
   ROI_BOX_CASCADE_HEAD:
-    CANONICAL_BOX_SIZE_SCALE: (0.5,1.0,2.0)
+    #CANONICAL_BOX_SIZE_SCALE: (0.5,0.5,0.5)
+    IOUS: [0.4,0.6,0.7]
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
