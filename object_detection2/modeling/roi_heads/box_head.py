@@ -713,6 +713,9 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
         self.iou_threshold = 0.4
         self.head_nr = 6
+        self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES     #不包含背景
+        self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
+        self.box_dim = 4
 
     def forward_branch(self,cls_x,box_x,branch):
         cfg = self.cfg
@@ -765,7 +768,20 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
 
         return cls_x,box_x'''
 
+    def trans(self,net):
+        if len(net.get_shape()) > 2:
+            shape = wmlt.combined_static_and_dynamic_shape(net)
+            dim = 1
+            for x in shape[1:]:
+                dim *= x
+            return tf.reshape(net, [shape[0], dim])
+        else:
+            return net
+
     def forward_with_ious(self,cls_x,box_x,ious):
+        foreground_num_classes = self.num_classes
+        num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
+        
         cls_x_datas = []
         box_x_datas = []
         index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
@@ -785,7 +801,14 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
             box_x_datas.append(data[1])
 
         cls_x_datas = tf.concat(cls_x_datas,axis=0)
+        cls_x_datas = self.trans(cls_x_datas)
         box_x_datas = tf.concat(box_x_datas,axis=0)
+        box_x_datas = self.trans(box_x_datas)
+        with tf.variable_scope("BoxPredictor"):
+            cls_x_datas = slim.fully_connected(cls_x_datas, self.num_classes + 1, activation_fn=None,
+                                               normalizer_fn=None, scope="cls_score")
+            box_x_datas = slim.fully_connected(box_x_datas, self.box_dim * num_bbox_reg_classes, activation_fn=None,
+                                               normalizer_fn=None, scope="bbox_pred")
         data_indexs = tf.concat(data_indexs,axis=0)
         data_indexs = tf.reshape(data_indexs,[B,1])
         
@@ -842,7 +865,9 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
                                                          activation_fn=self.activation_fn,
                                                          normalizer_fn=self.normalizer_fn,
                                                          normalizer_params=self.norm_params)
-                iou_x = slim.fully_connected(iou_x, 1,
+                iou_x = self.trans(iou_x)
+                with tf.variable_scope("BoxPredictor"):
+                    iou_x = slim.fully_connected(iou_x, 1,
                                                   activation_fn=None,
                                                   normalizer_fn=None,
                                                   scope="iou_pred")

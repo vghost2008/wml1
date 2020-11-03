@@ -192,3 +192,25 @@ class FastRCNNAvgOutputLayers(wmodule.WChildModule):
                 return scores, proposal_deltas,iou_logits
             else:
                 return scores, proposal_deltas
+
+@ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY.register()
+class IdentityOutputLayers(wmodule.WChildModule):
+    """
+    Two linear layers for predicting Fast R-CNN outputs:
+      (1) proposal-to-detection box regression deltas
+      (2) classification scores
+    """
+
+    def __init__(self, cfg,parent, num_classes, cls_agnostic_bbox_reg=False, box_dim=4,**kwargs):
+        """
+        Args:
+            input_size (int): channels, or (channels, height, width)
+            num_classes (int): number of classes include background classes
+            cls_agnostic_bbox_reg (bool): whether to use class agnostic for bbox regression
+            box_dim (int): the dimension of bounding boxes.
+                Example box dimensions: 4 for regular XYXY boxes and 5 for rotated XYWHA boxes
+        """
+        super().__init__(cfg,parent=parent,**kwargs)
+
+    def forward(self, x,scope="BoxPredictor",fwd_type=BoxesForwardType.ALL):
+        return x

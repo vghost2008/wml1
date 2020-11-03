@@ -31,6 +31,7 @@ MODEL:
     ACTIVATION_FN: "NA"
     IOU_NUM_FC: 0
     IOU_NUM_CONV: 4
+    OUTPUTS_LAYER: "IdentityOutputLayers"
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
