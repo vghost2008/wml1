@@ -746,15 +746,15 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
 
         return cls_x,box_x
 
-    def forward_with_ious(self,cls_x,box_x,ious):
+    '''def forward_with_ious(self,cls_x,box_x,ious):
         cls_x_datas = []
         box_x_datas = []
+        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
         for i in range(self.head_nr):
             data = self.forward_branch(cls_x,box_x,i)
             cls_x_datas.append(data[0])
             box_x_datas.append(data[1])
 
-        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
         wsummary.histogram_or_scalar(index,"head_index")
         index = tf.cast(index,tf.int32)
         index = tf.clip_by_value(index,clip_value_min=0,clip_value_max=self.head_nr-1)
@@ -762,6 +762,39 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
         cls_x = wmlt.batch_gather(cls_x_datas,index)
         box_x_datas = tf.stack(box_x_datas,axis=1)
         box_x = wmlt.batch_gather(box_x_datas,index)
+
+        return cls_x,box_x'''
+
+    def forward_with_ious(self,cls_x,box_x,ious):
+        cls_x_datas = []
+        box_x_datas = []
+        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
+        wsummary.histogram_or_scalar(index,"head_index")
+        index = tf.cast(index,tf.int32)
+        index = tf.clip_by_value(index,clip_value_min=0,clip_value_max=self.head_nr-1)
+        data_indexs = []
+        B = btf.batch_size(cls_x)
+        data_raw_indexs = tf.range(B,dtype=tf.int32)
+        for i in range(self.head_nr):
+            mask = tf.equal(index,i)
+            data_indexs.append(tf.boolean_mask(data_raw_indexs,mask))
+            t_cls_x = tf.boolean_mask(cls_x,mask)
+            t_box_x = tf.boolean_mask(box_x,mask)
+            data = self.forward_branch(t_cls_x,t_box_x,i)
+            cls_x_datas.append(data[0])
+            box_x_datas.append(data[1])
+
+        cls_x_datas = tf.concat(cls_x_datas,axis=0)
+        box_x_datas = tf.concat(box_x_datas,axis=0)
+        data_indexs = tf.concat(data_indexs,axis=0)
+        data_indexs = tf.reshape(data_indexs,[B,1])
+        
+        shape = wmlt.combined_static_and_dynamic_shape(cls_x_datas)
+        shape[0] = B
+        cls_x = tf.scatter_nd(data_indexs,cls_x_datas,shape)
+        shape = wmlt.combined_static_and_dynamic_shape(box_x_datas)
+        shape[0] = B
+        box_x = tf.scatter_nd(data_indexs,box_x_datas,shape)
 
         return cls_x,box_x
 
