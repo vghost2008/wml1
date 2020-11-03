@@ -332,9 +332,6 @@ def labelme_dataset():
     data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10")
     return data.get_items()
 
-
-
-
 if __name__ == "__main__":
     nr = 100
     def trans_img_long_size(img_size):

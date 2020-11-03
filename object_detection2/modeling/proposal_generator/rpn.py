@@ -151,6 +151,7 @@ class RPN(wmodule.WChildModule):
         # joint training with roi heads. This approach ignores the derivative
         # w.r.t. the proposal boxes’ coordinates that are also network
         # responses, so is approximate.
+        pre_nms_topk_max_per_layer = self.cfg.MODEL.RPN.PRE_NMS_TOPK_MAX_PER_LAYER
         proposals,logits = find_top_rpn_proposals(
             outputs.predict_proposals(),
             outputs.predict_objectness_logits(),
@@ -159,7 +160,8 @@ class RPN(wmodule.WChildModule):
             self.post_nms_topk[self.is_training],
             self.anchors_num_per_level,
             score_threshold=rpn_threshold,
-            is_training=self.is_training
+            is_training=self.is_training,
+            pre_nms_topk_max_per_layer=pre_nms_topk_max_per_layer
         )
         if self.cfg.MODEL.RPN.SORT_RESULTS:
             with tf.name_scope("sort_rpn_results"):

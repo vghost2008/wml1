@@ -106,6 +106,44 @@ def get_filenames_in_dir(dir_path,suffix=None,prefix=None):
     res.sort()
     return res
 
+def get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):
+    if suffix is not None:
+        suffix = suffix.split(";;")
+    if prefix is not None:
+        prefix = prefix.split(";;")
+    def check_file(filename):
+        is_suffix_good = False
+        is_prefix_good = False
+        if suffix is not None:
+            for s in suffix:
+                if filename.endswith(s):
+                    is_suffix_good = True
+                    break
+        else:
+            is_suffix_good = True
+        if prefix is not None:
+            for s in prefix:
+                if filename.startswith(s):
+                    is_prefix_good = True
+                    break
+        else:
+            is_prefix_good = True
+
+        return is_prefix_good and is_suffix_good
+
+    res=[]
+    for file in os.listdir(dir_path):
+        path = os.path.join(dir_path,file)
+        if os.path.isdir(path):
+            continue
+        if suffix is not None or prefix is not None:
+            if check_file(file):
+                res.append(os.path.join(dir_path, file))
+        else:
+            res.append(os.path.join(dir_path,file))
+    res.sort()
+    return res
+
 def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):
     if suffix is not None:
         suffix = suffix.split(";;")
@@ -142,7 +180,7 @@ def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=Fal
     res.sort()
     return res
 
-def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
+def recurse_get_subdir_in_dir(dir_path,predicte_fn=None,append_self=True):
     res=[]
     for root,dirs,_ in os.walk(dir_path):
         for dir in dirs:
@@ -155,7 +193,8 @@ def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
                 dir = dir[1:]
             res.append(dir)
     res.sort()
-    res.append("")
+    if append_self:
+        res.append("")
     return res
 
 '''def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):

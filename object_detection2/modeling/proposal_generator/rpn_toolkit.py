@@ -34,13 +34,15 @@ def find_top_rpn_proposals(
             post_nms_topk,
             anchors_num_per_level=None,
             score_threshold=None,
-            is_training=True
+            is_training=True,
+            pre_nms_topk_max_per_layer=-1,
     ):
     if anchors_num_per_level is None or len(anchors_num_per_level) == 1:
         return find_top_rpn_proposals_for_single_level(proposals,pred_objectness_logits,nms_thresh,pre_nms_topk,
                                                        post_nms_topk,
                                                        score_threshold=score_threshold,
-                                                       is_training=is_training)
+                                                       is_training=is_training,
+                                                       pre_nms_topk_max_per_layer=pre_nms_topk_max_per_layer)
     with tf.name_scope("find_top_rpn_proposals"):
         proposals = tf.split(proposals,num_or_size_splits=anchors_num_per_level,axis=1)
         pred_objectness_logits = tf.split(pred_objectness_logits,num_or_size_splits=anchors_num_per_level,axis=1)
@@ -53,7 +55,8 @@ def find_top_rpn_proposals(
                                                               pre_nms_topk=pre_nms_topk//(3**i),
                                                               post_nms_topk=post_nms_topk//(3**i),
                                                               score_threshold=score_threshold,
-                                                              is_training=is_training)
+                                                              is_training=is_training,
+                                                              pre_nms_topk_max_per_layer=pre_nms_topk_max_per_layer)
             boxes.append(t_boxes)
             probabilitys.append(t_probability)
         return tf.concat(boxes,axis=1),tf.concat(probabilitys,axis=1)
@@ -84,14 +87,21 @@ def find_top_rpn_proposals_for_single_level(
         post_nms_topk,
         score_threshold=-1.0,
         is_training=True,
+        pre_nms_topk_max_per_layer=-1,
 ):
     with tf.name_scope("find_top_rpn_proposals_for_single_level"):
         '''
         通过top_k+gather排序
         In Detectron2, they chosen the top candiate_nr*6 boxes
         '''
+        if pre_nms_topk_max_per_layer>10:
+            topk_nr = tf.minimum(pre_nms_topk,tf.shape(pred_objectness_logits)[1])
+            print(f"pre_nms_topk_max_per_layer = {pre_nms_topk_max_per_layer}.")
+            topk_nr = tf.minimum(topk_nr,pre_nms_topk_max_per_layer)
+        else:
+            topk_nr = tf.minimum(pre_nms_topk, tf.shape(pred_objectness_logits)[1])
         probability,indices = tf.nn.top_k(pred_objectness_logits,
-                                          k=tf.minimum(pre_nms_topk,tf.shape(pred_objectness_logits)[1]))
+                                          k=topk_nr)
         proposals = wmlt.batch_gather(proposals,indices)
         batch_size = pred_objectness_logits.get_shape().as_list()[0]
         if not is_training and batch_size>1:

@@ -279,7 +279,7 @@ class SimpleTrainer(TrainerBase):
         self.input_data = None
         print("Log dir",self.log_dir)
         print("ckpt dir",self.ckpt_dir)
-        if not model.is_training and os.path.exists(self.research_file):
+        if not model.is_training and self.research_file is not None and os.path.exists(self.research_file):
             print(f"Remove {self.research_file}")
             os.remove(self.research_file)
         try:
@@ -664,7 +664,7 @@ class SimpleTrainer(TrainerBase):
                 res_data = self.sess.run(res_data)
         self.step += 1
 
-        if len(research_datas)>0:
+        if len(research_datas)>0 and self.research_file is not None:
             with open(self.research_file,"a") as f:
                 data_str = ""
                 key_str = ""

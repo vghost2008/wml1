@@ -6,6 +6,7 @@ from collections import Iterable
 from .build import ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY
 from .box_head import BoxesForwardType
 import wsummary
+import basic_tftools as btf
 
 slim = tf.contrib.slim
 
@@ -155,11 +156,14 @@ class FastRCNNAvgOutputLayers(wmodule.WChildModule):
                     proposal_deltas = tf.reduce_mean(proposal_deltas,axis=[1,2],keepdims=False,
                                             name="bbox_pred")
                 if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
-                    if len(x[1].get_shape()) == 2:
-                        iou_logits = slim.fully_connected(x[2], 1,
-                                                          activation_fn=None,
-                                                          normalizer_fn=None,
-                                                          scope="iou_pred")
+                    if len(x[2].get_shape()) == 2:
+                        if btf.channel(x[2]) != 1:
+                            iou_logits = slim.fully_connected(x[2], 1,
+                                                              activation_fn=None,
+                                                              normalizer_fn=None,
+                                                              scope="iou_pred")
+                        else:
+                            iou_logits = x[2]
                     else:
                         iou_logits = slim.conv2d(x[2], 1, [1,1],
                                                       activation_fn=None,

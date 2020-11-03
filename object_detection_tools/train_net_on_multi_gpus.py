@@ -78,7 +78,7 @@ def main(_):
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
     trainer = SimpleTrainer(cfg,data=data,model=model,gpus=gpus,debug_tf=False,
-                            research_file=args.research_file)
+                            research_file="research_"+cfg.GLOBAL.PROJ_NAME+".txt")
     #trainer.full_trace = True
     kwargs = {}
     if args.restore == "auto":

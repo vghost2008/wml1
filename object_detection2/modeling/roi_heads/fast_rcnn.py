@@ -193,18 +193,40 @@ class FastRCNNOutputs(wmodule.WChildModule):
             return self.get_pred_iou_lossv1()
         elif self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 3:
             return self.get_pred_centerness_loss()
+        elif self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 4:
+            return self.get_pred_iou_lossv0(threshold=0.4)
+        else:
+            return self.get_pred_iou_lossv0()
 
-        gt_scores = self.proposals[ED_SCORES]
-        gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
-        pred_iou_logits = self.pred_iou_logits
-        pred_iou_logits = tf.reshape(pred_iou_logits,[-1])
-        wsummary.histogram_or_scalar(gt_scores,"gt_iou_by_matcher")
-        loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gt_scores,
-                                                        logits=pred_iou_logits)
-        return tf.reduce_mean(loss)
+    def get_pred_iou_lossv0(self,threshold=None):
+        '''
+        使用proposals bboxes与gtbboxes的iou作为目标
+        :return: 
+        '''
+        with tf.name_scope("get_pred_iouv0_loss"):
+            gt_scores = self.proposals[ED_SCORES]
+            gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
+            pred_iou_logits = self.pred_iou_logits
+            pred_iou_logits = tf.reshape(pred_iou_logits,[-1])
+            if threshold is not None:
+                pred_score = tf.nn.sigmoid(pred_iou_logits)
+                mask0 = tf.greater(gt_scores,threshold)
+                mask1 = tf.logical_and(tf.logical_not(mask0),tf.greater_equal(pred_score,threshold+0.05))
+                mask = tf.logical_or(mask0,mask1)
+                gt_scores = tf.boolean_mask(gt_scores,mask)
+                pred_iou_logits = tf.boolean_mask(pred_iou_logits,mask)
+
+            wsummary.histogram_or_scalar(gt_scores,"gt_iou_by_matcher")
+            loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gt_scores,
+                                                            logits=pred_iou_logits)
+            return tf.reduce_mean(loss)
 
     def get_pred_iou_lossv1(self):
-        with tf.name_scope("get_pred_iou_loss"):
+        '''
+        使用预测的bboxes与gtbboxes的iou作为目标
+        :return: 
+        '''
+        with tf.name_scope("get_pred_iouv1_loss"):
             gt_proposal_deltas = wmlt.batch_gather(self.proposals.gt_boxes, tf.nn.relu(self.proposals.indices))
             batch_size, box_nr, box_dim = wmlt.combined_static_and_dynamic_shape(gt_proposal_deltas)
             gt_proposal_deltas = tf.reshape(gt_proposal_deltas, [batch_size * box_nr, box_dim])
@@ -401,9 +423,6 @@ class FastRCNNOutputs(wmodule.WChildModule):
             res_indices = tf.gather(res_indices, indices)
 
             pmask = tf.greater(probability, threshold)
-            #probability = tf.Print(probability,[probability,pmask,tf.shape(probability),tf.shape(pmask)],
-                                   #summarize=1000,
-                                   #name="XXXXXXXXX")
             probability = tf.boolean_mask(probability, pmask)
             labels = tf.boolean_mask(labels, pmask)
             proposal_bboxes = tf.boolean_mask(proposal_bboxes, pmask)
@@ -462,7 +481,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         with tf.name_scope("fast_rcnn_outputs_inference"):
             output_fix_nr = self.cfg.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES
-            if output_fix_nr < 5:
+            if output_fix_nr < 1:
                 nms = functools.partial(wop.boxes_nms, threshold=nms_thresh,
                                         classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
             else:
@@ -493,8 +512,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
                                   self.parent.batched_inputs[GT_BOXES],
                                   self.parent.batched_inputs[GT_LABELS],
                                   self.parent.batched_inputs[GT_LENGTH])
-                    add_to_research_datas("pb_scores",mh_res0[1],[-1])
-                    add_to_research_datas("pb_ious",ious,[-1])
+                    add_to_research_datas("pb_scores",mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
+                    add_to_research_datas("pb_ious",ious,[-1]) #预测的iou
                     assert len(probability.get_shape())==2, "error probability shape"
 
                 raw_probability = tf.expand_dims(probability,axis=0) #only support batch_size=1
@@ -512,7 +531,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                                       self.parent.batched_inputs[GT_BOXES],
                                       self.parent.batched_inputs[GT_LABELS],
                                       self.parent.batched_inputs[GT_LENGTH])
-                    add_to_research_datas("pb_scores",mh_res0[1],[-1])
+                    add_to_research_datas("pb_scores",mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
                     assert len(probability.get_shape())==2, "error probability shape"
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
@@ -529,7 +548,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             pred_proposal_deltas = tf.reshape(self.pred_proposal_deltas,[batch_size,-1,L])
             classes_wise = (L != box_dim)
 
-            if pred_iou_logits is None or ious is None:
+            if pred_iou_logits is None or ious is None or (not self.cfg.MODEL.ROI_HEADS.USE_IOU_IN_TEST):
                 boxes, labels, probability, res_indices, lens = tf.map_fn(
                     lambda x: self.prediction_on_single_image(x[0], x[1], x[2],
                                                     score_thresh,

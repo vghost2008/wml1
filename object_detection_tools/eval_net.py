@@ -58,7 +58,8 @@ def main(_):
 
     model = SimpleTrainer.build_model(cfg,is_training=is_training)
 
-    trainer = SimpleTrainer(cfg,data=data,model=model,research_file=args.research_file)
+    trainer = SimpleTrainer(cfg,data=data,model=model,
+                            research_file="research_"+cfg.GLOBAL.PROJ_NAME+".txt")
     #global_scopes = ".*/sigma"
     trainer.resume_or_load()
     res = trainer.test(cfg, model)

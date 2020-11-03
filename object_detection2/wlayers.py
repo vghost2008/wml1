@@ -150,6 +150,7 @@ class WROIMultiScale:
         net1 = self.pool1(net,odb.scale_bboxes(bboxes,scale=[self.scale,self.scale]))
         return net0,net1
 
+
 class WROIPointPool:
     '''
     bin_size:(h,w)每一个格子的大小

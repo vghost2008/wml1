@@ -9,6 +9,8 @@ import object_detection2.od_toolkit as odt
 from collections import Iterable
 from .build import ROI_BOX_HEAD_REGISTRY
 import basic_tftools as btf
+from object_detection2.modeling.matcher import Matcher
+from object_detection2.standard_names import *
 
 slim = tf.contrib.slim
 class BoxesForwardType:
@@ -174,12 +176,17 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
             assert num_conv + num_fc > 0
 
             if not isinstance(x,tf.Tensor) and isinstance(x,Iterable):
-                assert len(x) == 2,"error feature map length"
+                assert len(x) >= 2,"error feature map length"
                 cls_x = x[0]
                 box_x = x[1]
+                if len(x)>=3:
+                    iou_x = x[2]
+                else:
+                    iou_x = x[1]
             else:
                 cls_x = x
                 box_x = x
+                iou_x = x
 
             with tf.variable_scope("ClassPredictionTower"):
                 if num_fc>0:
@@ -195,21 +202,33 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                                      normalizer_fn=self.normalizer_fn,
                                                      normalizer_params=self.norm_params)
             with tf.variable_scope("BoxPredictionTower"):
-                nets = []
                 for _ in range(num_conv):
                     box_x = slim.conv2d(box_x,conv_dim,[3,3],
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params)
-                    nets.append(box_x)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV
+                iou_num_fc = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_FC
                 with tf.variable_scope("BoxIOUPredictionTower"):
-                    net = nets[-2]
-                    iou_x = slim.conv2d(net,conv_dim,[3,3],
-                                        activation_fn=self.activation_fn,
-                                        normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params)
+                    for _ in range(iou_num_conv):
+                        iou_x = slim.conv2d(iou_x,conv_dim,[3,3],
+                                            activation_fn=self.activation_fn,
+                                            normalizer_fn=self.normalizer_fn,
+                                            normalizer_params=self.norm_params)
+                    if iou_num_fc>0:
+                        if len(iou_x.get_shape()) > 2:
+                            shape = wmlt.combined_static_and_dynamic_shape(iou_x)
+                            dim = 1
+                            for i in range(1,len(shape)):
+                                dim = dim*shape[i]
+                            iou_x = tf.reshape(iou_x,[shape[0],dim])
+                        for _ in range(iou_num_fc):
+                            iou_x = slim.fully_connected(iou_x,fc_dim,
+                                                         activation_fn=self.activation_fn,
+                                                         normalizer_fn=self.normalizer_fn,
+                                                         normalizer_params=self.norm_params)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 return cls_x,box_x,iou_x
@@ -670,6 +689,148 @@ class SeparateFastRCNNConvFCHeadV7(wmodule.WChildModule):
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x,box_x,iou_x
+            else:
+                return cls_x,box_x
+            
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
+    """
+    Rethinking Classification and Localization for Object Detection
+    """
+
+    def __init__(self, cfg,*args,**kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg,*args,**kwargs)
+        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+        self.iou_threshold = 0.4
+        self.head_nr = 6
+
+    def forward_branch(self,cls_x,box_x,branch):
+        cfg = self.cfg
+
+        conv_dim = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+        num_conv = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+        fc_dim = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+        num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+
+        assert num_conv + num_fc > 0
+
+        with tf.variable_scope(f"ClassPredictionTower{branch}"):
+            if num_fc > 0:
+                if len(cls_x.get_shape()) > 2:
+                    shape = wmlt.combined_static_and_dynamic_shape(cls_x)
+                    dim = 1
+                    for i in range(1, len(shape)):
+                        dim = dim * shape[i]
+                    cls_x = tf.reshape(cls_x, [shape[0], dim])
+                for _ in range(num_fc):
+                    cls_x = slim.fully_connected(cls_x, fc_dim,
+                                                 activation_fn=self.activation_fn,
+                                                 normalizer_fn=self.normalizer_fn,
+                                                 normalizer_params=self.norm_params)
+        with tf.variable_scope(f"BoxPredictionTower{branch}"):
+            for _ in range(num_conv):
+                box_x = slim.conv2d(box_x, conv_dim, [3, 3],
+                                    activation_fn=self.activation_fn,
+                                    normalizer_fn=self.normalizer_fn,
+                                    normalizer_params=self.norm_params)
+
+        return cls_x,box_x
+
+    def forward_with_ious(self,cls_x,box_x,ious):
+        cls_x_datas = []
+        box_x_datas = []
+        for i in range(self.head_nr):
+            data = self.forward_branch(cls_x,box_x,i)
+            cls_x_datas.append(data[0])
+            box_x_datas.append(data[1])
+
+        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
+        wsummary.histogram_or_scalar(index,"head_index")
+        index = tf.cast(index,tf.int32)
+        index = tf.clip_by_value(index,clip_value_min=0,clip_value_max=self.head_nr-1)
+        cls_x_datas = tf.stack(cls_x_datas,axis=1)
+        cls_x = wmlt.batch_gather(cls_x_datas,index)
+        box_x_datas = tf.stack(box_x_datas,axis=1)
+        box_x = wmlt.batch_gather(box_x_datas,index)
+
+        return cls_x,box_x
+
+
+    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
+        with tf.variable_scope(scope,reuse=reuse):
+            cfg = self.cfg
+            conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+            num_conv   = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+            fc_dim     = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+            num_fc     = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+
+            assert num_conv + num_fc > 0
+
+            if not isinstance(x,tf.Tensor) and isinstance(x,Iterable):
+                assert len(x) >= 2,"error feature map length"
+                cls_x = x[0]
+                box_x = x[1]
+                if len(x)>=3:
+                    iou_x = x[2]
+                else:
+                    iou_x = x[1]
+            else:
+                cls_x = x
+                box_x = x
+                iou_x = x
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV
+                iou_num_fc = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_FC
+                with tf.variable_scope("BoxIOUPredictionTower"):
+                    for _ in range(iou_num_conv):
+                        iou_x = slim.conv2d(iou_x,conv_dim,[3,3],
+                                            activation_fn=self.activation_fn,
+                                            normalizer_fn=self.normalizer_fn,
+                                            normalizer_params=self.norm_params)
+                    if iou_num_fc>0:
+                        if len(iou_x.get_shape()) > 2:
+                            shape = wmlt.combined_static_and_dynamic_shape(iou_x)
+                            dim = 1
+                            for i in range(1,len(shape)):
+                                dim = dim*shape[i]
+                            iou_x = tf.reshape(iou_x,[shape[0],dim])
+                        for _ in range(iou_num_fc):
+                            iou_x = slim.fully_connected(iou_x,fc_dim,
+                                                         activation_fn=self.activation_fn,
+                                                         normalizer_fn=self.normalizer_fn,
+                                                         normalizer_params=self.norm_params)
+                iou_x = slim.fully_connected(iou_x, 1,
+                                                  activation_fn=None,
+                                                  normalizer_fn=None,
+                                                  scope="iou_pred")
+
+            with tf.name_scope("get_ious"):
+                if self.is_training:
+                    matcher = Matcher(
+                        [1e-3],
+                        allow_low_quality_matches=False,
+                        cfg=self.cfg,
+                        parent=self
+                    )
+                    mh_res0 = matcher(self.parent.t_proposal_boxes,
+                                  self.parent.batched_inputs[GT_BOXES],
+                                  self.parent.batched_inputs[GT_LABELS],
+                                  self.parent.batched_inputs[GT_LENGTH])
+                    ious = tf.reshape(mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
+                else:
+                    ious = tf.nn.sigmoid(iou_x)
+
+            cls_x,box_x = self.forward_with_ious(cls_x,box_x,ious)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 return cls_x,box_x,iou_x

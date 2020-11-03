@@ -194,6 +194,7 @@ _C.MODEL.RPN.SMOOTH_L1_BETA = 0.0
 _C.MODEL.RPN.LOSS_WEIGHT = 1.0
 # Number of top scoring RPN proposals to keep before applying NMS
 # When FPN is used, this is *per FPN level* (not total)
+_C.MODEL.RPN.PRE_NMS_TOPK_MAX_PER_LAYER = -1
 _C.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 12000
 _C.MODEL.RPN.PRE_NMS_TOPK_TEST = 6000
 # Number of top scoring RPN proposals to keep after applying NMS
@@ -324,12 +325,14 @@ _C.MODEL.ROI_HEADS.PROPOSAL_APPEND_HUGE_NUM_GT = False
 
 _C.MODEL.ROI_HEADS.PRED_IOU = False
 _C.MODEL.ROI_HEADS.PRED_IOU_VERSION = 0
+_C.MODEL.ROI_HEADS.USE_IOU_IN_TEST = False
 #预测时box结果的最小相对面积
 
 _C.MODEL.ROI_HEADS.OUTPUTS = "FastRCNNOutputs"
 _C.MODEL.ROI_HEADS.BOX_REG_LOSS_SCALE = 1.0
 _C.MODEL.ROI_HEADS.BOX_CLS_LOSS_SCALE = 1.0
 _C.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES = 0
+_C.MODEL.ROI_HEADS.REPEAT_FORWARD_BOX = 0
 
 # ---------------------------------------------------------------------------- #
 # Box Head
@@ -357,6 +360,9 @@ _C.MODEL.ROI_BOX_HEAD.FC_DIM = 1024
 _C.MODEL.ROI_BOX_HEAD.NUM_CONV = 0
 # Channel dimension for Conv layers in the RoI box head
 _C.MODEL.ROI_BOX_HEAD.CONV_DIM = 256
+
+_C.MODEL.ROI_BOX_HEAD.IOU_NUM_FC = 2
+_C.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV = 0
 # Normalization method for the convolution layers.
 # Options: "" (no norm), "GN", "SyncBN".
 _C.MODEL.ROI_BOX_HEAD.NORM = ""
