@@ -206,7 +206,7 @@
 |7) + cls loss weight + roi nr=512 + sephv7(sephv25_2)|0.335|0.539|0.362|0.086|0.323|0.487|0.287|0.427|0.442|0.154|0.460|0.594|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook (sephv14_7)|0.328|0.514|0.352|0.065|0.312|0.492|0.283|0.415|0.427|0.107|0.455|0.594|titan 0.1693|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook(no gamma scale) (sephv14_7)|0.328|0.516|0.355|0.066|0.314|0.491|0.283|0.413|0.426|0.109|0.451|0.591|
-
+|7) + cls loss weight + roi nr=512(sephv14_14) + 3 anchor+OneHeadNonLocalROIHeadsHook|0.341|0.542|0.372|0.088|0.326|0.497|0.289|0.435|0.451|0.154|0.471|0.608|
 
 ##Effect of RCNN box transform
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -257,6 +257,14 @@
 |Cascade+roi nr=128|0.338|0.501|0.361|0.051|0.252|0.485|0.294|0.434|0.449|0.069|0.404|0.613|-|
 |Cascade+roi nr=512|0.357|0.519|0.387|0.079|0.337|0.535|0.303|0.441|0.454|0.129|0.470|0.633|titan 0.1136|
 |Cascade+roi nr=512+min iou threshold=0.4|0.342|0.503|0.366|0.076|0.319|0.515|0.297|0.436|0.449|0.140|0.461|0.623|titan 0.039|
+
+##IOU predict
+|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|pearsonr|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|roi nr=128 + iou version 0 + fc x2 iou1|0.315|0.502|0.336|0.065|0.292|0.476|0.278|0.408|0.421|0.116|0.441|0.585|0.640|
+|roi nr=128 + iou version 0 + conv x4 iou2|0.314|0.502|0.335|0.061|0.294|0.474|0.277|0.405|0.419|0.107|0.437|0.584|
+|roi nr=128 + iou version 4 + conv x4 iou4|0.314|0.502|0.336|0.063|0.294|0.472|0.278|0.407|0.419|0.106|0.439|0.585|0.683|
+
 
 
 ```

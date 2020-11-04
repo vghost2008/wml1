@@ -34,3 +34,18 @@ class OneHeadNonLocalROIHeadsHook(wmodule.WChildModule):
                                          activation_fn=None,
                                          weighed_sum=False)
         return net
+    
+@ROI_HEADS_HOOK.register()
+class IouHeadNonLocalROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,x,batched_inputs,reuse=None):
+        del batched_inputs
+        assert len(x) == 2, "error feature map length"
+        iou_x = wnnl.non_local_blockv3(x[1], x[0], x[0], inner_dims_multiplier=[1, 1, 1],
+                                       normalizer_params=self.norm_params,
+                                       normalizer_fn=self.normalizer_fn,
+                                       activation_fn=self.activation_fn,
+                                       weighed_sum=False)
+        return x[0],x[0],iou_x
