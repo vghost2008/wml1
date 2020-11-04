@@ -272,7 +272,9 @@ class PrecisionAndRecall:
                                                   auto_scale_threshold=False, ext_info=False)
     def show(self):
         self.evaluate()
-        print(f"Total test nr {self.total_test_nr}, precision {self.precision}, recall {self.recall}")
+        print(f"Total test nr {self.total_test_nr}, precision {self.precision:.3f}, recall {self.recall:.3f}")
+    def __str__(self):
+        return f"{self.precision:.3f}/{self.recall:.3f}({self.total_test_nr})"
 
 class ModelPerformance:
     def __init__(self,threshold,no_mAP=False,no_F1=False):
@@ -509,6 +511,16 @@ class ClassesWiseModelPerformace(object):
             classes = i+self.clases_begin_value
             print(f"Classes:{classes}")
             self.data[i].show()
+        str0 = "|配置|"
+        str1 = "|---|"
+        str2 = "||"
+        for i in range(self.num_classes):
+            str0 += f"C{i+1}|"
+            str1 += "---|"
+            str2 += f"{str(self.data[i])}|"
+        print(str0)
+        print(str1)
+        print(str2)
 
     def __getattr__(self, item):
         if item=="mAP":
