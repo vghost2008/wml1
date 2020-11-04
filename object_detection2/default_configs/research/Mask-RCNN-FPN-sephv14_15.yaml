@@ -1,4 +1,4 @@
-#用于测试OneHeadNonLocalROIHeadsHook
+#用于测试ClsNonLocalROIHeadsHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -17,7 +17,7 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    HOOK: "OneHeadNonLocalROIHeadsHook"
+    HOOK: "ClsNonLocalROIHeadsHook"
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
@@ -67,6 +67,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_14"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_15"
   SUMMARY_LEVEL: -1
   LOG_STEP: 200

@@ -711,8 +711,8 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
         super().__init__(cfg,*args,**kwargs)
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
-        self.iou_threshold = 0.4
-        self.head_nr = 6
+        self.iou_threshold = 0.5
+        self.head_nr = 5
         self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES     #不包含背景
         self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
         self.box_dim = 4
