@@ -61,7 +61,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
         """
         Log the accuracy metrics to EventStorage.
         """
-        accuracy = wnn.accuracy_ratio(logits=self.pred_class_logits,labels=self.gt_classes)
+        accuracy = wnn.accuracy_ratio(logits_or_probs=self.pred_class_logits,labels=self.gt_classes)
         tf.summary.scalar("fast_rcnn/accuracy",accuracy)
 
     '''def softmax_cross_entropy_loss(self):
@@ -457,14 +457,14 @@ class FastRCNNOutputs(wmodule.WChildModule):
             res_indices = tf.reshape(res_indices, [candiate_nr])
             return boxes, labels, probability, res_indices, len
 
-    def predict_probs(self):
+    def predict_probs(self,logits):
         """
         Returns:
             list[Tensor]: A list of Tensors of predicted class probabilities for each image.
                 Element i has shape (Ri, K + 1), where Ri is the number of predicted objects
                 for image i.
         """
-        probs = tf.nn.softmax(self.pred_class_logits, dim=-1)
+        probs = tf.nn.softmax(logits)
         return probs
 
     def inference(self, score_thresh, nms_thresh, topk_per_image,pred_iou_logits=None,
@@ -495,7 +495,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
             batch_size,bor_nr,box_dim = proposal_boxes.get_shape().as_list()
             _,L = wmlt.combined_static_and_dynamic_shape(self.pred_proposal_deltas)
             if scores is None:
-                probability = tf.nn.softmax(self.pred_class_logits)
+                probability = self.predict_probs(self.pred_class_logits)
             else:
                 probability = scores
             if pred_iou_logits is not None:

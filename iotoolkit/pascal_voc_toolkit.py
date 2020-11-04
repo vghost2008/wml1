@@ -294,7 +294,7 @@ def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
 '''
-def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False):
+def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False,silent=False):
     if auto_sub_dir:
         jpeg_dir = os.path.join(dir_path,"JPEGImages")
         if not os.path.exists(jpeg_dir):
@@ -322,10 +322,10 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
         else:
             xml_path = os.path.join(os.path.dirname(file),base_name)
         if os.path.exists(xml_path):
-            img_file_paths .append(file)
+            img_file_paths.append(file)
             xml_file_paths.append(xml_path)
-        else:
-            print("ERROR:",file,xml_path)
+        elif not silent:
+            print("ERROR, xml file dosen't exists: ",file,xml_path)
 
     res = []
     for x in zip(img_file_paths,xml_file_paths):
@@ -397,14 +397,20 @@ class PascalVOCData(object):
         self.image_sub_dir = image_sub_dir
         self.has_probs = has_probs
         
-    def read_data(self,dir_path):
+    def read_data(self,dir_path,silent=False):
         print(f"Read {dir_path}")
         if not os.path.exists(dir_path):
             print(f"Data path {dir_path} not exists.")
+            return False
         self.files = getVOCFiles(dir_path,image_sub_dir=self.image_sub_dir,
-                                 xml_sub_dir=self.xml_sub_dir)
+                                 xml_sub_dir=self.xml_sub_dir,
+                                 silent=silent)
+        if len(self.files) == 0:
+            return False
+            
         if self.shuffle:
             random.shuffle(self.files)
+        return True
 
     def get_items(self):
         '''

@@ -680,9 +680,9 @@ def log_moving_variable():
         if "moving_mean" in v.name or "moving_variance" in v.name:
             wsummary.histogram_or_scalar(v,moving_name(v.name))
 
-def accuracy_ratio(logits,labels):
+def accuracy_ratio(logits_or_probs,labels):
     with tf.name_scope("accuracy_ratio"):
-        _,actually_get = tf.nn.top_k(logits,1)
+        _,actually_get = tf.nn.top_k(logits_or_probs,1)
         dim = len(actually_get.get_shape().as_list())-1
         actually_get = tf.squeeze(actually_get,axis=[dim])
         if labels.dtype != actually_get.dtype:
