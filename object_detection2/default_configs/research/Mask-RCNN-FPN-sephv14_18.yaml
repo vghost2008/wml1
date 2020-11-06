@@ -1,6 +1,6 @@
+#用于测试OneHeadNonLocalROIHeadsHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
-  #META_ARCHITECTURE: "ProposalNetwork"
   MASK_ON: False
   WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
@@ -12,27 +12,21 @@ MODEL:
     FROZEN_BN: True
   ROI_HEADS:
     #OUTPUTS: "FastRCNNGIOUOutputs"
-    NAME: "RepeatableROIHeads"
+    NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    PRED_IOU_VERSION: 0
-    PRED_IOU: True
-    USE_IOU_IN_TEST: False
-    REPEAT_FORWARD_BOX: 3
+    HOOK: "OneHeadNonLocalROIHeadsHookV3"
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.002
+    SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
-    NAME: "SeparateFastRCNNConvFCHeadV8"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    IOU_NUM_FC: 0
-    IOU_NUM_CONV: 4
-    OUTPUTS_LAYER: "IdentityOutputLayers"
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -55,8 +49,6 @@ MODEL:
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher"
-    #OUTPUTS: "RPNGIOUOutputs"
-    #NMS_THRESH: 0.5
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
@@ -75,9 +67,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-iou3"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_18"
   SUMMARY_LEVEL: -1
-  #RESEARCH: ["result_classes"]
-  #RESEARCH: ["result_bboxes"]
-  #EVAL_TYPE: "recall"
   LOG_STEP: 200

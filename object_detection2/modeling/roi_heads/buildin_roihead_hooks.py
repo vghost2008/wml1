@@ -36,6 +36,35 @@ class OneHeadNonLocalROIHeadsHook(wmodule.WChildModule):
         return net
 
 @ROI_HEADS_HOOK.register()
+class OneHeadNonLocalROIHeadsHookV2(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        del batched_inputs
+        net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook",
+                                         inner_dims_multiplier=[1,1,1],
+                                         normalizer_fn=wnnl.evo_norm_s0,
+                                         activation_fn=None,
+                                         weighed_sum=False,
+                                         n_head=8)
+        return net
+
+@ROI_HEADS_HOOK.register()
+class OneHeadNonLocalROIHeadsHookV3(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        del batched_inputs
+        net = wnnl.non_local_blockv1(net,scope=f"NonLocalROIHeadsHook",
+                                         inner_dims_multiplier=[1,1,1],
+                                         normalizer_fn=wnnl.evo_norm_s0,
+                                         activation_fn=None,
+                                         weighed_sum=False)
+        return net
+
+@ROI_HEADS_HOOK.register()
 class ClsNonLocalROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
