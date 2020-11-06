@@ -13,35 +13,6 @@
 - dataset: coco2017
 
 ##结果汇总
-###coco/Mask-RCNN-FPN-C3.yaml 
-
-- batch_size: 4 on 3 gpu
-- ROIHeads: Res5ROIHeads
-- backbone resnet50, FrozenBN
-- FPN normal: EnvNormS0
-- Head normal: BN
-- iterator: 120k
-- train time: 43.1h
-- eval time: 0.3724s/img
-- ANCHOR SIZES: [[64],[128], [256], [512]] 
-
-####bbox
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|base line(1)|0.235|0.363|0.253|0.000|0.104|0.396|0.223|0.305|0.309|0.000|0.148|0.526|
-|use nolocal|0.274|0.437|0.293|0.019|0.197|0.405|0.256|0.377|0.388|0.022|0.332|0.547|
-|use FuseBackbone|0.307|0.484|0.329|0.027|0.234|0.448|0.274|0.407|0.419|0.031|0.374|0.581|
-
-####segm
-|配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-|base line(1)|0.175|0.369|0.158|0.015|0.193|0.384|0.170|0.244|0.247|0.059|0.191|0.383|
-|use nolocal|0.220|0.459|0.199|0.030|0.349|0.412|0.209|0.329|0.339|0.158|0.348|0.412|
-|use Fusebackbone|0.241|0.497|0.222|0.033|0.368|0.428|0.218|0.343|0.354|0.168|0.367|0.428|
-
-```
-- 1) ANCHOR SIZES: [[120],[240], [480], [512]] 
-```
 
 ###coco/Mask-RCNN-FPN-3.yaml 
 
@@ -206,7 +177,11 @@
 |7) + cls loss weight + roi nr=512 + sephv7(sephv25_2)|0.335|0.539|0.362|0.086|0.323|0.487|0.287|0.427|0.442|0.154|0.460|0.594|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook (sephv14_7)|0.328|0.514|0.352|0.065|0.312|0.492|0.283|0.415|0.427|0.107|0.455|0.594|titan 0.1693|
 |4) + cls loss weight + roi nr=512 + nonlocal head hook(no gamma scale) (sephv14_7)|0.328|0.516|0.355|0.066|0.314|0.491|0.283|0.413|0.426|0.109|0.451|0.591|
-|7) + cls loss weight + roi nr=512(sephv14_14) + 3 anchor+OneHeadNonLocalROIHeadsHook|0.341|0.542|0.372|0.088|0.326|0.497|0.289|0.435|0.451|0.154|0.471|0.608|
+|7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
+|7) + cls loss weight + roi nr=512(sephv14_14) + 3 anchor+OneHeadNonLocalROIHeadsHook|0.341|0.542|0.372|0.088|0.326|0.497|0.289|0.435|0.451|0.154|0.471|0.608|-|
+|7) + cls loss weight + roi nr=512(sephv14_15) + 3 anchor+ClsNonLocalROIHeadsHook|0.337|0.542|0.364|0.094|0.326|0.488|0.286|0.432|0.448|0.166|0.471|0.597|titan 0.1538|
+|7) + cls loss weight + roi nr=512(sephv14_16) + 3 anchor+BoxNonLocalROIHeadsHook|0.338|0.540|0.367|0.091|0.324|0.491|0.289|0.434|0.451|0.164|0.472|0.604|titan 0.1534|
+
 
 ##Effect of RCNN box transform
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -262,8 +237,12 @@
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|pearsonr|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |roi nr=128 + iou version 0 + fc x2 iou1|0.315|0.502|0.336|0.065|0.292|0.476|0.278|0.408|0.421|0.116|0.441|0.585|0.640|
-|roi nr=128 + iou version 0 + conv x4 iou2|0.314|0.502|0.335|0.061|0.294|0.474|0.277|0.405|0.419|0.107|0.437|0.584|
+|roi nr=128 + iou version 0 + conv x4 iou2|0.314|0.502|0.335|0.061|0.294|0.474|0.277|0.405|0.419|0.107|0.437|0.584|0.640|
 |roi nr=128 + iou version 4 + conv x4 iou4|0.314|0.502|0.336|0.063|0.294|0.472|0.278|0.407|0.419|0.106|0.439|0.585|0.683|
+|roi nr=128 + iou version 4 + conv x4 + Multi pool+IouNonLocal iou5|0.315|0.500|0.338|0.060|0.294|0.471|0.279|0.405|0.418|0.113|0.439|0.581|0.656|
+|roi nr=128 + iou version 4 + conv x4 IouNonLocal|0.315 iou6|0.502|0.339|0.065|0.296|0.473|0.277|0.408|0.420|0.109|0.441|0.587|0.677|
+
+
 
 
 

@@ -966,7 +966,6 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
         m_channelk = btf.channel(K)//inner_dims_multiplier[1]
         m_channelv = btf.channel(V)//inner_dims_multiplier[2]
         net = V
-
         Q = conv_op(Q,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
         K = conv_op(K,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")
         V = conv_op(V,m_channelv,[1,1],activation_fn=None,normalizer_fn=None,scope="v_conv")

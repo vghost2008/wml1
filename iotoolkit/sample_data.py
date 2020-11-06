@@ -107,17 +107,20 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
     sampled_data = []
     unused_data = []
     #对数据过采样
-    for i,data in enumerate(datas):
-        img_file, labels = data
-        repeat_nr = get_repeat_nr(labels,data_sum_less,target_nr_or_dict_nr)
-
-        if max_repeat_nr is not None:
-            repeat_nr = min(repeat_nr,max_repeat_nr)
-
-        if repeat_nr>0:
-            sampled_data = sampled_data+[data]*repeat_nr
-        else:
-            unused_data.append(data)
+    if max_repeat_nr is not None and max_repeat_nr>0:
+        for i,data in enumerate(datas):
+            img_file, labels = data
+            repeat_nr = get_repeat_nr(labels,data_sum_less,target_nr_or_dict_nr)
+    
+            if max_repeat_nr is not None:
+                repeat_nr = min(repeat_nr,max_repeat_nr)
+    
+            if repeat_nr>0:
+                sampled_data = sampled_data+[data]*repeat_nr
+            else:
+                unused_data.append(data)
+    else:
+        unused_data = datas
 
     tmp_data_sum = {}
     for data in sampled_data:

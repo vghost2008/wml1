@@ -502,37 +502,26 @@ class FastRCNNOutputs(wmodule.WChildModule):
                 ious = tf.nn.sigmoid(pred_iou_logits,"pred_iou")
 
                 if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
-                    matcher = Matcher(
-                        [1e-3],
-                        allow_low_quality_matches=False,
-                        cfg=self.cfg,
-                        parent=self
-                    )
-                    mh_res0 = matcher(proposal_boxes,
-                                  self.parent.batched_inputs[GT_BOXES],
-                                  self.parent.batched_inputs[GT_LABELS],
-                                  self.parent.batched_inputs[GT_LENGTH])
-                    add_to_research_datas("pb_scores",mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
                     add_to_research_datas("pb_ious",ious,[-1]) #预测的iou
                     assert len(probability.get_shape())==2, "error probability shape"
 
                 raw_probability = tf.expand_dims(probability,axis=0) #only support batch_size=1
-                #probability = ious*probability
 
-            else:
-                if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
-                    matcher = Matcher(
-                        [1e-3],
-                        allow_low_quality_matches=False,
-                        cfg=self.cfg,
-                        parent=self
-                    )
-                    mh_res0 = matcher(proposal_boxes,
-                                      self.parent.batched_inputs[GT_BOXES],
-                                      self.parent.batched_inputs[GT_LABELS],
-                                      self.parent.batched_inputs[GT_LENGTH])
-                    add_to_research_datas("pb_scores",mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
-                    assert len(probability.get_shape())==2, "error probability shape"
+            if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
+                matcher = Matcher(
+                    [1e-3],
+                    allow_low_quality_matches=False,
+                    cfg=self.cfg,
+                    parent=self
+                )
+                mh_res0 = matcher(proposal_boxes,
+                                  self.parent.batched_inputs[GT_BOXES],
+                                  self.parent.batched_inputs[GT_LABELS],
+                                  self.parent.batched_inputs[GT_LENGTH])
+                add_to_research_datas("pb_scores",mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
+                box_size = tf.sqrt(odb.box_area(proposal_boxes))
+                add_to_research_datas("pb_size",box_size,[-1]) #proposal_boxes与gt boxes的 iou
+                assert len(probability.get_shape())==2, "error probability shape"
 
             total_box_nr,K = wmlt.combined_static_and_dynamic_shape(probability)
             probability = tf.reshape(probability,[batch_size,-1,K])
@@ -605,5 +594,7 @@ class FastRCNNOutputs(wmodule.WChildModule):
                     add_to_research_datas("rd_probs", probability[:,:l],[-1])
                 add_to_research_datas("rd_probs", probability[:,:l],[-1])
                 add_to_research_datas("rd_scores_old", scores0[:,:l],[-1])
+                rd_box_size = tf.sqrt(odb.box_area(boxes[:,:l]))
+                add_to_research_datas("rd_size", rd_box_size,[-1])
 
         return results
