@@ -97,10 +97,17 @@ class IouHeadNonLocalROIHeadsHook(wmodule.WChildModule):
 
     def forward(self,x,batched_inputs,reuse=None):
         del batched_inputs
-        assert len(x) == 2, "error feature map length"
-        iou_x = wnnl.non_local_blockv3(x[1], x[0], x[0], inner_dims_multiplier=[1, 1, 1],
-                                       normalizer_params=self.norm_params,
-                                       normalizer_fn=self.normalizer_fn,
-                                       activation_fn=self.activation_fn,
-                                       weighed_sum=False)
-        return x[0],x[0],iou_x
+        if isinstance(x,(list,tuple)) and len(x) == 2:
+            iou_x = wnnl.non_local_blockv3(x[0], x[1], x[1], inner_dims_multiplier=[1, 1, 1],
+                                           scope=f"NonLocalROIHeadsHook_iou",
+                                           normalizer_fn=wnnl.evo_norm_s0,
+                                           activation_fn=None,
+                                           weighed_sum=False,
+                                           skip_connect=False)
+            return x[0],x[0],iou_x
+        else:
+            iou_x = wnnl.non_local_blockv1(x, scope=f"NonLocalROIHeadsHook_iou",
+                                             normalizer_fn=wnnl.evo_norm_s0,
+                                             activation_fn=None,
+                                             weighed_sum=False)
+            return x,x,iou_x

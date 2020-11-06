@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from thirdparty.registry import Registry
+import object_detection2.bboxes as odb
 import wsummary
 import wmodule
 import wml_tfutils as wmlt
@@ -908,3 +909,138 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
                 return cls_x,box_x,iou_x
             else:
                 return cls_x,box_x
+
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNConvFCHeadV9(wmodule.WChildModule):
+    """
+    Rethinking Classification and Localization for Object Detection
+    """
+
+    def __init__(self, cfg, *args, **kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg, *args, **kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+        self.size_threshold = 64
+        self.head_nr = 4
+        self.num_classes = cfg.MODEL.ROI_HEADS.NUM_CLASSES  # 不包含背景
+        self.cls_agnostic_bbox_reg = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
+        self.box_dim = 4
+
+    def forward_branch(self, cls_x, box_x, branch):
+        cfg = self.cfg
+
+        conv_dim = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+        num_conv = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+        fc_dim = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+        num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+
+        assert num_conv + num_fc > 0
+
+        with tf.variable_scope(f"ClassPredictionTower{branch}"):
+            if num_fc > 0:
+                if len(cls_x.get_shape()) > 2:
+                    shape = wmlt.combined_static_and_dynamic_shape(cls_x)
+                    dim = 1
+                    for i in range(1, len(shape)):
+                        dim = dim * shape[i]
+                    cls_x = tf.reshape(cls_x, [shape[0], dim])
+                for _ in range(num_fc):
+                    cls_x = slim.fully_connected(cls_x, fc_dim,
+                                                 activation_fn=self.activation_fn,
+                                                 normalizer_fn=self.normalizer_fn,
+                                                 normalizer_params=self.norm_params)
+        with tf.variable_scope(f"BoxPredictionTower{branch}"):
+            for _ in range(num_conv):
+                box_x = slim.conv2d(box_x, conv_dim, [3, 3],
+                                    activation_fn=self.activation_fn,
+                                    normalizer_fn=self.normalizer_fn,
+                                    normalizer_params=self.norm_params)
+
+        return cls_x, box_x
+
+    def trans(self, net):
+        if len(net.get_shape()) > 2:
+            shape = wmlt.combined_static_and_dynamic_shape(net)
+            dim = 1
+            for x in shape[1:]:
+                dim *= x
+            return tf.reshape(net, [shape[0], dim])
+        else:
+            return net
+
+    def forward_with_size(self, cls_x, box_x, size):
+        foreground_num_classes = self.num_classes
+        num_bbox_reg_classes = 1 if self.cls_agnostic_bbox_reg else foreground_num_classes
+
+        cls_x_datas = []
+        box_x_datas = []
+        index = tf.nn.relu(size) * self.head_nr /self.size_threshold
+        wsummary.histogram_or_scalar(index, "head_index")
+        index = tf.cast(index, tf.int32)
+        index = tf.clip_by_value(index, clip_value_min=0, clip_value_max=self.head_nr - 1)
+        data_indexs = []
+        B = btf.batch_size(cls_x)
+        data_raw_indexs = tf.range(B, dtype=tf.int32)
+        for i in range(self.head_nr):
+            mask = tf.equal(index, i)
+            data_indexs.append(tf.boolean_mask(data_raw_indexs, mask))
+            t_cls_x = tf.boolean_mask(cls_x, mask)
+            t_box_x = tf.boolean_mask(box_x, mask)
+            data = self.forward_branch(t_cls_x, t_box_x, i)
+            cls_x_datas.append(data[0])
+            box_x_datas.append(data[1])
+
+        cls_x_datas = tf.concat(cls_x_datas, axis=0)
+        cls_x_datas = self.trans(cls_x_datas)
+        box_x_datas = tf.concat(box_x_datas, axis=0)
+        box_x_datas = self.trans(box_x_datas)
+        with tf.variable_scope("BoxPredictor"):
+            cls_x_datas = slim.fully_connected(cls_x_datas, self.num_classes + 1, activation_fn=None,
+                                               normalizer_fn=None, scope="cls_score")
+            box_x_datas = slim.fully_connected(box_x_datas, self.box_dim * num_bbox_reg_classes, activation_fn=None,
+                                               normalizer_fn=None, scope="bbox_pred")
+        data_indexs = tf.concat(data_indexs, axis=0)
+        data_indexs = tf.reshape(data_indexs, [B, 1])
+
+        shape = wmlt.combined_static_and_dynamic_shape(cls_x_datas)
+        shape[0] = B
+        cls_x = tf.scatter_nd(data_indexs, cls_x_datas, shape)
+        shape = wmlt.combined_static_and_dynamic_shape(box_x_datas)
+        shape[0] = B
+        box_x = tf.scatter_nd(data_indexs, box_x_datas, shape)
+
+        return cls_x, box_x
+
+    def forward(self, x, scope="FastRCNNConvFCHeadV9", reuse=None):
+        with tf.variable_scope(scope, reuse=reuse):
+            cfg = self.cfg
+            if not isinstance(x, tf.Tensor) and isinstance(x, Iterable):
+                assert len(x) >= 2, "error feature map length"
+                cls_x = x[0]
+                box_x = x[1]
+                if len(x) >= 3:
+                    iou_x = x[2]
+                else:
+                    iou_x = x[1]
+            else:
+                cls_x = x
+                box_x = x
+                iou_x = x
+            with tf.name_scope("get_size"):
+                img_size = wmlt.combined_static_and_dynamic_shape(self.parent.batched_inputs[IMAGE])
+                p_bboxes = odb.tfrelative_boxes_to_absolutely_boxes(self.parent.t_proposal_boxes,width=img_size[2],height=img_size[1])
+                bboxes_size = tf.sqrt(odb.box_area(p_bboxes))
+                bboxes_size = tf.reshape(bboxes_size,[-1])
+
+            cls_x, box_x = self.forward_with_size(cls_x, box_x, bboxes_size)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x, box_x, iou_x
+            else:
+                return cls_x, box_x
