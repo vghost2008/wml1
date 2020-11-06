@@ -4,6 +4,8 @@ from collections import Iterable
 import wml_utils as wmlu
 from iotoolkit.pascal_voc_toolkit import PascalVOCData
 import random
+import copy
+
 def name_dict_nr2id_dict_nr(data,name_to_id,scale=1):
     res = {}
     for k,v in data.items():
@@ -62,7 +64,34 @@ def sample_one_by_key(unused_data,label_to_index,label):
             v.remove(index)
     return data
 
-def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,extra_file_nr=None,max_repeat_nr=None):
+def sort_by_labels_nr(indexs:list,datas:list):
+    if len(indexs)<=1:
+        return indexs
+    new_indexs = [(x,len(datas[x][1])) for x in indexs]
+    new_indexs.sort(key=lambda x:x[1],reverse=True)
+    return [x[0] for x in new_indexs]
+
+def sort_partial_by_labels_nr(indexs:list,datas:list):
+    if len(indexs)<=2:
+        return indexs
+    nr = len(indexs)
+    h_nr = nr//2
+    random.shuffle(indexs)
+    indexs0 = indexs[:h_nr]
+    indexs1 = indexs[h_nr:]
+    new_indexs = [(x,len(datas[x][1])) for x in indexs1]
+    new_indexs.sort(key=lambda x:x[1],reverse=True)
+    indexs1 = [x[0] for x in new_indexs]
+    res = []
+    for i in range(h_nr):
+        res.append(indexs0[i])
+        res.append(indexs1[i])
+    if len(indexs1)>h_nr:
+        res.append(indexs1[-1])
+    
+    return res
+
+def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,extra_file_nr=None,max_repeat_nr=None,sort_data_fn=None):
     '''
     target_nr_or_dict_nr:int/dict key=calsses_id, value=nr e.g.{1:10,2:100,...}
     num_classes: 类别数量，不包含背景
@@ -73,7 +102,7 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
     data_sum = {}
     datas = []
     for _data in dataset:
-        data = _data[0],_data[2]
+        data = _data[0],_data[2]  #0为文件名，2为labels
         count = count_fn(data)
         data_sum = wmlu.add_dict(data_sum,count)
         datas.append(data)
@@ -135,7 +164,7 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
 
     show_dict(tmp_data_sum,total_nr)
 
-    label_to_index = {}
+    label_to_index = {} #key为目标标签，v为相应数据在unused_data中的索引
     for k,v in enumerate(unused_data):
         img_file, labels = v
         labels_set = set(labels)
@@ -145,8 +174,14 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
             else:
                 label_to_index[l] = [k]
 
-    for k,v in label_to_index.items():
-        random.shuffle(v)
+    if sort_data_fn is None:
+        for k,v in label_to_index.items():
+            random.shuffle(v)
+    else:
+        tmp_label_to_index = copy.deepcopy(label_to_index)
+        label_to_index = {}
+        for k,v in tmp_label_to_index.items():
+            label_to_index[k] = sort_data_fn(v,unused_data)
 
     if extra_file_nr is not None and extra_file_nr>0:
         total_extra_sample = 0
@@ -155,7 +190,6 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
             仅对过采样时意外采到，后继不会再采样的数据进行额外采样
             '''
             if k in tmp_data_sum and tmp_data_sum[k]>target_nr(k):
-                count = 0
                 for count in range(extra_file_nr):
                     data = sample_one_by_key(unused_data,label_to_index,k)
                     if data is None:
