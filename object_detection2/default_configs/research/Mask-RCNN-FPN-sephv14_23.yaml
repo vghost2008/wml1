@@ -1,4 +1,5 @@
-#用于测试使用BBDNetX8预测iou
+#用于测试box head conv dim=1024
+#FPN dim=384
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -17,20 +18,16 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    PRED_IOU: True
-    USE_IOU_IN_TEST: False
-    PRED_IOU_VERSION: 4
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
-    NAME: "BBDNetX8"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    IOU_NUM_FC: 0
-    IOU_NUM_CONV: 4
+    CONV_DIM: 1024
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -42,13 +39,10 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
+    OUT_CHANNELS: 384
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
-  BBDNET:
-    DIMS: [16,16,16]
-    EDGES_REDUCER_FOR_POINTS: "mean"
-    RES_UNIT_NR: 1
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
@@ -76,7 +70,7 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv27"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_23"
   SUMMARY_LEVEL: 0
   #RESEARCH: ["result_classes"]
   #RESEARCH: ["result_bboxes"]

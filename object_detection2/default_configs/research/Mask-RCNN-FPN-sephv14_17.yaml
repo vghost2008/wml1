@@ -1,4 +1,4 @@
-#用于测试OneHeadNonLocalROIHeadsHook
+#用于测试OneHeadNonLocalROIHeadsHookV2,inner_dims_multiplier=[1,1,1], n_head=8
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
