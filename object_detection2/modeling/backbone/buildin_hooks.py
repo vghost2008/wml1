@@ -32,6 +32,24 @@ class NonLocalBackboneHook(wmodule.WChildModule):
                                          weighed_sum=False)
             return res
 
+@BACKBONE_HOOK_REGISTRY.register()
+class SEBackboneHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,features,batched_inputs):
+        del batched_inputs
+        res = OrderedDict()
+        with tf.variable_scope("SEBackboneHook"):
+            for k,v in features.items():
+                if k[0] not in ["C","P"]:
+                    continue
+                level = int(k[1:])
+                if level<=3:
+                    res[k] = v
+                    continue
+                res[k]= wnnl.se_block(v,scope=f"SE_block_{k}")
+            return res
 
 @BACKBONE_HOOK_REGISTRY.register()
 class FusionBackboneHook(wmodule.WChildModule):

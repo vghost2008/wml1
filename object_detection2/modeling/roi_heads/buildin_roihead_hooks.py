@@ -82,3 +82,24 @@ class IouHeadNonLocalROIHeadsHook(wmodule.WChildModule):
                                              activation_fn=None,
                                              weighed_sum=False)
             return x,x,iou_x
+        
+@ROI_HEADS_HOOK.register()
+class SEROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        cls_net = wnnl.se_block(net,scope=f"SEROIHeadsHook_cls")
+        reg_net = wnnl.se_block(net,scope=f"SEROIHeadsHook_reg")
+        return cls_net,reg_net
+
+@ROI_HEADS_HOOK.register()
+class OneHeadSEROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        del batched_inputs
+        net = wnnl.se_block(net,scope=f"SEROIHeadsHook")
+        return net

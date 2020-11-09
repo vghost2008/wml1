@@ -302,7 +302,7 @@ def pascal_voc_dataset():
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
     #data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/verify_p03_1020_2_proc')
-    data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/rdatav3_pos_proc_m')
+    data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/rdatasv3_pos_proc_m')
     #data.read_data('/home/vghost/桌面/verify_p04_1105')
     #data.read_data('/home/vghost/ai/mldata3/cell/output/faild_neg_images_不要标注')
 
