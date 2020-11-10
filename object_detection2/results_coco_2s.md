@@ -102,6 +102,8 @@
 |4) + cls loss weight + roi nr=512(wtwfpn v1)|0.326|0.514|0.353|0.066|0.312|0.492|0.280|0.407|0.419|0.101|0.438|0.588|titan 0.2636|
 |4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)|0.326|0.513|0.351|0.060|0.311|0.493|0.282|0.406|0.418|0.094|0.438|0.589|titan 0.0946|
 |4) + cls loss weight + roi nr=512 + wsum (wtwfpn v1_1)+NRPNT|0.328|0.518|0.353|0.062|0.313|0.497|0.285|0.414|0.427|0.102|0.451|0.597|titan 0.3328|
+|7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
+|7) + cls loss weight + roi nr=512(sephv14_21) + FPN channel=384+3 anchor|0.337|0.538|0.368|0.095|0.325|0.492|0.289|0.429|0.444|0.154|0.466|0.597|titan 0.1488|
 
 
 ##Effect of neck fusion
@@ -181,6 +183,11 @@
 |7) + cls loss weight + roi nr=512(sephv14_14) + 3 anchor+OneHeadNonLocalROIHeadsHook|0.341|0.542|0.372|0.088|0.326|0.497|0.289|0.435|0.451|0.154|0.471|0.608|-|
 |7) + cls loss weight + roi nr=512(sephv14_15) + 3 anchor+ClsNonLocalROIHeadsHook|0.337|0.542|0.364|0.094|0.326|0.488|0.286|0.432|0.448|0.166|0.471|0.597|titan 0.1538|
 |7) + cls loss weight + roi nr=512(sephv14_16) + 3 anchor+BoxNonLocalROIHeadsHook|0.338|0.540|0.367|0.091|0.324|0.491|0.289|0.434|0.451|0.164|0.472|0.604|titan 0.1534|
+|7) + cls loss weight + roi nr=512(sephv14_17) + 3 anchor+BoxNonLocalROIHeadsHookV2|0.340|0.543|0.371|0.088|0.330|0.494|0.289|0.433|0.449|0.153|0.476|0.602|titan 0.1743|
+|7) + cls loss weight + roi nr=512(sephv14_18) + 3 anchor+OneHeadNonLocalROIHeadsHookV3|0.336|0.543|0.365|0.085|0.325|0.490|0.287|0.432|0.448|0.160|0.469|0.603|titan 0.1734|
+|7) + cls loss weight + roi nr=512(sephv14_19) + 3 anchor+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook|0.342|0.550|0.371|0.090|0.331|0.496|0.288|0.435|0.453|0.160|0.477|0.604|titan 0.1745|
+|7) + cls loss weight + roi nr=128(sephv14_20_1) + 3 anchor|0.315|0.509|0.335|0.069|0.298|0.465|0.278|0.416|0.433|0.134|0.454|0.586|1080ti 0.1467|
+|7) + cls loss weight + roi nr=512(sephv14_20) + 3 anchor|0.335|0.535|0.362|0.075|0.327|0.490|0.284|0.422|0.436|0.131|0.457|0.593|titan 0.1165|
 
 
 ##Effect of RCNN box transform
@@ -241,6 +248,7 @@
 |roi nr=128 + iou version 4 + conv x4 iou4|0.314|0.502|0.336|0.063|0.294|0.472|0.278|0.407|0.419|0.106|0.439|0.585|0.683|
 |roi nr=128 + iou version 4 + conv x4 + Multi pool+IouNonLocal iou5|0.315|0.500|0.338|0.060|0.294|0.471|0.279|0.405|0.418|0.113|0.439|0.581|0.656|
 |roi nr=128 + iou version 4 + conv x4 IouNonLocal|0.315 iou6|0.502|0.339|0.065|0.296|0.473|0.277|0.408|0.420|0.109|0.441|0.587|0.677|
+|roi nr=128 + iou version 4 + conv x4 iou7|0.314|0.499|0.335|0.063|0.295|0.473|0.278|0.405|0.418|0.110|0.441|0.583|0.742|
 
 
 

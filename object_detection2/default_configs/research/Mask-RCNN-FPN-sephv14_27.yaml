@@ -1,4 +1,4 @@
-#用于SeparateFastRCNNConvFCHeadV9 + roi = 128
+#用于测试 SEBackboneHook+OneHeadSEROIHeadsHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -14,13 +14,14 @@ MODEL:
     #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
-    BATCH_SIZE_PER_IMAGE: 128
-    SCORE_THRESH_TEST: 0.05
+    BATCH_SIZE_PER_IMAGE: 512
+    SCORE_THRESH_TEST: 0.0
     NMS_THRESH_TEST: 0.5
+    HOOK: "OneHeadSEROIHeadsHook"
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
-    NAME: "SeparateFastRCNNConvFCHeadV9"
+    NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
     NUM_CONV: 4
@@ -37,6 +38,7 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
+    BACKBONE_HOOK: ("SEBackboneHook","")
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -67,7 +69,7 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_20_1"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_27"
   SUMMARY_LEVEL: 0
   #RESEARCH: ["result_classes"]
   #RESEARCH: ["result_bboxes"]

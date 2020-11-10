@@ -77,7 +77,7 @@ INPUT:
 VERSION: 2
 GLOBAL:
   PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv27"
-  SUMMARY_LEVEL: 0
+  SUMMARY_LEVEL: -1
   #RESEARCH: ["result_classes"]
   #RESEARCH: ["result_bboxes"]
   LOG_STEP: 200

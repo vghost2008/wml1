@@ -195,6 +195,8 @@ class FastRCNNOutputs(wmodule.WChildModule):
             return self.get_pred_centerness_loss()
         elif self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 4:
             return self.get_pred_iou_lossv0(threshold=0.4)
+        elif self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 5:
+            return self.get_pred_iou_lossv5(threshold=0.4)
         else:
             return self.get_pred_iou_lossv0()
 
@@ -219,6 +221,31 @@ class FastRCNNOutputs(wmodule.WChildModule):
             wsummary.histogram_or_scalar(gt_scores,"gt_iou_by_matcher")
             loss = wnn.sigmoid_cross_entropy_with_logits_FL(labels=gt_scores,
                                                             logits=pred_iou_logits)
+            return tf.reduce_mean(loss)
+        
+    def get_pred_iou_lossv5(self,threshold=None):
+        '''
+        使用proposals bboxes与gtbboxes的iou作为目标
+        :return: 
+        '''
+        with tf.name_scope("get_pred_iouv0_loss"):
+            gt_scores = self.proposals[ED_SCORES]
+            gt_scores = tf.stop_gradient(tf.reshape(gt_scores,[-1]))
+            pred_iou_logits = self.pred_iou_logits
+            pred_iou_logits = tf.reshape(pred_iou_logits,[-1])
+            if threshold is not None:
+                pred_score = pred_iou_logits
+                mask0 = tf.greater(gt_scores,threshold)
+                mask1 = tf.logical_and(tf.logical_not(mask0),tf.greater_equal(pred_score,threshold+0.05))
+                mask = tf.logical_or(mask0,mask1)
+                gt_scores = tf.boolean_mask(gt_scores,mask)
+                pred_iou_logits = tf.boolean_mask(pred_iou_logits,mask)
+
+            wsummary.histogram_or_scalar(gt_scores,"gt_iou_by_matcher")
+            loss = tf.losses.absolute_difference(labels=gt_scores,
+                                                 predictions=pred_iou_logits,
+                                                 loss_collection=None,
+                                                 reduction=tf.losses.Reduction.NONE)
             return tf.reduce_mean(loss)
 
     def get_pred_iou_lossv1(self):
@@ -499,7 +526,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
             else:
                 probability = scores
             if pred_iou_logits is not None:
-                ious = tf.nn.sigmoid(pred_iou_logits,"pred_iou")
+                if self.cfg.MODEL.ROI_HEADS.PRED_IOU_VERSION == 5:
+                    ious = tf.clip_by_value(pred_iou_logits, clip_value_min=0, clip_value_max=1)
+                else:
+                    ious = tf.nn.sigmoid(pred_iou_logits,"pred_iou")
 
                 if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.RESEARCH and not self.is_training:
                     add_to_research_datas("pb_ious",ious,[-1]) #预测的iou
