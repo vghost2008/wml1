@@ -6,8 +6,10 @@ import wml_tfutils as wmlt
 from collections import OrderedDict
 import object_detection2.od_toolkit as odt
 from object_detection2.config.config import global_cfg
-slim = tf.contrib.slim
+import basic_tftools as btf
 from object_detection2.modeling.backbone.build import BACKBONE_HOOK_REGISTRY
+
+slim = tf.contrib.slim
 
 @BACKBONE_HOOK_REGISTRY.register()
 class NonLocalBackboneHook(wmodule.WChildModule):
@@ -79,7 +81,7 @@ class FusionBackboneHook(wmodule.WChildModule):
             res[f'F{level0}'] = net
 
             return res
-        
+
 @BACKBONE_HOOK_REGISTRY.register()
 class BalanceBackboneHook(wmodule.WChildModule):
     def __init__(self, cfg, parent, *args, **kwargs):
