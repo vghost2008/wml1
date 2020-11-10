@@ -106,7 +106,7 @@ def get_filenames_in_dir(dir_path,suffix=None,prefix=None):
     res.sort()
     return res
 
-def get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):
+def get_filepath_in_dir(dir_path,suffix=None,prefix=None,sort=True):
     if suffix is not None:
         suffix = suffix.split(";;")
     if prefix is not None:
@@ -141,7 +141,10 @@ def get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):
                 res.append(os.path.join(dir_path, file))
         else:
             res.append(os.path.join(dir_path,file))
-    res.sort()
+
+    if sort:
+        res.sort()
+
     return res
 
 def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=False):

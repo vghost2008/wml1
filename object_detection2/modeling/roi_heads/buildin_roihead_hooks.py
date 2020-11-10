@@ -132,3 +132,13 @@ class OneHeadSEROIHeadsHook(wmodule.WChildModule):
         del batched_inputs
         net = wnnl.se_block(net,scope=f"SEROIHeadsHook")
         return net
+    
+@ROI_HEADS_HOOK.register()
+class OneHeadCBAMROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        del batched_inputs
+        net = wnnl.cbam_block(net,scope=f"CBAMROIHeadsHook")
+        return net

@@ -1113,6 +1113,36 @@ def se_block(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=
         net = tf.expand_dims(net,axis=1)
         return net*org_net
 
+'''
+CBAM: Convolutional Block Attention Module
+'''
+def cbam_block(net,r=16,fc_op=slim.fully_connected,conv_op=slim.conv2d,activation_fn=tf.nn.relu,scope=None,summary_fn=None):
+    with tf.variable_scope(scope,"CBAM"):
+        with tf.variable_scope("ChannelAttention"):
+            channel = net.get_shape().as_list()[-1]
+            mid_channel = channel//r
+            org_net = net
+            net0 = tf.reduce_mean(net,axis=[1,2],keepdims=False)
+            net1 = tf.reduce_max(net,axis=[1,2],keepdims=False)
+            net = tf.concat([net0,net1],axis=-1)
+            net = fc_op(net,mid_channel,activation_fn=activation_fn,normalizer_fn=None)
+            net = fc_op(net,channel,activation_fn=tf.nn.sigmoid,normalizer_fn=None)
+            if summary_fn is not None:
+                summary_fn("se_sigmoid_value",net)
+            net = tf.expand_dims(net,axis=1)
+            net = tf.expand_dims(net,axis=1)
+            net = net*org_net
+
+        with tf.variable_scope("SpatialAttention"):
+            net0 = tf.reduce_mean(net,axis=-1,keepdims=True)
+            net1 = tf.reduce_max(net,axis=-1,keepdims=True)
+            org_net = net
+            net = tf.concat([net0,net1],axis=-1)
+            net = conv_op(net,1,[7,7],activation_fn=tf.nn.sigmoid,normalizer_fn=None)
+            net = net*org_net
+
+        return net
+
 def get_dropblock_keep_prob(step,total_step,max_keep_prob):
     return 1.0-tf.minimum(tf.cast(step,tf.float32)/total_step,1.0)*(1-max_keep_prob)
 

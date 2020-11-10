@@ -1,4 +1,4 @@
-#用于测试OneHeadNonLocalROIHeadsHook
+#用于测试 OneHeadCBAMROIHeadsHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -15,11 +15,11 @@ MODEL:
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
     BATCH_SIZE_PER_IMAGE: 512
-    SCORE_THRESH_TEST: 0.05
+    SCORE_THRESH_TEST: 0.0
     NMS_THRESH_TEST: 0.5
-    HOOK: "OneHeadNonLocalROIHeadsHook"
+    HOOK: "OneHeadCBAMROIHeadsHook"
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.00
+    SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
@@ -38,6 +38,7 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
+    #BACKBONE_HOOK: ("SEBackboneHook","")
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -49,12 +50,13 @@ MODEL:
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher"
+    #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
 SOLVER:
   IMS_PER_BATCH: 4
-  BASE_LR: 0.02
+  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
   STEPS: (80000,100000,120000)
@@ -67,6 +69,8 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_14"
-  SUMMARY_LEVEL: -1
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_28"
+  SUMMARY_LEVEL: 0
+  #RESEARCH: ["result_classes"]
+  #RESEARCH: ["result_bboxes"]
   LOG_STEP: 200
