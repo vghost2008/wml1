@@ -124,6 +124,8 @@
 |4) + cls loss weight + roi nr=512 + balance hook(bifpn v1_1)|0.331|0.511|0.356|0.082|0.320|0.483|0.282|0.413|0.425|0.136|0.445|0.581|1080ti 0.2723|
 |7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
 |7) + cls loss weight + roi nr=512(sephv14_13) + 3 anchor + Nonlocal hook|0.340|0.503|0.365|0.072|0.326|0.505|0.294|0.436|0.450|0.133|0.478|0.615|titan 0.1286|
+|7) + cls loss weight + roi nr=512(sephv14_26) + 3 anchor+SEBackboneHook|0.337|0.543|0.365|0.093|0.327|0.493|0.286|0.427|0.442|0.158|0.463|0.596|
+
 
 ##Effect of giououtputs
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -188,6 +190,15 @@
 |7) + cls loss weight + roi nr=512(sephv14_19) + 3 anchor+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook|0.342|0.550|0.371|0.090|0.331|0.496|0.288|0.435|0.453|0.160|0.477|0.604|titan 0.1745|
 |7) + cls loss weight + roi nr=128(sephv14_20_1) + 3 anchor|0.315|0.509|0.335|0.069|0.298|0.465|0.278|0.416|0.433|0.134|0.454|0.586|1080ti 0.1467|
 |7) + cls loss weight + roi nr=512(sephv14_20) + 3 anchor|0.335|0.535|0.362|0.075|0.327|0.490|0.284|0.422|0.436|0.131|0.457|0.593|titan 0.1165|
+|7) + cls loss weight + roi nr=512(sephv14_24) + 3 anchor+SEROIHeadsHook|0.334|0.536|0.362|0.085|0.323|0.482|0.285|0.424|0.440|0.155|0.463|0.587|1080ti 0.1509|
+|7) + cls loss weight + roi nr=512(sephv14_25) + 3 anchor+OneHeadSEROIHeadsHook|0.336|0.537|0.367|0.089|0.327|0.490|0.287|0.427|0.442|0.147|0.464|0.597|1080ti 0.1510|
+|7) + cls loss weight + roi nr=512(sephv14_27) + 3 anchor+SEROIHeadsHook+SEBackboneHook|0.337|0.547|0.359|0.088|0.326|0.489|0.287|0.437|0.457|0.169|0.478|0.610|titan 0.1288|
+|7) + cls loss weight + roi nr=512(sephv14_22) + 3 anchor+box conv dim=1024|0.339|0.537|0.368|0.083|0.329|0.495|0.290|0.429|0.443|0.146|0.465|0.599|titan 0.3034|
+|7) + cls loss weight + roi nr=512(sephv14_23) + 3 anchor+box conv dim=1024+FPN channels=384|0.343|0.543|0.372|0.090|0.331|0.497|0.291|0.432|0.447|0.152|0.468|0.601|titan 0.3136|
+|7) + cls loss weight + roi nr=512(sephv14_28) + 3 anchor+OneHeadCBAMROIHeadsHook+SEBackboneHook|0.338|0.544|0.367|0.086|0.326|0.489|0.288|0.438|0.456|0.159|0.484|0.606|titan 0.1345|
+
+
+
 
 
 ##Effect of RCNN box transform
