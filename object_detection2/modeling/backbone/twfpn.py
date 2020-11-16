@@ -84,19 +84,27 @@ class WeightedFPN(Backbone):
         res0 = self.forward_with_given_features(x,image_features,bottom_up_features,[self.hook0_before,self.hook0_after],'WeightedFPN')
         return res0
 
-    def fusion(self,net,prev_features,level,scope):
+    def fusion(self,idx,features,level,scope):
         with tf.variable_scope(scope):
             weights = []
-            for i in reversed(range(len(prev_features))):
-                wi = tf.get_variable(f"w{i+level+1}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
-                wi = tf.nn.relu(wi)+1e-8
-                wi = wnnl.scale_gradient(wi,0.1,is_training=self.is_training)
-                weights.append(wi)
-            nets = [net]
-            shape = wmlt.combined_static_and_dynamic_shape(net)[1:3]
-            for wi,pf in zip(weights,prev_features):
-                pf = self.interpolate_op(pf,shape)
-                nets.append(wi*pf)
+            for i in range(len(features)):
+                if i == idx:
+                    weights.append(None)
+                else:
+                    with tf.name_scope(f"get_w{level+idx-i}"):
+                        wi = tf.get_variable(f"w{level+idx-i}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
+                        wi = tf.nn.relu(wi)+1e-8
+                        wi = wnnl.scale_gradient(wi,0.1,is_training=self.is_training)
+                        weights.append(wi)
+            nets = []
+            shape = wmlt.combined_static_and_dynamic_shape(features[idx])[1:3]
+            for wi,pf in zip(weights,features):
+                if wi is not None:
+                    pf = self.interpolate_op(pf, shape)
+                    nets.append(wi*pf)
+                else:
+                    nets.append(pf)
+            weights.remove(None)
             return tf.add_n(nets)/tf.add_n(weights+[1.0])
 
     def forward_with_given_features(self, x,image_features,bottom_up_features,hooks,scope):
@@ -136,28 +144,25 @@ class WeightedFPN(Backbone):
 
                 with slim.arg_scope(
                         [slim.conv2d], padding=padding, stride=1):
-                    prev_features = slim.conv2d(
-                        image_features[-1],
-                        depth, [1, 1], activation_fn=None, normalizer_fn=None,
-                        scope=f'projection_{self.stage}')
-                    output = conv_op(prev_features, depth,[kernel_size, kernel_size], scope=f"output_{self.stage}")
-                    output_feature_maps_list.append(output)
-                    output_feature_map_keys.append(f"P{self.stage}")
-                    all_prev_features = [prev_features]
+                    all_prev_features = []
 
-                    for level in reversed(range(num_levels - 1)):
+                    for level in reversed(range(num_levels)):
                         rlevel_id = self.stage+level-num_levels+1
                         lateral_features = slim.conv2d(
                             image_features[level], depth, [1, 1],
                             activation_fn=None, normalizer_fn=None,
                             scope='projection_%d' % (rlevel_id))
-                        prev_features = self.fusion(lateral_features,all_prev_features,rlevel_id,scope=f"fusion_for_level{rlevel_id}")
+                        all_prev_features.append(lateral_features)
+                        
+                    for idx in range(num_levels):
+                        rlevel_id = self.stage-idx
+                        fusioned_feature = self.fusion(idx,all_prev_features,rlevel_id,scope=f"fusion_for_level{rlevel_id}")
                         output_feature_maps_list.append(conv_op(
-                            prev_features,
+                            fusioned_feature,
                             depth, [kernel_size, kernel_size],
                             scope=f'output_{rlevel_id}'))
                         output_feature_map_keys.append(f"P{rlevel_id}")
-                        all_prev_features.append(lateral_features)
+
             output_feature_map_keys.reverse()
             output_feature_maps_list.reverse()
             res = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
