@@ -299,7 +299,7 @@ def test_dataset():
 
 def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
-    data_path = "/home/wj/ai/mldata3/cell/pos_stage_05_verify_preprocv3_1"
+    data_path = "/home/wj/ai/mldata3/cell/output/data1"
     #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
     #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
     #data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/verify_p03_1020_2_proc')

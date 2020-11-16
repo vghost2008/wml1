@@ -91,12 +91,40 @@ def sort_partial_by_labels_nr(indexs:list,datas:list):
     
     return res
 
-def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,extra_file_nr=None,max_repeat_nr=None,sort_data_fn=None):
+'''
+用于限制在每一个tmap中采样的数量
+'''
+class LimitPatchsNrInSlide(object):
+    def __init__(self,get_file_id_fn,max_nr=10):
+        self.get_file_id_fn = get_file_id_fn
+        self.max_nr = max_nr
+
+    def __call__(self,data,sampled_data,unused_data,label_to_index):
+        data_nr = 0
+        cur_id = self.get_file_id_fn(data[0])
+
+        for path,labels in sampled_data:
+            id = self.get_file_id_fn(path)
+            if id == cur_id:
+                data_nr += 1
+
+        if data_nr>=self.max_nr:
+            for k, v in label_to_index.items():
+                for index in copy.deepcopy(v):
+                    tmp_path,_ = unused_data[index]
+                    id = self.get_file_id_fn(tmp_path)
+                    if id == cur_id:
+                        v.remove(index)
+
+def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,extra_file_nr=None,max_repeat_nr=None,
+                sort_data_fn=None,
+                call_back_after_sampled=None):
     '''
     target_nr_or_dict_nr:int/dict key=calsses_id, value=nr e.g.{1:10,2:100,...}
     num_classes: 类别数量，不包含背景
     extra_file_nr: 不需要过采样数据的基本采样次数，None表示不做特别处理
     max_repeat_nr: 重复次数, 0表示不重复
+    call_back_after_sampled(sampled_data:list((file_path,labels)),unused_data:list((file_path,labels)),indexs:dict(key=label,value=indexs))
     '''
     print("Counting data ...")
     data_sum = {}
@@ -198,6 +226,8 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
                     count = count_fn(data)
                     tmp_data_sum = wmlu.add_dict(tmp_data_sum,count)
                     sampled_data.append(data)
+                    if call_back_after_sampled is not None:
+                        call_back_after_sampled(data,sampled_data,unused_data,label_to_index)
                     total_extra_sample += 1
 
         print(f"Total extra sample nr {total_extra_sample}, total sample nr {len(sampled_data)}, After extra sample")
@@ -219,6 +249,8 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
                 count = count_fn(data)
                 tmp_data_sum = wmlu.add_dict(tmp_data_sum,count)
                 sampled_data.append(data)
+                if call_back_after_sampled is not None:
+                    call_back_after_sampled(data, sampled_data, unused_data, label_to_index)
                 #print(f"sample {i}.")
                 #show_dict(tmp_data_sum,total_nr)
         if not is_ok:
