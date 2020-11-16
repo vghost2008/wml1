@@ -1,4 +1,4 @@
-#用于测试WeightedFPN
+#用于测试OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook+box conv dim=1024+FPN channels=512
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -6,11 +6,10 @@ MODEL:
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
-    NAME: "build_resnet_weighted_fpn_backbone"
+    NAME: "build_retinanet_resnet_fpn_backbone"
   RESNETS:
     DEPTH: 50
     FROZEN_BN: True
-    MAKE_C6C7: "C6"
   ROI_HEADS:
     #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
@@ -18,8 +17,9 @@ MODEL:
     BATCH_SIZE_PER_IMAGE: 512
     SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
+    HOOK: "OneHeadNonLocalROIHeadsHook"
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.005
+    SCORE_THRESH_TEST: 0.002
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
@@ -27,17 +27,20 @@ MODEL:
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    canonical_box_size: 128.0
+    CONV_DIM: 1024
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
-  TWOWAYFPN:
-    IN_FEATURES: ["C3","C4","C5","C6"]
+  FPN:
+    IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
+    LAST_LEVEL_NUM_CONV: 1
+    BACKBONE_HOOK: ("NonLocalBackboneHook","")
+    OUT_CHANNELS: 384
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -49,13 +52,12 @@ MODEL:
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher"
-    #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
 SOLVER:
   IMS_PER_BATCH: 4
-  BASE_LR: 0.02
+  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
   STEPS: (80000,100000,120000)
@@ -68,8 +70,6 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNWFPNCOCODemon-sephv1"
-  SUMMARY_LEVEL: 0
-  #RESEARCH: ["result_classes"]
-  #RESEARCH: ["result_bboxes"]
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_31"
+  SUMMARY_LEVEL: -1
   LOG_STEP: 200
