@@ -1,4 +1,4 @@
-#用于测试 SEBackboneHook+OneHeadSEROIHeadsHook
+#测试FPN outchannels=384
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -15,9 +15,8 @@ MODEL:
     NAME: "StandardROIHeads"
     IN_FEATURES: ["P3","P4","P5","P6"]
     BATCH_SIZE_PER_IMAGE: 512
-    SCORE_THRESH_TEST: 0.0
+    SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    HOOK: "OneHeadSEROIHeadsHook"
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
@@ -38,7 +37,7 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
-    BACKBONE_HOOK: ("SEBackboneHook","")
+    OUT_CHANNELS: 384
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -69,7 +68,7 @@ INPUT:
   STITCH: 0.0
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_27"
+  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_21"
   SUMMARY_LEVEL: 0
   #RESEARCH: ["result_classes"]
   #RESEARCH: ["result_bboxes"]

@@ -701,7 +701,7 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
     """
     Rethinking Classification and Localization for Object Detection
     """
-
+    MAX_IOU = 0.9
     def __init__(self, cfg,*args,**kwargs):
         """
         The following attributes are parsed from config:
@@ -713,7 +713,7 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
         self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM,self.is_training)
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
         self.iou_threshold = 0.5
-        self.head_nr = 5
+        self.head_nr = 4
         self.num_classes              = cfg.MODEL.ROI_HEADS.NUM_CLASSES     #不包含背景
         self.cls_agnostic_bbox_reg    = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
         self.box_dim = 4
@@ -785,7 +785,7 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
         
         cls_x_datas = []
         box_x_datas = []
-        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(1-self.iou_threshold)
+        index = tf.nn.relu(ious-self.iou_threshold)*self.head_nr/(self.MAX_IOU-self.iou_threshold)
         wsummary.histogram_or_scalar(index,"head_index")
         index = tf.cast(index,tf.int32)
         index = tf.clip_by_value(index,clip_value_min=0,clip_value_max=self.head_nr-1)
@@ -875,19 +875,33 @@ class SeparateFastRCNNConvFCHeadV8(wmodule.WChildModule):
 
             with tf.name_scope("get_ious"):
                 if self.is_training:
-                    matcher = Matcher(
-                        [1e-3],
-                        allow_low_quality_matches=False,
-                        cfg=self.cfg,
-                        parent=self
-                    )
-                    mh_res0 = matcher(self.parent.t_proposal_boxes,
-                                  self.parent.batched_inputs[GT_BOXES],
-                                  self.parent.batched_inputs[GT_LABELS],
-                                  self.parent.batched_inputs[GT_LENGTH])
-                    ious = tf.reshape(mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
+                    def fn0():
+                        matcher = Matcher(
+                            [1e-3],
+                            allow_low_quality_matches=False,
+                            cfg=self.cfg,
+                            parent=self
+                        )
+                        mh_res0 = matcher(self.parent.t_proposal_boxes,
+                                      self.parent.batched_inputs[GT_BOXES],
+                                      self.parent.batched_inputs[GT_LABELS],
+                                      self.parent.batched_inputs[GT_LENGTH])
+                        ious0 = tf.reshape(mh_res0[1],[-1]) #proposal_boxes与gt boxes的 iou
+                        return ious0
+
+                    def fn1():
+                        ious1 = tf.nn.sigmoid(iou_x)
+                        ious1 = tf.reshape(ious1,[-1])
+                        return ious1
+
+                    use_gt_probability = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                                             max_keep_prob=0.01)
+                    tf.summary.scalar(name="use_gt_ious_probability",tensor=use_gt_probability)
+                    p = tf.random_uniform(())
+                    ious = tf.cond(tf.less(p,use_gt_probability),fn0,fn1)
                 else:
                     ious = tf.nn.sigmoid(iou_x)
+                    ious = tf.reshape(ious,[-1])
 
             cls_x,box_x = self.forward_with_ious(cls_x,box_x,ious)
 

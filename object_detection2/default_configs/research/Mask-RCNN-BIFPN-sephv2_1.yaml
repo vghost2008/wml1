@@ -1,4 +1,4 @@
-#用于测试 SEBackboneHook+OneHeadSEROIHeadsHook
+#用于测试BIFPN+FusionBackboneHook+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
@@ -6,20 +6,21 @@ MODEL:
   ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
   PREPROCESS: "subimagenetmean"
   BACKBONE:
-    NAME: "build_retinanet_resnet_fpn_backbone"
+    NAME: "build_resnet_bifpn_backbone"
   RESNETS:
     DEPTH: 50
     FROZEN_BN: True
+    MAKE_C6C7: "C6"
   ROI_HEADS:
     #OUTPUTS: "FastRCNNGIOUOutputs"
     NAME: "StandardROIHeads"
-    IN_FEATURES: ["P3","P4","P5","P6"]
+    IN_FEATURES: ["F3"]
     BATCH_SIZE_PER_IMAGE: 512
-    SCORE_THRESH_TEST: 0.0
+    SCORE_THRESH_TEST: 0.05
     NMS_THRESH_TEST: 0.5
-    HOOK: "OneHeadSEROIHeadsHook"
+    HOOK: "OneHeadNonLocalROIHeadsHook"
   PROPOSAL_GENERATOR:
-    SCORE_THRESH_TEST: 0.005
+    SCORE_THRESH_TEST: 0.00
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
@@ -33,15 +34,21 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
+  BIFPN:
+    IN_FEATURES: ["C3","C4", "C5","C6"]
+    REPEAT: 1
+    OUT_CHANNELS: 256
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    BACKBONE_HOOK: ("NonLocalBackboneHook","FusionBackboneHook")
   FPN:
     IN_FEATURES: ["C3","C4","C5"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 1
-    BACKBONE_HOOK: ("SEBackboneHook","")
   ANCHOR_GENERATOR:
     SIZES: [[64], [128], [256], [512]]
-    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+    ASPECT_RATIOS: [[0.5,1.0,2.0]]  # Three aspect ratios (same for all in feature maps)
   RPN:
     IN_FEATURES: ["P3", "P4","P5","P6"]
     PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
@@ -50,7 +57,6 @@ MODEL:
     POST_NMS_TOPK_TEST: 1000
     IOU_THRESHOLDS: (0.4,0.5)
     MATCHER: "ATSSMatcher"
-    #OUTPUTS: "RPNGIOUOutputs"
 DATASETS:
   TRAIN: "coco_2017_train"
   TEST: "coco_2017_eval"
@@ -67,10 +73,10 @@ INPUT:
   MIN_SIZE_TEST: 576
   MAX_SIZE_TEST: 1333
   STITCH: 0.0
+  SIZE_ALIGN: 128
+  SIZE_ALIGN_FOR_TEST: 128
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "MaskRCNNFPNCOCODemon-sephv14_27"
-  SUMMARY_LEVEL: 0
-  #RESEARCH: ["result_classes"]
-  #RESEARCH: ["result_bboxes"]
+  PROJ_NAME: "MaskRCNNBIFPNCOCODemon-sephv2_1"
+  SUMMARY_LEVEL: -1
   LOG_STEP: 200

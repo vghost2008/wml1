@@ -1,4 +1,4 @@
-#用于测试SeparateFastRCNNConvFCHeadV9
+#用于测试SeparateFastRCNNConvFCHeadV9(不同尺度不共享head参数)
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False

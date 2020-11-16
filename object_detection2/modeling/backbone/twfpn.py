@@ -88,7 +88,7 @@ class WeightedFPN(Backbone):
         with tf.variable_scope(scope):
             weights = []
             for i in reversed(range(len(prev_features))):
-                wi = tf.get_variable(f"w{i+level}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
+                wi = tf.get_variable(f"w{i+level+1}",shape=(),dtype=tf.float32,initializer=tf.ones_initializer)
                 wi = tf.nn.relu(wi)+1e-8
                 wi = wnnl.scale_gradient(wi,0.1,is_training=self.is_training)
                 weights.append(wi)
@@ -97,7 +97,7 @@ class WeightedFPN(Backbone):
             for wi,pf in zip(weights,prev_features):
                 pf = self.interpolate_op(pf,shape)
                 nets.append(wi*pf)
-            return tf.add_n(nets)
+            return tf.add_n(nets)/tf.add_n(weights+[1.0])
 
     def forward_with_given_features(self, x,image_features,bottom_up_features,hooks,scope):
         with tf.variable_scope(scope):

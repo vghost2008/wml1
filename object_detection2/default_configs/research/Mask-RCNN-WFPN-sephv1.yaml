@@ -27,6 +27,7 @@ MODEL:
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
+    canonical_box_size: 128.0
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
