@@ -105,7 +105,8 @@
 |7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
 |7) + cls loss weight + roi nr=512(sephv14_21) + FPN channel=384+3 anchor|0.337|0.538|0.368|0.095|0.325|0.492|0.289|0.429|0.444|0.154|0.466|0.597|titan 0.1488|
 |7) + cls loss weight + roi nr=512(bifpnv2) + 3 anchor|0.351|0.551|0.382|0.113|0.339|0.498|0.293|0.444|0.461|0.190|0.476|0.602|titan 0.1725|
-|7) + cls loss weight + roi nr=512(bifpnv2_1) + 3 anchor+FusionBackboneHook+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook||0.354|0.555|0.379|0.119|0.346|0.500|0.294|0.445|0.462|0.198|0.481|0.604|titan 0.1717|
+|7) + cls loss weight + roi nr=512(bifpnv2_1) + 3 anchor+FusionBackboneHook+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook|0.354|0.555|0.379|0.119|0.346|0.500|0.294|0.445|0.462|0.198|0.481|0.604|titan 0.1717|
+|7) + cls loss weight + roi nr=512(sephv14_32) + 3 anchor+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook+FusionBackboneHook|0.347|0.551|0.376|0.099|0.339|0.498|0.292|0.439|0.457|0.177|0.482|0.602|titan 0.1848|
 
 
 
@@ -201,6 +202,8 @@
 |7) + cls loss weight + roi nr=512(sephv14_23) + 3 anchor+box conv dim=1024+FPN channels=384|0.343|0.543|0.372|0.090|0.331|0.497|0.291|0.432|0.447|0.152|0.468|0.601|titan 0.3136|
 |7) + cls loss weight + roi nr=512(sephv14_28) + 3 anchor+OneHeadCBAMROIHeadsHook+SEBackboneHook|0.338|0.544|0.367|0.086|0.326|0.489|0.288|0.438|0.456|0.159|0.484|0.606|titan 0.1345|
 |7) + cls loss weight + roi nr=512(sephv14_31) + 3 anchor+box conv dim=1024+FPN channels=384+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook|0.345|0.547|0.374|0.098|0.335|0.496|0.289|0.435|0.450|0.166|0.473|0.598|titan 0.3218|
+|7) + cls loss weight + roi nr=512(sephv14_32) + 3 anchor+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook+FusionBackboneHook|0.347|0.551|0.376|0.099|0.339|0.498|0.292|0.439|0.457|0.177|0.482|0.602|titan 0.1848|
+
 
 
 

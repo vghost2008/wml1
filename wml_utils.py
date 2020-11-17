@@ -12,6 +12,7 @@ from collections import Iterable
 import random
 import sys
 import socket
+import datetime
 
 slim = tf.contrib.slim
 
@@ -545,6 +546,33 @@ class MovingAvg(object):
 
     def value(self):
         return self.v
+
+
+class EstimateTimeCost(object):
+    def __init__(self,total_nr=1,auto_log=False):
+        self.begin_time = None
+        self.total_nr = total_nr
+        self.process_nr = 0
+        self.reset()
+        self.auto_log = auto_log
+
+    def reset(self,total_nr = None):
+        self.begin_time = time.time()
+        if total_nr is not None:
+            self.total_nr = total_nr
+        self.process_nr = 0
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.process_nr += 1
+        if self.auto_log:
+            print(self.__str__())
+
+    def __str__(self):
+        left_time = ((time.time() - self.begin_time) / max(self.process_nr, 1)) * (
+                    self.total_nr- self.process_nr)
+        d = datetime.datetime.now() + datetime.timedelta(seconds=left_time)
+        res = f"already use {(time.time() - self.begin_time) / 3600:.3f}h, {left_time / 3600:.3f}h left, expected to be finished at {str(d)}."
+        return res
 
 
 def time_this(func):

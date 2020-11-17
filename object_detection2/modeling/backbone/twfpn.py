@@ -114,63 +114,75 @@ class WeightedFPN(Backbone):
                 image_features = hook_before(image_features,x)
             use_depthwise = self.use_depthwise
             depth = self.out_channels
-            with tf.variable_scope(self.scope, 'top_down'):
-                num_levels = len(image_features)
-                output_feature_maps_list = []
-                output_feature_map_keys = []
-                padding = 'SAME'
-                kernel_size = 3
-                weight_decay = 1e-4
-                if self.normalizer_fn is not None:
-                    normalizer_fn = functools.partial(self.normalizer_fn,**self.normalizer_params)
-                else:
-                    normalizer_fn = None
-                if use_depthwise:
-                    conv_op = functools.partial(slim.separable_conv2d,
-                                                depth_multiplier=1,
-                                                normalizer_fn=normalizer_fn,
-                                                activation_fn=self.activation_fn)
-                else:
-                    conv_op = functools.partial(slim.conv2d,
-                                                weights_regularizer=slim.l2_regularizer(weight_decay),
-                                                normalizer_fn=normalizer_fn,
-                                                activation_fn=self.activation_fn)
-                if self.cfg.MODEL.FPN.ENABLE_DROPBLOCK and self.is_training:
-                    keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
-                                                             max_keep_prob=self.cfg.MODEL.FPN.KEEP_PROB)
-                    if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
-                        tf.summary.scalar(name="fpn_keep_prob",tensor=keep_prob)
-                    image_features = [wnnl.dropblock(x,keep_prob,self.is_training,block_size=self.cfg.MODEL.FPN.DROPBLOCK_SIZE) for x in image_features]
+            num_levels = len(image_features)
+            output_feature_maps_list0 = []
+            output_feature_maps_list1 = []
+            output_feature_map_keys = []
+            padding = 'SAME'
+            kernel_size = 3
+            weight_decay = 1e-4
+            if self.normalizer_fn is not None:
+                normalizer_fn = functools.partial(self.normalizer_fn,**self.normalizer_params)
+            else:
+                normalizer_fn = None
+            if use_depthwise:
+                conv_op = functools.partial(slim.separable_conv2d,
+                                            depth_multiplier=1,
+                                            normalizer_fn=normalizer_fn,
+                                            activation_fn=self.activation_fn)
+            else:
+                conv_op = functools.partial(slim.conv2d,
+                                            weights_regularizer=slim.l2_regularizer(weight_decay),
+                                            normalizer_fn=normalizer_fn,
+                                            activation_fn=self.activation_fn)
+            if self.cfg.MODEL.FPN.ENABLE_DROPBLOCK and self.is_training:
+                keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                         max_keep_prob=self.cfg.MODEL.FPN.KEEP_PROB)
+                if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                    tf.summary.scalar(name="fpn_keep_prob",tensor=keep_prob)
+                image_features = [wnnl.dropblock(x,keep_prob,self.is_training,block_size=self.cfg.MODEL.FPN.DROPBLOCK_SIZE) for x in image_features]
 
-                with slim.arg_scope(
-                        [slim.conv2d], padding=padding, stride=1):
-                    all_prev_features = []
+            with slim.arg_scope(
+                    [slim.conv2d], padding=padding, stride=1):
+                all_prev_features = []
 
-                    for level in reversed(range(num_levels)):
-                        rlevel_id = self.stage+level-num_levels+1
-                        lateral_features = slim.conv2d(
-                            image_features[level], depth, [1, 1],
-                            activation_fn=None, normalizer_fn=None,
-                            scope='projection_%d' % (rlevel_id))
-                        all_prev_features.append(lateral_features)
-                        
+                for level in reversed(range(num_levels)):
+                    rlevel_id = self.stage+level-num_levels+1
+                    lateral_features = slim.conv2d(
+                        image_features[level], depth, [1, 1],
+                        activation_fn=None, normalizer_fn=None,
+                        scope='projection_%d' % (rlevel_id))
+                    all_prev_features.append(lateral_features)
+
+                with tf.variable_scope("Branch0"):
                     for idx in range(num_levels):
                         rlevel_id = self.stage-idx
                         fusioned_feature = self.fusion(idx,all_prev_features,rlevel_id,scope=f"fusion_for_level{rlevel_id}")
-                        output_feature_maps_list.append(conv_op(
+                        output_feature_maps_list0.append(conv_op(
                             fusioned_feature,
                             depth, [kernel_size, kernel_size],
                             scope=f'output_{rlevel_id}'))
                         output_feature_map_keys.append(f"P{rlevel_id}")
 
+                with tf.variable_scope("Branch1"):
+                    for idx in range(num_levels):
+                        rlevel_id = self.stage-idx
+                        fusioned_feature = self.fusion(idx,all_prev_features,rlevel_id,scope=f"fusion_for_level{rlevel_id}")
+                        output_feature_maps_list1.append(conv_op(
+                            fusioned_feature,
+                            depth, [kernel_size, kernel_size],
+                            scope=f'output_{rlevel_id}'))
+
             output_feature_map_keys.reverse()
-            output_feature_maps_list.reverse()
-            res = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list))
+            output_feature_maps_list0.reverse()
+            output_feature_maps_list1.reverse()
+            res0 = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list0))
+            res1 = collections.OrderedDict(zip(output_feature_map_keys, output_feature_maps_list1))
             self.low_features = bottom_up_features
             if hook_after is not None:
-                res = hook_after(res,x)
-            res.update(bottom_up_features)
-            return res
+                res0 = hook_after(res0,x)
+                res1 = hook_after(res1, x)
+            return res0,res1
 
 
 @BACKBONE_REGISTRY.register()
