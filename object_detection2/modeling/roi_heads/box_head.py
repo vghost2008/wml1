@@ -109,7 +109,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params,
-                                        padding = 'VALID')
+                                        padding = 'SAME')
 
 
                 if num_fc>0:
@@ -131,7 +131,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params,
-                                        padding = 'VALID')
+                                        padding = 'SAME')
 
                 if num_fc>0:
                     if len(box_x.get_shape()) > 2:
@@ -197,17 +197,27 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                         for i in range(1,len(shape)):
                             dim = dim*shape[i]
                         cls_x = tf.reshape(cls_x,[shape[0],dim])
+                    if cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY > 0.0:
+                        weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY)
+                    else:
+                        weights_regularizer = None
                     for _ in range(num_fc):
                         cls_x = slim.fully_connected(cls_x,fc_dim,
                                                      activation_fn=self.activation_fn,
                                                      normalizer_fn=self.normalizer_fn,
-                                                     normalizer_params=self.norm_params)
+                                                     normalizer_params=self.norm_params,
+                                                     weights_regularizer=weights_regularizer)
             with tf.variable_scope("BoxPredictionTower"):
+                if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
+                    weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
+                else:
+                    weights_regularizer = None
                 for _ in range(num_conv):
                     box_x = slim.conv2d(box_x,conv_dim,[3,3],
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params)
+                                        normalizer_params=self.norm_params,
+                                        weights_regularizer=weights_regularizer)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV

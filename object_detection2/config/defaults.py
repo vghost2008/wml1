@@ -371,6 +371,8 @@ _C.MODEL.ROI_BOX_HEAD.ACTIVATION_FN = "relu"
 _C.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG = False
 # If true, RoI heads use bounding boxes predicted by the box head rather than proposal boxes.
 _C.MODEL.ROI_BOX_HEAD.TRAIN_ON_PRED_BOXES = False
+_C.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY = -1.0
+_C.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY = -1.0
 
 # ---------------------------------------------------------------------------- #
 # Cascaded Box Head
