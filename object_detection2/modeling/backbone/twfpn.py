@@ -80,8 +80,7 @@ class WeightedFPN(Backbone):
                 ["p2", "p3", ..., "p6"].
         """
         bottom_up_features = self.bottom_up(x)
-        image_features = [bottom_up_features[f] for f in self.in_features]
-        res0 = self.forward_with_given_features(x,image_features,bottom_up_features,[self.hook0_before,self.hook0_after],'WeightedFPN')
+        res0 = self.forward_with_given_features(x,bottom_up_features,[self.hook0_before,self.hook0_after],'WeightedFPN')
         return res0
 
     def fusion(self,idx,features,level,scope):
@@ -107,11 +106,12 @@ class WeightedFPN(Backbone):
             weights.remove(None)
             return tf.add_n(nets)/tf.add_n(weights+[1.0])
 
-    def forward_with_given_features(self, x,image_features,bottom_up_features,hooks,scope):
+    def forward_with_given_features(self, x,bottom_up_features,hooks,scope):
         with tf.variable_scope(scope):
             hook_before,hook_after = hooks
             if hook_before is not None:
-                image_features = hook_before(image_features,x)
+                bottom_up_features = hook_before(bottom_up_features,x)
+            image_features = [bottom_up_features[f] for f in self.in_features]
             use_depthwise = self.use_depthwise
             depth = self.out_channels
             num_levels = len(image_features)
