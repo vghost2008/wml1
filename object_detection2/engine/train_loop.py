@@ -332,10 +332,13 @@ class SimpleTrainer(TrainerBase):
             self.summary_writer.close()
 
     def build_inference_net(self):
-        if not os.path.exists(self.log_dir):
-            wmlu.create_empty_dir(self.log_dir)
-        if not os.path.exists(self.ckpt_dir):
-            wmlu.create_empty_dir(self.ckpt_dir)
+        try:
+            if not os.path.exists(self.log_dir):
+                wmlu.create_empty_dir(self.log_dir)
+            if not os.path.exists(self.ckpt_dir):
+                wmlu.create_empty_dir(self.ckpt_dir)
+        except:
+            pass
         '''
         When inference, self.data is just a tensor
         '''
