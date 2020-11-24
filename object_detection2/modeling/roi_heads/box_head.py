@@ -102,6 +102,14 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
             else:
                 cls_x = x
                 box_x = x
+            if cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY > 0.0:
+               fc_weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY)
+            else:
+               fc_weights_regularizer = None
+            if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
+               conv_weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
+            else:
+               conv_weights_regularizer = None
 
             with tf.variable_scope("ClassPredictionTower"):
                 for _ in range(num_conv):
@@ -109,6 +117,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params,
+                                        weights_regularizer=conv_weights_regularizer,
                                         padding = 'SAME')
 
 
@@ -123,6 +132,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                         cls_x = slim.fully_connected(cls_x,fc_dim,
                                                      activation_fn=self.activation_fn,
                                                      normalizer_fn=self.normalizer_fn,
+                                                     weights_regularizer=fc_weights_regularizer,
                                                      normalizer_params=self.norm_params)
 
             with tf.variable_scope("BoxPredictionTower"):
@@ -131,6 +141,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                                         activation_fn=self.activation_fn,
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params,
+                                        weights_regularizer=conv_weights_regularizer,
                                         padding = 'SAME')
 
                 if num_fc>0:
@@ -144,6 +155,7 @@ class SeparateFastRCNNConvFCHead(wmodule.WChildModule):
                         box_x = slim.fully_connected(box_x,fc_dim,
                                                      activation_fn=self.activation_fn,
                                                      normalizer_fn=self.normalizer_fn,
+                                                     weights_regularizer=fc_weights_regularizer,
                                                      normalizer_params=self.norm_params)
 
             return cls_x,box_x
