@@ -28,8 +28,6 @@ MODEL:
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
-    FC_WEIGHT_DECAY: 0.0001
-    CONV_WEIGHT_DECAY: 0.0001
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14

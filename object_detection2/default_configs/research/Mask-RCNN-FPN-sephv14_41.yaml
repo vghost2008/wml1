@@ -1,4 +1,4 @@
-#用于测试FusionBackboneHook+ two 4x conv + regulaizer
+#用于测试FusionBackboneHook+ two 4x conv + regulaizer + FusionBackboneHook
 _BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
 MODEL:
   MASK_ON: False
