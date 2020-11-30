@@ -377,6 +377,21 @@ class WMLTest(tf.test.TestCase):
                                      [False, False, False,  True,  True],
                                      [ True, False,  True, False, False]]])
 
+    def test_per_classes_top_k(self):
+        with self.test_session() as sess:
+            a = tf.convert_to_tensor([0,1,2,0.1,2.1,
+                                      0.3,0.4,0.12,9.0,1.7,
+                                      2.1,2.0,1.9],dtype=tf.float32)
+            labels = tf.convert_to_tensor([0,0,1,1,2,
+                                           3,1,8,8,8,
+                                           2,2,2,])
+            data,indices = btf.per_classes_top_k(a,labels,2,10)
+            data1 = tf.gather(a,indices)
+            data,data1,indices = sess.run([data,data1,indices])
+            self.assertAllClose(data,[0.4000000059604645,2.0,2.0999999046325684,2.0999999046325684,0.30000001192092896,1.7000000476837158,9.0]
+            ,atol=1e-3)
+            self.assertAllEqual(indices,[6,2,10,4,5,9,8])
+
 if __name__ == "__main__":
     np.random.seed(int(time.time()))
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(message)s',

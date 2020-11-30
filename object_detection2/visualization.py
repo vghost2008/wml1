@@ -49,28 +49,47 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
                         color_fn=random_color_fn,
                         text_fn=default_text_fn,
                         get_text_pos_fn=get_text_pos_fn,
-                        thickness=4,show_text=True,font_scale=1.2,text_color=(0.,255.,0.)):
-    shape = img.shape
+                        thickness=4,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
+                is_relative_coordinate=True):
+    if is_relative_coordinate:
+        shape = img.shape
+    else:
+        shape = [1.0,1.0]
+    if len(img.shape)<2:
+        print(f"Error img size {img.shape}.")
+        return img
+    img = np.array(img)
     if scores is None:
         scores = np.ones_like(classes,dtype=np.float32)
     if not isinstance(bboxes,np.ndarray):
         bboxes = np.array(bboxes)
     for i in range(bboxes.shape[0]):
-        bbox = bboxes[i]
-        if color_fn is not None:
-            color = color_fn(classes[i])
-        else:
-            color = (random.random()*255, random.random()*255, random.random()*255)
-        p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
-        p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
-        cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
-        if show_text and text_fn is not None:
-            s = text_fn(classes[i], scores[i])
-            p = get_text_pos_fn(p10,p2,bbox,classes[i])
-            cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX,
-                        fontScale=font_scale,
-                        color=text_color,
-                        thickness=1)
+        try:
+            bbox = bboxes[i]
+            if color_fn is not None:
+                color = color_fn(classes[i])
+            else:
+                color = (random.random()*255, random.random()*255, random.random()*255)
+            p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+            p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
+            cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
+            if show_text and text_fn is not None:
+                s = text_fn(classes[i], scores[i])
+                p = get_text_pos_fn(p10,p2,bbox,classes[i])
+                cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX,
+                            fontScale=font_scale,
+                            color=text_color,
+                            thickness=1)
+        except:
+            bbox = bboxes[i]
+            p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+            p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
+            if color_fn is not None:
+                color = color_fn(classes[i])
+            else:
+                color = (random.random()*255, random.random()*255, random.random()*255)
+            print("Error:",img.shape,shape,bboxes[i],classes[i],p10,p2,color,thickness)
+            
 
     return img
 '''

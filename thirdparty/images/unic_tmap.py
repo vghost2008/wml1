@@ -3,6 +3,7 @@ import ctypes
 from ctypes import *
 import numpy as np
 import os
+from collections import Iterable
 
 class TMAP(object):
 
@@ -237,10 +238,12 @@ class TMAP(object):
 
         return pic
 
-    def get_all_img_crops(self,width,height,scale=-1,with_pos_info=False):
+    def get_all_img_crops(self,width,height,scale=-1,with_pos_info=False,overlap=0):
+        if not isinstance(overlap,Iterable):
+            overlap = [overlap,overlap]
 
-        for y in range(0,self.height(scale),height):
-            for x in range(0, self.width(scale), width):
+        for y in range(0,self.height(scale),height-overlap[0]):
+            for x in range(0, self.width(scale), width-overlap[1]):
                 if with_pos_info:
                     yield self.crop_img(x,y,width,height,scale),x,y #x,y为左上角坐标
                 else:

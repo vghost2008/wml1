@@ -797,6 +797,8 @@ class SampleDistortedBoundingBox(WTransform):
             print(f"WARNING: {self} need relative coordinate.")
         if not self.test_statu(WTransform.HWN_MASK):
             print(f"WARNING: {self} need HWN format mask.")
+
+        print(f"{self} area range {self.area_range}, aspect reatio {self.aspect_ratio_range}.")
             
         labels = data_item[GT_LABELS]
         data_item[GT_LABELS] = labels
@@ -1541,6 +1543,22 @@ class RandomNoise(WTransform):
             
         self.probability_fn_set(data_item,IMAGE,self.probabilitby,fn)
         
+        return data_item
+
+class ShowInfo(WTransform):
+    def __init__(self,name="INFO"):
+        self.name = name
+
+    def __call__(self,data_item):
+        tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
+        if GT_BOXES in tensors:
+            tensors += ['bboxes:',tf.shape(data_item[GT_BOXES])]
+        if GT_LABELS in tensors:
+            tensors += ['labels:',tf.shape(data_item[GT_LABELS])]
+        if GT_MASKS in tensors:
+            tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
+
+        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors,summarize=1000)
         return data_item
 '''
 bbox: absolute coordinate
