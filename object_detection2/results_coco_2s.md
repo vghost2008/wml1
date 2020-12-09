@@ -212,6 +212,12 @@
 |7) + cls loss weight + roi nr=512(sephv14_28) + 3 anchor+OneHeadCBAMROIHeadsHook+SEBackboneHook|0.338|0.544|0.367|0.086|0.326|0.489|0.288|0.438|0.456|0.159|0.484|0.606|titan 0.1345|
 |7) + cls loss weight + roi nr=512(sephv14_32) + 3 anchor+OneHeadNonLocalROIHeadsHook+NonLocalBackboneHook+FusionBackboneHook|0.347|0.551|0.376|0.099|0.339|0.498|0.292|0.439|0.457|0.177|0.482|0.602|titan 0.1848|
 |7) + cls loss weight + roi nr=512(sephv14_33) + 3 anchor+FusionBackboneHook|0.347|0.549|0.373|0.096|0.339|0.497|0.293|0.441|0.457|0.174|0.482|0.605|titan 0.1623|
+|7) + cls loss weight + roi nr=512(sephv14_34) + 3 anchor (two 4xconv head)|0.332|0.535|0.361|0.089|0.319|0.482|0.284|0.422|0.437|0.148|0.458|0.588|titan 0.1316|
+|7) + cls loss weight + roi nr=512(sephv14_40) + 3 anchor (two 4xconv head)+FusionBackboneHook|0.343|0.544|0.372|0.101|0.337|0.495|0.290|0.438|0.455|0.168|0.483|0.605|titan 0.1841|
+|7) + cls loss weight + roi nr=512(sephv14_33) + 3 anchor+FusionBackboneHook+OneHeadNonLocalROIHeadsHook|0.347|0.551|0.381|0.096|0.338|0.499|0.291|0.439|0.456|0.167|0.479|0.604|titan 0.1788|
+|7) + cls loss weight + roi nr=512(sephv14_43) + 3 anchor+FusionBackboneHookV2+regulaizer|0.347|0.552|0.378|0.096|0.339|0.497|0.293|0.441|0.458|0.179|0.482|0.605|
+|7) + cls loss weight + roi nr=512(sephv14_33) + 3 anchor+two 4x conv head+FusionBackboneHook+NonLocalROIHeadsHook+regularizer|0.345|0.547|0.373|0.095|0.338|0.498|0.290|0.438|0.455|0.162|0.480|0.608|titan 0.2162|
+
 
 
 
@@ -305,6 +311,16 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 |7) + cls loss weight + roi nr=512(sephv14_10) + 3 anchor|0.336|0.539|0.359|0.086|0.324|0.486|0.284|0.425|0.440|0.146|0.463|0.590|-|
 |7) + cls loss weight + roi nr=512(sephv14_36) + 3 anchor+(FC regulaizer)|0.337|0.541|0.363|0.089|0.325|0.492|0.287|0.428|0.442|0.148|0.461|0.599|1080ti 0.1491|
+|7) + cls loss weight + roi nr=512(sephv14_39) + 3 anchor+(CONV+FC regulaizer)|0.337|0.541|0.363|0.095|0.330|0.486|0.287|0.428|0.442|0.157|0.466|0.594|1080ti 0.1372|
+|7) + cls loss weight + roi nr=512(sephv14_35) + 3 anchor (two 2xfc head)|0.328|0.534|0.355|0.084|0.317|0.477|0.282|0.419|0.433|0.152|0.454|0.582|titan 0.1300|
+|7) + cls loss weight + roi nr=512(sephv14_38) + 3 anchor (two 2xfc head) + FC regulaizer|0.334|0.542|0.360|0.082|0.325|0.484|0.285|0.424|0.439|0.150|0.456|0.590|1080ti 0.1201|
+|7) + cls loss weight + roi nr=512(sephv14_34) + 3 anchor (two 4xconv head)|0.332|0.535|0.361|0.089|0.319|0.482|0.284|0.422|0.437|0.148|0.458|0.588|titan 0.1316|
+|7) + cls loss weight + roi nr=512(sephv14_37) + 3 anchor (two 4xconv head)+ CONV regulaizer|0.335|0.536|0.364|0.088|0.323|0.486|0.285|0.424|0.439|0.155|0.459|0.588|1080ti 0.1463|
+|7) + cls loss weight + roi nr=512(sephv14_40) + 3 anchor (two 4xconv head)+FusionBackboneHook|0.343|0.544|0.372|0.101|0.337|0.495|0.290|0.438|0.455|0.168|0.483|0.605|titan 0.1841|
+|7) + cls loss weight + roi nr=512(sephv14_41) + 3 anchor (two 4xconv head)+FusionBackboneHook+conv regularizer|0.345|0.543|0.375|0.099|0.333|0.498|0.290|0.438|0.456|0.163|0.477|0.607|titan 0.1858|
+
+
+
 
 ```
 - 1) use nonlocal and fusebackbone+cosine

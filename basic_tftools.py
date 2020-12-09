@@ -482,3 +482,24 @@ def stack_tensor_in_dict(datas,axis=0):
 
     return res_data
 
+'''
+input: [N]
+num_classes:不包含背景0
+'''
+def per_classes_top_k(input,labels,k,num_classes, name=None):
+    with tf.name_scope(name,default_name="per_classes_top_k"):
+        assert len(input.get_shape()) ==1,"error input shape"
+        assert len(labels.get_shape()) ==1,"error labels shape"
+        datas = []
+        indices = []
+        min_value = tf.minimum(tf.reduce_min(input)-1,0)
+        min_value = tf.ones_like(input)*min_value
+        for i in range(1,num_classes+1):
+            mask = tf.equal(labels,i)
+            max_nr = tf.minimum(k,tf.reduce_sum(tf.cast(mask,tf.int32)))
+            data = tf.where(mask,input,min_value)
+            data,idx = tf.nn.top_k(data,max_nr,sorted=False,name=f"sort_class{i}")
+            datas.append(data)
+            indices.append(idx)
+        return tf.concat(datas,axis=0),tf.concat(indices,axis=0)
+
