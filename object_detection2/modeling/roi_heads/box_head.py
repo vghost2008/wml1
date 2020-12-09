@@ -12,6 +12,7 @@ from .build import ROI_BOX_HEAD_REGISTRY
 import basic_tftools as btf
 from object_detection2.modeling.matcher import Matcher
 from object_detection2.standard_names import *
+from object_detection2.datadef import *
 
 slim = tf.contrib.slim
 class BoxesForwardType:
@@ -219,6 +220,14 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                                      normalizer_fn=self.normalizer_fn,
                                                      normalizer_params=self.norm_params,
                                                      weights_regularizer=weights_regularizer)
+
+                    if cfg.MODEL.ROI_BOX_HEAD.ENABLE_CLS_DROPBLOCK and self.is_training:
+                        keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                                 max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.CLS_KEEP_PROB)
+                        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                            tf.summary.scalar(name="box_head_cls_keep_prob",tensor=keep_prob)
+                        cls_x = slim.dropout(cls_x, keep_prob=keep_prob,is_training=self.is_training)
+
             with tf.variable_scope("BoxPredictionTower"):
                 if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
                     weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
@@ -230,6 +239,13 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                                         normalizer_fn=self.normalizer_fn,
                                         normalizer_params=self.norm_params,
                                         weights_regularizer=weights_regularizer)
+
+                if cfg.MODEL.ROI_BOX_HEAD.ENABLE_BOX_DROPBLOCK and self.is_training:
+                    keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                             max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.BOX_KEEP_PROB)
+                    if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                        tf.summary.scalar(name="box_head_box_keep_prob",tensor=keep_prob)
+                    box_x = slim.dropout(box_x, keep_prob=keep_prob,is_training=self.is_training)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV
