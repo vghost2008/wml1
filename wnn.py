@@ -20,6 +20,18 @@ import functools
 from collections import Iterable
 from tensorflow.python.framework import graph_util
 
+'''TF_version = tuple(map(int, tf.__version__.split('.')[:2]))
+if TF_version <= (1, 12):
+    try:
+        from tensorflow.contrib.nccl.python.ops.nccl_ops import _validate_and_load_nccl_so  # deprecated
+    except Exception:
+        pass
+    else:
+        _validate_and_load_nccl_so()
+    from tensorflow.contrib.nccl.ops import gen_nccl_ops  # deprecated
+else:
+    from tensorflow.python.ops import gen_nccl_ops'''
+
 
 slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
@@ -437,6 +449,37 @@ def average_grads(tower_grads,clip_norm=None,scope=None):
             average_grads = list(zip(grads,vars))
 
         return average_grads
+
+'''def average_grads_nccl(tower_grads,clip_norm=None,scope=None):
+    print("average grads nccl.")
+    with tf.name_scope(scope,"average_grads_nccl"):
+        average_grads = []
+        for grad_and_vars in zip(*tower_grads):
+            grads = []
+            for g,_v in grad_and_vars:
+                if g is None:
+                    print(_v,"have no grads.")
+                    continue
+                grads.append(g)
+            if len(grads)>0:
+                grad = gen_nccl_ops.nccl_reduce(
+                    input=grads,
+                    reduction='sum',
+                    name='grad_NCCL_mean') * (1.0 / len(grads))
+            else:
+                grad = None
+
+            v = grad_and_vars[0][1]
+            grad_and_var = (grad,v)
+            average_grads.append(grad_and_var)
+
+        if clip_norm is not None:
+            grads,vars = zip(*average_grads)
+            grads, global_norm = tf.clip_by_global_norm(grads, clip_norm)
+            tf.summary.scalar("global_norm", global_norm)
+            average_grads = list(zip(grads,vars))
+
+        return average_grads'''
 
 def average_npgrads(grads_list):
     with tf.name_scope("train_op"):

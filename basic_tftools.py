@@ -6,6 +6,21 @@ import time
 import math
 from collections import OrderedDict
 
+def try_static_or_dynamic_map_fn(fn, elems, dtype=None,
+                                 parallel_iterations=4, back_prop=True):
+    BS = elems[0].get_shape().as_list()[0]
+    if isinstance(BS, (int)) and BS <= parallel_iterations:
+        return static_or_dynamic_map_fn(fn, elems=elems,
+                                        dtype=dtype,
+                                        parallel_iterations=parallel_iterations,
+                                        back_prop=back_prop)
+    else:
+        return tf.map_fn(fn, elems=elems,
+                         dtype=dtype,
+                         parallel_iterations=parallel_iterations,
+                         back_prop=back_prop)
+
+
 def static_or_dynamic_map_fn(fn, elems, dtype=None,
                              parallel_iterations=32, back_prop=True):
   """Runs map_fn as a (static) for loop when possible.
@@ -171,7 +186,8 @@ def batch_gather(params,indices,name=None,parallel_iterations=10,back_prop=True)
             return tf.gather_nd(params,indices)
     elif indices.get_shape().ndims <= 2:
         with tf.name_scope(name=name,default_name="batch_gather"):
-            return tf.map_fn(lambda x:tf.gather(x[0],x[1]),elems=(params,indices),dtype=params.dtype,
+            return try_static_or_dynamic_map_fn(lambda x: tf.gather(x[0], x[1]), elems=[params, indices],
+                                                     dtype=params.dtype,
                              parallel_iterations=parallel_iterations,
                              back_prop=back_prop)
     else:

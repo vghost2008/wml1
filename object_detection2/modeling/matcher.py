@@ -112,6 +112,7 @@ class ATSSMatcher(wmodule.WChildModule):
                                                     dtype=tf.bool,
                                                     scope="get_is_center_in_gtbboxes")
             #dis_matrix = tf.Print(dis_matrix,[tf.shape(dis_matrix),tf.reduce_sum(boxes_len)],summarize=100)
+            #在每一层获取距离最近的k个proposal box
             dis_matrix = tf.split(dis_matrix,boxes_len,axis=2)
             offsets = [0]
             with tf.name_scope("get_offset"):
@@ -126,6 +127,7 @@ class ATSSMatcher(wmodule.WChildModule):
 
             pos_indices = tf.concat(pos_indices,axis=-1)
             pos_ious = btf.batch_gather(iou_matrix,pos_indices,name="gather_pos_ious")
+            #对各层top k中iou大于MIN_IOU_THRESHOLD的统计mean+std
             iou_mean,iou_var = self.moments(pos_ious,threshold=self.MIN_IOU_THRESHOLD,axes=[-1])
             #wsummary.histogram_or_scalar(iou_mean,"iou_mean")
             with tf.device("/cpu:0"):
@@ -136,6 +138,7 @@ class ATSSMatcher(wmodule.WChildModule):
                 '''
                 原算法中表示的为仅从上面的topk中取正样本，这里从所有的样本中取正样本
                 '''
+                #iou大于iou_threshold且中心点在gt box内的设置为正样本
                 is_pos = tf.logical_and(iou_matrix>=iou_threshold,is_center_in_gtboxes)
                 iou_matrix = tf.where(is_pos,iou_matrix,tf.zeros_like(iou_matrix))
                 scores,index = tf.nn.top_k(tf.transpose(iou_matrix,perm=[0,2,1]),k=1)
@@ -247,6 +250,8 @@ class ATSSMatcher3(wmodule.WChildModule):
 class ATSSMatcher4(wmodule.WChildModule):
     '''
     相比于ATSSMatcher3, ATSSMatcher4不会处理threshold[0]与threshold[1]之间的这部分样本
+    具体为：与gt iou>MIN_IOU_THRESHOLD的所有proposal box参与统计，以mean+std为正负样本
+    的threshold, 但threshold不大于self.thresholds[-1], 除此之外正样本的中心点必须在gt内
     '''
     MIN_IOU_THRESHOLD = 0.1
     def __init__(self,thresholds,same_pos_label=None,*args,**kwargs):

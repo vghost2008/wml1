@@ -2,6 +2,7 @@
 import tensorflow as tf
 import wml_tfutils as wmlt
 import wtfop.wtfop_ops as wop
+import basic_tftools as btf
 
 
 '''
@@ -127,9 +128,9 @@ def find_top_rpn_proposals_for_single_level(
                     probability = tf.boolean_mask(probability,p_mask)
                     boxes = tf.boolean_mask(boxes,p_mask)
 
-            return boxes,probability
+            return [boxes,probability]
 
-        boxes,probability = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(proposals,probability),
+        boxes,probability = btf.try_static_or_dynamic_map_fn(lambda x:fn(x[0],x[1]),elems=[proposals,probability],
                                       dtype=(tf.float32,tf.float32),back_prop=False)
         
         return tf.stop_gradient(boxes),tf.stop_gradient(probability)

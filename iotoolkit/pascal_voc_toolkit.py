@@ -397,13 +397,14 @@ class PascalVOCData(object):
         self.image_sub_dir = image_sub_dir
         self.has_probs = has_probs
         
-    def read_data(self,dir_path,silent=False):
+    def read_data(self,dir_path,silent=False,img_suffix=".jpg"):
         print(f"Read {dir_path}")
         if not os.path.exists(dir_path):
             print(f"Data path {dir_path} not exists.")
             return False
         self.files = getVOCFiles(dir_path,image_sub_dir=self.image_sub_dir,
                                  xml_sub_dir=self.xml_sub_dir,
+                                 img_suffix=img_suffix,
                                  silent=silent)
         if len(self.files) == 0:
             return False

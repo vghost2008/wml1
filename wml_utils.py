@@ -201,6 +201,21 @@ def recurse_get_subdir_in_dir(dir_path,predicte_fn=None,append_self=True):
         res.append("")
     return res
 
+def get_subdir_in_dir(dir_path,sort=True,append_self=False):
+
+    res=[]
+    for file in os.listdir(dir_path):
+        path = os.path.join(dir_path,file)
+        if os.path.isdir(path):
+            res.append(file)
+    if append_self:
+        res.append("")
+
+    if sort:
+        res.sort()
+
+    return res
+
 '''def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
     res=[]
     for dir in os.listdir(dir_path):

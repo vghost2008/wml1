@@ -995,6 +995,67 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
             out = activation_fn(out)
         return out
 
+def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
+                      n_head=1,keep_prob=None,is_training=False,scope=None,
+                      conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
+                      activation_fn=tf.nn.relu,
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None,
+                      weighed_sum=True):
+    def reshape_net(net):
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [shape[0],shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    if isinstance(inner_dims_multiplier,int):
+        inner_dims_multiplier = [inner_dims_multiplier]
+    if len(inner_dims_multiplier) == 1:
+        inner_dims_multiplier = inner_dims_multiplier*3
+    with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        with tf.variable_scope("pos_embedding"):
+            pos_embs_shape = [1,shape[1],shape[2],shape[3]]
+            pos_embedding = tf.get_variable("pos_embs",shape=pos_embs_shape,dtype=tf.float32,
+                                            initializer=tf.random_normal_initializer(stddev=0.02))
+            net = net+pos_embedding
+        channel = shape[-1]
+        m_channelq = channel//inner_dims_multiplier[0]
+        m_channelk = channel//inner_dims_multiplier[1]
+        m_channelv = channel//inner_dims_multiplier[2]
+
+        Q = conv_op(net,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
+        K = conv_op(net,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")
+        V = conv_op(net,m_channelv,[1,1],activation_fn=None,normalizer_fn=None,scope="v_conv")
+        if pool_op is not None:
+            K = pool_op(K,kernel_size=2, stride=2,padding="SAME")
+            V = pool_op(V,kernel_size=2, stride=2,padding="SAME")
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+                                        use_mask=False)
+        out = restore_shape(out,shape,m_channelv)
+        out = conv_op(out,channel,[1,1],
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      scope="attn_conv")
+        normalizer_params  = normalizer_params or {}
+        if weighed_sum:
+            gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+            out = gamma*out+net
+        else:
+            out = out+net
+
+        if normalizer_fn is not None:
+            out = normalizer_fn(out,**normalizer_params)
+        if activation_fn is not None:
+            out = activation_fn(out)
+        return out
+
 def augmented_conv2d(net,Fout,dv,kernel=[3,3],n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
     def reshape_net(net):
         shape = net.get_shape().as_list()

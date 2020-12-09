@@ -224,7 +224,7 @@ class SimpleTrainer(TrainerBase):
     or write your own training loop.
     """
 
-    def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False,research_file="research.txt"):
+    def __init__(self, cfg,model, data,gpus=None,inference=False,debug_tf=False,research_file="research.txt",inference_scope=None):
         """
         Args:
             model: a objectdetection Module. Takes a data from data_loader and returns a
@@ -267,6 +267,8 @@ class SimpleTrainer(TrainerBase):
         self.timer = wmlu.AvgTimeThis()
         self.research_file = research_file
         self.cfg = cfg
+        self.inference_scope = inference_scope
+        self.inference = inference
         
         if inference:
             assert not model.is_training,"Error training statu"
@@ -288,7 +290,12 @@ class SimpleTrainer(TrainerBase):
         except:
             pass
         if inference:
-            self.build_inference_net()
+            if self.inference_scope is not None:
+                with tf.variable_scope(self.inference_scope):
+                    self.build_inference_net()
+            else:
+                self.build_inference_net()
+
         elif not self.model.is_training or self.gpus is None:
             self.build_net()
         else:
@@ -573,6 +580,140 @@ class SimpleTrainer(TrainerBase):
         print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
 
+    def build_net_run_on_multi_gpus_nccl(self):
+        if not os.path.exists(self.log_dir):
+            wmlu.create_empty_dir(self.log_dir)
+        if not os.path.exists(self.ckpt_dir):
+            wmlu.create_empty_dir(self.ckpt_dir)
+        '''if self.cfg.GLOBAL.DEBUG:
+            data[IMAGE] = tf.Print(data[IMAGE],[tf.shape(data[IMAGE]),data[ORG_HEIGHT],data[ORG_WIDTH],data[HEIGHT],data[WIDTH]],summarize=100,
+                                   name="XXXXX")'''
+        all_loss_dict = {}
+        steps = self.cfg.SOLVER.STEPS
+        print("Train steps:",steps)
+        lr = wnn.build_learning_rate(self.cfg.SOLVER.BASE_LR,global_step=self.global_step,
+                                     lr_decay_type=self.cfg.SOLVER.LR_DECAY_TYPE,
+                                     steps=steps,
+                                     decay_factor=self.cfg.SOLVER.LR_DECAY_FACTOR,
+                                     total_steps=steps[-1],
+                                     min_lr=1e-6,
+                                     warmup_steps=self.cfg.SOLVER.WARMUP_ITERS)
+        tf.summary.scalar("lr",lr)
+        self.max_train_step = steps[-1]
+
+        if self.cfg.SOLVER.OPTIMIZER == "Momentum":
+            opt = wnn.str2optimizer("Momentum", lr,momentum=self.cfg.SOLVER.OPTIMIZER_momentum)
+        else:
+            opt = wnn.str2optimizer(self.cfg.SOLVER.OPTIMIZER, lr)
+
+        tower_grads = []
+        if len(self.gpus) == 0:
+            self.gpus = [0]
+        if len(self.cfg.SOLVER.TRAIN_SCOPES)>1:
+            train_scopes = self.cfg.SOLVER.TRAIN_SCOPES
+        else:
+            train_scopes = None
+        if len(self.cfg.SOLVER.TRAIN_REPATTERN)>1:
+            train_repattern = self.cfg.SOLVER.TRAIN_REPATTERN
+        else:
+            train_repattern = None
+
+        for i in range(len(self.gpus)):
+            scope = tf.get_variable_scope()
+            if i>0:
+                #scope._reuse = tf.AUTO_REUSE
+                scope.reuse_variables()
+            with tf.device(f"/gpu:{i}"):
+                with tf.device(":/cpu:0"):
+                    data = self.data.get_next()
+
+                self.input_data = data
+                with tf.name_scope(f"GPU{self.gpus[i]}"):
+                    with tf.device(":/cpu:0"):
+                        DataLoader.detection_image_summary(data,name=f"data_source{i}")
+
+                    self.res_data,loss_dict = self.model.forward(data)
+                loss_values = []
+                for k,v in loss_dict.items():
+                    all_loss_dict[k+f"_stage{i}"] = v
+                    tf.summary.scalar(f"loss/{k}",v)
+                    ##
+                    #v = tf.Print(v,[k,tf.is_nan(v), tf.is_inf(v)])
+                    ##
+                    v = tf.cond(tf.logical_or(tf.is_nan(v), tf.is_inf(v)), lambda: tf.zeros_like(v), lambda: v)
+                    loss_values.append(v)
+
+                scope._reuse = tf.AUTO_REUSE
+                '''if (i==0) and len(tf.get_collection(GRADIENT_DEBUG_COLLECTION))>0:
+                    total_loss_sum = tf.add_n(loss_values)
+                    xs = tf.get_collection(GRADIENT_DEBUG_COLLECTION)
+                    grads = tf.gradients(total_loss_sum,xs)
+                    grads = [tf.reduce_sum(tf.abs(x)) for x in grads]
+                    loss_values[0] = tf.Print(loss_values[0],grads+["grads"],summarize=100)'''
+
+                grads,total_loss,variables_to_train = wnn.nget_train_opv3(optimizer=opt,loss=loss_values,
+                                                                          scopes=train_scopes,
+                                                                          re_pattern=train_repattern)
+                #
+                if self.cfg.SOLVER.FILTER_NAN_AND_INF_GRADS:
+                    grads = [list(x) for x in grads]
+                    for i,(g, v) in enumerate(grads):
+                        try:
+                            if g is not None:
+                                g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
+                                                                                                       stddev=1e-5),
+                                             g)
+                        except:
+                            print(f"Error {g}/{v}")
+                            raise Exception("Error")
+                        grads[i][0] = g
+                #
+                tower_grads.append(grads)
+        ########################
+        '''tower_grads[0] = [list(x) for x in tower_grads[0]]
+        for i,(g,v) in enumerate(tower_grads[0]):
+            tower_grads[0][i][0] = tf.Print(g,["B_"+v.name,tf.reduce_min(g),tf.reduce_mean(g),tf.reduce_max(g)])'''
+        ########################
+
+        if self.cfg.SOLVER.CLIP_NORM>1:
+            avg_grads = wnn.average_grads_nccl(tower_grads,clip_norm=self.cfg.SOLVER.CLIP_NORM)
+        else:
+            avg_grads = wnn.average_grads_nccl(tower_grads, clip_norm=None)
+
+        '''avg_grads = [list(x) for x in avg_grads]
+        for i,(g,v) in enumerate(avg_grads):
+            avg_grads[i][0] = tf.Print(g,[v.name,tf.reduce_min(g),tf.reduce_mean(g),tf.reduce_max(g)])'''
+
+        opt0 = wnn.apply_gradientsv3(avg_grads, self.global_step, opt)
+        opt1 = wnn.get_batch_norm_ops()
+        self.train_op = tf.group(opt0, opt1)
+
+        self.total_loss,self.variables_to_train = total_loss,variables_to_train
+
+        self.loss_dict = all_loss_dict
+
+        config = tf.ConfigProto(allow_soft_placement=True)
+        #config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
+
+        if self.debug_tf:
+            self.sess = tfdbg.LocalCLIDebugWrapperSession(self.sess)
+
+        print("variables to train:")
+        wmlu.show_list(self.variables_to_train)
+        for v in self.variables_to_train:
+            wsummary.histogram_or_scalar(v,v.name[:-2])
+        wnn.log_moving_variable()
+
+        self.saver = tf.train.Saver(max_to_keep=100)
+        tf.summary.scalar("total_loss",self.total_loss)
+
+        self.summary = tf.summary.merge_all()
+        self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
+        init = tf.global_variables_initializer()
+        self.sess.run(init)
+        print("batch_norm_ops.")
+        wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
     def resume_or_load(self,ckpt_path=None,sess=None,option="auto",**kwargs):
         if ckpt_path is None:
             ckpt_path = self.ckpt_dir

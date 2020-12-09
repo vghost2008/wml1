@@ -21,14 +21,14 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 slim = tf.contrib.slim
 
 class PredictModel(object):
-    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,input_name=None):
+    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,input_name=None,scope=None):
 
         self.input_imgs = tf.placeholder(tf.uint8,input_shape,name=input_name)        
         is_training = False
         model = SimpleTrainer.build_model(cfg, is_training=is_training)
         self.cfg = cfg
         imgs = tf.cast(self.input_imgs,tf.float32)
-        self.trainer = SimpleTrainer(cfg, data=imgs, model=model,inference=True)
+        self.trainer = SimpleTrainer(cfg, data=imgs, model=model,inference=True,inference_scope=scope)
         self.trainer.category_index = DEFAULT_CATEGORY_INDEX if category_index is not None else category_index
         self.log_step = 100
         self.have_mask = cfg.MODEL.MASK_ON
@@ -49,7 +49,13 @@ class PredictModel(object):
         self.step = 0
 
     def restoreVariables(self):
-        self.trainer.resume_or_load(sess=self.sess)
+        if self.trainer.inference_scope is not None:
+            def value_key(v):
+                if v.name.startswith(self.trainer.inference_scope):
+                    return v.name[len(self.trainer.inference_scope)+1:-2]
+            self.trainer.resume_or_load(sess=self.sess,value_key=value_key)
+        else:
+            self.trainer.resume_or_load(sess=self.sess)
 
     def predictImages(self,imgs):
         feed_dict = {self.input_imgs:imgs}

@@ -34,7 +34,8 @@ class ResNet(Backbone):
             train_bn = True
         with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
                                              is_training=train_bn)):
-            with tf.variable_scope("FeatureExtractor"):
+            with tf.variable_scope("FeatureExtractor") as sc:
+                ext_sc_name = sc.name+"/"
                 if self.cfg.MODEL.RESNETS.DEPTH == 101:
                     print("ResNet-101")
                     self.scope_name = "101"
@@ -58,9 +59,9 @@ class ResNet(Backbone):
         keys2 = ["block1","block2","block3","block4"] #block3,block4都是1/32
         values2 = ["res1","res2","res3","res4"] #block3,block4都是1/32
         for i in range(1,6):
-            res[f"C{i}"] = end_points[f"FeatureExtractor/resnet_v1_{self.scope_name}/"+keys[i-1]]
+            res[f"C{i}"] = end_points[f"{ext_sc_name}resnet_v1_{self.scope_name}/"+keys[i-1]]
         for i,k in enumerate(keys2):
-            res[values2[i]] = end_points[f"FeatureExtractor/resnet_v1_{self.scope_name}/"+keys2[i]]
+            res[values2[i]] = end_points[f"{ext_sc_name}resnet_v1_{self.scope_name}/"+keys2[i]]
 
         if self.cfg.MODEL.RESNETS.MAKE_C6C7 == "C6":
             #res[f"C{6}"] = slim.max_pool2d(res["C5"], kernel_size=2,stride=2,padding="SAME")
