@@ -217,6 +217,9 @@
 |7) + cls loss weight + roi nr=512(sephv14_40) + 3 anchor (two 4xconv head)+FusionBackboneHook|0.343|0.544|0.372|0.101|0.337|0.495|0.290|0.438|0.455|0.168|0.483|0.605|titan 0.1841|
 |7) + cls loss weight + roi nr=512(sephv14_33) + 3 anchor+FusionBackboneHook+OneHeadNonLocalROIHeadsHook|0.347|0.551|0.381|0.096|0.338|0.499|0.291|0.439|0.456|0.167|0.479|0.604|titan 0.1788|
 |7) + cls loss weight + roi nr=512(sephv14_43) + 3 anchor+FusionBackboneHookV2+regulaizer|0.347|0.552|0.378|0.096|0.339|0.497|0.293|0.441|0.458|0.179|0.482|0.605|
+|7) + cls loss weight + roi nr=512(sephv14_43_2) + 3 anchor+FusionBackboneHookV2+regulaizer+OneHeadNonLocalROIHeadsHookV2|0.341|0.547|0.367|0.096|0.332|0.497|0.289|0.436|0.453|0.173|0.476|0.600|
+|7) + cls loss weight + roi nr=512(sephv14_43_3) + 3 anchor+FusionBackboneHookV2+regulaizer+OneHeadNonLocalROIHeadsHookV2|0.344|0.548|0.373|0.091|0.339|0.496|0.289|0.437|0.455|0.164|0.484|0.605|
+|7) + cls loss weight + roi nr=512(sephv14_43_4) + 3 anchor+FusionBackboneHookV2+regulaizer+ClsNonLocalROIHeadsHookV2|0.343|0.548|0.372|0.092|0.334|0.493|0.289|0.437|0.454|0.158|0.480|0.602|
 |7) + cls loss weight + roi nr=512(sephv14_33) + 3 anchor+two 4x conv head+FusionBackboneHook+NonLocalROIHeadsHook+regularizer|0.345|0.547|0.373|0.095|0.338|0.498|0.290|0.438|0.455|0.162|0.480|0.608|titan 0.2162|
 
 

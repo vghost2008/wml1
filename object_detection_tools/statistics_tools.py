@@ -303,6 +303,7 @@ def pascal_voc_dataset():
     #data_path = '/home/wj/ai/mldata3/cell/binary_test_images/pos_cell_for_test5'
     #ata_path = '/home/wj/ai/mldata3/cell/binary_test_images/pos_cell_for_test5/SLICEID_20200903100753_C_15_M1'
     #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/verify_ptp01_1118_p1_proc'
+    #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/tmp_test'
     data_path = '/home/wj/ai/mldata2/cell/annotationed_data/tmp_test'
     #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/rdatasv4_pos_proc_m'
     #data_path = '/home/vghost/ai/mldata3/cell/pos_stage_01_verify_preprocv3_1'

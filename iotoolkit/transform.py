@@ -105,6 +105,10 @@ class WTransform(object):
         dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
 
     @staticmethod
+    def cond_fn_set(dict_data,key,pred,fn):
+        dict_data[key] = tf.cond(pred,fn,lambda:dict_data[key])
+
+    @staticmethod
     def probability_set(dict_data,key,prob,v):
         pred = tf.less_equal(tf.random_uniform(shape=()),prob)
         dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])

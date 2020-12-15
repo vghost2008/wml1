@@ -109,7 +109,22 @@ class ClsNonLocalROIHeadsHookV2(wmodule.WChildModule):
                                          n_head=4,
                                          weighed_sum=False)
         return cls_net,net
-    
+
+@ROI_HEADS_HOOK.register()
+class ClsNonLocalROIHeadsHookV3(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        cls_net = wnnl.non_local_blockv4(net,scope=f"NonLocalROIHeadsHook_clsv3",
+                                         inner_dims_multiplier=[2,2,2],
+                                         normalizer_fn=wnnl.evo_norm_s0,
+                                         activation_fn=None,
+                                         n_head=2,
+                                         weighed_sum=False)
+        return cls_net,net
+
 @ROI_HEADS_HOOK.register()
 class BoxNonLocalROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
