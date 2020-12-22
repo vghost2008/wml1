@@ -1135,6 +1135,42 @@ def remove_bboxes_by_overlap(bboxes,labels=None,threshold=0.5):
     bboxes = tf.boolean_mask(bboxes,keep_pos)
     return bboxes,keep_pos
 
+'''
+用于删除同类别且有重叠的bboxes
+如果box[i],与box[j]的交叉面积占box[j]面积的百分比大于threshold则删除box[i]
+这种处理倾向于删除面积大的boxes
+bboxes:[N,4] relative coordinate or absolute coordinate
+labels:[N]
+return:
+bboxes:[Y,4],keep_pos:[N]
+'''
+@btf.add_name_scope
+def remove_bboxes_by_overlapv2(bboxes,labels=None,threshold=0.5):
+    scores = get_bboxes_intersection_matrix(bboxes,bboxes)
+    R,_ = btf.combined_static_and_dynamic_shape(scores)
+    scores = scores*(1.0-tf.eye(R))
+    scores_t = tf.transpose(scores)
+    scores_x = tf.reshape(tf.cast(tf.range(R*R),tf.float32),[R,R])
+    scores_xt = tf.transpose(scores_x)
+    faild_pos0 = tf.logical_and(tf.greater(scores,threshold),tf.less_equal(scores_t,threshold))
+    faild_pos1 = tf.logical_and(tf.logical_and(tf.greater(scores,threshold),tf.greater(scores_t,threshold)),tf.greater(scores,scores_t))
+    faild_pos2 = tf.logical_and(tf.logical_and(tf.greater(scores,threshold),tf.greater(scores_t,threshold)),tf.equal(scores,scores_t))
+    faild_pos2 = tf.logical_and(tf.greater(scores_x,scores_xt),faild_pos2)
+    faild_pos = tf.logical_or(faild_pos0,faild_pos1)
+    faild_pos = tf.logical_or(faild_pos,faild_pos2)
+    if labels is not None:
+        labels0 = tf.reshape(labels,[R,1])
+        labels0 = tf.tile(labels0,[1,R])
+        labels1 = tf.reshape(labels,[1,R])
+        labels1 = tf.tile(labels1,[R,1])
+        test_pos = tf.equal(labels0,labels1)
+        faild_pos = tf.logical_and(faild_pos,test_pos)
+
+    faild_pos = tf.reduce_any(faild_pos,axis=1,keepdims=False)
+    keep_pos = tf.logical_not(faild_pos)
+    bboxes = tf.boolean_mask(bboxes,keep_pos)
+    return bboxes,keep_pos
+
 def batched_remove_bboxes_by_overlap(bboxes,labels=None,length=None,threshold=0.5):
     def fn0(boxes,label,l):
         nr,_ = btf.combined_static_and_dynamic_shape(boxes)

@@ -386,6 +386,10 @@ class RemoveZeroAreaBBox(WTransform):
     def __call__(self, data_item):
         if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
             print(f"INFO: {self} better use absolute coordinate.")
+        if GT_MASKS in data_item:
+            if not self.test_unstatu(WTransform.HWN_MASK):
+                print(f"WARNING: {self} need NHW format mask.")
+
         area = odb.box_area(data_item[GT_BOXES])
         keep = tf.greater_equal(area,self.mini_area)
         data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
@@ -404,16 +408,19 @@ Mask: [Nr,H,W]
 bboxes: absolute coordinate
 '''
 class RandomRotateAnyAngle(WTransform):
-    def __init__(self,max_angle=60,rotate_probability=0.5,enable=True):
+    def __init__(self,max_angle=60,rotate_probability=0.5,enable=True,use_mask=True,rotate_bboxes_type=0):
         self.max_angle = max_angle
         self.rotate_probability = rotate_probability
         self.enable = enable
+        self.use_mask = use_mask
+        self.rotate_bboxes_type = rotate_bboxes_type
 
     def __call__(self, data_item):
         if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
             print(f"WARNING: {self} need absolute coordinate.")
-        if not self.test_unstatu(WTransform.HWN_MASK):
-            print(f"WARNING: {self} need NHW format mask.")
+        if self.use_mask and GT_MASKS in data_item:
+            if not self.test_unstatu(WTransform.HWN_MASK):
+                print(f"WARNING: {self} need NHW format mask.")
         if not self.enable:
             return data_item
         is_rotate = tf.less(tf.random_uniform(shape=[]),self.rotate_probability)
@@ -425,9 +432,23 @@ class RandomRotateAnyAngle(WTransform):
         r_image = wop.tensor_rotate(image=data_item[IMAGE],angle=angle)
         WTransform.cond_set(data_item, IMAGE, is_rotate, r_image)
 
-        if GT_MASKS in data_item:
+        if GT_MASKS in data_item and self.use_mask:
             r_mask,r_bboxes = wop.mask_rotate(mask=data_item[GT_MASKS],angle=angle,get_bboxes_stride=4)
             WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
+            WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
+        else:
+            if GT_MASKS in data_item:
+                r_mask, _ = wop.mask_rotate(mask=data_item[GT_MASKS], angle=angle, get_bboxes_stride=4)
+                WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
+
+            img_shape = tf.shape(data_item[IMAGE])
+            r_bboxes = wop.bboxes_rotate(bboxes=data_item[GT_BOXES],angle=angle,
+                                       img_size = img_shape,
+                                       type=self.rotate_bboxes_type)
+            r_bboxes = tf.maximum(r_bboxes,0)
+            max_value = tf.convert_to_tensor([[img_shape[0]-1,img_shape[1]-1,img_shape[0]-1,img_shape[1]-1]])
+            max_value = tf.cast(max_value,tf.float32)
+            r_bboxes = tf.minimum(r_bboxes,max_value)
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
 
         return data_item
@@ -1555,11 +1576,11 @@ class ShowInfo(WTransform):
 
     def __call__(self,data_item):
         tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
-        if GT_BOXES in tensors:
+        if GT_BOXES in data_item:
             tensors += ['bboxes:',tf.shape(data_item[GT_BOXES])]
-        if GT_LABELS in tensors:
+        if GT_LABELS in data_item:
             tensors += ['labels:',tf.shape(data_item[GT_LABELS])]
-        if GT_MASKS in tensors:
+        if GT_MASKS in data_item:
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
 
         data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors,summarize=1000)

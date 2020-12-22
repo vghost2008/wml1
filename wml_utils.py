@@ -682,11 +682,14 @@ def safe_remove_dirs(dir_path,yes_to_all=False):
         return False
 
 def create_empty_dir(dir_path,remove_if_exists=True,yes_to_all=False):
-    if remove_if_exists:
-        if not safe_remove_dirs(dir_path,yes_to_all=yes_to_all):
-            return False
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+    try:
+        if remove_if_exists:
+            if not safe_remove_dirs(dir_path,yes_to_all=yes_to_all):
+                return False
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+    except:
+        pass
 
     return True
 def add_dict(lhv,rhv):

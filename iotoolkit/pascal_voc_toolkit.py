@@ -27,7 +27,7 @@ return:
 shape: image size
 boxes: [N,4] relative coordinate,(ymin,xmin,ymax,xmax)
 '''
-def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False):
+def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolute_coord=False):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -71,13 +71,17 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False):
                 logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
                 continue
             else:
-                box = (max(0.,ymin / shape[0]),
-                       max(0.,xmin / shape[1]),
-                       min(1.,ymax / shape[0]),
-                       min(1.,xmax / shape[1])
-                       )
+                if not absolute_coord:
+                    box = (max(0.,ymin / shape[0]),
+                           max(0.,xmin / shape[1]),
+                           min(1.,ymax / shape[0]),
+                           min(1.,xmax / shape[1])
+                           )
+                else:
+                    box = (ymin,xmin,ymax,xmax)
 
         else:
+            assert absolute_coord==False,"Error coord type"
             ymin = float(bbox.find('ymin').text)-float(adjust[1])
             xmin = float(bbox.find('xmin').text)-float(adjust[0])
             ymax = float(bbox.find('ymax').text)-float(adjust[1])
@@ -249,7 +253,8 @@ def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncat
 '''
 与上一个版本的区别为 img shape 为输入值，不需要读图获取
 '''
-def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None):
+def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None,
+                  is_relative_coordinate=True):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -265,7 +270,8 @@ def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None,
         base_name = base_name[:-4]+".xml"
         save_path = os.path.join(dir_path,base_name)
 
-    write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated,probs=probs)
+    write_voc_xml(save_path,file_path,shape,bboxes,labels,difficult,truncated,probs=probs,
+                  is_relative_coordinate=is_relative_coordinate)
 
 '''
 file_path:图像文件路径
@@ -382,7 +388,7 @@ def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annot
             os.remove(file)
 
 class PascalVOCData(object):
-    def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False):
+    def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False,absolute_coord=False):
         '''
 
         :param label_text2id: trans a single label text to id
@@ -396,7 +402,8 @@ class PascalVOCData(object):
         self.xml_sub_dir = xml_sub_dir
         self.image_sub_dir = image_sub_dir
         self.has_probs = has_probs
-        
+        self.absolute_coord = absolute_coord
+
     def read_data(self,dir_path,silent=False,img_suffix=".jpg"):
         print(f"Read {dir_path}")
         if not os.path.exists(dir_path):
@@ -424,7 +431,8 @@ class PascalVOCData(object):
                 shape, bboxes, labels_names, difficult, truncated,probs = read_voc_xml(xml_file,
                                                                             adjust=None,
                                                                             aspect_range=None,
-                                                                            has_probs=self.has_probs)
+                                                                            has_probs=self.has_probs,
+                                                                            absolute_coord=self.absolute_coord)
             except:
                 print(f"Read {xml_file} faild.")
                 continue

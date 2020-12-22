@@ -35,6 +35,32 @@ class NonLocalBackboneHook(wmodule.WChildModule):
             return res
 
 @BACKBONE_HOOK_REGISTRY.register()
+class NonLocalBackboneHookV2(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,features,batched_inputs):
+        del batched_inputs
+        res = OrderedDict()
+        normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
+        with tf.variable_scope("NonLocalBackboneHookV2"):
+            for k,v in features.items():
+                if k[0] not in ["C","P"]:
+                    continue
+                level = int(k[1:])
+                if level<=3:
+                    res[k] = v
+                    continue
+                res[k]= wnnl.non_local_blockv4(v,
+                                               inner_dims=[128, 128, 128],
+                                               normalizer_fn=normalizer_fn,
+                                               normalizer_params=normalizer_params,
+                                               n_head=2,
+                                               activation_fn=None,
+                                               weighed_sum=False)
+            return res
+
+@BACKBONE_HOOK_REGISTRY.register()
 class SEBackboneHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)

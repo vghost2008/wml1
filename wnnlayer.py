@@ -996,6 +996,7 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
         return out
 
 def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
+                      inner_dims=None,
                       n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
@@ -1015,6 +1016,12 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
         inner_dims_multiplier = [inner_dims_multiplier]
     if len(inner_dims_multiplier) == 1:
         inner_dims_multiplier = inner_dims_multiplier*3
+    if inner_dims is not None:
+        if isinstance(inner_dims, int):
+            inner_dims = [inner_dims]
+        if len(inner_dims) == 1:
+            inner_dims = inner_dims*3
+
     with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         with tf.variable_scope("pos_embedding"):
@@ -1023,9 +1030,15 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
                                             initializer=tf.random_normal_initializer(stddev=0.02))
             net = net+pos_embedding
         channel = shape[-1]
-        m_channelq = channel//inner_dims_multiplier[0]
-        m_channelk = channel//inner_dims_multiplier[1]
-        m_channelv = channel//inner_dims_multiplier[2]
+        if inner_dims is not None:
+            m_channelq = inner_dims[0]
+            m_channelk = inner_dims[1]
+            m_channelv = inner_dims[2]
+            pass
+        else:
+            m_channelq = channel//inner_dims_multiplier[0]
+            m_channelk = channel//inner_dims_multiplier[1]
+            m_channelv = channel//inner_dims_multiplier[2]
 
         Q = conv_op(net,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
         K = conv_op(net,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")

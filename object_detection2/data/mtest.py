@@ -38,16 +38,11 @@ aa = trans.RandomSelectSubTransform([
 
 @DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
-    return [ trans.MaskNHW2HWN(),
-             trans.SampleDistortedBoundingBox(min_object_covered=0.3,
-                 aspect_ratio_range=(0.2, 0.5),
-                 area_range=(0.1, 1.0),
-                 max_attempts=100,
-                 filter_threshold=0.3,
-                 ),
-             trans.MaskHWN2NHW(),
+    return [
             trans.BBoxesRelativeToAbsolute(),
-            trans.UpdateHeightWidth(),
+             trans.RandomRotateAnyAngle(use_mask=False,rotate_bboxes_type=0,rotate_probability=1,max_angle=15),
+             trans.RemoveZeroAreaBBox(),
+             trans.UpdateHeightWidth(),
             trans.AddBoxLens(),
             ],\
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
@@ -59,7 +54,7 @@ _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
 _C.DATASETS = CN()
 _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
-_C.DATASETS.TRAIN = "coco_2017_train"
+_C.DATASETS.TRAIN = "mnistod_train"
 _C.SOLVER = CN()
 _C.SOLVER.IMS_PER_BATCH = 4
 _C.INPUT.STITCH = 0.0
@@ -69,6 +64,7 @@ _C.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE = 6
 _C.INPUT.ROTATE_ANY_ANGLE.PROBABILITY = 0.5
 _C.INPUT.FILTER_EMPTY = True
 _C.INPUT.SHUFFLE_BUFFER_SIZE = 10
+_C.INPUT.EXTRA_FILTER = ""
 def main(_):
     cfg = _C
     data_loader = DataLoader(cfg=cfg,is_training=True)
@@ -78,6 +74,8 @@ def main(_):
     res = data.get_next()
     data_loader.detection_image_summary(res,max_boxes_to_draw=200,max_outputs=4)
     wsummary.image_summaries(res['image'],'image')
+    res[IMAGE] = tf.ones_like(res[IMAGE])*200
+    data_loader.detection_image_summary(res,max_boxes_to_draw=200,max_outputs=4)
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
@@ -93,7 +91,8 @@ def main(_):
     att = AvgTimeThis()
     while True:
         if step%log_step == 0:
-            summary = sess.run(merged)
+            summary,bboxes,lens = sess.run([merged,res[GT_BOXES],res[GT_LENGTH]])
+            wmlu.show_nparray(bboxes[0][:lens[0]])
             summary_writer.add_summary(summary, step)
         else:
             with tt:

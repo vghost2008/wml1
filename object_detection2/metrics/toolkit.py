@@ -64,6 +64,8 @@ gtlabels:[X] the labels for ground truth boxes
 boxes:[Y,4](ymin,xmin,ymax,xmax) relative coordinates,predicted boxes
 labels:[Y], the labels for predicted boxes
 probability:[Y], the probability for boxes, if probability is none, assum the boxes's probability is ascending order
+return:
+mAP:[0,100]
 '''
 def getmAP(gtboxes,gtlabels,boxes,labels,probability=None,threshold=0.5):
 
