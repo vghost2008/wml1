@@ -842,7 +842,9 @@ def non_local_block(net,multiplier=0.5,n_head=1,keep_prob=None,is_training=False
                           weights_initializer=tf.zeros_initializer)
         return net+out
 
-def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,is_training=False,scope=None,
+def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],
+                      inner_dims=None,
+                      n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
                       gamma_initializer=tf.constant_initializer(0.0),reuse=None,
@@ -861,13 +863,24 @@ def non_local_blockv1(net,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=None,
         inner_dims_multiplier = [inner_dims_multiplier]
     if len(inner_dims_multiplier) == 1:
         inner_dims_multiplier = inner_dims_multiplier*3
+    if inner_dims is not None:
+        if isinstance(inner_dims, int):
+            inner_dims = [inner_dims]
+        if len(inner_dims) == 1:
+            inner_dims = inner_dims*3
 
     with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         channel = shape[-1]
-        m_channelq = channel//inner_dims_multiplier[0]
-        m_channelk = channel//inner_dims_multiplier[1]
-        m_channelv = channel//inner_dims_multiplier[2]
+        if inner_dims is not None:
+            m_channelq = inner_dims[0]
+            m_channelk = inner_dims[1]
+            m_channelv = inner_dims[2]
+            pass
+        else:
+            m_channelq = channel//inner_dims_multiplier[0]
+            m_channelk = channel//inner_dims_multiplier[1]
+            m_channelv = channel//inner_dims_multiplier[2]
 
         Q = conv_op(net,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
         K = conv_op(net,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")

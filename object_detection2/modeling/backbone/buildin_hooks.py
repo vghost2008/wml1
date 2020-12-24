@@ -51,7 +51,7 @@ class NonLocalBackboneHookV2(wmodule.WChildModule):
                 if level<=3:
                     res[k] = v
                     continue
-                res[k]= wnnl.non_local_blockv4(v,
+                res[k]= wnnl.non_local_blockv1(v,
                                                inner_dims=[128, 128, 128],
                                                normalizer_fn=normalizer_fn,
                                                normalizer_params=normalizer_params,
