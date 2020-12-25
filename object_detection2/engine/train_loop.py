@@ -436,7 +436,7 @@ class SimpleTrainer(TrainerBase):
             wnn.log_moving_variable()
 
             self.saver = tf.train.Saver(max_to_keep=100)
-            tf.summary.scalar("total_loss",self.total_loss)
+            tf.summary.scalar(self.cfg.GLOBAL.PROJ_NAME+"_total_loss",self.total_loss)
 
         self.summary = tf.summary.merge_all()
         self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)
@@ -571,7 +571,7 @@ class SimpleTrainer(TrainerBase):
         wnn.log_moving_variable()
 
         self.saver = tf.train.Saver(max_to_keep=100)
-        tf.summary.scalar("total_loss",self.total_loss)
+        tf.summary.scalar(self.cfg.GLOBAL.PROJ_NAME+"_total_loss",self.total_loss)
 
         self.summary = tf.summary.merge_all()
         self.summary_writer = tf.summary.FileWriter(self.log_dir, self.sess.graph)

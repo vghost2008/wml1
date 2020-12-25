@@ -1583,7 +1583,7 @@ class ShowInfo(WTransform):
         if GT_MASKS in data_item:
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
 
-        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors,summarize=1000)
+        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors+[data_item[GT_LABELS]],summarize=1000)
         return data_item
 '''
 bbox: absolute coordinate
@@ -1808,3 +1808,11 @@ class RemoveFakeInstance(WTransform):
                                                       length_key=GT_LENGTH)
         return data_item
 
+
+class RemoveMask(WTransform):
+    def __init__(self):
+        pass
+
+    def __call__(self, data_item):
+        del data_item[GT_MASKS]
+        return data_item

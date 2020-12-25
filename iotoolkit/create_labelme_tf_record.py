@@ -40,8 +40,12 @@ VAL_SIZE_LIMIT = None
 SAMPLES_PER_FILES = 500
 
 def category_id_filter(category_id):
-    good_ids = [1,2,3]
-    return category_id in good_ids
+    '''good_ids = [1,2,3]
+    res = category_id in good_ids'''
+    res = True
+    if not res:
+        print(f"bad category id {category_id}")
+    return res
 
 USE_INDEX_IN_FILE = False
 
@@ -228,8 +232,10 @@ def multithread_create_tf_record_by_files(files,output_dir,name="train",shufflin
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata/mnistod/train1"
-    output_dir = "/home/vghost/ai/mldata/mnistod/train1_tfrecord"
+    dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/test"
+    output_dir = "/home/vghost/ai/mldata3/mnistgeood_data/tftest"
+    #dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/train"
+    #output_dir = "/home/vghost/ai/mldata3/mnistgeood_data/tftrain"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

@@ -725,4 +725,15 @@ def sync_data_dir(src_dir,dst_dir):
     os.system(cmd)
     sys.stdout.flush()
 
+def sleep_until(runtime):
+    target_datetime = datetime.datetime.strptime(runtime, "%Y-%m-%d %H:%M:%S")
+    while True:
+        wait_time = (target_datetime - datetime.datetime.now()).total_seconds() / 3600.0
+        sys.stdout.write(
+            f"\rRumtime is {target_datetime}, current datetime is {datetime.datetime.now()}, need to wait for {wait_time:.2f}h", )
+        sys.stdout.flush()
 
+        if datetime.datetime.now() >= target_datetime:
+            break
+        else:
+            time.sleep(30)

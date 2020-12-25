@@ -14,6 +14,18 @@ default_category_index = None
 coco_category_index = {}
 pascal_voc_category_index = {}
 mod_category_index = {1:"rectangle",2:"triangle",3:"ellipse"}
+modgeo_category_index = {
+    1:"NSNN",
+    2:"SNN",
+    3:"SUN",
+    4:"SNU",
+    5:"SUU",
+    6:"BNN",
+    7:"NBNN",
+    8:"BUN",
+    9:"BNU",
+    10:"BUU",
+}
 for k,v in coco_id_to_text.items():
     coco_category_index[k] = v['name']
 for k,v in pascal_voc_id_to_text.items():
@@ -38,6 +50,8 @@ def register_all_coco(root="datasets"):
         ("coco_2014_eval", os.path.join(dataset_root_path,"coco/tfdata_val"),coco_get_data,90,coco_category_index),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3,mod_category_index),
         ("mnistod_eval", os.path.join(dataset_root_path,"mnistod/eval_tfrecord"),coco_get_data,3,mod_category_index),
+        ("mnistgeood_train", os.path.join(dataset_root_path,"mnistgeood_data/tftrain"),coco_get_data,10,modgeo_category_index),
+        ("mnistgeood_eval", os.path.join(dataset_root_path,"mnistgeood_data/tftest"),coco_get_data,10,modgeo_category_index),
         ("cell", "/home/wj/ai/mldata2/cell_instance_segmentation/train_tfrecord", coco_get_data, 1, {1:"1"})
     ]
     for x in SPLITS:

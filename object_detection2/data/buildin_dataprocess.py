@@ -158,9 +158,8 @@ def coco_nodirection(cfg, is_training):
     if is_training:
         trans_on_single_img = [trans.MaskNHW2HWN(),
                                trans.RandomFlipLeftRight(),
-                                trans.RandomFlipUpDown(),
-                                trans.RandomRotate(clockwise=True),
-                               # trans.RandomRotate(clockwise=False), 因为已经有了上下及左右翻转的辅助，已经可以覆盖每一个角度
+                               trans.RandomFlipUpDown(),
+                               trans.RandomRotate(clockwise=True), #上述三个组合就可以构成各个方位0.125概率的覆盖
                                trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
                                                         max_size=cfg.INPUT.MAX_SIZE_TRAIN,
                                                         align=cfg.INPUT.SIZE_ALIGN),
@@ -280,3 +279,68 @@ def NULL(cfg, is_training):
         trans_on_batch_img = [trans.FixDataInfo()]
 
     return (trans_on_single_img, trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
+def TRANS1(cfg,is_training):
+    if is_training:
+        trans0 = [trans.WRandomTranslate(translate_horizontal=True)]
+        trans1 = [trans.WRandomTranslate(pixels=20,translate_horizontal=False),trans.WRandomCutout()]
+        trans2 = [trans.WRandomTranslate(pixels=20,translate_horizontal=False)]
+        trans3 = [trans.NoTransform()]
+        aa = trans.RandomSelectSubTransform([trans0,trans1,trans2,trans3])
+        trans4 = [trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
+                         max_size=2048,
+                         align=1)]
+        trans5 = [trans.NoTransform()]
+        aa1 = trans.RandomSelectSubTransform([trans4,trans5])
+
+        trans_on_single_img = [
+            trans.RemoveMask(),
+            trans.WTransImgToFloat(),
+            trans.WRemoveOverlap(threshold=0.6),
+            trans.MaskNHW2HWN(),
+            aa1,
+            trans.MaskHWN2NHW(),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.RandomRotateAnyAngle(max_angle=15,
+                                       use_mask=False,
+                                       rotate_probability=0.3,
+                                       rotate_bboxes_type=0),
+            trans.BBoxesAbsoluteToRelative(),
+            trans.MaskNHW2HWN(),
+            trans.SampleDistortedBoundingBox(area_range=cfg.INPUT.CROP.SIZE,
+                                             aspect_ratio_range=cfg.INPUT.CROP.ASPECT_RATIO,
+                                             filter_threshold=0.7,
+                                             use_image_if_no_bounding_boxes=True),
+            trans.MaskHWN2NHW(),
+            trans.RandomNoise(0.2,10),
+            trans.BBoxesRelativeToAbsolute(),
+            aa,
+            trans.BBoxesAbsoluteToRelative(),
+            trans.MaskNHW2HWN(),
+            trans.RandomFlipLeftRight(),
+            trans.RandomFlipUpDown(),
+            trans.RandomRotate(clockwise=True),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.MaskHWN2NHW(),
+            trans.RemoveZeroAreaBBox(2),
+            trans.AddBoxLens(),
+            trans.UpdateHeightWidth(),
+        ]
+        if cfg.INPUT.SIZE_ALIGN > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        trans_on_batch_img.append(trans.RemoveFakeInstance())
+    else:
+        trans_on_single_img = [
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+
+    return (trans_on_single_img,trans_on_batch_img)

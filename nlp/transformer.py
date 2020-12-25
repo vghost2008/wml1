@@ -2,6 +2,7 @@
 import nlp.wlayers as nlpl
 import wnnlayer as wnnl
 import tensorflow as tf
+import basic_tftools as btf
 
 slim = tf.contrib.slim
 
@@ -66,6 +67,7 @@ def transformer_model(input_tensor,
                      (input_width, hidden_size))
 
   all_layer_outputs = []
+  prev_output = input_tensor
 
   for layer_idx in range(num_hidden_layers):
     with tf.variable_scope("layer_%d" % layer_idx):
@@ -126,37 +128,4 @@ def transformer_model(input_tensor,
 
 
 def get_shape_list(tensor, expected_rank=None, name=None):
-  """Returns a list of the shape of tensor, preferring static dimensions.
-
-  Args:
-    tensor: A tf.Tensor object to find the shape of.
-    expected_rank: (optional) int. The expected rank of `tensor`. If this is
-      specified and the `tensor` has a different rank, and exception will be
-      thrown.
-    name: Optional name of the tensor for the error message.
-
-  Returns:
-    A list of dimensions of the shape of tensor. All static dimensions will
-    be returned as python integers, and dynamic dimensions will be returned
-    as tf.Tensor scalars.
-  """
-  if name is None:
-    name = tensor.name
-
-  if expected_rank is not None:
-    assert_rank(tensor, expected_rank, name)
-
-  shape = tensor.shape.as_list()
-
-  non_static_indexes = []
-  for (index, dim) in enumerate(shape):
-    if dim is None:
-      non_static_indexes.append(index)
-
-  if not non_static_indexes:
-    return shape
-
-  dyn_shape = tf.shape(tensor)
-  for index in non_static_indexes:
-    shape[index] = dyn_shape[index]
-  return shape
+    return btf.combined_static_and_dynamic_shape(tensor)

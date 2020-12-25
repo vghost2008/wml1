@@ -51,8 +51,9 @@ def get_config_file(name:str):
     CONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/"
     COCOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/coco/"
     MODCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistod/"
+    MODGEOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
     RESEARCH_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/research/"
-    search_dirs = [COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR]
+    search_dirs = [COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR]
     if os.path.exists(name):
         return name
     if not name.endswith(".yaml"):
