@@ -276,9 +276,9 @@ class PrecisionAndRecall:
         labels = np.concatenate(self.labels,axis=0)
         self.precision,self.recall = getPrecision(gtboxes, gtlabels, boxes, labels, threshold=self.threshold,
                                                   auto_scale_threshold=False, ext_info=False)
-    def show(self):
+    def show(self,name=""):
         self.evaluate()
-        print(f"Total test nr {self.total_test_nr}, precision {self.precision:.3f}, recall {self.recall:.3f}")
+        print(f"{name}: total test nr {self.total_test_nr}, precision {self.precision:.3f}, recall {self.recall:.3f}")
     def __str__(self):
         return f"{self.precision:.3f}/{self.recall:.3f}({self.total_test_nr})"
 
@@ -418,12 +418,12 @@ class GeneralCOCOEvaluation(object):
     def evaluate(self):
         print(f"Test size {self.num_examples()}")
         return self.coco_evaluator.evaluate()
-    def show(self):
+    def show(self,name=""):
         print(f"Test size {self.num_examples()}")
         res = self.coco_evaluator.evaluate()
         str0 = "|配置|"
         str1 = "|---|"
-        str2 = "||"
+        str2 = f"|{name}|"
         for k,v in res.items():
             index = k.find("/")
             if index>0:
@@ -479,10 +479,10 @@ class COCOEvaluation(object):
             return res,res1
         return res
 
-    def show(self):
-        self.box_evaluator.show()
+    def show(self,name=""):
+        self.box_evaluator.show(name=name)
         if self.mask_evaluator is not None:
-            self.mask_evaluator.show()
+            self.mask_evaluator.show(name=name)
 
 
 class ClassesWiseModelPerformace(object):

@@ -177,13 +177,13 @@ class TrainerBase:
                 if self.step %self.show_eval_results_step == 0:
                     t = wmlu.TimeThis(auto_show=False)
                     with t:
-                        evaler.show()
+                        evaler.show(name=self.cfg.GLOBAL.PROJ_NAME)
                     if (t.time()>=10) and (self.show_eval_results_step<2000):
                         self.show_eval_results_step *= 2
                     pass
                 self.after_step()
         except Exception:
-            evaler.show()
+            evaler.show(name=self.cfg.GLOBAL.PROJ_NAME)
             print(f"Total eval time {(time.time()-self.time_stamp)/3600}h.")
             logger.exception("Exception during eval:")
         finally:
