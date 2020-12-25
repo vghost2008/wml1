@@ -179,6 +179,7 @@ class WROIKeepRatio:
         assert(len(bin_size)>=2)
         self.bin_size = list(bin_size)
         self.output_size = output_size
+        print(f"KeepRatio pooler.")
     '''
     bboxes:[batch_size,X,4]
     net:[batch_size,H,W,C]

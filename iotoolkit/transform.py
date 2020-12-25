@@ -594,6 +594,7 @@ class AddSize(WTransform):
     def __init__(self,img_key='image'):
         self.img_key = img_key
     def __call__(self, data_item):
+        assert len(data_item[self.img_key].get_shape())<=3,"error image dims size."
         data_item['size'] = tf.shape(data_item[self.img_key])[0:2]
         return data_item
     def __str__(self):

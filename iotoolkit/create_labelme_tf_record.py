@@ -233,9 +233,9 @@ def multithread_create_tf_record_by_files(files,output_dir,name="train",shufflin
 if __name__ == "__main__":
 
     dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/test"
-    output_dir = "/home/vghost/ai/mldata3/mnistgeood_data/tftest"
-    #dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/train"
-    #output_dir = "/home/vghost/ai/mldata3/mnistgeood_data/tftrain"
+    output_dir = "/home/vghost/ai/mldata2/mnistgeood_data/tftest"
+    dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/train"
+    output_dir = "/home/vghost/ai/mldata2/mnistgeood_data/tftrain"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

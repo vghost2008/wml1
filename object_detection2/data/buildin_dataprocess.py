@@ -337,10 +337,13 @@ def TRANS1(cfg,is_training):
         trans_on_batch_img.append(trans.RemoveFakeInstance())
     else:
         trans_on_single_img = [
-                               trans.BBoxesRelativeToAbsolute(),
-                               trans.AddBoxLens(),
-                               ]
-        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+            trans.AddSize(),
+            trans.WTransImgToFloat(),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.AddBoxLens(),
+            ]
+        trans_on_batch_img = [
+                              trans.BBoxesAbsoluteToRelative(),
                               trans.FixDataInfo()]
 
     return (trans_on_single_img,trans_on_batch_img)

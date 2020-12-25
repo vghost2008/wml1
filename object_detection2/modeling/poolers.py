@@ -99,6 +99,8 @@ class ROIPooler(wmodule.WChildModule):
             self.level_pooler = WROIMultiScale(bin_size=bin_size, output_size=output_size)
         elif pooler_type == "PointPool":
             self.level_pooler = WROIPointPool()
+        elif pooler_type == "KeepRatio":
+            self.level_pooler = WROIKeepRatio(bin_size=bin_size, output_size=output_size)
         else:
             raise ValueError("Unknown pooler type: {}".format(pooler_type))
         self.level_assignments = None
