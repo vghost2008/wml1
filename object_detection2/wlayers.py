@@ -197,7 +197,6 @@ class WROIKeepRatio:
             batch_index = tf.stop_gradient(tf.reshape(batch_index, [-1]))
             bboxes = tf.stop_gradient(tf.reshape(bboxes, [-1, 4]))
             bboxes,mask = self.get_bboxes_and_mask(bboxes,width,height)
-            mask = tf.expand_dims(mask,axis=-1)
             net = tf.image.crop_and_resize(image=net, boxes=bboxes, box_ind=batch_index, crop_size=[height, width])
             net = net*mask
             if self.bin_size[0]>1 and self.bin_size[1]>1:
@@ -231,7 +230,7 @@ class WROIKeepRatio:
 
             def draw_boxes(img,box):
                 return wop.fill_bboxes(img,tf.expand_dims(box,axis=0),v=0.0,include_last=False)
-            mask = tf.ones([B,crop_height,crop_width])
+            mask = tf.ones([B,crop_height,crop_width,1])
 
             tmp_bboxes = tf.stack([tf.zeros([B]),tf.zeros([B]),tf.ones([B])*crop_height,xmin_pad],axis=-1)
             mask = tf.map_fn(lambda x:draw_boxes(x[0],x[1]),elems=(mask,tmp_bboxes),dtype=tf.float32,

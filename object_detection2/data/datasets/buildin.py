@@ -50,8 +50,8 @@ def register_all_coco(root="datasets"):
         ("coco_2014_eval", os.path.join(dataset_root_path,"coco/tfdata_val"),coco_get_data,90,coco_category_index),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3,mod_category_index),
         ("mnistod_eval", os.path.join(dataset_root_path,"mnistod/eval_tfrecord"),coco_get_data,3,mod_category_index),
-        ("mnistgeood_train", os.path.join(dataset_root_path,"mnistgeood_data/tftrain"),coco_get_data,10,modgeo_category_index),
-        ("mnistgeood_eval", os.path.join(dataset_root_path,"mnistgeood_data/tftest"),coco_get_data,10,modgeo_category_index),
+        ("mnistgeood_train", os.path.join(dataset_root_path,"mnistgeood_data/tftrain_big"),coco_get_data,10,modgeo_category_index),
+        ("mnistgeood_eval", os.path.join(dataset_root_path,"mnistgeood_data/tftest_big"),coco_get_data,10,modgeo_category_index),
         ("cell", "/home/wj/ai/mldata2/cell_instance_segmentation/train_tfrecord", coco_get_data, 1, {1:"1"})
     ]
     for x in SPLITS:

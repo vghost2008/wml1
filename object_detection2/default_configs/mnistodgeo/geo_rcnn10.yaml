@@ -10,25 +10,27 @@ MODEL:
     MAKE_C6C7: "C6C7"
   ROI_HEADS:
     NAME: "StandardROIHeads"
-    IN_FEATURES: ["F2"]
+    IN_FEATURES: ["F1"]
     BATCH_SIZE_PER_IMAGE: 128
     SCORE_THRESH_TEST: 0.2
     NMS_THRESH_TEST: 0.4
     CLASSES_WISE_NMS: False
     BOX_CLS_LOSS_SCALE: 1.50
     BOX_REG_LOSS_SCALE: 3.0
-    HOOK: "ClsNonLocalROIHeadsHook"
+    HOOK: "ClsNonLocalROIHeadsHookV2"
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
-    POOLER_RESOLUTION: 7
+    POOLER_RESOLUTION: 11
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     FC_WEIGHT_DECAY: 0.0001
+    POOLER_TYPE: "KeepRatio"
     CONV_WEIGHT_DECAY: 0.0001
+    bin_size: (1,1)
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -36,11 +38,11 @@ MODEL:
     ACTIVATION_FN: "NA"
     NUM_CONV: 4
   FPN:
-    IN_FEATURES: ["C2","C3","C4"]
+    IN_FEATURES: ["C1","C2","C3","C4"]
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     LAST_LEVEL_NUM_CONV: 0
-    BACKBONE_HOOK: ("","FusionBackboneHookV2")
+    BACKBONE_HOOK: ("NonLocalBackboneHookV2","FusionBackboneHookV2")
   ANCHOR_GENERATOR:
     SIZES: [[32], [64], [128]]
     ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
@@ -61,7 +63,7 @@ SOLVER:
   BASE_LR: 0.01
   WARMUP_ITERS: 1000
   CLIP_NORM: 32
-  STEPS: (20000,)
+  STEPS: (10000,)
   LR_DECAY_TYPE: "cosine"
 INPUT:
   MIN_SIZE_TRAIN: (252, 268, 284, 300)
@@ -72,9 +74,9 @@ INPUT:
   SHUFFLE_BUFFER_SIZE: 1024
   DATAPROCESS: "TRANS1"
   CROP:
-    SIZE: [0.334,0.53]
+    SIZE: [0.64,1.0]
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "geo_rcnn0"
+  PROJ_NAME: "geo_rcnn10"
   SUMMARY_LEVEL: 0
   LOG_STEP: 200
