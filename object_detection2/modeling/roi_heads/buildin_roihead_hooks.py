@@ -6,6 +6,8 @@ from .build import ROI_HEADS_HOOK
 import wnnlayer as wnnl
 import object_detection2.od_toolkit as odt
 import basic_tftools as btf
+from object_detection2.standard_names import *
+import object_detection2.bboxes as odb
 
 slim = tf.contrib.slim
 
@@ -243,3 +245,37 @@ class AddBBoxesSizeInfo(wmodule.WChildModule):
             net = wnnl.group_norm_v2(net,gamma,beta)
             return net
 
+@ROI_HEADS_HOOK.register()
+class AddBBoxesSizeInfoV2(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        with tf.variable_scope("AddBBoxesSizeInfoV2",reuse=reuse):
+            C = btf.channel(net)
+            bboxes = self.parent.t_proposal_boxes
+            
+            with tf.name_scope("trans_bboxes"):
+                _,H,W,_ = btf.combined_static_and_dynamic_shape(batched_inputs[IMAGE])
+                bboxes = odb.tfrelative_boxes_to_absolutely_boxes(bboxes,W,H)
+                bymin,bxmin,bymax,bxmax = tf.unstack(bboxes,axis=-1)
+                bh = bymax-bymin
+                bw = bxmax-bxmin
+                br0 = bh/(bw+1e-8)
+                br1 = bw/(bh+1e-8)
+                bboxes = tf.stack([bh,bw,br0,br1],axis=-1)
+                B,BN,BC = btf.combined_static_and_dynamic_shape(bboxes)
+                bboxes = tf.reshape(bboxes,[B*BN,BC])
+                bboxes = tf.stop_gradient(bboxes)
+                
+            bboxes = slim.fully_connected(bboxes,C*2,activation_fn=self.activation_fn,
+                                          normalizer_fn=self.normalizer_fn,
+                                          normalizer_params=self.norm_params)
+            bboxes = slim.fully_connected(bboxes,C*2,activation_fn=None,
+                                          normalizer_fn=None)
+            gamma = bboxes[...,:C]
+            beta = bboxes[...,C:]
+            net = wnnl.group_norm_v2(net,gamma,beta)
+            return net
