@@ -178,7 +178,7 @@ class IouHeadNonLocalROIHeadsHook(wmodule.WChildModule):
                                              weighed_sum=False)
             return x,x,iou_x
         
-@ROI_HEADS_HOOKegister()
+@ROI_HEADS_HOOK.register()
 class SEROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
