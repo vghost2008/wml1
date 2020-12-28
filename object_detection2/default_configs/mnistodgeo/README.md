@@ -1,4 +1,5 @@
 ##Results
+
 ```
 - geo_rcnn0) ClsNonLocalROIHeadsHook+FusionBackboneHookV2+SeparateFastRCNNConvFCHeadV2
 - geo_rcnn1) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2
@@ -12,6 +13,7 @@
 - geo_rcnn9) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+F1+Pool size=11
 - geo_rcnn10) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+F1+Pool size=11 + KeepRatioPooler
 ```
+
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 |geo_rcnn0|0.880|0.947|0.947|-1.000|0.793|0.883|0.809|0.907|0.907|-1.000|0.821|0.911|
@@ -49,10 +51,14 @@
 |geo_rcnn11|0.839|0.946|0.946|-1.000|0.815|0.878|0.619|0.875|0.875|-1.000|0.855|0.909|
 |geo_rcnn11|0.463|0.527|0.527|-1.000|0.470|0.471|0.435|0.619|0.619|-1.000|0.618|0.624|
 |2x8 geo_rcnn11|0.817|0.954|0.954|-1.000|0.794|0.859|0.602|0.852|0.852|-1.000|0.832|0.886|
+|2x8 geo_rcnn11|0.848|0.965|0.965|-1.000|0.827|0.886|0.622|0.881|0.881|-1.000|0.862|0.915|
 |geo_rcnn12|0.823|0.936|0.936|-1.000|0.795|0.869|0.612|0.860|0.860|-1.000|0.837|0.900|
 |geo_rcnn12|0.431|0.500|0.500|-1.000|0.435|0.436|0.417|0.592|0.592|-1.000|0.593|0.591|
 |2x8 geo_rcnn12|0.836|0.954|0.954|-1.000|0.813|0.875|0.616|0.870|0.870|-1.000|0.850|0.904|
+|2x8 geo_rcnn12|0.829|0.962|0.962|-1.000|0.807|0.868|0.609|0.863|0.863|-1.000|0.844|0.896|
 |geo_rcnn13|0.848|0.960|0.960|-1.000|0.823|0.890|0.623|0.882|0.882|-1.000|0.861|0.919|
 |geo_rcnn13|0.740|0.851|0.851|-1.000|0.690|0.814|0.567|0.791|0.791|-1.000|0.753|0.853|
 |2x8 geo_rcnn13|0.837|0.969|0.969|-1.000|0.817|0.879|0.614|0.872|0.872|-1.000|0.853|0.907|
+|2x8 geo_rcnn13|0.836|0.974|0.974|-1.000|0.809|0.881|0.615|0.871|0.871|-1.000|0.850|0.909|
+
 

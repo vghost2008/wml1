@@ -178,7 +178,7 @@ class IouHeadNonLocalROIHeadsHook(wmodule.WChildModule):
                                              weighed_sum=False)
             return x,x,iou_x
         
-@ROI_HEADS_HOOK.register()
+@ROI_HEADS_HOOKegister()
 class SEROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
@@ -189,6 +189,17 @@ class SEROIHeadsHook(wmodule.WChildModule):
         reg_net = wnnl.se_block(net,scope=f"SEROIHeadsHook_reg")
         return cls_net,reg_net
 
+@ROI_HEADS_HOOK.register()
+class ClsSEROIHeadsHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        cls_net = wnnl.se_block(net,scope=f"SEROIHeadsHook_cls")
+        reg_net = net
+        return cls_net,reg_net
+    
 @ROI_HEADS_HOOK.register()
 class OneHeadSEROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
