@@ -1,6 +1,7 @@
 from thirdparty.registry import Registry
 from object_detection2.modeling.build import HEAD_OUTPUTS as _HEAD_OUTPUTS
 from object_detection2.modeling.build import build_outputs as _build_outputs
+from wmodule import WModelList
 
 HEAD_OUTPUTS = _HEAD_OUTPUTS
 ROI_HEADS_HOOK = Registry("ROI_HEADS_HOOK")
@@ -24,7 +25,14 @@ ROI_BOX_HEAD_OUTPUTS_LAYER_REGISTRY = Registry("ROI_BOX_HEAD_OUTPUTS_LAYER")
 def build_roi_heads_hook(cfg, *args,**kwargs):
     name = cfg.MODEL.ROI_HEADS.HOOK
     if len(name) > 0:
-        return ROI_HEADS_HOOK.get(name)(cfg,*args,**kwargs)
+        if ";" in name:
+            names = name.split(';')
+            models = []
+            for nm in names:
+                models.append(ROI_HEADS_HOOK.get(nm)(cfg,*args,**kwargs))
+            return WModelList(models,cfg,*args,**kwargs)
+        else:
+            return ROI_HEADS_HOOK.get(name)(cfg,*args,**kwargs)
     else:
         return None
     

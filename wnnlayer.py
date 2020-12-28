@@ -313,6 +313,45 @@ def group_norm_2d_with_sn(x, G=32, epsilon=1e-5,scope="group_norm_with_sn",sn_it
         return x*spectral_norm(gamma,sn_iteration,max_sigma=max_sigma)+ beta
 
 @add_arg_scope
+def group_norm_v2(x, gamma=None,beta=None,G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope=None,dtype=None):
+    # x: input features with shape [N,H,W,C]
+    # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN
+    with tf.variable_scope(scope,default_name="group_norm_v2"):
+        N,H,W,C = btf.combined_static_and_dynamic_shape(x)
+        if gamma is not None:
+            gamma = tf.reshape(gamma,shape=[N,1,1,G,C//G])
+        if beta is not None:
+            beta = tf.reshape(beta,shape=[N,1,1,G,C//G])
+        if weights_regularizer is not None:
+            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,weights_regularizer(gamma))
+        x = wmlt.reshape(x, [N, H, W, G, C // G,])
+        mean, var = tf.nn.moments(x, [1, 2, 4], keep_dims=True)
+
+        gain = tf.math.rsqrt(var + epsilon)
+        if sub_mean:
+            offset_value = -mean * gain
+        else:
+            offset_value = None
+
+        if scale:
+            gain *= gamma
+            if offset_value is not None:
+                offset_value *= gamma
+
+        if offset:
+            if offset_value is None:
+                offset_value = beta
+            else:
+                offset_value += beta
+
+        if offset_value is not None:
+            x = x * gain + offset_value
+        else:
+            x = offset_value
+        x = wmlt.reshape(x, [N,H,W,C])
+        return x
+
+@add_arg_scope
 def evo_norm_s0(x,*args,**kwargs):
     if len(x.get_shape()) == 4:
         return evo_norm_s0_4d(x,*args,**kwargs)

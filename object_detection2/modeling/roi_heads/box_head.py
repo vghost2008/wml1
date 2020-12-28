@@ -480,7 +480,7 @@ class FastRCNNConvHead(wmodule.WChildModule):
                                 activation_fn=self.activation_fn,
                                 normalizer_fn=self.normalizer_fn,
                                 normalizer_params=self.norm_params,
-                                padding = 'VALID',
+                                padding = 'SAME',
                                 scope="cls")
 
 

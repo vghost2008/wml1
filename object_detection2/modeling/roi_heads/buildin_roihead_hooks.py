@@ -4,6 +4,10 @@ import wmodule
 from collections import OrderedDict
 from .build import ROI_HEADS_HOOK
 import wnnlayer as wnnl
+import object_detection2.od_toolkit as odt
+import basic_tftools as btf
+
+slim = tf.contrib.slim
 
 @ROI_HEADS_HOOK.register()
 class NonLocalROIHeadsHook(wmodule.WChildModule):
@@ -204,3 +208,27 @@ class OneHeadCBAMROIHeadsHook(wmodule.WChildModule):
         del batched_inputs
         net = wnnl.cbam_block(net,scope=f"CBAMROIHeadsHook")
         return net
+
+@ROI_HEADS_HOOK.register()
+class AddBBoxesSizeInfo(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+
+    def forward(self,net,batched_inputs,reuse=None):
+        with tf.variable_scope("AddBBoxesSizeInfo"):
+            C = btf.channel(net)
+            bboxes = self.parent.t_proposal_boxes
+            B,BN,BC = btf.combined_static_and_dynamic_shape(bboxes)
+            bboxes = tf.reshape(bboxes,[B*BN,BC])
+            bboxes = slim.fully_connected(bboxes,C*2,activation_fn=self.activation_fn,
+                                          normalizer_fn=self.normalizer_fn,
+                                          normalizer_params=self.norm_params)
+            bboxes = slim.fully_connected(bboxes,C*2,activation_fn=None,
+                                          normalizer_fn=None)
+            gamma = bboxes[...,:C]
+            beta = bboxes[...,C:]
+            net = wnnl.group_norm_v2(net,gamma,beta)
+            return net
+

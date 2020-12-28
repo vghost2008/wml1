@@ -52,14 +52,6 @@ def reshape_list(l, shape=None):
             i += s
     return r
 
-def add_variables_summaries(learning_rate):
-    summaries = []
-    for variable in slim.get_model_variables():
-        summaries.append(tf.summary.histogram(variable.op.name, variable))
-    summaries.append(tf.summary.scalar('training/Learning Rate', learning_rate))
-    return summaries
-
-
 def update_model_scope(var, old_scope, new_scope):
     return var.op.name.replace(old_scope,new_scope)
 

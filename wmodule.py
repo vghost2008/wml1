@@ -52,3 +52,17 @@ class WChildModule(WModule):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         assert self.parent is not None
+
+class WModelList(WModule):
+    def __init__(self,models,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        assert self.parent is not None
+        self.models = models
+        assert len(self.models)>0
+
+    def farward(self,*args,**kwargs):
+        res = self.models[0](*args,**kwargs)
+        for m in self.models[1:]:
+            res = m(res)
+        return res
+
