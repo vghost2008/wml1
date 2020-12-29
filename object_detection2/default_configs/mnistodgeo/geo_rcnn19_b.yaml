@@ -1,0 +1,79 @@
+_BASE_: "../Base-Mask-RCNN-FPN-C4.yaml"
+MODEL:
+  MASK_ON: False
+  PREPROCESS: "subimagenetmean"
+  BACKBONE:
+    NAME: "build_retinanet_shufflenetv2_fpn_backbone"
+  RESNETS:
+    DEPTH: 50
+    FROZEN_BN: True
+    MAKE_C6C7: "C6C7"
+  ROI_HEADS:
+    NAME: "StandardROIHeads"
+    IN_FEATURES: ["F2"]
+    BATCH_SIZE_PER_IMAGE: 128
+    SCORE_THRESH_TEST: 0.2
+    NMS_THRESH_TEST: 0.4
+    CLASSES_WISE_NMS: False
+    BOX_CLS_LOSS_SCALE: 1.50
+    BOX_REG_LOSS_SCALE: 3.0
+  PROPOSAL_GENERATOR:
+    SCORE_THRESH_TEST: 0.005
+  ROI_BOX_HEAD:
+    NAME: "SeparateFastRCNNConvFCHeadV2"
+    NUM_FC: 2
+    POOLER_RESOLUTION: 7
+    NUM_CONV: 4
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    FC_WEIGHT_DECAY: 0.0001
+    CONV_WEIGHT_DECAY: 0.0001
+  ROI_MASK_HEAD:
+    NAME: "MaskRCNNConvUpsampleHead"
+    POOLER_RESOLUTION: 14
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    NUM_CONV: 4
+  FPN:
+    IN_FEATURES: ["C2","C3","C4"]
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    LAST_LEVEL_NUM_CONV: 0
+    BACKBONE_HOOK: ("NonLocalBackboneHookV2","FusionBackboneHookV2")
+  ANCHOR_GENERATOR:
+    SIZES: [[32], [64], [128]]
+    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+  RPN:
+    IN_FEATURES: ["P2", "P3","P4"]
+    PRE_NMS_TOPK_TRAIN: 6000 # Per FPN level
+    PRE_NMS_TOPK_TEST: 6000 # Per FPN level
+    POST_NMS_TOPK_TRAIN: 1000
+    POST_NMS_TOPK_TEST: 1000
+    IOU_THRESHOLDS: (0.4,0.5)
+    MATCHER: "ATSSMatcher"
+DATASETS:
+  #TRAIN: "cell_rdatav2"
+  TRAIN: "mnistgeood_train"
+  TEST: "mnistgeood_eval"
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.01
+  WARMUP_ITERS: 1000
+  CLIP_NORM: 32
+  STEPS: (10000,)
+  LR_DECAY_TYPE: "cosine"
+INPUT:
+  MIN_SIZE_TRAIN: (252, 268, 284, 300)
+  MAX_SIZE_TRAIN: 1024
+  MIN_SIZE_TEST: 300
+  MAX_SIZE_TEST: 1333
+  STITCH: 0.0
+  SHUFFLE_BUFFER_SIZE: 1024
+  DATAPROCESS: "TRANS1"
+  CROP:
+    SIZE: [0.334,0.53]
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "geo_rcnn19_b"
+  SUMMARY_LEVEL: 0
+  LOG_STEP: 200
