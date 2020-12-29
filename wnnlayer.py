@@ -1053,7 +1053,7 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
                       gamma_initializer=tf.constant_initializer(0.0),reuse=None,
-                      weighed_sum=True):
+                      weighed_sum=True,pos_embedding=None):
     def reshape_net(net):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         new_shape = [shape[0],shape[1]*shape[2],shape[3]]
@@ -1077,9 +1077,10 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
     with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         with tf.variable_scope("pos_embedding"):
-            pos_embs_shape = [1,shape[1],shape[2],shape[3]]
-            pos_embedding = tf.get_variable("pos_embs",shape=pos_embs_shape,dtype=tf.float32,
-                                            initializer=tf.random_normal_initializer(stddev=0.02))
+            if pos_embedding is None:
+                pos_embs_shape = [1,shape[1],shape[2],shape[3]]
+                pos_embedding = tf.get_variable("pos_embs",shape=pos_embs_shape,dtype=tf.float32,
+                                                 initializer=tf.random_normal_initializer(stddev=0.02))
             net = net+pos_embedding
         channel = shape[-1]
         if inner_dims is not None:

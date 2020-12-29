@@ -4,7 +4,8 @@
 - geo_rcnn0) ClsNonLocalROIHeadsHook+FusionBackboneHookV2+SeparateFastRCNNConvFCHeadV2
 - geo_rcnn1) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2
 - geo_rcnn2)
-- geo_rcnn3) ClsNonLocalROIHeadsHookV2+FusionBackboneHookV2+SeparateFastRCNNConvFCHeadV2
+- geo_rcnn3) ClsNonLocalROIHeadsHookV2+FusionBackboneHookV2+SeparateFastRCNNConvFCHeadV2(1)-NonLocalBackboneHookV2)
+- geo_rcnn3_1) geo_rcnn3+LR=0.02
 - geo_rcnn4) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHook+SeparateFastRCNNConvFCHeadV2(1) ClsNonLocalROIHeadsHookV2->ClsNonLocalROIHeadsHook)
 - geo_rcnn5) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+KeepRatioPooler
 - geo_rcnn6) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+F1
@@ -12,6 +13,7 @@
 - geo_rcnn8) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+3x (1) 3x)
 - geo_rcnn9) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+F1+Pool size=11
 - geo_rcnn10) NonLocalBackboneHookV2+FusionBackboneHookV2+ClsNonLocalROIHeadsHookV2+SeparateFastRCNNConvFCHeadV2+F1+Pool size=11 + KeepRatioPooler
+- geo_rcnn19) NonLocalBackboneHookV2+FusionBackboneHookV2+SeparateFastRCNNConvFCHeadV2(1)-ClsNonLocalROIHeadsHookV2)
 ```
 
 |配置|mAP|mAP@.50IOU|mAP@.75IOU|mAP (small)|mAP (medium)|mAP (large)|AR@1|AR@10|AR@100|AR@100 (small)|AR@100 (medium)|AR@100 (large)|
@@ -23,6 +25,8 @@
 |geo_rcnn0 +10k|0.800|0.915|0.915|-1.000|0.769|0.850|0.599|0.840|0.840|-1.000|0.815|0.882|
 |2x8 geo_rcnn0|0.674|0.772|0.772|-1.000|0.650|0.719|0.538|0.753|0.753|-1.000|0.732|0.789|
 |2x8 geo_rcnn0|0.441|0.503|0.503|-1.000|0.446|0.447|0.425|0.603|0.603|-1.000|0.602|0.606|
+|2x8 geo_rcnn0|0.722|0.824|0.824|-1.000|0.687|0.778|0.558|0.779|0.779|-1.000|0.752|0.823|
+|2x8 geo_rcnn0|0.838|0.956|0.956|-1.000|0.818|0.879|0.618|0.874|0.874|-1.000|0.855|0.909|
 |geo_rcnn1|0.479|0.542|0.542|-1.000|0.489|0.474|0.442|0.626|0.626|-1.000|0.630|0.621|
 |geo_rcnn1|0.504|0.538|0.538|-1.000|0.474|0.505|0.577|0.647|0.647|-1.000|0.583|0.650|
 |geo_rcnn1|0.770|0.822|0.822|-1.000|0.581|0.777|0.733|0.822|0.822|-1.000|0.667|0.827|
@@ -30,13 +34,21 @@
 |bt geo_rcnn1|0.799|0.926|0.926|-1.000|0.768|0.851|0.596|0.838|0.838|-1.000|0.813|0.881|
 |2x8 geo_rcnn1|0.835|0.961|0.961|-1.000|0.812|0.874|0.613|0.870|0.870|-1.000|0.851|0.904|
 |2x8 geo_rcnn1|0.818|0.944|0.944|-1.000|0.793|0.863|0.606|0.854|0.854|-1.000|0.833|0.890|
+|2x8 geo_rcnn1|0.690|0.794|0.794|-1.000|0.662|0.739|0.547|0.761|0.761|-1.000|0.737|0.800|
+|2x8 geo_rcnn1|0.809|0.934|0.934|-1.000|0.781|0.857|0.601|0.847|0.847|-1.000|0.823|0.888|
 |geo_rcnn2|0.819|0.924|0.924|-1.000|0.786|0.871|0.610|0.857|0.857|-1.000|0.831|0.901|
 |geo_rcnn2|0.671|0.713|0.713|-1.000|0.613|0.677|0.681|0.760|0.760|-1.000|0.704|0.764|
+|2x8 geo_rcnn2|0.834|0.971|0.971|-1.000|0.813|0.873|0.612|0.868|0.868|-1.000|0.850|0.900|
+|2x8 geo_rcnn2|0.817|0.949|0.949|-1.000|0.791|0.859|0.604|0.853|0.853|-1.000|0.833|0.888|
 |geo_rcnn3|0.852|0.913|0.913|-1.000|0.653|0.859|0.789|0.885|0.885|-1.000|0.722|0.891|
 |geo_rcnn3|0.873|0.937|0.937|-1.000|0.768|0.879|0.807|0.903|0.903|-1.000|0.812|0.907|
 |geo_rcnn3 big|0.838|0.945|0.945|-1.000|0.813|0.882|0.619|0.875|0.875|-1.000|0.852|0.912|
 |2x8 geo_rcnn3|0.843|0.964|0.964|-1.000|0.820|0.881|0.618|0.876|0.876|-1.000|0.856|0.910|
 |2x8 geo_rcnn3|0.818|0.925|0.925|-1.000|0.794|0.860|0.608|0.856|0.856|-1.000|0.836|0.889|
+|2x8 geo_rcnn3|0.832|0.954|0.954|-1.000|0.805|0.876|0.613|0.866|0.866|-1.000|0.845|0.904|
+|2x8 geo_rcnn3|0.461|0.525|0.525|-1.000|0.462|0.471|0.437|0.615|0.615|-1.000|0.612|0.622|
+|geo_rcnn3_1|0.540|0.617|0.617|-1.000|0.525|0.574|0.469|0.664|0.664|-1.000|0.653|0.683|
+|geo_rcnn3_1|0.799|0.944|0.943|-1.000|0.769|0.852|0.596|0.837|0.837|-1.000|0.812|0.880|
 |geo_rcnn4|0.486|0.512|0.512|-1.000|0.538|0.488|0.572|0.641|0.641|-1.000|0.643|0.642|
 |geo_rcnn5|0.477|0.552|0.552|-1.000|0.527|0.476|0.550|0.620|0.620|-1.000|0.606|0.621|
 |geo_rcnn5+10k|0.712|0.881|0.880|-1.000|0.672|0.771|0.545|0.762|0.762|-1.000|0.731|0.814|
@@ -77,3 +89,6 @@
 |geo_rcnn17|0.727|0.846|0.846|-1.000|0.705|0.768|0.559|0.781|0.781|-1.000|0.761|0.814|
 |geo_rcnn18|0.433|0.498|0.498|-1.000|0.439|0.439|0.419|0.595|0.595|-1.000|0.595|0.598|
 |geo_rcnn18|0.439|0.502|0.502|-1.000|0.442|0.450|0.414|0.597|0.597|-1.000|0.597|0.602|
+|geo_rcnn19|0.671|0.775|0.774|-1.000|0.629|0.732|0.536|0.745|0.745|-1.000|0.716|0.792|
+|geo_rcnn19|0.756|0.866|0.866|-1.000|0.716|0.818|0.578|0.806|0.806|-1.000|0.776|0.857|
+
