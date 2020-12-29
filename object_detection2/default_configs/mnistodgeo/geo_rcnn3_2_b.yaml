@@ -17,7 +17,7 @@ MODEL:
     CLASSES_WISE_NMS: False
     BOX_CLS_LOSS_SCALE: 1.50
     BOX_REG_LOSS_SCALE: 3.0
-    HOOK: "ClsNonLocalROIHeadsHook"
+    HOOK: "ClsNonLocalROIHeadsHookV2"
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
@@ -75,6 +75,6 @@ INPUT:
     SIZE: [0.334,0.53]
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "geo_rcnn0_1"
+  PROJ_NAME: "geo_rcnn3_2_b"
   SUMMARY_LEVEL: 0
   LOG_STEP: 200

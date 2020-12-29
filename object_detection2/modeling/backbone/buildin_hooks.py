@@ -61,6 +61,41 @@ class NonLocalBackboneHookV2(wmodule.WChildModule):
             return res
 
 @BACKBONE_HOOK_REGISTRY.register()
+class NonLocalBackboneHookV3(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+        self.base_size = 512
+
+    def forward(self,features,batched_inputs):
+        del batched_inputs
+        res = OrderedDict()
+        normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
+        normalizer_params['G'] = 8
+        with tf.variable_scope("NonLocalBackboneHookV2"):
+            for k,v in features.items():
+                if k[0] not in ["C","P"]:
+                    continue
+                level = int(k[1:])
+                if level<=2:
+                    res[k] = v
+                    continue
+                shape = wmlt.combined_static_and_dynamic_shape(v)
+                h = self.base_size//(2**level)
+                w = self.base_size//(2**level)
+                v = tf.image.resize_bilinear(v,[h,w])
+                v = wnnl.non_local_blockv4(v,
+                                           inner_dims=[128, 128, 128],
+                                           normalizer_fn=normalizer_fn,
+                                           normalizer_params=normalizer_params,
+                                           n_head=2,
+                                           activation_fn=None,
+                                           weighed_sum=False,
+                                           scope=f"non_localv4_{level}")
+                v = tf.image.resize_bilinear(v,shape[1:3])
+                res[k] = v
+            return res
+
+@BACKBONE_HOOK_REGISTRY.register()
 class SEBackboneHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)
