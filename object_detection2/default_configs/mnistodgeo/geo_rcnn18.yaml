@@ -23,13 +23,12 @@ MODEL:
   ROI_BOX_HEAD:
     NAME: "SeparateFastRCNNConvFCHeadV2"
     NUM_FC: 2
-    POOLER_RESOLUTION: 7
+    POOLER_RESOLUTION: 11
     NUM_CONV: 4
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     FC_WEIGHT_DECAY: 0.0001
     CONV_WEIGHT_DECAY: 0.0001
-    POOLER_RESOLUTION: 11
     bin_size: (1,1)
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
