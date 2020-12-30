@@ -71,7 +71,7 @@ class NonLocalBackboneHookV3(wmodule.WChildModule):
         res = OrderedDict()
         normalizer_fn, normalizer_params = odt.get_norm("evo_norm_s0", is_training=self.is_training)
         normalizer_params['G'] = 8
-        with tf.variable_scope("NonLocalBackboneHookV2"):
+        with tf.variable_scope("NonLocalBackboneHookV3"):
             for k,v in features.items():
                 if k[0] not in ["C","P"]:
                     continue
@@ -79,10 +79,8 @@ class NonLocalBackboneHookV3(wmodule.WChildModule):
                 if level<=2:
                     res[k] = v
                     continue
-                shape = wmlt.combined_static_and_dynamic_shape(v)
                 h = self.base_size//(2**level)
                 w = self.base_size//(2**level)
-                v = tf.image.resize_bilinear(v,[h,w])
                 v = wnnl.non_local_blockv4(v,
                                            inner_dims=[128, 128, 128],
                                            normalizer_fn=normalizer_fn,
@@ -90,8 +88,8 @@ class NonLocalBackboneHookV3(wmodule.WChildModule):
                                            n_head=2,
                                            activation_fn=None,
                                            weighed_sum=False,
-                                           scope=f"non_localv4_{level}")
-                v = tf.image.resize_bilinear(v,shape[1:3])
+                                           scope=f"non_localv4_{level}",
+                                           size=[h,w])
                 res[k] = v
             return res
 

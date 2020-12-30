@@ -433,14 +433,14 @@ class PascalVOCData(object):
                                                                             aspect_range=None,
                                                                             has_probs=self.has_probs,
                                                                             absolute_coord=self.absolute_coord)
+
+                if self.label_text2id is not None:
+                    labels = [self.label_text2id(x) for x in labels_names]
+                else:
+                    labels = None
             except:
                 print(f"Read {xml_file} faild.")
                 continue
-
-            if self.label_text2id is not None:
-                labels = [self.label_text2id(x) for x in labels_names]
-            else:
-                labels = None
             #使用difficult表示is_crowd
             yield img_file, shape[:2],labels, labels_names, bboxes, None, None, difficult, probs
 

@@ -1047,13 +1047,15 @@ def non_local_blockv3(Q,K,V,inner_dims_multiplier=[8,8,2],n_head=1,keep_prob=Non
             out = activation_fn(out)
         return out
 
+
 def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
                       inner_dims=None,
                       n_head=1,keep_prob=None,is_training=False,scope=None,
                       conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
                       activation_fn=tf.nn.relu,
                       gamma_initializer=tf.constant_initializer(0.0),reuse=None,
-                      weighed_sum=True,pos_embedding=None):
+                      weighed_sum=True,pos_embedding=None,
+                      size=None):
     def reshape_net(net):
         shape = wmlt.combined_static_and_dynamic_shape(net)
         new_shape = [shape[0],shape[1]*shape[2],shape[3]]
@@ -1074,13 +1076,17 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
         if len(inner_dims) == 1:
             inner_dims = inner_dims*3
 
-    with tf.variable_scope(scope,default_name="non_local",reuse=reuse):
+    with tf.variable_scope(scope,default_name="non_localv4",reuse=reuse):
+        org_net = net
+
+        if size is not None:
+            net = tf.image.resize_bilinear(net,size)
         shape = wmlt.combined_static_and_dynamic_shape(net)
         with tf.variable_scope("pos_embedding"):
             if pos_embedding is None:
                 pos_embs_shape = [1,shape[1],shape[2],shape[3]]
                 pos_embedding = tf.get_variable("pos_embs",shape=pos_embs_shape,dtype=tf.float32,
-                                                 initializer=tf.random_normal_initializer(stddev=0.02))
+                                                initializer=tf.random_normal_initializer(stddev=0.02))
             net = net+pos_embedding
         channel = shape[-1]
         if inner_dims is not None:
@@ -1110,11 +1116,13 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
                       normalizer_fn=None,
                       scope="attn_conv")
         normalizer_params  = normalizer_params or {}
+        if size is not None:
+            out = tf.image.resize_bilinear(out,wmlt.combined_static_and_dynamic_shape(org_net)[1:3])
         if weighed_sum:
             gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
-            out = gamma*out+net
+            out = gamma*out+org_net
         else:
-            out = out+net
+            out = out+org_net
 
         if normalizer_fn is not None:
             out = normalizer_fn(out,**normalizer_params)

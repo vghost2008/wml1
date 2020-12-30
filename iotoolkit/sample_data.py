@@ -13,6 +13,17 @@ def name_dict_nr2id_dict_nr(data,name_to_id,scale=1):
         res[id] = int(v*scale)
     return res
 
+def name_dict_nr2id_dict_nrv2(data,name_to_id,target_nr=1500):
+    res = {}
+    total_nr = 0
+    for k,v in data.items():
+        total_nr += v
+    scale = target_nr/total_nr
+    for k,v in data.items():
+        id = name_to_id(k)
+        res[id] = int(v*scale)
+    return res
+
 def count_file(data):
     img_file, labels = data
     labels_set = set(labels)
