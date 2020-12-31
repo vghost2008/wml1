@@ -56,7 +56,9 @@ V_len is important, ensure softmax(A) attention on valid value, Q_len donsen't t
 if use multi layer of attention every layer have to use V_len
 res:[batch_size,n,nb_head*size_per_head]
 '''
-def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is_training=False,use_mask=False):
+def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is_training=False,use_mask=False,
+                         prev_scores_logits=None,
+                         return_pre_scores=False):
     with tf.variable_scope("MultiHeadAttention"):
         Q = split_heads(Q,n_head)
         #now Q is [batch_size, nb_head,n,size_per_head0]
@@ -73,6 +75,9 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
             A = tf.transpose(A, [0, 3, 2, 1])
             A = mask_attn_of_length(A, V_len, mode='add')
             A = tf.transpose(A, [0, 3, 2, 1])
+        if prev_scores_logits is not None:
+            A = prev_scores_logits+A
+            prev_scores_logits = A
         A = tf.nn.softmax(A)
         if keep_prob is not None:
             A = slim.dropout(A,keep_prob=keep_prob,is_training=is_training)
@@ -86,7 +91,10 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
         O = tf.reshape(O, [o_shape[0], o_shape[1],np.prod(o_shape[-2:])])
         if Q_len is not None:
             O = mask_attn_of_length(O, Q_len, 'mul')
-        return O
+        if return_pre_scores:
+            return O,prev_scores_logits
+        else:
+            return O
 
 '''
 Multi-Head Attention from ATTENTION IS ALL YOU NEED
@@ -146,6 +154,18 @@ def self_attenation(net,*args,**kwargs):
             kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
         Q,K,V = tf.split(net,num_or_size_splits=3,axis=2)
         return multi_head_attention(Q,K,V,*args,**kwargs)
+
+def real_former_self_attenation(net,prev_scores_logits,*args,**kwargs):
+    with tf.variable_scope("SelfAttention"):
+        channel = net.get_shape().as_list()[-1]
+        net = tf.layers.dense(
+            net,
+            channel* 3,
+            activation=None,
+            name="split_to_QKV",
+            kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
+        Q,K,V = tf.split(net,num_or_size_splits=3,axis=2)
+        return multi_head_attention(Q,K,V,prev_scores_logits=prev_scores_logits,return_pre_scores=True,*args,**kwargs)
 
 def split_heads(x, n,name=None):
     '''

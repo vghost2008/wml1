@@ -226,9 +226,10 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
 
 '''
 file_path:图像文件路径
+save_path: xml path or None
 bboxes:相对坐标
 '''
-def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None,img_shape=None):
+def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None,img_shape=None,is_relative_coordinate=True):
     if isinstance(bboxes,np.ndarray):
         bboxes = bboxes.tolist()
     if isinstance(labels,np.ndarray):
@@ -248,10 +249,13 @@ def writeVOCXml(file_path,bboxes, labels, save_path=None,difficult=None, truncat
         base_name = base_name[:-4]+".xml"
         save_path = os.path.join(dir_path,base_name)
 
-    write_voc_xml(save_path,file_path,img_shape,bboxes,labels,difficult,truncated,probs=probs)
+    write_voc_xml(save_path,file_path,img_shape,bboxes,labels,difficult,truncated,probs=probs,
+                  is_relative_coordinate=is_relative_coordinate)
 
 '''
 与上一个版本的区别为 img shape 为输入值，不需要读图获取
+file_path: image path
+save_path: xml path or None
 '''
 def writeVOCXmlV2(file_path,shape,bboxes, labels, save_path=None,difficult=None, truncated=None,probs=None,
                   is_relative_coordinate=True):

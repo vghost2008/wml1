@@ -310,6 +310,7 @@ def pascal_voc_dataset():
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_neg_test"
     data_path = "/home/vghost/ai/work/mnistgeood_data_generate/data"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv5_pos_proc_m"
+    data_path = "/0_data/data/user/wbz/OCR/rdatav23/"
     #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/rdatasv4_pos_proc_m'
     #data_path = '/home/vghost/ai/mldata3/cell/pos_stage_01_verify_preprocv3_1'
     #data_path = '/home/wj/ai/mldata3/cell/data2annotation/verify_p04_1105_2'

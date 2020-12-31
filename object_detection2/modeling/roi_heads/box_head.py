@@ -13,6 +13,7 @@ import basic_tftools as btf
 from object_detection2.modeling.matcher import Matcher
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
+from nlp.transformer import real_former_transformer_model
 
 slim = tf.contrib.slim
 class BoxesForwardType:
@@ -1077,6 +1078,225 @@ class SeparateFastRCNNConvFCHeadV9(wmodule.WChildModule):
                 bboxes_size = tf.reshape(bboxes_size,[-1])
 
             cls_x, box_x = self.forward_with_size(cls_x, box_x, bboxes_size)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x, box_x, iou_x
+            else:
+                return cls_x, box_x
+
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNAttHeadV1(wmodule.WChildModule):
+
+    def __init__(self, cfg, *args, **kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg, *args, **kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+        self.size_threshold = 64
+        self.head_nr = 4
+        self.num_classes = cfg.MODEL.ROI_HEADS.NUM_CLASSES  # 不包含背景
+        self.cls_agnostic_bbox_reg = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
+        self.box_dim = 4
+
+    def forward(self, x, scope="SeparateFastRCNNAttHeadV1", reuse=None):
+        with tf.variable_scope(scope, reuse=reuse):
+            cfg = self.cfg
+            conv_dim = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+            num_conv = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+            fc_dim = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+            num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+            cfg = self.cfg
+
+
+            def add_encode_data(x):
+                assert len(x.get_shape())==3, f"Error x shape size {x.get_shape()}"
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                add_data = tf.zeros(shape=[shape[0],1,shape[-1]],dtype=x.dtype)
+                return tf.concat([add_data,x],axis=1)
+
+            def pos_embedding(x,scope=None):
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                with tf.variable_scope(scope,default_name="pos_embedding"):
+                    pos_embs_shape = [1, shape[1], shape[2]]
+                    pos_embedding = tf.get_variable("pos_embs", shape=pos_embs_shape, dtype=tf.float32,
+                                                    initializer=tf.random_normal_initializer(stddev=0.02))
+
+                return x+pos_embedding
+
+            def trans_data(x,name=None):
+                assert len(x.get_shape())==4, f"Error x shape size {x.get_shape()}"
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                x = tf.reshape(x, [shape[0], shape[1]*shape[2],shape[-1]])
+                x = add_encode_data(x)
+                x = pos_embedding(x,scope=name+"_embedding")
+                x = tf.layers.dense(
+                    x,
+                    fc_dim,
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                    name = name+"_dense")
+                return x
+
+
+            if not isinstance(x, tf.Tensor) and isinstance(x, Iterable):
+                assert len(x) >= 2, "error feature map length"
+                cls_x = x[0]
+                box_x = x[1]
+                if len(x) >= 3:
+                    iou_x = x[2]
+                else:
+                    iou_x = x[1]
+            else:
+                cls_x = x
+                box_x = x
+                iou_x = x
+
+            cls_x = trans_data(cls_x,"cls")
+            box_x = trans_data(box_x,"box")
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                iou_x = trans_data(iou_x)
+            with tf.variable_scope("ClassPredictionTower"):
+                cls_x = real_former_transformer_model(cls_x,hidden_size=fc_dim,
+                                                      num_hidden_layers=num_fc,
+                                                      num_attention_heads=4,
+                                                      intermediate_size=fc_dim,
+                                                      is_training=self.is_training)
+                cls_x = cls_x[:,0,:]
+
+            with tf.variable_scope("BoxPredictionTower"):
+                box_x = real_former_transformer_model(box_x,hidden_size=fc_dim,
+                                                      num_hidden_layers=num_fc,
+                                                      num_attention_heads=4,
+                                                      intermediate_size=fc_dim,
+                                                      is_training=self.is_training)
+                box_x = box_x[:,0,:]
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                with tf.variable_scope("BoxPredictionTower"):
+                    iou_x = real_former_transformer_model(iou_x,hidden_size=fc_dim,
+                                                          num_hidden_layers=num_fc,
+                                                          num_attention_heads=4,
+                                                          intermediate_size=fc_dim,
+                                                          is_training=self.is_training)
+                    iou_x = iou_x[:,0,:]
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                return cls_x, box_x, iou_x
+            else:
+                return cls_x, box_x
+
+
+@ROI_BOX_HEAD_REGISTRY.register()
+class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
+
+    def __init__(self, cfg, *args, **kwargs):
+        """
+        The following attributes are parsed from config:
+            num_conv, num_fc: the number of conv/fc layers
+            conv_dim/fc_dim: the dimension of the conv/fc layers
+            norm: normalization for the conv layers
+        """
+        super().__init__(cfg, *args, **kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.ROI_BOX_HEAD.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
+        self.size_threshold = 64
+        self.head_nr = 4
+        self.num_classes = cfg.MODEL.ROI_HEADS.NUM_CLASSES  # 不包含背景
+        self.cls_agnostic_bbox_reg = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
+        self.box_dim = 4
+
+    def forward(self, x, scope="SeparateFastRCNNAttHeadV1", reuse=None):
+        with tf.variable_scope(scope, reuse=reuse):
+            cfg = self.cfg
+            conv_dim = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
+            num_conv = cfg.MODEL.ROI_BOX_HEAD.NUM_CONV
+            fc_dim = cfg.MODEL.ROI_BOX_HEAD.FC_DIM
+            num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
+            cfg = self.cfg
+
+            def add_encode_data(x):
+                assert len(x.get_shape()) == 3, f"Error x shape size {x.get_shape()}"
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                add_data = tf.zeros(shape=[shape[0], 1, shape[-1]], dtype=x.dtype)
+                return tf.concat([add_data, x], axis=1)
+
+            def pos_embedding(x, scope=None):
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                with tf.variable_scope(scope, default_name="pos_embedding"):
+                    pos_embs_shape = [1, shape[1], shape[2]]
+                    pos_embedding = tf.get_variable("pos_embs", shape=pos_embs_shape, dtype=tf.float32,
+                                                    initializer=tf.random_normal_initializer(stddev=0.02))
+
+                return x + pos_embedding
+
+            def trans_data(x, name=None):
+                assert len(x.get_shape()) == 4, f"Error x shape size {x.get_shape()}"
+                shape = wmlt.combined_static_and_dynamic_shape(x)
+                x = tf.reshape(x, [shape[0], shape[1] * shape[2], shape[-1]])
+                x = add_encode_data(x)
+                x = pos_embedding(x, scope=name + "_embedding")
+                x = tf.layers.dense(
+                    x,
+                    fc_dim,
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                    name=name + "_dense")
+                return x
+
+            if not isinstance(x, tf.Tensor) and isinstance(x, Iterable):
+                assert len(x) >= 2, "error feature map length"
+                cls_x = x[0]
+                box_x = x[1]
+                if len(x) >= 3:
+                    iou_x = x[2]
+                else:
+                    iou_x = x[1]
+            else:
+                cls_x = x
+                box_x = x
+                iou_x = x
+
+            cls_x = trans_data(cls_x, "cls")
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                iou_x = trans_data(iou_x)
+            with tf.variable_scope("ClassPredictionTower"):
+                cls_x = real_former_transformer_model(cls_x, hidden_size=fc_dim,
+                                                      num_hidden_layers=num_fc,
+                                                      num_attention_heads=4,
+                                                      intermediate_size=fc_dim,
+                                                      is_training=self.is_training)
+                cls_x = cls_x[:, 0, :]
+
+            with tf.variable_scope("BoxPredictionTower"):
+                if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
+                    weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
+                else:
+                    weights_regularizer = None
+                for _ in range(num_conv):
+                    box_x = slim.conv2d(box_x,conv_dim,[3,3],
+                                        activation_fn=self.activation_fn,
+                                        normalizer_fn=self.normalizer_fn,
+                                        normalizer_params=self.norm_params,
+                                        weights_regularizer=weights_regularizer)
+
+                if cfg.MODEL.ROI_BOX_HEAD.ENABLE_BOX_DROPBLOCK and self.is_training:
+                    keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                             max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.BOX_KEEP_PROB)
+                    if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                        tf.summary.scalar(name="box_head_box_keep_prob",tensor=keep_prob)
+                    box_x = slim.dropout(box_x, keep_prob=keep_prob,is_training=self.is_training)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                with tf.variable_scope("BoxPredictionTower"):
+                    iou_x = real_former_transformer_model(iou_x, hidden_size=fc_dim,
+                                                          num_hidden_layers=num_fc,
+                                                          num_attention_heads=4,
+                                                          intermediate_size=fc_dim,
+                                                          is_training=self.is_training)
+                    iou_x = iou_x[:, 0, :]
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 return cls_x, box_x, iou_x
