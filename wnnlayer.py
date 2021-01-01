@@ -1116,13 +1116,14 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
                       normalizer_fn=None,
                       scope="attn_conv")
         normalizer_params  = normalizer_params or {}
-        if size is not None:
-            out = tf.image.resize_bilinear(out,wmlt.combined_static_and_dynamic_shape(org_net)[1:3])
         if weighed_sum:
             gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
-            out = gamma*out+org_net
+            out = gamma*out+net
         else:
-            out = out+org_net
+            out = out+net
+
+        if size is not None:
+            out = tf.image.resize_bilinear(out,wmlt.combined_static_and_dynamic_shape(org_net)[1:3])
 
         if normalizer_fn is not None:
             out = normalizer_fn(out,**normalizer_params)
