@@ -20,15 +20,15 @@ MODEL:
   PROPOSAL_GENERATOR:
     SCORE_THRESH_TEST: 0.005
   ROI_BOX_HEAD:
-    NAME: "SeparateFastRCNNAttHeadV1"
+    NAME: "SeparateFastRCNNAttHeadV2"
     NUM_FC: 2
     POOLER_RESOLUTION: 7
     NUM_CONV: 4
-    FC_DIM: 512
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     FC_WEIGHT_DECAY: 0.0001
     CONV_WEIGHT_DECAY: 0.0001
+    FC_DIM: 512
   ROI_MASK_HEAD:
     NAME: "MaskRCNNConvUpsampleHead"
     POOLER_RESOLUTION: 14
@@ -75,6 +75,6 @@ INPUT:
     SIZE: [0.334,0.53]
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "geo_rcnn21"
+  PROJ_NAME: "geo_rcnn22_b"
   SUMMARY_LEVEL: 0
   LOG_STEP: 200

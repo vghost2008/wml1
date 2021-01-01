@@ -77,7 +77,7 @@ def multi_head_attention(Q, K, V, n_head,Q_len=None,V_len=None,keep_prob=None,is
             A = tf.transpose(A, [0, 3, 2, 1])
         if prev_scores_logits is not None:
             A = prev_scores_logits+A
-            prev_scores_logits = A
+        prev_scores_logits = A
         A = tf.nn.softmax(A)
         if keep_prob is not None:
             A = slim.dropout(A,keep_prob=keep_prob,is_training=is_training)
