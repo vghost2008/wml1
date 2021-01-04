@@ -50,7 +50,8 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
                         text_fn=default_text_fn,
                         get_text_pos_fn=get_text_pos_fn,
                         thickness=4,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
-                is_relative_coordinate=True):
+                        is_relative_coordinate=True,
+                        is_show_text=None):
     if is_relative_coordinate:
         shape = img.shape
     else:
@@ -74,12 +75,17 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
             p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
             cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
             if show_text and text_fn is not None:
-                s = text_fn(classes[i], scores[i])
-                p = get_text_pos_fn(p10,p2,bbox,classes[i])
-                cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX,
-                            fontScale=font_scale,
-                            color=text_color,
-                            thickness=1)
+                f_show_text = True
+                if is_show_text is not None:
+                    f_show_text = is_show_text(p10,p2)
+
+                if f_show_text:
+                    s = text_fn(classes[i], scores[i])
+                    p = get_text_pos_fn(p10,p2,bbox,classes[i])
+                    cv2.putText(img, s, p[::-1], cv2.FONT_HERSHEY_DUPLEX,
+                                fontScale=font_scale,
+                                color=text_color,
+                                thickness=1)
         except:
             bbox = bboxes[i]
             p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
@@ -92,6 +98,32 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
             
 
     return img
+
+def draw_legend(labels,text_fn,img_size,color_fn,thickness=4,font_scale=1.2,text_color=(0.,255.,0.)):
+    boxes_width = max(img_size[1]//3,20)
+    boxes_height = img_size[0]/(2*len(labels))
+    def lget_text_pos_fn(pmin, pmax, bbox, label):
+        p1 = (pmax[0]+5, pmax[1]+5)
+        return p1
+
+    bboxes = []
+    for i,l in enumerate(labels):
+        xmin = 5
+        xmax = xmin+boxes_width
+        ymin = int((2*i+0.5)*boxes_height)
+        ymax = ymin + boxes_height
+        bboxes.append([ymin,xmin,ymax,xmax])
+    img = np.ones([img_size[0],img_size[1],3],dtype=np.uint8)
+    return draw_bboxes(img,labels,bboxes=bboxes,color_fn=color_fn,text_fn=text_fn,
+                get_text_pos_fn=lget_text_pos_fn,
+                thickness=thickness,
+                show_text=True,
+                font_scale=font_scale,
+                text_color=text_color,
+                is_relative_coordinate=False)
+
+
+
 '''
 mask only include the area within bbox
 '''

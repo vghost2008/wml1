@@ -365,7 +365,9 @@ if __name__ == "__main__":
             k = min_size/ img_size[1]
         return [k*img_size[0],k*img_size[1]]
 
-    statics = statistics_boxes_with_datas(pascal_voc_dataset(),
+    statics = statistics_boxes_with_datas(
+                                          #pascal_voc_dataset(),
+                                          labelme_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,
