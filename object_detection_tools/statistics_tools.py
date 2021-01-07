@@ -309,8 +309,9 @@ def pascal_voc_dataset():
     data_path = "/home/wj/ai/mldata3/cell/neg_stage04_preproc/"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_neg_test"
     data_path = "/home/vghost/ai/work/mnistgeood_data_generate/data"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv5_pos_proc_m"
-    data_path = "/0_data/data/user/wbz/OCR/rdatav23/"
+    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv7_pos_proc_m/"
+    #data_path = "/home/wj/ai/mldata3/cell/data2annotation/verify_n07_1230_2/"
+    #data_path = "/0_data/data/user/wbz/OCR/rdatav23/"
     #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/rdatasv4_pos_proc_m'
     #data_path = '/home/vghost/ai/mldata3/cell/pos_stage_01_verify_preprocv3_1'
     #data_path = '/home/wj/ai/mldata3/cell/data2annotation/verify_p04_1105_2'
@@ -346,7 +347,8 @@ def coco2014_val_dataset():
 
 def labelme_dataset():
     data = LabelMeData(label_text2id=None)
-    data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10")
+    #data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10")
+    data.read_data("/home/vghost/ai/mldata2/mnistgeood_data/test")
     return data.get_items()
 
 if __name__ == "__main__":

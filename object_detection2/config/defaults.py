@@ -346,8 +346,8 @@ _C.MODEL.ROI_BOX_HEAD.OUTPUTS_LAYER = "FastRCNNOutputLayers"
 # These are empirically chosen to approximately lead to unit variance targets
 _C.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
 # The transition point from L1 to L2 loss. Set to 0.0 to make the loss simply L1.
-_C.MODEL.ROI_BOX_HEAD.bin_size = (2,2)
-_C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 14
+_C.MODEL.ROI_BOX_HEAD.bin_size = (1,1)
+_C.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = 7
 _C.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 0
 # Type of pooling operation applied to the incoming feature map for each RoI
 _C.MODEL.ROI_BOX_HEAD.POOLER_TYPE = "ROIAlign"

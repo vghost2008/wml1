@@ -1112,12 +1112,13 @@ class SeparateFastRCNNAttHeadV1(wmodule.WChildModule):
             num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
             cfg = self.cfg
 
-
-            def add_encode_data(x):
-                assert len(x.get_shape())==3, f"Error x shape size {x.get_shape()}"
-                shape = wmlt.combined_static_and_dynamic_shape(x)
-                add_data = tf.zeros(shape=[shape[0],1,shape[-1]],dtype=x.dtype)
-                return tf.concat([add_data,x],axis=1)
+            def add_encode_data(x, scope):
+                assert len(x.get_shape()) == 3, f"Error x shape size {x.get_shape()}"
+                with tf.variable_scope(scope, "add_tag"):
+                    shape = wmlt.combined_static_and_dynamic_shape(x)
+                    add_data = tf.get_variable("output_tag", shape=[shape[0], 1, shape[-1]], dtype=x.dtype,
+                                               initializer=tf.zeros_initializer())
+                    return tf.concat([add_data, x], axis=1)
 
             def pos_embedding(x,scope=None):
                 shape = wmlt.combined_static_and_dynamic_shape(x)
@@ -1132,7 +1133,7 @@ class SeparateFastRCNNAttHeadV1(wmodule.WChildModule):
                 assert len(x.get_shape())==4, f"Error x shape size {x.get_shape()}"
                 shape = wmlt.combined_static_and_dynamic_shape(x)
                 x = tf.reshape(x, [shape[0], shape[1]*shape[2],shape[-1]])
-                x = add_encode_data(x)
+                x = add_encode_data(x,scope=name+"_add_tag")
                 x = pos_embedding(x,scope=name+"_embedding")
                 x = tf.layers.dense(
                     x,
@@ -1158,7 +1159,7 @@ class SeparateFastRCNNAttHeadV1(wmodule.WChildModule):
             cls_x = trans_data(cls_x,"cls")
             box_x = trans_data(box_x,"box")
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
-                iou_x = trans_data(iou_x)
+                iou_x = trans_data(iou_x,"iou")
             with tf.variable_scope("ClassPredictionTower"):
                 cls_x = real_former_transformer_model(cls_x,hidden_size=fc_dim,
                                                       num_hidden_layers=num_fc,
@@ -1218,11 +1219,13 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
             num_fc = cfg.MODEL.ROI_BOX_HEAD.NUM_FC
             cfg = self.cfg
 
-            def add_encode_data(x):
+            def add_encode_data(x,scope):
                 assert len(x.get_shape()) == 3, f"Error x shape size {x.get_shape()}"
-                shape = wmlt.combined_static_and_dynamic_shape(x)
-                add_data = tf.zeros(shape=[shape[0], 1, shape[-1]], dtype=x.dtype)
-                return tf.concat([add_data, x], axis=1)
+                with tf.variable_scope(scope,"add_tag"):
+                    shape = wmlt.combined_static_and_dynamic_shape(x)
+                    add_data = tf.get_variable("output_tag",shape=[shape[0], 1, shape[-1]], dtype=x.dtype,
+                                               initializer=tf.zeros_initializer())
+                    return tf.concat([add_data, x], axis=1)
 
             def pos_embedding(x, scope=None):
                 shape = wmlt.combined_static_and_dynamic_shape(x)
@@ -1237,7 +1240,7 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
                 assert len(x.get_shape()) == 4, f"Error x shape size {x.get_shape()}"
                 shape = wmlt.combined_static_and_dynamic_shape(x)
                 x = tf.reshape(x, [shape[0], shape[1] * shape[2], shape[-1]])
-                x = add_encode_data(x)
+                x = add_encode_data(x,scope=name+"_add_tag")
                 x = pos_embedding(x, scope=name + "_embedding")
                 x = tf.layers.dense(
                     x,
@@ -1261,7 +1264,7 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
 
             cls_x = trans_data(cls_x, "cls")
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
-                iou_x = trans_data(iou_x)
+                iou_x = trans_data(iou_x,"iou")
             with tf.variable_scope("ClassPredictionTower"):
                 cls_x = real_former_transformer_model(cls_x, hidden_size=fc_dim,
                                                       num_hidden_layers=num_fc,
@@ -1290,7 +1293,7 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
                     box_x = slim.dropout(box_x, keep_prob=keep_prob,is_training=self.is_training)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
-                with tf.variable_scope("BoxPredictionTower"):
+                with tf.variable_scope("BoxIOUPredictionTower"):
                     iou_x = real_former_transformer_model(iou_x, hidden_size=fc_dim,
                                                           num_hidden_layers=num_fc,
                                                           num_attention_heads=4,
