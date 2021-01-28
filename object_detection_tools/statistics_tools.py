@@ -309,7 +309,11 @@ def pascal_voc_dataset():
     data_path = "/home/wj/ai/mldata3/cell/neg_stage04_preproc/"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_neg_test"
     data_path = "/home/vghost/ai/work/mnistgeood_data_generate/data"
+    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv7_neg_proc/"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv7_pos_proc_m/"
+    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_test"
+    data_path = "/home/vghost/ai/mldata2/cell/annotationed_data/verify_n100_0125_1_p1_proc"
+
     #data_path = "/home/wj/ai/mldata3/cell/data2annotation/verify_n07_1230_2/"
     #data_path = "/0_data/data/user/wbz/OCR/rdatav23/"
     #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/rdatasv4_pos_proc_m'
@@ -368,8 +372,8 @@ if __name__ == "__main__":
         return [k*img_size[0],k*img_size[1]]
 
     statics = statistics_boxes_with_datas(
-                                          #pascal_voc_dataset(),
-                                          labelme_dataset(),
+                                          pascal_voc_dataset(),
+                                          #labelme_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,

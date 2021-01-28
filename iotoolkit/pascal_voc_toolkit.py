@@ -442,8 +442,8 @@ class PascalVOCData(object):
                     labels = [self.label_text2id(x) for x in labels_names]
                 else:
                     labels = None
-            except:
-                print(f"Read {xml_file} faild.")
+            except Exception as e:
+                print(f"Read {xml_file} {e} faild.")
                 continue
             #使用difficult表示is_crowd
             yield img_file, shape[:2],labels, labels_names, bboxes, None, None, difficult, probs

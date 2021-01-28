@@ -1,7 +1,7 @@
 from thirdparty.images.unic_tmap import TMAP
 import matplotlib.pyplot as plt
 
-img = TMAP("/home/vghost/ai/mldata3/sliceclarity/3ddata/2018-08-13/SLICEID-20190813110520_ebg.TMAP")
+img = TMAP("/home/wj/ai/ddbk/cell/pos_cell_for_train/stage_02/m1/2020-09-04/SLICEID_20200904110216_A_8_M1.TMAP")
 
 #取标签图
 label_img = img.get_label_img()

@@ -1206,3 +1206,19 @@ def batched_remove_bboxes_by_overlap(bboxes,labels=None,length=None,threshold=0.
                           back_prop=False,dtype=(tf.float32,tf.bool,length.dtype))
 
     return boxes,keep_pos,length
+
+def change_bboxes_nr(bboxes0,labels0,bboxes1,labels1,threshold=0.8):
+    if not isinstance(labels0,np.ndarray):
+        labels0 = np.array(labels0)
+    if not isinstance(labels1,np.ndarray):
+        labels1 = np.array(labels1)
+    nr = labels0.shape[0]
+    same_ids = 0
+    for i in range(nr):
+        box0 = np.array([bboxes0[i]])
+        ious = npbboxes_jaccard(box0,bboxes1)
+        index = np.argmax(ious)
+        if ious[index]>threshold and labels0[i] == labels1[index]:
+            same_ids += 1
+    return labels0.shape[0]+labels1.shape[0]-2*same_ids
+

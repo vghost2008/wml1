@@ -13,6 +13,7 @@ import random
 import sys
 import socket
 import datetime
+import hashlib
 
 slim = tf.contrib.slim
 
@@ -729,3 +730,11 @@ def sleep_until(runtime):
             break
         else:
             time.sleep(30)
+
+def file_md5(path):
+    with open(path,'rb') as f:
+        data = f.read()
+    return hashlib.md5(data).hexdigest()
+
+
+

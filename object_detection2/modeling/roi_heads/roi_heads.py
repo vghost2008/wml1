@@ -71,6 +71,7 @@ class ROIHeads(wmodule.WChildModule):
             parent=self,
         )
         self.roi_hook = build_roi_heads_hook(cfg,parent=self)
+        self.pre_predictor_hook = build_pre_predictor_hook(cfg,parent=self)
         # Box2BoxTransform for bounding box regression
         self.box2box_transform = Box2BoxTransform(weights=cfg.MODEL.ROI_BOX_HEAD.BBOX_REG_WEIGHTS)
         #self.box2box_transform = OffsetBox2BoxTransform(scale=False,is_training=self.is_training,const_scale=0.02)
@@ -698,6 +699,8 @@ class StandardROIHeads(ROIHeads):
         if self.roi_hook is not None:
             box_features = self.roi_hook(box_features,self.batched_inputs)
         box_features = self.box_head(box_features)
+        if self.pre_predictor_hook is not None:
+            box_features = self.pre_predictor_hook(box_features,self.batched_inputs)
         if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
             pred_class_logits, pred_proposal_deltas,iou_logits = self.box_predictor(box_features)
         else:
