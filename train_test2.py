@@ -7,7 +7,7 @@ x1 = tf.Variable(20, dtype=tf.float32, name="x1",trainable=False)
 y = tf.Variable(30, dtype=tf.float32, name="y")
 z = tf.Variable(10, dtype=tf.float32, name="z")
 tower_grads = []
-opt = get_optimizer(global_step, optimizer="GD", learning_rate=1.0,
+opt = get_optimizer(global_step, optimizer="PAdam", learning_rate=1.0,
                     batch_size=1, num_epochs_per_decay=100, example_size=1,
                     learn_rate_decay_factor=0.2, min_learn_rate=1e-5)
 xs = [x0,x1]

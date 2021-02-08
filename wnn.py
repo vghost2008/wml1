@@ -19,6 +19,7 @@ import copy
 import functools
 from collections import Iterable
 from tensorflow.python.framework import graph_util
+from optimizer.padam import PAdamOptimizer
 
 '''TF_version = tuple(map(int, tf.__version__.split('.')[:2]))
 if TF_version <= (1, 12):
@@ -42,6 +43,8 @@ def str2optimizer(name="Adam",learning_rate=None,**kwargs):
     opt = None
     if name== "Adam":
         opt = tf.train.AdamOptimizer(learning_rate,**kwargs)
+    elif name == "PAdam":
+        opt = PAdamOptimizer(learning_rate, **kwargs)
     elif name== "GD":
         opt =  tf.train.GradientDescentOptimizer(learning_rate,**kwargs)
     elif name== "Momentum":
