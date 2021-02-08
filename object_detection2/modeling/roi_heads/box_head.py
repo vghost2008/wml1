@@ -1116,8 +1116,9 @@ class SeparateFastRCNNAttHeadV1(wmodule.WChildModule):
                 assert len(x.get_shape()) == 3, f"Error x shape size {x.get_shape()}"
                 with tf.variable_scope(scope, "add_tag"):
                     shape = wmlt.combined_static_and_dynamic_shape(x)
-                    add_data = tf.get_variable("output_tag", shape=[shape[0], 1, shape[-1]], dtype=x.dtype,
+                    add_data = tf.get_variable("output_tag", shape=[1, 1, shape[-1]], dtype=x.dtype,
                                                initializer=tf.zeros_initializer())
+                    add_data = tf.tile(add_data,[shape[0],1,1])
                     return tf.concat([add_data, x], axis=1)
 
             def pos_embedding(x,scope=None):
@@ -1210,7 +1211,7 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
         self.cls_agnostic_bbox_reg = cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG
         self.box_dim = 4
 
-    def forward(self, x, scope="SeparateFastRCNNAttHeadV1", reuse=None):
+    def forward(self, x, scope="SeparateFastRCNNAttHeadV2", reuse=None):
         with tf.variable_scope(scope, reuse=reuse):
             cfg = self.cfg
             conv_dim = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
@@ -1223,8 +1224,9 @@ class SeparateFastRCNNAttHeadV2(wmodule.WChildModule):
                 assert len(x.get_shape()) == 3, f"Error x shape size {x.get_shape()}"
                 with tf.variable_scope(scope,"add_tag"):
                     shape = wmlt.combined_static_and_dynamic_shape(x)
-                    add_data = tf.get_variable("output_tag",shape=[shape[0], 1, shape[-1]], dtype=x.dtype,
+                    add_data = tf.get_variable("output_tag",shape=[1, 1, shape[-1]], dtype=x.dtype,
                                                initializer=tf.zeros_initializer())
+                    add_data = tf.tile(add_data,[shape[0],1,1])
                     return tf.concat([add_data, x], axis=1)
 
             def pos_embedding(x, scope=None):

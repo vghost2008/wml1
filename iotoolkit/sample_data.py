@@ -140,11 +140,15 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
     print("Counting data ...")
     data_sum = {}
     datas = []
+    total_data_nr = 0
     for _data in dataset:
         data = _data[0],_data[2]  #0为文件名，2为labels
         count = count_fn(data)
         data_sum = wmlu.add_dict(data_sum,count)
         datas.append(data)
+        total_data_nr += 1
+
+    print(f"Total read {total_data_nr} items.")
 
     total_nr = 0
     data_sum_less = {}
