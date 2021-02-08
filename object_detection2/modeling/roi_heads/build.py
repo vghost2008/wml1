@@ -35,7 +35,21 @@ def build_roi_heads_hook(cfg, *args,**kwargs):
             return ROI_HEADS_HOOK.get(name)(cfg,*args,**kwargs)
     else:
         return None
-    
+
+def build_pre_predictor_hook(cfg, *args,**kwargs):
+    name = cfg.MODEL.ROI_HEADS.PRE_PREDICTOR_HOOK
+    if len(name) > 0:
+        if ";" in name:
+            names = name.split(';')
+            models = []
+            for nm in names:
+                models.append(ROI_HEADS_HOOK.get(nm)(cfg,*args,**kwargs))
+            return WModelList(models,cfg,*args,**kwargs)
+        else:
+            return ROI_HEADS_HOOK.get(name)(cfg,*args,**kwargs)
+    else:
+        return None
+
 def build_box_head(cfg, *args,**kwargs):
     """
     Build a box head defined by `cfg.MODEL.ROI_BOX_HEAD.NAME`.

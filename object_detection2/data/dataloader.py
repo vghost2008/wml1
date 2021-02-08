@@ -7,6 +7,8 @@ from .buildin_filter import *
 from .build_dataprocess import DATAPROCESS_REGISTRY
 import socket
 from collections import Iterable
+import time
+
 DEFAULT_CATEGORY_INDEX = {}
 for i in range(100):
     DEFAULT_CATEGORY_INDEX[i] = f"{i}"
@@ -29,6 +31,16 @@ class DataLoader(wmodule.WModule):
             res[k] = shape
         return res
 
+    def get_paths(self,path):
+        '''
+
+        :param path: "path0,weight0;path1,weight1;..."用于从多个路径中采样
+        :return: list[(str,float)]
+        '''
+        paths = path.split(";")
+        res = [x.split(",") for x in paths]
+        return [(x[0],float(x[1])) for x in res]
+
     def load_data(self,path,func,num_classes,category_index,batch_size=None,is_training=True):
         if "vghost" in socket.gethostname():
             num_parallel = 8
@@ -37,8 +49,24 @@ class DataLoader(wmodule.WModule):
         print(f"Num parallel {num_parallel}")
 
         print("Trans on single img:",self.trans_on_single_img)
-        data = func(path,transforms=self.trans_on_single_img,num_parallel=num_parallel,
-                    filter_empty=self.cfg.INPUT.FILTER_EMPTY)
+        if ";" in path and "," in path:
+            paths = self.get_paths(path)
+            datasets = []
+            weights = []
+            for sub_path,w in paths:
+                sub_data = func(sub_path, transforms=self.trans_on_single_img, num_parallel=num_parallel,
+                            filter_empty=self.cfg.INPUT.FILTER_EMPTY)
+                datasets.append(sub_data)
+                weights.append(w)
+            print(f"Load dataset by sample {paths},{weights}")
+            #data = tf.data.experimental.sample_from_datasets([datasets],weights=weights,seed=int(time()))
+            data = tf.contrib.data.sample_from_datasets(datasets,weights=weights,seed=int(time.time()))
+            if abs(np.sum(weights)-1.0)>0.05:
+                print(f"ERROR sum of datasets weights {np.sum(weights)}")
+        else:
+            data = func(path,transforms=self.trans_on_single_img,num_parallel=num_parallel,
+                        filter_empty=self.cfg.INPUT.FILTER_EMPTY)
+
         if len(self.cfg.INPUT.EXTRA_FILTER) > 1:
             filter = build_filter(self.cfg.INPUT.EXTRA_FILTER)
             print(f"extra filter {self.cfg.INPUT.EXTRA_FILTER}")

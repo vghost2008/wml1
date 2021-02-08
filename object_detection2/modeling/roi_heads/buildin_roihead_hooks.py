@@ -110,12 +110,18 @@ class ClsNonLocalROIHeadsHookV2(wmodule.WChildModule):
 
     def forward(self,net,batched_inputs):
         del batched_inputs
-        cls_net = wnnl.non_local_blockv4(net,scope=f"NonLocalROIHeadsHook_clsv2",
+        if isinstance(net,(list,tuple)):
+            cls_x = net[0]
+            box_x = net[1]
+        else:
+            cls_x = net
+            box_x = net
+        cls_x = wnnl.non_local_blockv4(cls_x,scope=f"NonLocalROIHeadsHook_clsv2",
                                          normalizer_fn=wnnl.evo_norm_s0,
                                          activation_fn=None,
                                          n_head=4,
                                          weighed_sum=False)
-        return cls_net,net
+        return cls_x,box_x
 
 @ROI_HEADS_HOOK.register()
 class ClsNonLocalROIHeadsHookV3(wmodule.WChildModule):

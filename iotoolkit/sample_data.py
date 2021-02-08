@@ -132,9 +132,12 @@ def sample_data(dataset,num_classes,target_nr_or_dict_nr,count_fn=count_bboxes,e
                 call_back_after_sampled=None):
     '''
     target_nr_or_dict_nr:int/dict key=calsses_id, value=nr e.g.{1:10,2:100,...}
+    count_fn: count_fn((file_path,labels))->dict: 返回相应文件中label的计数，如计文件key为label,value为1(表示当前文件中有这个label),
+    计bboxes数量时key为label,value为相应bboxes出现的数量
     num_classes: 类别数量，不包含背景
     extra_file_nr: 不需要过采样数据的基本采样次数，None表示不做特别处理
     max_repeat_nr: 重复次数, 0表示不重复
+    sort_data_fn:采样前对文件进行排序
     call_back_after_sampled(sampled_data:list((file_path,labels)),unused_data:list((file_path,labels)),indexs:dict(key=label,value=indexs))
     '''
     print("Counting data ...")

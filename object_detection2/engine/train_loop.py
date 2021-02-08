@@ -468,6 +468,8 @@ class SimpleTrainer(TrainerBase):
 
         if self.cfg.SOLVER.OPTIMIZER == "Momentum":
             opt = wnn.str2optimizer("Momentum", lr,momentum=self.cfg.SOLVER.OPTIMIZER_momentum)
+        elif self.cfg.SOLVER.OPTIMIZER == "PAdam":
+            opt = wnn.str2optimizer("PAdam", lr,switch_step=steps[-1]//2)
         else:
             opt = wnn.str2optimizer(self.cfg.SOLVER.OPTIMIZER, lr)
 

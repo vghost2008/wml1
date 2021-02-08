@@ -18,6 +18,7 @@ from thirdparty.odmetrics import standard_fields
 import wml_utils as wmlu
 import img_utils as wmli
 import copy
+from collections import OrderedDict
 
 
 def __safe_persent(v0,v1):
@@ -225,6 +226,10 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
 
     recall = __safe_persent(correct_num,gt_size)
     precision = __safe_persent(correct_num,boxes_size)
+    P_v = gt_size
+    TP_v = correct_num
+    FP_v = boxes_size-correct_num
+
 
     if ext_info:
         gt_label_list = []
@@ -235,7 +240,7 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
         for i in range(boxes_size):
             if boxes_mask[i] != 1:
                 pred_label_list.append(labels[i])
-        return precision,recall,gt_label_list,pred_label_list
+        return precision,recall,gt_label_list,pred_label_list,TP_v,FP_v,P_v
     else:
         return precision,recall
 
@@ -278,9 +283,74 @@ class PrecisionAndRecall:
                                                   auto_scale_threshold=False, ext_info=False)
     def show(self,name=""):
         self.evaluate()
-        print(f"{name}: total test nr {self.total_test_nr}, precision {self.precision:.3f}, recall {self.recall:.3f}")
-    def __str__(self):
+        res = f"{name}: total test nr {self.total_test_nr}, precision {self.precision:.3f}, recall {self.recall:.3f}"
+        print(res)
+
+    def to_string(self):
         return f"{self.precision:.3f}/{self.recall:.3f}({self.total_test_nr})"
+
+class ROC:
+    def __init__(self,threshold=0.5,num_classes=90,label_trans=None,*args,**kwargs):
+        self.threshold = threshold
+        self.gtboxes = []
+        self.gtlabels = []
+        self.boxes = []
+        self.labels = []
+        self.probs = []
+        self.precision = None
+        self.recall = None
+        self.total_test_nr = 0
+        self.num_classes = num_classes
+        self.label_trans = label_trans
+        self.results = None
+
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],
+                 gtmasks=None,
+                 masks=None,is_crowd=None):
+        if self.label_trans is not None:
+            gtlabels = self.label_trans(gtlabels)
+            labels = self.label_trans(labels)
+        if gtboxes.shape[0]>0:
+            self.gtboxes.append(gtboxes)
+            self.gtlabels.append(np.array(gtlabels)+self.total_test_nr*self.num_classes)
+        if boxes.shape[0]>0:
+            self.boxes.append(boxes)
+            self.labels.append(np.array(labels)+self.total_test_nr*self.num_classes)
+            self.probs.append(np.array(probability))
+        self.total_test_nr += 1
+
+    def evaluate(self):
+        if self.total_test_nr==0 or len(self.boxes)==0 or len(self.labels)==0:
+            self.precision,self.recall = 0,0
+            return
+        gtboxes = np.concatenate(self.gtboxes,axis=0)
+        gtlabels = np.concatenate(self.gtlabels,axis=0)
+        boxes = np.concatenate(self.boxes,axis=0)
+        labels = np.concatenate(self.labels,axis=0)
+        probs = np.concatenate(self.probs,axis=0)
+        self.results = []
+
+        for p in np.arange(0,1,0.05):
+            mask = np.greater(probs,p)
+            t_boxes = boxes[mask]
+            t_labels = labels[mask]
+            precision, recall, gt_label_list, pred_label_list, TP_v, FP_v, P_v = \
+                getPrecision(gtboxes, gtlabels, t_boxes, t_labels, threshold=self.threshold,
+                                                  auto_scale_threshold=False, ext_info=True)
+            self.results.append([p,precision,recall])
+
+    def show(self,name=""):
+        print(self.to_string())
+
+    def to_string(self):
+        self.evaluate()
+        res = ""
+        if self.results is None or len(self.results) == 0:
+            return res
+        for p, precision, recall in self.results:
+            res += f"{p:.3f},{precision:.3f},{recall:.3f};\n"
+
+        return res
 
 class ModelPerformance:
     def __init__(self,threshold,no_mAP=False,no_F1=False):
@@ -350,6 +420,7 @@ class GeneralCOCOEvaluation(object):
                 self.categories_list,include_metrics_per_category=False)
         self.label_trans = label_trans
         self.image_id = 0
+        self.cached_values = {}
     '''
     gtboxes:[N,4]
     gtlabels:[N]
@@ -418,6 +489,7 @@ class GeneralCOCOEvaluation(object):
     def evaluate(self):
         print(f"Test size {self.num_examples()}")
         return self.coco_evaluator.evaluate()
+
     def show(self,name=""):
         print(f"Test size {self.num_examples()}")
         res = self.coco_evaluator.evaluate()
@@ -428,6 +500,7 @@ class GeneralCOCOEvaluation(object):
             index = k.find("/")
             if index>0:
                 k = k[index+1:]
+            self.cached_values[k] = v
             str0 += f"{k}|"
             str1 += "---|"
             str2 += f"{v:.3f}|"
@@ -435,6 +508,12 @@ class GeneralCOCOEvaluation(object):
         print(str1)
         print(str2)
         return res
+
+    def to_string(self):
+        if 'mAP' in self.cached_values and 'mAP@.50IOU' in self.cached_values:
+            return f"{self.cached_values['mAP']:.3f}/{self.cached_values['mAP@.50IOU']:.3f}"
+        else:
+            return f"N.A."
 
 class COCOBoxEvaluation(GeneralCOCOEvaluation):
     def __init__(self,categories_list=None,num_classes=None,label_trans=None):
@@ -484,9 +563,17 @@ class COCOEvaluation(object):
         if self.mask_evaluator is not None:
             self.mask_evaluator.show(name=name)
 
+    def to_string(self):
+        if self.mask_evaluator is not None:
+            return self.box_evaluator.to_string()+";"+self.mask_evaluator.to_string()
+        else:
+            return self.box_evaluator.to_string()
+
+
 
 class ClassesWiseModelPerformace(object):
-    def __init__(self,num_classes,threshold=0.5,classes_begin_value=1,model_type=COCOEvaluation,model_args={},label_trans=None):
+    def __init__(self,num_classes,threshold=0.5,classes_begin_value=1,model_type=COCOEvaluation,model_args={},label_trans=None,
+                 **kwargs):
         self.num_classes = num_classes
         self.clases_begin_value = classes_begin_value
         self.data = []
@@ -494,17 +581,18 @@ class ClassesWiseModelPerformace(object):
             self.data.append(model_type(num_classes=num_classes,**model_args))
         self.mp = model_type(num_classes=num_classes,**model_args)
         self.label_trans = label_trans
+        self.have_data = np.zeros([num_classes],dtype=np.bool)
 
     @staticmethod
     def select_bboxes_and_labels(bboxes,labels,classes):
         if len(labels) == 0:
-            return np.array([]),np.array([])
+            return np.array([],dtype=np.float32),np.array([],dtype=np.int32),np.array([],dtype=np.bool)
         if not isinstance(labels,np.ndarray):
             labels = np.array(labels)
         mask = np.equal(labels,classes)
         rbboxes = bboxes[mask,:]
         rlabels = labels[mask]
-        return rbboxes,rlabels
+        return rbboxes,rlabels,mask
 
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=None):
         if not isinstance(gtboxes,np.ndarray):
@@ -519,15 +607,22 @@ class ClassesWiseModelPerformace(object):
             
         for i in range(self.num_classes):
             classes = i+self.clases_begin_value
-            lgtboxes,lgtlabels = self.select_bboxes_and_labels(gtboxes,gtlabels,classes)
-            lboxes,llabels = self.select_bboxes_and_labels(boxes,labels,classes)
+            lgtboxes,lgtlabels,_ = self.select_bboxes_and_labels(gtboxes,gtlabels,classes)
+            lboxes,llabels,lmask = self.select_bboxes_and_labels(boxes,labels,classes)
+            if probability is not None:
+                lprobs = probability[lmask]
+            else:
+                lprobs = None
             if lgtlabels.shape[0]==0:
                 continue
-            self.data[i](lgtboxes,lgtlabels,lboxes,llabels,img_size=img_size)
+            self.have_data[i] = True
+            self.data[i](lgtboxes,lgtlabels,lboxes,llabels,lprobs,img_size=img_size)
         return self.mp(gtboxes,gtlabels,boxes,labels)
 
     def show(self):
         for i in range(self.num_classes):
+            if not self.have_data[i]:
+                continue
             classes = i+self.clases_begin_value
             print(f"Classes:{classes}")
             self.data[i].show()
@@ -537,7 +632,7 @@ class ClassesWiseModelPerformace(object):
         for i in range(self.num_classes):
             str0 += f"C{i+1}|"
             str1 += "---|"
-            str2 += f"{str(self.data[i])}|"
+            str2 += f"{str(self.data[i].to_string())}|"
         print(str0)
         print(str1)
         print(str2)
@@ -548,5 +643,88 @@ class ClassesWiseModelPerformace(object):
         elif item =="recall":
             return self.mp.recall
         elif item=="precision":
+            return self.mp.precision
+
+class SubsetsModelPerformace(object):
+    def __init__(self, num_classes, sub_sets,threshold=0.5, model_type=COCOEvaluation, model_args={},
+                 label_trans=None,
+                 **kwargs):
+        '''
+
+        :param num_classes: 不包含背景
+        :param sub_sets: list(list):如[[1,2],[3,4,5]]表示label 1,2一组进行评估,label 3 ,4,5一组进行评估
+        :param threshold:
+        :param classes_begin_value:
+        :param model_type:
+        :param model_args:
+        :param label_trans:
+        '''
+        self.num_classes = num_classes
+        self.data = []
+        self.sub_sets = sub_sets
+        for i in range(len(sub_sets)):
+            self.data.append(model_type(num_classes=num_classes, **model_args))
+        self.mp = model_type(num_classes=num_classes, **model_args)
+        self.label_trans = label_trans
+
+    @staticmethod
+    def select_bboxes_and_labels(bboxes, labels, classes):
+        if len(labels) == 0:
+            return np.array([], dtype=np.float32), np.array([], dtype=np.int32), np.array([], dtype=np.bool)
+
+        if not isinstance(labels, np.ndarray):
+            labels = np.array(labels)
+        mask = np.zeros_like(labels, dtype=np.bool)
+        for i,l in enumerate(labels):
+            if l in classes:
+                mask[i] = True
+        rbboxes = bboxes[mask, :]
+        rlabels = labels[mask]
+        return rbboxes, rlabels,mask
+
+    def __call__(self, gtboxes, gtlabels, boxes, labels, probability=None, img_size=None):
+        if not isinstance(gtboxes, np.ndarray):
+            gtboxes = np.array(gtboxes)
+        if not isinstance(gtlabels, np.ndarray):
+            gtlabels = np.array(gtlabels)
+        if not isinstance(labels, np.ndarray):
+            labels = np.array(labels)
+        if self.label_trans is not None:
+            gtlabels = self.label_trans(gtlabels)
+            labels = self.label_trans(labels)
+
+        for i,sub_set_labels in enumerate(self.sub_sets):
+            lgtboxes, lgtlabels,_ = self.select_bboxes_and_labels(gtboxes, gtlabels, sub_set_labels)
+            lboxes, llabels,lmask = self.select_bboxes_and_labels(boxes, labels, sub_set_labels)
+            if probability is not None:
+                lprobs = probability[lmask]
+            else:
+                lprobs = None
+            if lgtlabels.shape[0] == 0:
+                continue
+            self.data[i](lgtboxes, lgtlabels, lboxes, llabels, lprobs,img_size=img_size)
+        return self.mp(gtboxes, gtlabels, boxes, labels)
+
+    def show(self):
+        for i,sub_set_labels in enumerate(self.sub_sets):
+            print(f"Classes:{sub_set_labels}")
+            self.data[i].show()
+        str0 = "|配置|"
+        str1 = "|---|"
+        str2 = "||"
+        for i,sub_set_labels in enumerate(self.sub_sets):
+            str0 += f"S{sub_set_labels}|"
+            str1 += "---|"
+            str2 += f"{str(self.data[i].to_string())}|"
+        print(str0)
+        print(str1)
+        print(str2)
+
+    def __getattr__(self, item):
+        if item == "mAP":
+            return self.mp.mAP
+        elif item == "recall":
+            return self.mp.recall
+        elif item == "precision":
             return self.mp.precision
 

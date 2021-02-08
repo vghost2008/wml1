@@ -304,7 +304,8 @@ def writeVOCXmlByImg(img,img_save_path,bboxes, labels, difficult=None, truncated
 '''
 return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
 '''
-def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False,silent=False):
+def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False,auto_sub_dir=False,silent=False,
+                check_xml_file=True):
     if auto_sub_dir:
         jpeg_dir = os.path.join(dir_path,"JPEGImages")
         if not os.path.exists(jpeg_dir):
@@ -331,7 +332,7 @@ def getVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",im
             xml_path = os.path.join(xml_dir,base_name)
         else:
             xml_path = os.path.join(os.path.dirname(file),base_name)
-        if os.path.exists(xml_path):
+        if (check_xml_file and os.path.exists(xml_path)) or not check_xml_file:
             img_file_paths.append(file)
             xml_file_paths.append(xml_path)
         elif not silent:
@@ -408,7 +409,7 @@ class PascalVOCData(object):
         self.has_probs = has_probs
         self.absolute_coord = absolute_coord
 
-    def read_data(self,dir_path,silent=False,img_suffix=".jpg"):
+    def read_data(self,dir_path,silent=False,img_suffix=".jpg",check_xml_file=True):
         print(f"Read {dir_path}")
         if not os.path.exists(dir_path):
             print(f"Data path {dir_path} not exists.")
@@ -416,10 +417,11 @@ class PascalVOCData(object):
         self.files = getVOCFiles(dir_path,image_sub_dir=self.image_sub_dir,
                                  xml_sub_dir=self.xml_sub_dir,
                                  img_suffix=img_suffix,
-                                 silent=silent)
+                                 silent=silent,
+                                 check_xml_file=check_xml_file)
         if len(self.files) == 0:
             return False
-            
+
         if self.shuffle:
             random.shuffle(self.files)
         return True
@@ -431,6 +433,9 @@ class PascalVOCData(object):
         '''
         for img_file, xml_file in self.files:
             #print(xml_file)
+            if not os.path.exists(xml_file):
+                yield img_file,None,None,None,None,None,None,None,None
+                continue
             try:
                 shape, bboxes, labels_names, difficult, truncated,probs = read_voc_xml(xml_file,
                                                                             adjust=None,
@@ -442,8 +447,8 @@ class PascalVOCData(object):
                     labels = [self.label_text2id(x) for x in labels_names]
                 else:
                     labels = None
-            except:
-                print(f"Read {xml_file} faild.")
+            except Exception as e:
+                print(f"Read {xml_file} {e} faild.")
                 continue
             #使用difficult表示is_crowd
             yield img_file, shape[:2],labels, labels_names, bboxes, None, None, difficult, probs

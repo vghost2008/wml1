@@ -1,7 +1,7 @@
 from object_detection2.metrics.toolkit import *
 import os
 
-def cmp_datasets(lh_ds,rh_ds,num_classes=90,mask_on=False,model=COCOEvaluation):
+def cmp_datasets(lh_ds,rh_ds,num_classes=90,mask_on=False,model=COCOEvaluation,**kwargs):
     '''
     :param lh_ds:
     :param rh_ds: as gt datasets
@@ -18,8 +18,9 @@ def cmp_datasets(lh_ds,rh_ds,num_classes=90,mask_on=False,model=COCOEvaluation):
         rh_ds_dict[os.path.basename(full_path)] = data
         rh_total_box_nr += len(category_ids)
     
-    eval = model(num_classes=num_classes,mask_on=mask_on)
-    eval2 = ClassesWiseModelPerformace(num_classes=num_classes,model_type=model)
+    eval = model(num_classes=num_classes,mask_on=mask_on,**kwargs)
+    #eval2 = ClassesWiseModelPerformace(num_classes=num_classes,model_type=model)
+    eval2 = ClassesWiseModelPerformace(num_classes=num_classes,model_type=COCOEvaluation)
     for i,data in enumerate(lh_ds):
         full_path, shape, category_ids, category_names, boxes, binary_masks, area, is_crowd, num_annotations_skipped = data
         lh_total_box_nr += len(category_ids)
