@@ -134,7 +134,7 @@ class PAdamOptimizer(optimizer.Optimizer):
                      lambda:self.momentum_apply_dense(grad,var))
       pass
   def _apply_sparse(self, grad, var):
-      return tf.cond(tf.train.get_or_create_global_step()>self._switch_step,
+      return tf.cond(tf.train.get_or_create_global_step()<self._switch_step,
                      lambda:self.adam_apply_sparse(grad,var),
                      lambda:self.momentum_apply_sparse(grad,var))
 
@@ -142,7 +142,7 @@ class PAdamOptimizer(optimizer.Optimizer):
     m = self.get_slot(var, "m")
     v = self.get_slot(var, "v")
     beta1_power, beta2_power = self._get_beta_accumulators()
-    beta1_power = tf.Print(beta1_power,["A"])
+    #grad = tf.Print(grad,["A"])
     return training_ops.apply_adam(
         var, m, v,
         math_ops.cast(beta1_power, var.dtype.base_dtype),
@@ -225,7 +225,7 @@ class PAdamOptimizer(optimizer.Optimizer):
 
   def momentum_apply_dense(self, grad, var):
     mom = self.get_slot(var, "m")
-    grad = tf.Print(grad,["B",tf.train.get_or_create_global_step(),self._switch_step])
+    #grad = tf.Print(grad,["B",tf.train.get_or_create_global_step(),self._switch_step])
     return training_ops.apply_momentum(
         var, mom,
         math_ops.cast(self._lr_t, var.dtype.base_dtype),
@@ -234,7 +234,7 @@ class PAdamOptimizer(optimizer.Optimizer):
         use_locking=self._use_locking,
         use_nesterov=self._use_nesterov).op
 
-  def _resource_apply_dense(self, grad, var):
+  def momentum_resource_apply_dense(self, grad, var):
     mom = self.get_slot(var, "m")
     return training_ops.resource_apply_momentum(
         var.handle, mom.handle,
