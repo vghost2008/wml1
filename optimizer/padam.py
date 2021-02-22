@@ -17,7 +17,7 @@ import tensorflow as tf
 class PAdamOptimizer(optimizer.Optimizer):
 
   def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8,
-               switch_step=10,
+               switch_step=50,
                use_locking=False, name="PAdam"):
     """Construct a new Adam optimizer.
 
@@ -89,6 +89,7 @@ class PAdamOptimizer(optimizer.Optimizer):
     self._updated_lr = None
     self._switch_step = switch_step
     self._use_nesterov = False
+    print(f"PAdam switch step = {switch_step}")
 
   def _get_beta_accumulators(self):
     with ops.init_scope():
@@ -129,11 +130,15 @@ class PAdamOptimizer(optimizer.Optimizer):
     self._epsilon_t = ops.convert_to_tensor(epsilon, name="epsilon")
 
   def _apply_dense(self, grad, var):
+      #return self.momentum_apply_dense(grad, var)
+      #return self.adam_apply_dense(grad, var)
       return tf.cond(tf.train.get_or_create_global_step()<self._switch_step,
                      lambda:self.adam_apply_dense(grad,var),
                      lambda:self.momentum_apply_dense(grad,var))
       pass
   def _apply_sparse(self, grad, var):
+      #return self.momentum_apply_sparse(grad, var)
+      #return self.adam_apply_sparse(grad, var),
       return tf.cond(tf.train.get_or_create_global_step()<self._switch_step,
                      lambda:self.adam_apply_sparse(grad,var),
                      lambda:self.momentum_apply_sparse(grad,var))
@@ -156,6 +161,7 @@ class PAdamOptimizer(optimizer.Optimizer):
   def _resource_apply_dense(self, grad, var):
     m = self.get_slot(var, "m")
     v = self.get_slot(var, "v")
+    grad = tf.Print(grad,["AR"])
     beta1_power, beta2_power = self._get_beta_accumulators()
     return training_ops.resource_apply_adam(
         var.handle, m.handle, v.handle,

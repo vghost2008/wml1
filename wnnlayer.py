@@ -1131,6 +1131,91 @@ def non_local_blockv4(net,inner_dims_multiplier=[1,1,1],
             out = activation_fn(out)
         return out
 
+def non_local_blockv5(net,inner_dims_multiplier=[1,1,1],
+                      inner_dims=None,
+                      n_head=1,keep_prob=None,is_training=False,scope=None,
+                      conv_op=slim.conv2d,pool_op=None,normalizer_fn=slim.batch_norm,normalizer_params=None,
+                      activation_fn=tf.nn.relu,
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None,
+                      weighed_sum=True,pos_embedding=None,
+                      size=None):
+    def reshape_net(net):
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [shape[0],shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    if isinstance(inner_dims_multiplier,int):
+        inner_dims_multiplier = [inner_dims_multiplier]
+    if len(inner_dims_multiplier) == 1:
+        inner_dims_multiplier = inner_dims_multiplier*3
+    if inner_dims is not None:
+        if isinstance(inner_dims, int):
+            inner_dims = [inner_dims]
+        if len(inner_dims) == 1:
+            inner_dims = inner_dims*3
+
+    with tf.variable_scope(scope,default_name="non_localv4",reuse=reuse):
+        org_net = net
+
+        if size is not None:
+            net = tf.image.resize_bilinear(net,size)
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        with tf.variable_scope("pos_embedding"):
+            if pos_embedding is None:
+                pos_embs_shape = [1,shape[1],shape[2],shape[3]]
+                pos_embedding = tf.get_variable("pos_embs",shape=pos_embs_shape,dtype=tf.float32,
+                                                initializer=tf.random_normal_initializer(stddev=0.02))
+            k_net = q_net = net+pos_embedding
+            v_net = net
+
+        channel = shape[-1]
+        if inner_dims is not None:
+            m_channelq = inner_dims[0]
+            m_channelk = inner_dims[1]
+            m_channelv = inner_dims[2]
+            pass
+        else:
+            m_channelq = channel//inner_dims_multiplier[0]
+            m_channelk = channel//inner_dims_multiplier[1]
+            m_channelv = channel//inner_dims_multiplier[2]
+
+        Q = conv_op(q_net,m_channelq,[1,1],activation_fn=None,normalizer_fn=None,scope="q_conv")
+        K = conv_op(k_net,m_channelk,[1,1],activation_fn=None,normalizer_fn=None,scope="k_conv")
+        V = conv_op(v_net,m_channelv,[1,1],activation_fn=None,normalizer_fn=None,scope="v_conv")
+        if pool_op is not None:
+            K = pool_op(K,kernel_size=2, stride=2,padding="SAME")
+            V = pool_op(V,kernel_size=2, stride=2,padding="SAME")
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+                                        use_mask=False)
+        out = restore_shape(out,shape,m_channelv)
+        out = conv_op(out,channel,[1,1],
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      scope="attn_conv")
+        normalizer_params  = normalizer_params or {}
+        if weighed_sum:
+            gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+            out = gamma*out+net
+        else:
+            out = out+net
+
+        if size is not None:
+            out = tf.image.resize_bilinear(out,wmlt.combined_static_and_dynamic_shape(org_net)[1:3])
+
+        if normalizer_fn is not None:
+            out = normalizer_fn(out,**normalizer_params)
+        if activation_fn is not None:
+            out = activation_fn(out)
+        return out
+
 def augmented_conv2d(net,Fout,dv,kernel=[3,3],n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
     def reshape_net(net):
         shape = net.get_shape().as_list()
@@ -1249,6 +1334,19 @@ def se_block(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=
         net = tf.expand_dims(net,axis=1)
         return net*org_net
 
+def se_attention(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=None,summary_fn=None):
+    with tf.variable_scope(scope,"SE"):
+        channel = net.get_shape().as_list()[-1]
+        mid_channel = channel//r
+        org_net = net
+        net = tf.reduce_mean(net,axis=[1,2],keepdims=False)
+        net = fc_op(net,mid_channel,activation_fn=activation_fn,normalizer_fn=None)
+        net = fc_op(net,channel,activation_fn=tf.nn.sigmoid,normalizer_fn=None)
+        if summary_fn is not None:
+            summary_fn("se_sigmoid_value",net)
+        net = tf.expand_dims(net,axis=1)
+        net = tf.expand_dims(net,axis=1)
+        return net
 '''
 CBAM: Convolutional Block Attention Module
 '''

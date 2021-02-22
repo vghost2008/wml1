@@ -139,6 +139,47 @@ class ClsNonLocalROIHeadsHookV3(wmodule.WChildModule):
         return cls_net,net
 
 @ROI_HEADS_HOOK.register()
+class ClsNonLocalROIHeadsHookV4(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        if isinstance(net,(list,tuple)):
+            cls_x = net[0]
+            box_x = net[1]
+        else:
+            cls_x = net
+            box_x = net
+        cls_x = wnnl.non_local_blockv4(cls_x,scope=f"NonLocalROIHeadsHook_clsv4",
+                                       normalizer_fn=wnnl.evo_norm_s0,
+                                       activation_fn=None,
+                                       n_head=4,
+                                       weighed_sum=False)
+        cls_x = wnnl.se_attention(cls_x)*2*cls_x
+        return cls_x,box_x
+
+@ROI_HEADS_HOOK.register()
+class ClsNonLocalROIHeadsHookV5(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def forward(self,net,batched_inputs):
+        del batched_inputs
+        if isinstance(net,(list,tuple)):
+            cls_x = net[0]
+            box_x = net[1]
+        else:
+            cls_x = net
+            box_x = net
+        cls_x = wnnl.non_local_blockv5(cls_x,scope=f"NonLocalROIHeadsHook_clsv5",
+                                       normalizer_fn=wnnl.evo_norm_s0,
+                                       activation_fn=None,
+                                       n_head=4,
+                                       weighed_sum=False)
+        return cls_x,box_x
+    
+@ROI_HEADS_HOOK.register()
 class BoxNonLocalROIHeadsHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)

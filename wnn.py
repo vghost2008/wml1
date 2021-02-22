@@ -48,7 +48,10 @@ def str2optimizer(name="Adam",learning_rate=None,**kwargs):
     elif name== "GD":
         opt =  tf.train.GradientDescentOptimizer(learning_rate,**kwargs)
     elif name== "Momentum":
-        opt = tf.train.MomentumOptimizer(learning_rate,**kwargs)
+        if 'momentum' in kwargs:
+            opt = tf.train.MomentumOptimizer(learning_rate,**kwargs)
+        else:
+            opt = tf.train.MomentumOptimizer(learning_rate,momentum=0.9, **kwargs)
     elif name== "RMSProp":
         opt = tf.train.RMSPropOptimizer(learning_rate,**kwargs)
     else:
