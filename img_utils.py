@@ -352,6 +352,13 @@ def imwrite(filename, img):
         cv2.cvtColor(img, cv2.COLOR_RGB2BGR,img)
     cv2.imwrite(filename, img)
 
+def rotate_img(filepath,angle,scale=1.0):
+    img = cv2.imread(filepath)
+    center = (img.shape[1]//2,img.shape[0]//2)
+    M = cv2.getRotationMatrix2D(center,angle,scale)
+    img = cv2.warpAffine(img,M,(img.shape[1],img.shape[0]))
+    cv2.imwrite(filepath,img)
+
 def imshow(winname,img):
     img = copy.deepcopy(img)
     cv2.cvtColor(img,cv2.COLOR_RGB2BGR,img)

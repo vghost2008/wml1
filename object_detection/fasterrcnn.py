@@ -46,6 +46,7 @@ class FasterRCNN(object):
         回归损失乘以reg_loss_weight以增加回归的准确率
         '''
         self.reg_loss_weight = 10.
+        self.cls_loss_weight = 1.
         self.bbox_regs = None
         #[batch_size,h*w*anchor_size,2]
         self.rpn_logits=None
@@ -497,7 +498,9 @@ class FasterRCNN(object):
             '''
             Detectron2中，RPN在每个图像中随机取256个样本，其中正样本50%(如果正样本没取够用负样本填充)
             '''
-            loss = losses.ODLoss(num_classes=2,reg_loss_weight=self.reg_loss_weight,
+            loss = losses.ODLoss(num_classes=2,
+                                 reg_loss_weight=self.reg_loss_weight,
+                                 cls_loss_weight=self.cls_loss_weight,
                                  scope=scope,
                                  classes_wise=False,do_sample=True,
                                  sample_type=losses.ODLoss.SAMPLE_TYPE_UNIFORM,
@@ -515,7 +518,9 @@ class FasterRCNN(object):
             labels = self.rcn_gtlabels
         if scores is not None:
             if loss is None:
-                loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
+                loss = losses.ODLoss(num_classes=self.num_classes,
+                                     reg_loss_weight=self.reg_loss_weight,
+                                     cls_loss_weight=self.cls_loss_weight,
                                      scope=scope,classes_wise=self.pred_rcn_bboxes_classwise,do_sample=False)
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,
@@ -524,7 +529,9 @@ class FasterRCNN(object):
                        bboxes_regs=self.rcn_regs)
         else:
             if loss is None:
-                loss = losses.ODLoss(num_classes=self.num_classes,reg_loss_weight=self.reg_loss_weight,
+                loss = losses.ODLoss(num_classes=self.num_classes,
+                                     reg_loss_weight=self.reg_loss_weight,
+                                     cls_loss_weight=self.cls_loss_weight,
                                      scope=scope,classes_wise=self.pred_rcn_bboxes_classwise)
             return loss(gregs=self.rcn_gtregs,
                        glabels=labels,

@@ -10,7 +10,9 @@ slim = tf.contrib.slim
 class ODLoss:
     SAMPLE_TYPE_BY_BAD_ORDER=0
     SAMPLE_TYPE_UNIFORM=1
-    def __init__(self,num_classes,reg_loss_weight=1.,
+    def __init__(self,num_classes,
+                 reg_loss_weight=1.,
+                 cls_loss_weight=1.,
             scope="Loss",
             classes_wise=False,
             neg_multiplier=1.0,
@@ -20,6 +22,7 @@ class ODLoss:
             sample_size=256):
         self.num_classes = num_classes
         self.reg_loss_weight = reg_loss_weight
+        self.cls_loss_weight = cls_loss_weight
         self.scope = scope
         self.classes_wise = classes_wise
         self.neg_multiplier = neg_multiplier
