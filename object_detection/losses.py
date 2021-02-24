@@ -237,10 +237,14 @@ class ODLoss:
                                          loss_collection=None,
                                           reduction=tf.losses.Reduction.NONE)
             loss1 = tf.reduce_sum(loss1,axis=1)
-            loss1 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss1), lambda: 0.) * self.reg_loss_weight
+            loss1 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)
         with tf.variable_scope("negative_loss"):
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)
+        
+        loss0 = loss0*self.cls_loss_weight
+        loss1 = loss1*self.reg_loss_weight
+        loss2 = loss2*self.cls_loss_weight
 
         '''
         loss0:正样本分类损失
@@ -272,11 +276,14 @@ class ODLoss:
             loss0 = self.softmax_cross_entropy_with_logits(logits=p_logits,labels=probibality)
             loss0 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss0), lambda: 0.)
             loss1 = ODLoss.smooth_l1(p_gregs - p_pred_regs)
-            loss1 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss1), lambda: 0.) * self.reg_loss_weight
+            loss1 = tf.cond(tf.less(0, psize), lambda: tf.reduce_mean(loss1), lambda: 0.)
         with tf.variable_scope("negative_loss"):
             loss2 = self.sparse_softmax_cross_entropy_with_logits(logits=n_logits, labels=n_glabels)
             loss2 = tf.cond(tf.less(0, nsize), lambda: tf.reduce_mean(loss2), lambda: 0.)
 
+        loss0 = loss0*self.cls_loss_weight
+        loss1 = loss1*self.reg_loss_weight
+        loss2 = loss2*self.cls_loss_weight
         '''
         loss0:正样本分类损失
         loss1:正样本回归损失
