@@ -56,7 +56,11 @@ class DataLoader(wmodule.WModule):
             for sub_path,w in paths:
                 sub_data = func(sub_path, transforms=self.trans_on_single_img, num_parallel=num_parallel,
                             filter_empty=self.cfg.INPUT.FILTER_EMPTY)
-                datasets.append(sub_data)
+                if is_training:
+                    print(f"Repeat sub data {sub_path}")
+                    datasets.append(sub_data.repeat())
+                else:
+                    datasets.append(sub_data)
                 weights.append(w)
             print(f"Load dataset by sample {paths},{weights}")
             #data = tf.data.experimental.sample_from_datasets([datasets],weights=weights,seed=int(time()))

@@ -35,6 +35,10 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolut
     shape = [int(size.find('height').text),
              int(size.find('width').text),
              int(size.find('depth').text)]
+    if shape[0]<10 or shape[1]<10:
+        _shape = wmli.imread(wmlu.change_suffix(file_path,"jpg")).shape
+        shape[0] = _shape[0]
+        shape[1] = _shape[1]
     if adjust is not None:
         shape[0] = shape[0] - (adjust[1]+adjust[3])
         shape[1] = shape[1] - (adjust[0]+adjust[2])

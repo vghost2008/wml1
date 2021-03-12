@@ -4,6 +4,7 @@ from ctypes import *
 import numpy as np
 import os
 from collections import Iterable
+import copy
 
 class TMAP(object):
 
@@ -114,7 +115,8 @@ class TMAP(object):
         if not res:
             print(f"Set focus layer {layer} faild.")
         else:
-            print(f"Set focus layer {layer} success.")
+            #print(f"Set focus layer {layer} success.")
+            pass
 
         return res
 
@@ -258,6 +260,19 @@ class TMAP(object):
                         yield img,x,y,z-nr
                     else:
                         yield img
+
+    def get_all_img_crops_in_all_focusv2(self, width, height, scale=-1,with_pos_info=False):
+        nr = self.get_focus_number()
+        for y in range(0, self.height(scale), height):
+            for x in range(0, self.width(scale), width):
+                res = []
+                for z,img in enumerate(self.crop_img_in_all_focus(x, y, width, height, scale)):
+                    img = copy.deepcopy(img)
+                    if with_pos_info:
+                        res.append((img,x,y,z-nr))
+                    else:
+                        res.append(img)
+                yield res
 
     @staticmethod
     def buffer2img(buffer,width,height,channel=3,buffer_length=None,type=np.uint8):
