@@ -18,7 +18,13 @@ from object_detection.metrics import standard_fields
 import wml_utils as wmlu
 import img_utils as wmli
 import copy
-
+def get_shape_from_img(xml_path):
+    img_path = wmlu.change_suffix(xml_path, "jpg")
+    if not os.path.exists(img_path):
+        print(f"Error find img {img_path} faild.")
+        return [0,0,3]
+    else:
+        return list(wmli.imread(img_path).shape)
 '''
 读取VOC xml文件
 file_path: xml文件路径
@@ -27,7 +33,7 @@ return:
 shape: image size
 boxes: [N,4] relative coordinate,(ymin,xmin,ymax,xmax)
 '''
-def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
+def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False,absolute_coord=False):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -36,8 +42,7 @@ def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
              int(size.find('width').text),
              int(size.find('depth').text)]
     if shape[0] < 5 or shape[1] < 5:
-        img_path = wmlu.change_suffix(file_path, "jpg")
-        _shape = list(wmli.imread(img_path).shape)
+        _shape = get_shape_from_img(file_path)
         print(f"Force update img shape, old={shape}, new={_shape}.")
         shape = _shape
 
@@ -76,6 +81,13 @@ def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
             if math.fabs(ymax - ymin) < 1e-8 or math.fabs(xmax - xmin) < 1e-8:
                 logging.warning("zero size box({},{},{},{}), {}".format(ymin, xmin, ymax, xmax, file_path))
                 continue
+            elif absolute_coord:
+                box = (max(0., ymin),
+                       max(0., xmin),
+                       ymax,
+                       xmax
+                       )
+                pass
             else:
                 box = (max(0., ymin / shape[0]),
                        max(0., xmin / shape[1]),
@@ -91,6 +103,13 @@ def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
             if math.fabs(ymax - ymin) < 1e-8 or math.fabs(xmax - xmin) < 1e-8:
                 logging.warning("zero size box({},{},{},{}), {}".format(ymin, xmin, ymax, xmax, file_path))
                 continue
+            elif absolute_coord:
+                box = (max(0., ymin),
+                       max(0., xmin),
+                       ymax,
+                       xmax
+                       )
+                pass
             else:
                 box = (max(0., ymin / shape[0]),
                        max(0., xmin / shape[1]),
@@ -115,11 +134,8 @@ def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
     assert len(bboxes) == len(labels_text), "error size"
     assert len(bboxes) == len(difficult), "error size"
     assert len(bboxes) == len(truncated), "error size"
-
-    if has_probs:
-        return shape, np.array(bboxes), labels_text, difficult, truncated, probs
-    else:
-        return shape, np.array(bboxes), labels_text, difficult, truncated
+    #shape, bboxes, labels_names, difficult, truncated,probs
+    return shape, np.array(bboxes), labels_text, difficult, truncated, probs
     
 def create_text_element(doc,name,value):
     if not isinstance(value,str):
@@ -138,8 +154,7 @@ boxes:相对大小
 def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
 
     if shape[0] < 5 or shape[1] < 5:
-        img_path = wmlu.change_suffix(save_path, "jpg")
-        _shape = wmli.imread(img_path).shape
+        _shape = get_shape_from_img(save_path)
         print(f"Force update img shape, old={shape}, new={_shape}.")
         shape = list(_shape)
         
@@ -447,11 +462,12 @@ class PascalVOCData(object):
                 yield img_file,None,None,None,None,None,None,None,None
                 continue
             try:
-                shape, bboxes, labels_names, difficult, truncated,probs = read_voc_xml(xml_file,
-                                                                            adjust=None,
-                                                                            aspect_range=None,
-                                                                            has_probs=self.has_probs,
-                                                                            absolute_coord=self.absolute_coord)
+                data = read_voc_xml(xml_file,
+                                    adjust=None,
+                                    aspect_range=None,
+                                    has_probs=self.has_probs,
+                                    absolute_coord=self.absolute_coord)
+                shape, bboxes, labels_names, difficult, truncated,probs = data
 
                 if self.label_text2id is not None:
                     labels = [self.label_text2id(x) for x in labels_names]
