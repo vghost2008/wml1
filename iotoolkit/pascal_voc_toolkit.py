@@ -27,7 +27,7 @@ return:
 shape: image size
 boxes: [N,4] relative coordinate,(ymin,xmin,ymax,xmax)
 '''
-def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolute_coord=False):
+def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -35,13 +35,13 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolut
     shape = [int(size.find('height').text),
              int(size.find('width').text),
              int(size.find('depth').text)]
-    if shape[0]<10 or shape[1]<10:
-        _shape = wmli.imread(wmlu.change_suffix(file_path,"jpg")).shape
-        shape[0] = _shape[0]
-        shape[1] = _shape[1]
+    if shape[0] < 5 or shape[1] < 5:
+        img_path = wmlu.change_suffix(file_path, "jpg")
+        shape = list(wmli.imread(img_path).shape)
+
     if adjust is not None:
-        shape[0] = shape[0] - (adjust[1]+adjust[3])
-        shape[1] = shape[1] - (adjust[0]+adjust[2])
+        shape[0] = shape[0] - (adjust[1] + adjust[3])
+        shape[1] = shape[1] - (adjust[0] + adjust[2])
 
     bboxes = []
     labels_text = []
@@ -50,7 +50,7 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolut
     probs = []
     for obj in root.findall('object'):
         label = obj.find('name').text
-        #文件中difficult用0,1表示
+        # 文件中difficult用0,1表示
         if obj.find('difficult') is not None:
             dif = int(obj.find('difficult').text)
         else:
@@ -67,40 +67,37 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolut
         bbox = obj.find('bndbox')
         box_ok = True
         if adjust is None:
-            ymin,xmin,ymax,xmax = [float(bbox.find('ymin').text),
-                            float(bbox.find('xmin').text),
-                            float(bbox.find('ymax').text),
-                            float(bbox.find('xmax').text)]
-            if math.fabs(ymax-ymin)<1e-8 or math.fabs(xmax-xmin)<1e-8:
-                logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
+            ymin, xmin, ymax, xmax = [float(bbox.find('ymin').text),
+                                      float(bbox.find('xmin').text),
+                                      float(bbox.find('ymax').text),
+                                      float(bbox.find('xmax').text)]
+            if math.fabs(ymax - ymin) < 1e-8 or math.fabs(xmax - xmin) < 1e-8:
+                logging.warning("zero size box({},{},{},{}), {}".format(ymin, xmin, ymax, xmax, file_path))
                 continue
             else:
-                if not absolute_coord:
-                    box = (max(0.,ymin / shape[0]),
-                           max(0.,xmin / shape[1]),
-                           min(1.,ymax / shape[0]),
-                           min(1.,xmax / shape[1])
-                           )
-                else:
-                    box = (ymin,xmin,ymax,xmax)
+                box = (max(0., ymin / shape[0]),
+                       max(0., xmin / shape[1]),
+                       min(1., ymax / shape[0]),
+                       min(1., xmax / shape[1])
+                       )
 
         else:
-            assert absolute_coord==False,"Error coord type"
-            ymin = float(bbox.find('ymin').text)-float(adjust[1])
-            xmin = float(bbox.find('xmin').text)-float(adjust[0])
-            ymax = float(bbox.find('ymax').text)-float(adjust[1])
-            xmax = float(bbox.find('xmax').text)-float(adjust[0])
-            if math.fabs(ymax-ymin)<1e-8 or math.fabs(xmax-xmin)<1e-8:
-                logging.warning("zero size box({},{},{},{}), {}".format(ymin,xmin,ymax,xmax,file_path))
+            ymin = float(bbox.find('ymin').text) - float(adjust[1])
+            xmin = float(bbox.find('xmin').text) - float(adjust[0])
+            ymax = float(bbox.find('ymax').text) - float(adjust[1])
+            xmax = float(bbox.find('xmax').text) - float(adjust[0])
+            if math.fabs(ymax - ymin) < 1e-8 or math.fabs(xmax - xmin) < 1e-8:
+                logging.warning("zero size box({},{},{},{}), {}".format(ymin, xmin, ymax, xmax, file_path))
                 continue
             else:
-                box = (max(0.,ymin / shape[0]),
-                 max(0.,xmin / shape[1]),
-                 min(1.,ymax / shape[0]),
-                 min(1.,xmax / shape[1])
-                 )
+                box = (max(0., ymin / shape[0]),
+                       max(0., xmin / shape[1]),
+                       min(1., ymax / shape[0]),
+                       min(1., xmax / shape[1])
+                       )
         if aspect_range is not None:
-            if float(box[2] - box[0]) / (box[3] - box[1]) > aspect_range[1] or float(box[2] - box[0]) / (box[3] - box[1]) < aspect_range[0]:
+            if float(box[2] - box[0]) / (box[3] - box[1]) > aspect_range[1] or float(box[2] - box[0]) / (
+                    box[3] - box[1]) < aspect_range[0]:
                 logging.warning("large aspect.")
                 box_ok = False
 
@@ -113,15 +110,15 @@ def read_voc_xml(file_path,adjust=None,aspect_range=None,has_probs=False,absolut
         truncated.append(trun)
         probs.append(prob)
 
-    assert len(bboxes)==len(labels_text),"error size"
-    assert len(bboxes)==len(difficult),"error size"
-    assert len(bboxes)==len(truncated),"error size"
+    assert len(bboxes) == len(labels_text), "error size"
+    assert len(bboxes) == len(difficult), "error size"
+    assert len(bboxes) == len(truncated), "error size"
 
     if has_probs:
-        return shape, np.array(bboxes), labels_text, difficult, truncated,probs
+        return shape, np.array(bboxes), labels_text, difficult, truncated, probs
     else:
-        return shape, np.array(bboxes), labels_text, difficult, truncated,1.0
-
+        return shape, np.array(bboxes), labels_text, difficult, truncated
+    
 def create_text_element(doc,name,value):
     if not isinstance(value,str):
         value = str(value)
@@ -138,8 +135,15 @@ boxes:相对大小
 '''
 def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
 
+    if shape[0] < 5 or shape[1] < 5:
+        img_path = wmlu.change_suffix(save_path, "jpg")
+        _shape = wmli.imread(img_path).shape
+        print(f"Force update img shape, old={shape}, new={_shape}.")
+        shape = list(_shape)
+        
     if len(shape)==2:
         shape = list(shape)+[1]
+
     if difficult is None:
         difficult = ["0"] * len(labels_text)
     if truncated is None:
