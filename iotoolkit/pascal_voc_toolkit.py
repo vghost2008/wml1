@@ -37,7 +37,9 @@ def read_voc_xml(file_path, adjust=None, aspect_range=None, has_probs=False):
              int(size.find('depth').text)]
     if shape[0] < 5 or shape[1] < 5:
         img_path = wmlu.change_suffix(file_path, "jpg")
-        shape = list(wmli.imread(img_path).shape)
+        _shape = list(wmli.imread(img_path).shape)
+        print(f"Force update img shape, old={shape}, new={_shape}.")
+        shape = _shape
 
     if adjust is not None:
         shape[0] = shape[0] - (adjust[1] + adjust[3])
