@@ -387,9 +387,7 @@ def filterVOCFilesByName(voc_files,file_names):
             continue
         res.append((img_file,xml_file))
     return res
-'''
-return:[(image_file0,xml_file0),(image_file1,xml_file1),...]
-'''
+
 def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annotations",img_suffix=".jpg",shuffe=False):
     if image_sub_dir is not None:
         jpeg_dir = os.path.join(dir_path,image_sub_dir)
@@ -401,21 +399,28 @@ def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annot
         xml_dir = dir_path
     inputfilenames = wml_utils.recurse_get_filepath_in_dir(jpeg_dir,suffix=img_suffix)
 
+    total_removed_jpgs = 0
+    total_removed_xmls = 0
+    
     good_xml_names=[]
     for file in inputfilenames:
-        base_name = os.path.basename(file)[:-4]+".xml"
-        xml_path = os.path.join(xml_dir,base_name)
+        base_name = wmlu.base_name(file)
+        xml_path = wmlu.change_suffix(file,"xml")
         if os.path.exists(xml_path):
             good_xml_names.append(base_name)
         else:
             print(f"remove {file}")
+            total_removed_jpgs += 1
             os.remove(file)
 
     for file in wml_utils.recurse_get_filepath_in_dir(xml_dir,suffix="xml"):
-        base_name = os.path.basename(file)
+        base_name = wmlu.base_name(file)
         if base_name not in good_xml_names:
+            total_removed_xmls += 1
             print(f"remove {file}")
             os.remove(file)
+    
+    print(f"Total remove {total_removed_jpgs} images, total remove {total_removed_xmls} xmls.")
 
 class PascalVOCData(object):
     def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False,absolute_coord=False):
@@ -485,7 +490,7 @@ class PascalVOCData(object):
         full_path,img_size,category_ids,boxes,is_crowd
         '''
         for img_file, xml_file in self.files:
-            shape, bboxes, labels_names, difficult, truncated = read_voc_xml(xml_file,
+            shape, bboxes, labels_names, difficult, truncated,probs = read_voc_xml(xml_file,
                                                                              adjust=None,
                                                                              aspect_range=None,
                                                                              has_probs=False)

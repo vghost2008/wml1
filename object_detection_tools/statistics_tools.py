@@ -314,7 +314,7 @@ def pascal_voc_dataset():
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/verify_n100_0125_1_p1_proc_m"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_test"
     data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv8_pos_proc_m"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/verify_p205_kp_210305_proc"
+    data_path = "/home/vghost/ai/mldata3/cell/data2annotation/verify_n205_kp_210305"
     #data_path = "/home/vghost/ai/mldata2/cell/annotationed_data/verify_n100_0125_1_p1_proc"
 
     #data_path = "/home/wj/ai/mldata3/cell/data2annotation/verify_n07_1230_2/"

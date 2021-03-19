@@ -180,7 +180,7 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.ROI_BOX_HEAD.ACTIVATION_FN)
 
 
-    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None):
+    def forward(self, x,scope="FastRCNNConvFCHead",reuse=None,fwd_type=BoxesForwardType.ALL):
         with tf.variable_scope(scope,reuse=reuse):
             cfg = self.cfg
             conv_dim   = cfg.MODEL.ROI_BOX_HEAD.CONV_DIM
@@ -204,71 +204,74 @@ class SeparateFastRCNNConvFCHeadV2(wmodule.WChildModule):
                 iou_x = x
 
             with tf.variable_scope("ClassPredictionTower"):
-                if num_fc>0:
-                    if len(cls_x.get_shape()) > 2:
-                        shape = wmlt.combined_static_and_dynamic_shape(cls_x)
-                        dim = 1
-                        for i in range(1,len(shape)):
-                            dim = dim*shape[i]
-                        cls_x = tf.reshape(cls_x,[shape[0],dim])
-                    if cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY > 0.0:
-                        weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY)
-                    else:
-                        weights_regularizer = None
-                    for _ in range(num_fc):
-                        cls_x = slim.fully_connected(cls_x,fc_dim,
-                                                     activation_fn=self.activation_fn,
-                                                     normalizer_fn=self.normalizer_fn,
-                                                     normalizer_params=self.norm_params,
-                                                     weights_regularizer=weights_regularizer)
-
-                    if cfg.MODEL.ROI_BOX_HEAD.ENABLE_CLS_DROPBLOCK and self.is_training:
-                        keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
-                                                                 max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.CLS_KEEP_PROB)
-                        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
-                            tf.summary.scalar(name="box_head_cls_keep_prob",tensor=keep_prob)
-                        cls_x = slim.dropout(cls_x, keep_prob=keep_prob,is_training=self.is_training)
-
-            with tf.variable_scope("BoxPredictionTower"):
-                if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
-                    weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
-                else:
-                    weights_regularizer = None
-                for _ in range(num_conv):
-                    box_x = slim.conv2d(box_x,conv_dim,[3,3],
-                                        activation_fn=self.activation_fn,
-                                        normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.norm_params,
-                                        weights_regularizer=weights_regularizer)
-
-                if cfg.MODEL.ROI_BOX_HEAD.ENABLE_BOX_DROPBLOCK and self.is_training:
-                    keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
-                                                             max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.BOX_KEEP_PROB)
-                    if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
-                        tf.summary.scalar(name="box_head_box_keep_prob",tensor=keep_prob)
-                    box_x = slim.dropout(box_x, keep_prob=keep_prob,is_training=self.is_training)
-
-            if cfg.MODEL.ROI_HEADS.PRED_IOU:
-                iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV
-                iou_num_fc = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_FC
-                with tf.variable_scope("BoxIOUPredictionTower"):
-                    for _ in range(iou_num_conv):
-                        iou_x = slim.conv2d(iou_x,conv_dim,[3,3],
-                                            activation_fn=self.activation_fn,
-                                            normalizer_fn=self.normalizer_fn,
-                                            normalizer_params=self.norm_params)
-                    if iou_num_fc>0:
-                        if len(iou_x.get_shape()) > 2:
-                            shape = wmlt.combined_static_and_dynamic_shape(iou_x)
+                if fwd_type&BoxesForwardType.CLASSES:
+                    if num_fc>0:
+                        if len(cls_x.get_shape()) > 2:
+                            shape = wmlt.combined_static_and_dynamic_shape(cls_x)
                             dim = 1
                             for i in range(1,len(shape)):
                                 dim = dim*shape[i]
-                            iou_x = tf.reshape(iou_x,[shape[0],dim])
-                        for _ in range(iou_num_fc):
-                            iou_x = slim.fully_connected(iou_x,fc_dim,
+                            cls_x = tf.reshape(cls_x,[shape[0],dim])
+                        if cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY > 0.0:
+                            weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.FC_WEIGHT_DECAY)
+                        else:
+                            weights_regularizer = None
+                        for _ in range(num_fc):
+                            cls_x = slim.fully_connected(cls_x,fc_dim,
                                                          activation_fn=self.activation_fn,
                                                          normalizer_fn=self.normalizer_fn,
-                                                         normalizer_params=self.norm_params)
+                                                         normalizer_params=self.norm_params,
+                                                         weights_regularizer=weights_regularizer)
+    
+                        if cfg.MODEL.ROI_BOX_HEAD.ENABLE_CLS_DROPBLOCK and self.is_training:
+                            keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                                     max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.CLS_KEEP_PROB)
+                            if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                                tf.summary.scalar(name="box_head_cls_keep_prob",tensor=keep_prob)
+                            cls_x = slim.dropout(cls_x, keep_prob=keep_prob,is_training=self.is_training)
+
+            with tf.variable_scope("BoxPredictionTower"):
+                if fwd_type&BoxesForwardType.BBOXES:
+                    if cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY > 0.0:
+                        weights_regularizer = slim.l2_regularizer(cfg.MODEL.ROI_BOX_HEAD.CONV_WEIGHT_DECAY)
+                    else:
+                        weights_regularizer = None
+                    for _ in range(num_conv):
+                        box_x = slim.conv2d(box_x,conv_dim,[3,3],
+                                            activation_fn=self.activation_fn,
+                                            normalizer_fn=self.normalizer_fn,
+                                            normalizer_params=self.norm_params,
+                                            weights_regularizer=weights_regularizer)
+    
+                    if cfg.MODEL.ROI_BOX_HEAD.ENABLE_BOX_DROPBLOCK and self.is_training:
+                        keep_prob = wnnl.get_dropblock_keep_prob(tf.train.get_or_create_global_step(),self.cfg.SOLVER.STEPS[-1],
+                                                                 max_keep_prob=self.cfg.MODEL.ROI_BOX_HEAD.BOX_KEEP_PROB)
+                        if self.cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
+                            tf.summary.scalar(name="box_head_box_keep_prob",tensor=keep_prob)
+                        box_x = slim.dropout(box_x, keep_prob=keep_prob,is_training=self.is_training)
+
+            if cfg.MODEL.ROI_HEADS.PRED_IOU:
+                if fwd_type&BoxesForwardType.IOUS:
+                    iou_num_conv = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_CONV
+                    iou_num_fc = cfg.MODEL.ROI_BOX_HEAD.IOU_NUM_FC
+                    with tf.variable_scope("BoxIOUPredictionTower"):
+                        for _ in range(iou_num_conv):
+                            iou_x = slim.conv2d(iou_x,conv_dim,[3,3],
+                                                activation_fn=self.activation_fn,
+                                                normalizer_fn=self.normalizer_fn,
+                                                normalizer_params=self.norm_params)
+                        if iou_num_fc>0:
+                            if len(iou_x.get_shape()) > 2:
+                                shape = wmlt.combined_static_and_dynamic_shape(iou_x)
+                                dim = 1
+                                for i in range(1,len(shape)):
+                                    dim = dim*shape[i]
+                                iou_x = tf.reshape(iou_x,[shape[0],dim])
+                            for _ in range(iou_num_fc):
+                                iou_x = slim.fully_connected(iou_x,fc_dim,
+                                                             activation_fn=self.activation_fn,
+                                                             normalizer_fn=self.normalizer_fn,
+                                                             normalizer_params=self.norm_params)
 
             if cfg.MODEL.ROI_HEADS.PRED_IOU:
                 return cls_x,box_x,iou_x

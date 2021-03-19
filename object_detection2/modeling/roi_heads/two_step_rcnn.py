@@ -27,13 +27,17 @@ class TwoStepROIHeads(StandardROIHeads):
         assert self.cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG, "Only support cls agnostic bbox reg."
 
         if self.is_training:
-            return StandardROIHeads._forward_box(self,features,proposals,img_size,retry)
+            proposal_boxes = proposals.boxes #when training proposals's EncodedData
+        else:
+            proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
 
         proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
+        self.t_proposal_boxes = proposal_boxes
+        self.t_img_size = img_size
 
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         if self.roi_hook is not None:
-            box_features = self.roi_hook(box_features,self.batched_inputs)
+            box_features = self.roi_hook(box_features,self.batched_inputs,fwd_type=BoxesForwardType.BBOXES)
         box_features = self.box_head(box_features,fwd_type=BoxesForwardType.BBOXES)
         if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
             _, pred_proposal_deltas,_ = self.box_predictor(box_features,fwd_type=BoxesForwardType.BBOXES)
@@ -45,9 +49,10 @@ class TwoStepROIHeads(StandardROIHeads):
                                                              boxes=proposal_boxes)
 
 
+        self.t_proposal_boxes = proposal_boxes
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         if self.roi_hook is not None:
-            box_features = self.roi_hook(box_features,self.batched_inputs)
+            box_features = self.roi_hook(box_features,self.batched_inputs,fwd_type=BoxesForwardType.IOUS|BoxesForwardType.CLASSES)
         box_features = self.box_head(box_features,fwd_type=BoxesForwardType.IOUS|BoxesForwardType.CLASSES)
         if self.cfg.MODEL.ROI_HEADS.PRED_IOU:
             pred_class_logits, _,iou_logits = self.box_predictor(box_features,

@@ -1334,12 +1334,14 @@ def se_block(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=
         net = tf.expand_dims(net,axis=1)
         return net*org_net
 
-def se_attention(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=None,summary_fn=None):
+def se_attention(net,r=16,fc_op=slim.fully_connected,activation_fn=tf.nn.relu,scope=None,summary_fn=None,channel=None):
     with tf.variable_scope(scope,"SE"):
-        channel = net.get_shape().as_list()[-1]
+        if channel is None:
+            channel = net.get_shape().as_list()[-1]
         mid_channel = channel//r
         org_net = net
-        net = tf.reduce_mean(net,axis=[1,2],keepdims=False)
+        if len(net.get_shape()) == 4:
+            net = tf.reduce_mean(net,axis=[1,2],keepdims=False)
         net = fc_op(net,mid_channel,activation_fn=activation_fn,normalizer_fn=None)
         net = fc_op(net,channel,activation_fn=tf.nn.sigmoid,normalizer_fn=None)
         if summary_fn is not None:
