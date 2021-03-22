@@ -49,6 +49,7 @@ class TwoStepROIHeads(StandardROIHeads):
                                                              boxes=proposal_boxes)
 
 
+        proposal_boxes = tf.stop_gradient(proposal_boxes)
         self.t_proposal_boxes = proposal_boxes
         box_features = self.box_pooler(features, proposal_boxes,img_size=img_size)
         if self.roi_hook is not None:

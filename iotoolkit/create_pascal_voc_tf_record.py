@@ -58,7 +58,7 @@ class VOCMaker(object):
         else:
             image_data = tf.gfile.FastGFile(img_file, 'rb').read()
 
-        shape, _bboxes, _labels_text, _difficult, _truncated = odu.read_voc_xml(xml_file, adjust=None)
+        shape, _bboxes, _labels_text, _difficult, _truncated,_ = odu.read_voc_xml(xml_file, adjust=None)
         _labels = self.labels_text_to_labels(_labels_text)
         bboxes = []
         labels_text = []
