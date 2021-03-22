@@ -27,11 +27,12 @@ class TwoStepROIHeads(StandardROIHeads):
         assert self.cfg.MODEL.ROI_BOX_HEAD.CLS_AGNOSTIC_BBOX_REG, "Only support cls agnostic bbox reg."
 
         if self.is_training:
-            proposal_boxes = proposals.boxes #when training proposals's EncodedData
-        else:
-            proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
-
+            '''
+            During training, the quality of rcnn boxes is not guaranted.
+            '''
+            return StandardROIHeads._forward_box(features,proposals,img_size,retry)
         proposal_boxes = proposals[PD_BOXES] #when inference proposals's a dict which is the outputs of RPN
+
         self.t_proposal_boxes = proposal_boxes
         self.t_img_size = img_size
 

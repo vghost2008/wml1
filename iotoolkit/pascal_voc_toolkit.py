@@ -232,16 +232,19 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
             object.appendChild(create_text_element(doc,"truncated",trun))
             object.appendChild(create_text_element(doc,"difficult",dif))
             bndbox = doc.createElement("bndbox")
-            if is_relative_coordinate:
-                bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
-                bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
-                bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
-                bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
-            else:
-                bndbox.appendChild(create_text_element(doc, "xmin", int(box[1])))
-                bndbox.appendChild(create_text_element(doc, "ymin", int(box[0])))
-                bndbox.appendChild(create_text_element(doc, "xmax", int(box[3])))
-                bndbox.appendChild(create_text_element(doc, "ymax", int(box[2])))
+            try:
+                if is_relative_coordinate:
+                    bndbox.appendChild(create_text_element(doc,"xmin",int(box[1]*shape[1])))
+                    bndbox.appendChild(create_text_element(doc,"ymin",int(box[0]*shape[0])))
+                    bndbox.appendChild(create_text_element(doc,"xmax",int(box[3]*shape[1])))
+                    bndbox.appendChild(create_text_element(doc,"ymax",int(box[2]*shape[0])))
+                else:
+                    bndbox.appendChild(create_text_element(doc, "xmin", int(box[1])))
+                    bndbox.appendChild(create_text_element(doc, "ymin", int(box[0])))
+                    bndbox.appendChild(create_text_element(doc, "xmax", int(box[3])))
+                    bndbox.appendChild(create_text_element(doc, "ymax", int(box[2])))
+            except Exception as e:
+                print(f"ERROR: {save_path} {e} {box}")
             object.appendChild(bndbox)
             objectlist.appendChild(object)
 
