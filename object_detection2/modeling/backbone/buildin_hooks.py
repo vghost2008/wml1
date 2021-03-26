@@ -160,6 +160,9 @@ class FusionBackboneHookV2(wmodule.WChildModule):
             net = tf.add_n(mfeatures)/float(len(mfeatures))
             net = tf.concat([v0,net],axis=-1)
             level0 = int(k0[1:])
+            '''
+            与上一个版本相比，输出的通道数小一些
+            '''
             net = slim.conv2d(net, v0.get_shape().as_list()[-1], [3, 3],
                               activation_fn=None,
                               normalizer_fn=normalizer_fn,
