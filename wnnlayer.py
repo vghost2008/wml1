@@ -1216,6 +1216,92 @@ def non_local_blockv5(net,inner_dims_multiplier=[1,1,1],
             out = activation_fn(out)
         return out
 
+def non_local_blockv6(net,stride=[1,1,1],
+                      kernel_size0=3,
+                      kernel_size1=3,
+                      inner_dims=None,
+                      n_head=1,keep_prob=None,is_training=False,scope=None,
+                      conv_op=slim.conv2d,normalizer_fn=slim.batch_norm,normalizer_params=None,
+                      activation_fn=tf.nn.relu,
+                      gamma_initializer=tf.constant_initializer(0.0),reuse=None,
+                      weighed_sum=True,pos_embedding=None,
+                      size=None):
+    def reshape_net(net):
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        new_shape = [shape[0],shape[1]*shape[2],shape[3]]
+        net = tf.reshape(net,new_shape)
+        return net
+    def restore_shape(net,shape,channel):
+        out_shape = [shape[0],shape[1],shape[2],channel]
+        net = tf.reshape(net,out_shape)
+        return net
+
+    if isinstance(stride,int):
+        stride = [stride]
+    if len(stride) == 1:
+        stride = stride*3
+    if inner_dims is not None:
+        if isinstance(inner_dims, int):
+            inner_dims = [inner_dims]
+        if len(inner_dims) == 1:
+            inner_dims = inner_dims*3
+
+    with tf.variable_scope(scope,default_name="non_localv6",reuse=reuse):
+        org_net = net
+
+        if size is not None:
+            net = tf.image.resize_bilinear(net,size)
+        shape = wmlt.combined_static_and_dynamic_shape(net)
+        if pos_embedding is not None:
+            with tf.variable_scope("pos_embedding"):
+                k_net = q_net = net+pos_embedding
+        else:
+            k_net = q_net = net
+        v_net = net
+
+        channel = shape[-1]
+        if inner_dims is not None:
+            m_channelq = inner_dims[0]
+            m_channelk = inner_dims[1]
+            m_channelv = inner_dims[2]
+            pass
+        else:
+            m_channelq = channel
+            m_channelk = channel
+            m_channelv = channel
+
+        Q = conv_op(q_net,m_channelq,kernel_size0,stride=stride[0],
+                    activation_fn=None,normalizer_fn=None,scope="q_conv")
+        K = conv_op(k_net,m_channelk,kernel_size0,stride=stride[1],
+                    activation_fn=None,normalizer_fn=None,scope="k_conv")
+        V = conv_op(v_net,m_channelv,kernel_size0,stride=stride[2],
+                    activation_fn=None,normalizer_fn=None,scope="v_conv")
+        Q = reshape_net(Q)
+        K = reshape_net(K)
+        V = reshape_net(V)
+        out = nlpl.multi_head_attention(Q, K, V, n_head=n_head,keep_prob=keep_prob, is_training=is_training,
+                                        use_mask=False)
+        out = restore_shape(out,shape,m_channelv)
+        out = conv_op(out,channel,kernel_size1,
+                      activation_fn=None,
+                      normalizer_fn=None,
+                      scope="attn_conv")
+        normalizer_params  = normalizer_params or {}
+        if weighed_sum:
+            gamma = tf.get_variable("gamma", [1], initializer=gamma_initializer)
+            out = gamma*out+net
+        else:
+            out = out+net
+
+        if size is not None:
+            out = tf.image.resize_bilinear(out,wmlt.combined_static_and_dynamic_shape(org_net)[1:3])
+
+        if normalizer_fn is not None:
+            out = normalizer_fn(out,**normalizer_params)
+        if activation_fn is not None:
+            out = activation_fn(out)
+        return out
+
 def augmented_conv2d(net,Fout,dv,kernel=[3,3],n_head=1,keep_prob=None,is_training=False,scope=None,normalizer_fn=slim.batch_norm,normalizer_params=None):
     def reshape_net(net):
         shape = net.get_shape().as_list()
