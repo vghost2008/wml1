@@ -145,6 +145,42 @@ def group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=
         raise NotImplementedError
 
 @add_arg_scope
+def dynamic_group_norm(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm",dtype=None):
+    assert scale==True or offset==True
+    C = x.get_shape().as_list()[-1]
+    if C<G:
+        G = C
+    elif C%G != 0:
+        v = C//G
+        if C%v == 0:
+            G = C//v
+        else:
+            for i in range(1,C):
+                d0 = v-1
+                d1 = v+1
+                if d0>=1 and C%d0 == 0:
+                    G = C//d0
+                    break
+                elif d1<=C and C%d1 == 0:
+                    G = C//d1
+                    break
+
+    if x.get_shape().ndims == 4:
+        return group_norm_4d_v1(x,G,epsilon,weights_regularizer=weights_regularizer,
+                                scale=scale,
+                                offset=offset,
+                                sub_mean=sub_mean,
+                                scope=scope,dtype=dtype)
+    elif x.get_shape().ndims == 2:
+        return group_norm_2d(x,G,epsilon,weights_regularizer=weights_regularizer,
+                             scale=scale,
+                             offset=offset,
+                             sub_mean=sub_mean,
+                             scope=scope,dtype=dtype)
+    else:
+        raise NotImplementedError
+
+@add_arg_scope
 def group_norm_4d_v1(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,offset=True,sub_mean=True,scope="group_norm",dtype=None):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale and offset, with shape [1,1,1,C] # G: number of groups for GN

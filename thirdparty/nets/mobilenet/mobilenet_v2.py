@@ -31,8 +31,9 @@ import tensorflow as tf
 from tensorflow.contrib import layers as contrib_layers
 from tensorflow.contrib import slim as contrib_slim
 
-from nets.mobilenet import conv_blocks as ops
-from nets.mobilenet import mobilenet as lib
+from thirdparty.nets.mobilenet import conv_blocks as ops
+from thirdparty.nets.mobilenet import mobilenet as lib
+import wnnlayer as wnnl
 
 slim = contrib_slim
 op = lib.op
@@ -88,13 +89,14 @@ V2_DEF_GROUP_NORM = copy.deepcopy(V2_DEF)
 V2_DEF_GROUP_NORM['defaults'] = {
     (contrib_slim.conv2d, contrib_slim.fully_connected,
      contrib_slim.separable_conv2d): {
-        'normalizer_fn': contrib_layers.group_norm,  # pylint: disable=C0330
+        #'normalizer_fn': contrib_layers.group_norm,  # pylint: disable=C0330
+        'normalizer_fn': wnnl.dynamic_group_norm,  # pylint: disable=C0330
         'activation_fn': tf.nn.relu6,  # pylint: disable=C0330
     },  # pylint: disable=C0330
     (ops.expanded_conv,): {
         'expansion_size': ops.expand_input_by_factor(6),
         'split_expansion': 1,
-        'normalizer_fn': contrib_layers.group_norm,
+        'normalizer_fn': wnnl.dynamic_group_norm,
         'residual': True
     },
     (contrib_slim.conv2d, contrib_slim.separable_conv2d): {

@@ -519,3 +519,10 @@ def per_classes_top_k(input,labels,k,num_classes, name=None):
             indices.append(idx)
         return tf.concat(datas,axis=0),tf.concat(indices,axis=0)
 
+def img_size(x):
+    return combined_static_and_dynamic_shape(x)[1:3]
+
+def upsample(x,scale_factor=2,mode=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
+    size = combined_static_and_dynamic_shape(x)[1:3]
+    size = [size[0]*scale_factor,size[1]*scale_factor]
+    return tf.image.resize(x,size,method=mode)
