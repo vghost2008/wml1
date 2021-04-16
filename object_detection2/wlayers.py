@@ -8,6 +8,7 @@ import wtfop.wtfop_ops as wop
 from basic_tftools import channel
 import object_detection2.od_toolkit as odt
 import wnnlayer as wnnl
+import math
 
 slim=tf.contrib.slim
 
@@ -391,3 +392,41 @@ def giou(bboxes0, bboxes1,name=None):
 def giou_loss(bboxes0, bboxes1,name=None):
     with tf.name_scope(name,default_name="giou_loss"):
         return 1-giou(bboxes0,bboxes1)
+
+'''
+paper: Distance-IoU Loss: Faster and Better Learning for Bounding Box Regression
+bboxes0: [...,4] (ymin,xmin,ymax,xmax)
+bboxes1: [...,4] (ymin,xmin,ymax,xmax)
+'''
+def ciou(bboxes0, bboxes1,name=None):
+    '''
+    ciou = iou - p2/c2 - av
+    '''
+    with tf.name_scope(name,default_name="ciou"):
+        iou = odb.bboxes_jaccard(bboxes0,bboxes1)
+
+        # 包围矩形的左上角坐标、右下角坐标
+        enclose_left_up = tf.minimum(bboxes0[..., :2], bboxes1[..., :2])
+        enclose_right_down = tf.maximum(bboxes0[..., 2:], bboxes1[..., 2:])
+
+        # 包围矩形的对角线的平方
+        enclose_wh = enclose_right_down - enclose_left_up
+        enclose_c2 = tf.pow(enclose_wh[..., 0], 2) + tf.pow(enclose_wh[..., 1], 2)
+
+        # 两矩形中心点距离的平方
+        bboxes0_cyx = odb.to_cxyhw(bboxes0)
+        bboxes1_cyx = odb.to_cxyhw(bboxes1)
+        p2 = tf.pow(bboxes0_cyx[..., 0] - bboxes1_cyx[..., 0], 2) + tf.pow(bboxes0_cyx[..., 1] - bboxes1_cyx[..., 1], 2)
+
+        atan1 = tf.atan(bboxes0_cyx[..., 2] / (bboxes0_cyx[..., 3] + 1e-8))
+        atan2 = tf.atan(bboxes1_cyx[..., 2] / (bboxes1_cyx[..., 3] + 1e-8))
+        v = 4.0 * tf.pow(atan1 - atan2, 2) / (math.pi ** 2)
+        a = v / (1 - iou + v)
+
+        ciou = iou - 1.0 * p2 / enclose_c2 - 1.0 * a * v
+        return ciou
+
+
+def ciou_loss(bboxes0, bboxes1,name=None):
+    with tf.name_scope(name,default_name="ciou_loss"):
+        return 1-ciou(bboxes0,bboxes1)

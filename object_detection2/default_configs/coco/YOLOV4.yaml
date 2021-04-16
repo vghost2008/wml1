@@ -1,0 +1,55 @@
+MODEL:
+  META_ARCHITECTURE: "RetinaNet"
+  WEIGHTS: "/home/vghost/ai/mldata/resnet50_ckpt"
+  ONLY_SCOPE: "FeatureExtractor/resnet_v1_50"
+  PREPROCESS: "subimagenetmean"
+  BACKBONE:
+    #NAME: "build_retinanet_shufflenetv2_fpn_backbone"
+    NAME: "build_any_spp_pan_backbone"
+  DARKNETS:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    DEPTH: 53
+  ANCHOR_GENERATOR:
+    SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
+    #SIZES: [[32, 40.31747359663594, 50.79683366298238], [64, 80.63494719327188, 101.59366732596476], [128, 161.26989438654377, 203.18733465192952]]
+  SPP_PAN:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    IN_FEATURES: ["C3","C4", "C5"]
+    ENABLE_DROPBLOCK: True
+    BACKBONE: "build_darknet_backbone"
+  RETINANET:
+    #IN_FEATURES: ["P2","P3","P4"]
+    IN_FEATURES: ["P3","P4","P5"]
+    IOU_THRESHOLDS: [0.4, 0.5]
+    IOU_LABELS: [0, -1, 1]
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    HEAD_NAME: "YOLOHead"
+    OUTPUTS: "RetinaNetCIOUOutputs"
+DATASETS:
+  TRAIN: "coco_2017_train"
+  TEST: "coco_2017_eval"
+  #TRAIN: "mnistod_train"
+  #TEST: "mnistod_eval"
+SOLVER:
+  IMS_PER_BATCH: 3
+  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
+  WARMUP_ITERS: 1000
+  CLIP_NORM: 32
+  STEPS: (80000,100000,120000)
+  LR_DECAY_TYPE: "cosine"
+INPUT:
+  MIN_SIZE_TRAIN: (640, 672, 704, 736, 768, 800)
+  MAX_SIZE_TRAIN: 1333
+  MIN_SIZE_TEST: 672
+  MAX_SIZE_TEST: 1333
+  STITCH: 0.0
+  SHUFFLE_BUFFER_SIZE: 1024
+  STITCH: 0.2
+  DATAPROCESS: "SSD_Fix_Size"
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "YOLOV4"
+  LOG_STEP: 200

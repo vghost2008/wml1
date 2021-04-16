@@ -937,18 +937,18 @@ class WRemoveCrowdInstance(WTransform):
 
         if (IS_CROWD not in data_item) or not self.remove_crowd:
             return data_item
-
-        is_crowd = data_item[IS_CROWD]
-        indices = tf.squeeze(tf.where(tf.equal(is_crowd,0)),axis=-1)
-        labels = tf.gather(data_item[GT_LABELS],indices)
-        bboxes = tf.gather(data_item[GT_BOXES],indices)
-        is_crowd = tf.gather(data_item[IS_CROWD],indices)
-        data_item[GT_BOXES] = bboxes
-        data_item[GT_LABELS] = labels
-        data_item[IS_CROWD] = is_crowd
-        if GT_MASKS in data_item:
-            masks = tf.gather(data_item[GT_MASKS],indices)
-            data_item[GT_MASKS] = masks
+        with tf.name_scope("remove_crowd_instance"):
+            is_crowd = data_item[IS_CROWD]
+            indices = tf.squeeze(tf.where(tf.equal(is_crowd,0)),axis=-1)
+            labels = tf.gather(data_item[GT_LABELS],indices)
+            bboxes = tf.gather(data_item[GT_BOXES],indices)
+            is_crowd = tf.gather(data_item[IS_CROWD],indices)
+            data_item[GT_BOXES] = bboxes
+            data_item[GT_LABELS] = labels
+            data_item[IS_CROWD] = is_crowd
+            if GT_MASKS in data_item:
+                masks = tf.gather(data_item[GT_MASKS],indices)
+                data_item[GT_MASKS] = masks
         return data_item
     def __str__(self):
         return f"{type(self).__name__}"

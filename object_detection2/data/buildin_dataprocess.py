@@ -233,8 +233,11 @@ def SSD(cfg, is_training):
 def SSD_Fix_Size(cfg, is_training):
     if is_training:
         size = cfg.INPUT.MIN_SIZE_TRAIN[0]
-        trans_on_single_img = [trans.MaskNHW2HWN(),
+        trans_on_single_img = [
+                               trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                               trans.MaskNHW2HWN(),
                                trans.RandomFlipLeftRight(),
+                               trans.WTransImgToFloat(),
                                trans.RandomSampleDistortedBoundingBox(min_object_covered=cfg.INPUT.CROP.MIN_OBJECT_COVERED,
                                                                       aspect_ratio_range=cfg.INPUT.CROP.ASPECT_RATIO,
                                                                       area_range=cfg.INPUT.CROP.SIZE,
@@ -243,7 +246,6 @@ def SSD_Fix_Size(cfg, is_training):
                                trans.ResizeToFixedSize(size=[size,size]),
                                trans.MaskHWN2NHW(),
                                trans.BBoxesRelativeToAbsolute(),
-                               trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
                                trans.AddBoxLens(),
                                trans.UpdateHeightWidth(),
                                ]

@@ -22,12 +22,12 @@ class ResidualBlock(object):
                               normalizer_params=self.normalizer_params)
             out = slim.conv2d(out,self.chnls,
                               3,1,
-                              activation_fn=None,
+                              activation_fn=self.activation_fn,
                               normalizer_fn=self.normalizer_fn,
                               normalizer_params=self.normalizer_params)
             out = out+x
-            if self.activation_fn is not None:
-                out = self.activation_fn(out)
+            #if self.activation_fn is not None:
+                #out = self.activation_fn(out)
             return out
 
 class CSPFirst(object):
@@ -45,7 +45,7 @@ class CSPFirst(object):
 
     def forward(self,x,scope=None):
         with tf.variable_scope(scope,"Block"):
-            x = slim.conv2d(x,self.in_chnls,
+            x = slim.conv2d(x,self.out_chnls,
                               3,2,
                               activation_fn=self.activation_fn,
                               normalizer_fn=self.normalizer_fn,
@@ -61,6 +61,11 @@ class CSPFirst(object):
                                 normalizer_fn=self.normalizer_fn,
                                 normalizer_params=self.normalizer_params)
             out_1 = self.block.forward(out_1,scope="unit_0")
+            out_1 = slim.conv2d(out_1,self.out_chnls,
+                                1,1,
+                                activation_fn=self.activation_fn,
+                                normalizer_fn=self.normalizer_fn,
+                                normalizer_params=self.normalizer_params)
             out = tf.concat([out_0,out_1],axis=-1)
             out = slim.conv2d(out,self.out_chnls,
                                 1,1,
@@ -85,7 +90,7 @@ class CSPStem(object):
 
     def forward(self,x,scope=None):
         with tf.variable_scope(scope,default_name="Block"):
-            x = slim.conv2d(x,self.in_chnls,
+            x = slim.conv2d(x,self.out_chnls,
                             3,2,
                             activation_fn=self.activation_fn,
                             normalizer_fn=self.normalizer_fn,
@@ -102,6 +107,11 @@ class CSPStem(object):
                                 normalizer_params=self.normalizer_params)
             for i in range(self.num_block):
                 out_1 = self.block.forward(out_1,scope=f"unit_{i}")
+            out_1 = slim.conv2d(out_1,self.out_chnls,
+                                1,1,
+                                activation_fn=self.activation_fn,
+                                normalizer_fn=self.normalizer_fn,
+                                normalizer_params=self.normalizer_params)
             out = tf.concat([out_0,out_1],axis=-1)
             out = slim.conv2d(out,self.out_chnls,
                               1,1,

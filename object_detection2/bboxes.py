@@ -29,9 +29,8 @@ return:
 '''
 def box_area(bboxes):
     with tf.name_scope("box_area"):
-        ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=len(bboxes.get_shape())-1)
-        h = ymax-ymin
-        w = xmax-xmin
+        hw = bboxes[...,2:]-bboxes[...,:2]
+        h,w = tf.unstack(hw,axis=-1)
         return tf.multiply(h,w)
 
 def batch_nms_wrapper(bboxes,classes,lens,confidence=None,nms=None,k=200,sort=False):
@@ -140,22 +139,20 @@ def bboxes_filter_labels(labels, bboxes,
         return labels, bboxes
 
 
+'''
+bbox_ref:[1,4], [[ymin,xmin,ymax,xmax]]
+bboxes:[N,4],[[ymin,xmin,ymax,xmax],...]
+'''
 def bboxes_jaccard(bbox_ref, bboxes, name=None):
 
     with tf.name_scope(name, 'bboxes_jaccard'):
-        bboxes = tf.transpose(bboxes)
-        bbox_ref = tf.transpose(bbox_ref)
-        int_ymin = tf.maximum(bboxes[0], bbox_ref[0])
-        int_xmin = tf.maximum(bboxes[1], bbox_ref[1])
-        int_ymax = tf.minimum(bboxes[2], bbox_ref[2])
-        int_xmax = tf.minimum(bboxes[3], bbox_ref[3])
-        h = tf.maximum(int_ymax - int_ymin, 0.)
-        w = tf.maximum(int_xmax - int_xmin, 0.)
+        int_yxmin = tf.maximum(bboxes[...,:2], bbox_ref[...,:2])
+        int_yxmax = tf.minimum(bboxes[...,2:], bbox_ref[...,2:])
+        hw = tf.maximum(int_yxmax - int_yxmin, 0.)
+        h,w = tf.unstack(hw,axis=-1)
         inter_vol = h * w
-        union_vol = -inter_vol \
-            + (bboxes[2] - bboxes[0]) * (bboxes[3] - bboxes[1]) \
-            + (bbox_ref[2] - bbox_ref[0]) * (bbox_ref[3] - bbox_ref[1])
-        jaccard = wmath.safe_divide(inter_vol, union_vol, 'jaccard')
+        union_vol = -inter_vol+box_area(bboxes)+box_area(bbox_ref)
+        jaccard = inter_vol/(union_vol+1e-10)
         return jaccard
 
 '''
