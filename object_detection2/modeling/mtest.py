@@ -157,10 +157,7 @@ class WMLTest(tf.test.TestCase):
             boxes1 = odb.to_cxyhw(boxes1)
             diff = boxes1-boxes0
             v = sess.run([diff,boxes0,boxes1])
-            wmlu.show_list(v[1])
-            print("---------")
-            wmlu.show_list(v[2])
-            print(np.max(v[0]))
+            self.assertAllClose(v[1],v[2],atol=1e-5)
 
 
 
