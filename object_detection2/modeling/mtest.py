@@ -20,6 +20,7 @@ from object_detection2.modeling.box_regression import Box2BoxTransform
 import object_detection2.config.config as config
 from object_detection2.modeling.matcher import *
 import wmodule
+from object_detection2.modeling.anchor_generator import AnchorGeneratorF
 
 
 class WMLTest(tf.test.TestCase):
@@ -142,6 +143,26 @@ class WMLTest(tf.test.TestCase):
             self.assertAllClose(scores,target_scores,atol=1e-4)
             self.assertAllEqual(labels,target_labels)
             self.assertAllEqual(indices,target_indices)
+
+    def testAnchorGenerator(self):
+        with self.test_session() as sess:
+            H,W = 5,7
+            size = [2.5,3.5]
+            scales = [1.1, 1.2, 1.8]
+            aspect_ratios = [0.5, 1.0, 2.0]
+            boxes0 = wop.anchor_generator([H, W], size, scales=scales, aspect_ratios=aspect_ratios)
+            ag = AnchorGeneratorF(scales=scales,aspect_ratios=aspect_ratios)
+            boxes1 = ag(shape=[H,W],size=size)
+            boxes0 = odb.to_cxyhw(boxes0)
+            boxes1 = odb.to_cxyhw(boxes1)
+            diff = boxes1-boxes0
+            v = sess.run([diff,boxes0,boxes1])
+            wmlu.show_list(v[1])
+            print("---------")
+            wmlu.show_list(v[2])
+            print(np.max(v[0]))
+
+
 
 
 
