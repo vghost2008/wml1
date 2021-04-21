@@ -42,15 +42,18 @@ def main(_):
     cfg = setup(args)
 
     is_training = True
-    data_loader = DataLoader(cfg=cfg,is_training=is_training)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
+    cfg.MODEL.NUM_CLASSES = data_args[2]
+    data_loader = DataLoader(cfg=cfg,is_training=is_training)
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
     cfg.MODEL.SSD.NUM_CLASSES = num_classes
     cfg.MODEL.RETINANET.NUM_CLASSES = num_classes
     cfg.MODEL.CENTERNET.NUM_CLASSES = num_classes
+    cfg.MODEL.DEEPLAB.NUM_CLASSES = num_classes
     cfg.MODEL.YOLACT.NUM_CLASSES = num_classes
+    cfg.MODEL.FCOS.NUM_CLASSES = num_classes
     cfg.MODEL.FCOS.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes
     cfg.DATASETS.NUM_CLASSES = num_classes

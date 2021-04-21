@@ -13,6 +13,7 @@ from object_detection2.config.config import global_cfg
 from object_detection2.modeling.build import HEAD_OUTPUTS
 from object_detection2.data.dataloader import DataLoader
 import wsummary
+from object_detection2.modeling.nms import boxes_nms
 
 
 @HEAD_OUTPUTS.register()
@@ -276,7 +277,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
         boxes_all,class_idxs_all,res_indexs_all = y
         scores_all,_ = x
         if output_fix_nr < 5:
-            nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
+            nms = functools.partial(boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
                                 k=self.max_detections_per_image)
         else:
             nms = functools.partial(wop.boxes_nms_nr2, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,

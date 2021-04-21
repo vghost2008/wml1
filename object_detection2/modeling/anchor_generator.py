@@ -1,12 +1,13 @@
 #coding=utf-8
 from thirdparty.registry import Registry
 import wmodule
-import wtfop.wtfop_ops as wop
 import wml_tfutils as wmlt
 import tensorflow as tf
 import wsummary
 from object_detection2.datadef import *
 from collections import Iterable
+import math
+import numpy as np
 
 ANCHOR_GENERATOR_REGISTRY = Registry("ANCHOR_GENERATOR")
 
@@ -16,6 +17,59 @@ def build_anchor_generator(cfg, *args,**kwargs):
     """
     anchor_generator = cfg.MODEL.ANCHOR_GENERATOR.NAME
     return ANCHOR_GENERATOR_REGISTRY.get(anchor_generator)(*args,cfg=cfg,**kwargs)
+
+class AnchorGeneratorF(object):
+    def __init__(self,scales,aspect_ratios):
+        self.scales = scales
+        self.aspect_ratios = aspect_ratios
+        self.cell_anchors = self.get_cell_anchors()
+
+    def get_cell_anchors(self):
+        anchors = []
+        for a in self.aspect_ratios:
+            for s in self.scales:
+                sa = math.sqrt(a)
+                hw = s*sa/2
+                hh = s/(sa*2)
+                box = [-hh,-hw,hh,hw]
+                anchors.append(box)
+
+        return np.array(anchors,dtype=np.float32)
+
+
+    def __call__(self,shape,size):
+        with tf.name_scope("AnchorGeneratorF"):
+            y = tf.range(shape[0])
+            x = tf.range(shape[1])
+            X,Y = tf.meshgrid(x,y)
+            offset = 0.5
+            if not isinstance(shape[0],(int,float)):
+                shapef = tf.to_float(shape)
+            else:
+                shapef = shape
+
+            if not isinstance(size[0],(int,float)):
+                sizef = tf.to_float(size)
+            else:
+                sizef = size
+            pos_scale = tf.convert_to_tensor([1.0/shapef[0],1.0/shapef[1],1.0/shapef[0],1.0/shapef[1]],
+                                         dtype=tf.float32)
+            box_scale = tf.convert_to_tensor([1.0/sizef[0],1.0/sizef[1],1.0/sizef[0],1.0/sizef[1]],
+                                             dtype=tf.float32)
+            pos_scale = tf.reshape(pos_scale,[1,1,4])
+            box_scale = tf.reshape(box_scale,[1,4])
+            data = tf.cast(tf.stack([Y,X,Y,X],axis=-1),tf.float32)+tf.convert_to_tensor(offset)
+            data = data*pos_scale
+            data = tf.reshape(data,[shape[0],shape[1],1,4])
+            cell_anchors = self.cell_anchors*box_scale
+            cell_anchors = tf.reshape(cell_anchors,[1,1,-1,4])
+            anchors = data+cell_anchors
+            anchors = tf.reshape(anchors,[-1,4])
+            return anchors
+
+def anchor_generator(shape,size,scales,aspect_ratios):
+    ag = AnchorGeneratorF(scales=scales,aspect_ratios=aspect_ratios)
+    return ag(shape=shape,size=size)
 
 @ANCHOR_GENERATOR_REGISTRY.register()
 class DefaultAnchorGenerator(wmodule.WChildModule):
@@ -89,14 +143,14 @@ class DefaultAnchorGenerator(wmodule.WChildModule):
                 即[box0(s0,r0),box1(s1,r0),box2(s0,r1),box3(s1,r1),...]
                 '''
                 if not isinstance(self.aspect_ratios[i][0],Iterable):
-                    anchors.append(wop.anchor_generator(shape=shape[1:3],size=size,
+                    anchors.append(anchor_generator(shape=shape[1:3],size=size,
                                                         scales=self.sizes[i],
                                                         aspect_ratios=self.aspect_ratios[i]))
                 else:
                     assert len(self.sizes[i])==len(self.aspect_ratios[i]),"error size"
                     tanchors = []
                     for j in range(len(self.sizes[i])):
-                        tanchors.append(wop.anchor_generator(shape=shape[1:3], size=size,
+                        tanchors.append(anchor_generator(shape=shape[1:3], size=size,
                                                             scales=[self.sizes[i][j]],
                                                             aspect_ratios=self.aspect_ratios[i][j]))
                     tanchors = [tf.expand_dims(x,axis=1) for x in tanchors]
@@ -185,14 +239,14 @@ class AnchorGenerator(wmodule.WChildModule):
                 即[box0(s0,r0),box1(s1,r0),box2(s0,r1),box3(s1,r1),...]
                 '''
                 if not isinstance(self.aspect_ratios[i][0],Iterable):
-                    anchors.append(wop.anchor_generator(shape=shape[1:3],size=size,
+                    anchors.append(anchor_generator(shape=shape[1:3],size=size,
                                                         scales=self.sizes[i],
                                                         aspect_ratios=self.aspect_ratios[i]))
                 else:
                     assert len(self.sizes[i])==len(self.aspect_ratios[i]),"error size"
                     tanchors = []
                     for j in range(len(self.sizes[i])):
-                        tanchors.append(wop.anchor_generator(shape=shape[1:3], size=size,
+                        tanchors.append(anchor_generator(shape=shape[1:3], size=size,
                                                             scales=[self.sizes[i][j]],
                                                             aspect_ratios=self.aspect_ratios[i][j]))
                     tanchors = [tf.expand_dims(x,axis=1) for x in tanchors]

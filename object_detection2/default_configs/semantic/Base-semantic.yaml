@@ -1,0 +1,24 @@
+MODEL:
+  META_ARCHITECTURE: "DeepLab"
+  BACKBONE:
+    NAME: "build_resnet_backbone"
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  #TRAIN: "coco_2014_train"
+  #TEST: "coco_2014_eval"
+  SKIP_CROWD_DURING_TRAINING: False
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
+  STEPS: (6000,8000,20000)
+  MAX_ITER: 90000
+INPUT:
+  #MIN_SIZE_TRAIN: (512,544,576,608,640)
+  MIN_SIZE_TRAIN: (224,256,288)
+  MIN_SIZE_TEST: 224
+  #DATAPROCESS: "SSD_Fix_Size"
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "DeepLabDemon"
+  LOG_STEP: 200

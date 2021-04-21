@@ -20,7 +20,7 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNetBBD.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="YOLOV4.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="deeplabv3", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-box-free.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
@@ -53,7 +53,8 @@ def get_config_file(name:str):
     MODCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistod/"
     MODGEOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
     RESEARCH_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/research/"
-    search_dirs = [COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR]
+    SEMANTIC_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/semantic/"
+    search_dirs = [SEMANTIC_DIR,COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR]
     if os.path.exists(name):
         return name
     if not name.endswith(".yaml"):

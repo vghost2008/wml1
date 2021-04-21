@@ -397,6 +397,31 @@ def evo_norm_s0(x,*args,**kwargs):
         raise NotImplementedError(f"Input dims must be 2 or 4.")
 
 @add_arg_scope
+def dynamic_evo_norm_s0(x,G=32,*args,**kwargs):
+    C = x.get_shape().as_list()[-1]
+    if C<G:
+        G = C
+    elif C%G != 0:
+        v = C//G
+        if C%v == 0:
+            G = C//v
+        else:
+            for i in range(1,C):
+                d0 = v-1
+                d1 = v+1
+                if d0>=1 and C%d0 == 0:
+                    G = C//d0
+                    break
+                elif d1<=C and C%d1 == 0:
+                    G = C//d1
+                    break
+    if len(x.get_shape()) == 4:
+        return evo_norm_s0_4d(x,G=G,*args,**kwargs)
+    elif len(x.get_shape())==2:
+        return evo_norm_s0_2d(x,G=G,*args,**kwargs)
+    else:
+        raise NotImplementedError(f"Input dims must be 2 or 4.")
+@add_arg_scope
 def evo_norm_s0_4d(x, G=32, epsilon=1e-5,weights_regularizer=None,scale=True,scope="evo_norm_s0"):
     # x: input features with shape [N,H,W,C]
     # gamma, beta: scale with shape [1,1,1,C] # G: number of groups for GN

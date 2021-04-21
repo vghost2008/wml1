@@ -167,6 +167,8 @@ class TrainerBase:
         elif self.cfg.GLOBAL.EVAL_TYPE == "recall" or self.cfg.GLOBAL.EVAL_TYPE == "precision":
             evaler = mt.PrecisionAndRecall(num_classes=self.cfg.DATASETS.NUM_CLASSES,
                                            threshold=0.5)
+        elif self.cfg.GLOBAL.EVAL_TYPE == "miou":
+            evaler = mt.MeanIOU(num_classes=self.cfg.DATASETS.NUM_CLASSES)
 
         try:
             self.before_train()
