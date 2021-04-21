@@ -709,6 +709,7 @@ _C.MODEL.RESNETS.RES5_DILATION = 1
 # Output width of res2. Scaling this parameters will scale the width of all 1x1 convs in ResNet
 _C.MODEL.RESNETS.RES2_OUT_CHANNELS = 256
 _C.MODEL.RESNETS.STEM_OUT_CHANNELS = 64
+_C.MODEL.RESNETS.OUTPUT_STRIDE = 0
 
 # Apply Deformable Convolution in stages
 # Specify if apply deform_conv on Res2, Res3, Res4, Res5

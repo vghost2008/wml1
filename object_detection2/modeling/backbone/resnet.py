@@ -32,6 +32,10 @@ class ResNet(Backbone):
             train_bn = False
         else:
             train_bn = True
+        if self.cfg.MODEL.RESNETS.OUTPUT_STRIDE <= 1:
+            output_stride = None
+        else:
+            output_stride = self.cfg.MODEL.RESNETS.OUTPUT_STRIDE
         with slim.arg_scope(resnet_arg_scope(batch_norm_decay=batch_norm_decay,
                                              is_training=train_bn)):
             with tf.variable_scope("FeatureExtractor") as sc:
@@ -39,19 +43,19 @@ class ResNet(Backbone):
                 if self.cfg.MODEL.RESNETS.DEPTH == 101:
                     print("ResNet-101")
                     self.scope_name = "101"
-                    _,end_points = resnet_v1_101(x['image'],output_stride=None)
+                    _,end_points = resnet_v1_101(x['image'],output_stride=output_stride)
                 elif self.cfg.MODEL.RESNETS.DEPTH == 152:
                     print("ResNet-152")
                     self.scope_name = "152"
-                    _, end_points = resnet_v1_152(x['image'], output_stride=None)
+                    _, end_points = resnet_v1_152(x['image'], output_stride=output_stride)
                 elif self.cfg.MODEL.RESNETS.DEPTH == 200:
                     print("ResNet-200")
                     self.scope_name = "200"
-                    _, end_points = resnet_v1_200(x['image'], output_stride=None)
+                    _, end_points = resnet_v1_200(x['image'], output_stride=output_stride)
                 else:
                     print("ResNet-50")
                     self.scope_name = "50"
-                    _,end_points = resnet_v1_50(x['image'],output_stride=None)
+                    _,end_points = resnet_v1_50(x['image'],output_stride=output_stride)
 
         self.end_points = end_points
 

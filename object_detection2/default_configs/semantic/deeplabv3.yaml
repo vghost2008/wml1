@@ -7,8 +7,9 @@ MODEL:
     NAME: "build_resnet_backbone"
   RESNETS:
     FROZEN_BN: True
+    OUTPUT_STRIDE: 16
   DEEPLAB:
-    IN_FEATURES: ["C2","C4"]
+    IN_FEATURES: ["C2","C5"]
     NORM: "dynamic_evo_norm_s0"
     ACTIVATION_FN: "NA"
     OUTPUTS: "DeepLabOutputs"
