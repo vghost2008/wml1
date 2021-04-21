@@ -152,6 +152,53 @@ def coco(cfg,is_training):
 
     return (trans_on_single_img,trans_on_batch_img)
 
+@DATAPROCESS_REGISTRY.register()
+def coco_semantic(cfg,is_training):
+    if is_training:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                               trans.RandomFlipLeftRight(),
+                               trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TRAIN,
+                                                        max_size=cfg.INPUT.MAX_SIZE_TRAIN,
+                                                        align=cfg.INPUT.SIZE_ALIGN),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                               trans.RandomRotateAnyAngle(max_angle=cfg.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE,
+                                                          rotate_probability=cfg.INPUT.ROTATE_ANY_ANGLE.PROBABILITY,
+                                                          enable=cfg.INPUT.ROTATE_ANY_ANGLE.ENABLE),
+                               trans.GetSemanticMaskFromCOCO(num_classes=cfg.MODEL.NUM_CLASSES,no_background=False),
+                               trans.AddBoxLens(),
+                               trans.UpdateHeightWidth(),
+                               ]
+        if cfg.INPUT.SIZE_ALIGN > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+    else:
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
+                               trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TEST,
+                                                        max_size=cfg.INPUT.MAX_SIZE_TEST,
+                                                        align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.GetSemanticMaskFromCOCO(num_classes=cfg.MODEL.NUM_CLASSES, no_background=False),
+                               trans.AddBoxLens(),
+                               ]
+        if cfg.INPUT.SIZE_ALIGN_FOR_TEST > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+
+    return (trans_on_single_img,trans_on_batch_img)
+
+
 
 @DATAPROCESS_REGISTRY.register()
 def coco_nodirection(cfg, is_training):
@@ -257,6 +304,43 @@ def SSD_Fix_Size(cfg, is_training):
                                trans.ResizeToFixedSize(size=[size,size]),
                                trans.MaskHWN2NHW(),
                                trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+
+    return (trans_on_single_img, trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
+def SSD_Fix_Size_semantic(cfg, is_training):
+    if is_training:
+        size = cfg.INPUT.MIN_SIZE_TRAIN[0]
+        trans_on_single_img = [
+            trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+            trans.MaskNHW2HWN(),
+            trans.RandomFlipLeftRight(),
+            trans.WTransImgToFloat(),
+            trans.RandomSampleDistortedBoundingBox(min_object_covered=cfg.INPUT.CROP.MIN_OBJECT_COVERED,
+                                                   aspect_ratio_range=cfg.INPUT.CROP.ASPECT_RATIO,
+                                                   area_range=cfg.INPUT.CROP.SIZE,
+                                                   filter_threshold=cfg.INPUT.CROP.FILTER_THRESHOLD,
+                                                   probability=cfg.INPUT.CROP.PROBABILITY),
+            trans.ResizeToFixedSize(size=[size,size]),
+            trans.MaskHWN2NHW(),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.GetSemanticMaskFromCOCO(num_classes=cfg.MODEL.NUM_CLASSES,no_background=False),
+            trans.AddBoxLens(),
+            trans.UpdateHeightWidth(),
+        ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+    else:
+        size = cfg.INPUT.MIN_SIZE_TEST
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                               trans.ResizeToFixedSize(size=[size,size]),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.GetSemanticMaskFromCOCO(num_classes=cfg.MODEL.NUM_CLASSES, no_background=False),
                                trans.AddBoxLens(),
                                ]
         trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),

@@ -44,7 +44,7 @@ class MetaArch(wmodule.WModule):
                 b_img = b_img-[[[channel_means]]]
             elif self.cfg.MODEL.PREPROCESS == "standardization":
                 b_img = tf.image.per_image_standardization(b_img)
-            elif self.cfg.MODEL.PREPROCESS == "standardization":
+            elif self.cfg.MODEL.PREPROCESS == "none":
                 pass
             else:
                 raise ValueError(f"Error preprocess type {self.cfg.MODEL.PREPROCESS}")

@@ -12,6 +12,7 @@ _C.MODEL.PREPROCESS = "ton1p1" #"subimagenetmean","standardization","NONE"
 _C.MODEL.WEIGHTS = ""
 _C.MODEL.ONLY_SCOPE = ""
 _C.MODEL.EXCLUDE_SCOPE = ""
+_C.MODEL.NUM_CLASSES = 90
 
 # -----------------------------------------------------------------------------
 # INPUT
@@ -857,3 +858,24 @@ _C.GLOBAL.EVAL_TYPE = "COCO"
 _C.log_dir = ""
 _C.ckpt_dir = ""
 #BalanceBackboneHookV2
+
+# ---------------------------------------------------------------------------- #
+# DEEPLAB Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.DEEPLAB = CN()
+
+_C.MODEL.DEEPLAB.HEAD_NAME = "DeepLabHead"
+# This is the number of foreground classes.
+_C.MODEL.DEEPLAB.NUM_CLASSES = 80
+
+_C.MODEL.DEEPLAB.IN_FEATURES = ["P2","P6"]
+_C.MODEL.DEEPLAB.CONV_DIM = 256
+_C.MODEL.DEEPLAB.WEIGHT_DECAY = 4e-5
+_C.MODEL.DEEPLAB.ATROUS_RATES=[6,12,18]
+_C.MODEL.DEEPLAB.LOW_FEA_CONV_DIM=48
+_C.MODEL.DEEPLAB.UPSAMPLE_LOGITS=True
+_C.MODEL.DEEPLAB.ASPP_WITH_SEPARABLE_CONV = True
+_C.MODEL.DEEPLAB.OUTPUTS = "DeepLabOutputs"
+_C.MODEL.DEEPLAB.NORM = "BN"
+_C.MODEL.DEEPLAB.ACTIVATION_FN = "relu"
+_C.MODEL.DEEPLAB.USE_DROP_BLOCKS=True

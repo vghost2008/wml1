@@ -1817,3 +1817,48 @@ class RemoveMask(WTransform):
     def __call__(self, data_item):
         del data_item[GT_MASKS]
         return data_item
+    
+class GetSemanticMaskFromCOCO(WTransform):
+    def __init__(self,num_classes,no_background=False):
+        self.num_classes = num_classes
+        self.no_background = no_background
+
+    '''
+    mask:[N,height,width]
+    labels:[N]
+    num_classes:() not include background 
+    return:
+    [num_classes,height,width]
+    '''
+
+    def sparse_mask_to_dense(self,mask, labels, num_classes, no_background=True):
+        with tf.variable_scope("SparseMaskToDense"):
+            if mask.dtype is not tf.bool:
+                mask = tf.cast(mask, tf.bool)
+            shape = btf.combined_static_and_dynamic_shape(mask)
+            if no_background:
+                out_shape = [num_classes, shape[1], shape[2]]
+                labels = labels - 1
+                init_res = tf.zeros(shape=out_shape, dtype=tf.bool)
+            else:
+                out_shape = [num_classes + 1, shape[1], shape[2]]
+                init_res = tf.zeros(shape=out_shape, dtype=tf.bool)
+                t_mask = tf.cast(mask,tf.int32)
+                t_mask = tf.reduce_sum(t_mask,axis=0,keepdims=False)
+                t_mask = tf.equal(t_mask,0)
+                init_res = wop.set_value(tensor=init_res, v=t_mask, index=tf.convert_to_tensor(0))
+
+            def fn(merged_m, m, l):
+                tmp_data = wop.set_value(tensor=init_res, v=m, index=l)
+                return tf.logical_or(merged_m, tmp_data)
+
+            res = tf.foldl(lambda x, y: fn(x, y[0], y[1]), elems=(mask, labels), initializer=init_res, back_prop=False)
+            res = tf.transpose(res,perm=[1,2,0])
+            return res
+        
+    def __call__(self, data_item):
+        data_item[GT_SEMANTIC_LABELS] = self.sparse_mask_to_dense(data_item[GT_MASKS],
+                                                                  data_item[GT_LABELS],
+                                                                  self.num_classes,
+                                                                  self.no_background)
+        return data_item

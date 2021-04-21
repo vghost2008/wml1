@@ -85,6 +85,14 @@ def get_norm(name:str,is_training):
             "scale": True,
         }
         return wnnl.evo_norm_s0, norm_params
+    elif name == "dynamic_evo_norm_s0":
+        norm_params = {
+            "G": 32,
+            "epsilon": 1e-5,
+            "weights_regularizer": None,
+            "scale": True,
+        }
+        return wnnl.dynamic_evo_norm_s0, norm_params
     elif name == "GNV0":
         norm_params = {
             "G": 32,

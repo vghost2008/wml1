@@ -728,3 +728,41 @@ class SubsetsModelPerformace(object):
         elif item == "precision":
             return self.mp.precision
 
+
+class  MeanIOU(object):
+    def __init__(self,num_classes,*args,**kwargs):
+        self.intersection = np.zeros(shape=[num_classes],dtype=np.int64)
+        self.union = np.zeros(shape=[num_classes],dtype=np.int64)
+        self.num_classes = num_classes
+
+    def get_per_classes_iou(self):
+        return self.intersection/np.maximum(self.union,1e-8)
+
+    def get_mean_iou(self):
+        return np.mean(self.get_per_classes_iou())
+        
+    
+    def __call__(self, gtlabels,predictions):
+        all_equal = np.equal(gtlabels,predictions)
+        for i in range(1,self.num_classes+1):
+            mask = np.equal(gtlabels,i)
+            t_int = np.sum(all_equal[mask].astype(np.int64))
+            t_data0 = np.sum(np.equal(gtlabels,i).astype(np.int64))
+            t_data1 = np.sum(np.equal(predictions,i).astype(np.int64))
+            t_union = t_data0+t_data1-t_int
+            self.intersection[i-1] += t_int
+            self.union += t_union
+
+
+    def show(self,name):
+        str0 = "|配置|mIOU|"
+        str1 = "|---|---|"
+        str2 = f"|{name}|{self.get_mean_iou():.4f}"
+        data = self.get_per_classes_iou()
+        for i in range(self.num_classes):
+            str0 += f"C{i+1}|"
+            str1 += "---|"
+            str2 += f"{data[i]:.3f}|"
+        print(str0)
+        print(str1)
+        print(str2)
