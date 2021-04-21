@@ -20,7 +20,6 @@ class DeepLabHead(wmodule.WChildModule):
         super().__init__(cfg,parent=parent,*args,**kwargs)
         self.normalizer_fn, self.norm_params = odtk.get_norm(self.cfg.NORM, is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
-        self.num_classes = cfg.NUM_CLASSES+1
 
 
     def split_separable_conv2d(self,inputs,
@@ -146,7 +145,13 @@ class DeepLabHead(wmodule.WChildModule):
                                          decoder_use_separable_conv=self.cfg.ASPP_WITH_SEPARABLE_CONV,
                                          weight_decay=weight_decay,
                                          reuse=reuse)
-            logits = slim.conv2d(fea,self.num_classes,
+            
+            if self.cfg.PRED_BACKGROUND:
+                filters = self.cfg.NUM_CLASSES + 1
+            else:
+                filters = self.cfg.NUM_CLASSES
+                
+            logits = slim.conv2d(fea,filters,
                               kernel_size=1,
                               activation_fn=None,
                               normalizer_fn=None,
