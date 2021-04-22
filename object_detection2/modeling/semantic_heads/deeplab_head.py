@@ -132,8 +132,12 @@ class DeepLabHead(wmodule.WChildModule):
 
             concat_logits = tf.concat(branch_logits, 3)
             concat_logits = slim.conv2d(
-                concat_logits, conv_dim, 1, scope="concat_projection")
-            if self.cfg.USE_DROP_BLOCKS:
+                concat_logits, conv_dim, 1,
+                activation_fn=self.activation_fn,
+                normalizer_fn=self.normalizer_fn,
+                normalizer_params=self.norm_params,
+                scope="concat_projection")
+            if self.cfg.USE_DROP_BLOCKS and self.is_training:
                 concat_logits = slim.dropout(
                     concat_logits,
                     keep_prob=0.9,
