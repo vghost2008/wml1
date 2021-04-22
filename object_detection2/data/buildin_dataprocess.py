@@ -300,7 +300,8 @@ def SSD_Fix_Size(cfg, is_training):
                                trans.FixDataInfo()]
     else:
         size = cfg.INPUT.MIN_SIZE_TEST
-        trans_on_single_img = [trans.MaskNHW2HWN(),
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
                                trans.ResizeToFixedSize(size=[size,size]),
                                trans.MaskHWN2NHW(),
                                trans.BBoxesRelativeToAbsolute(),
