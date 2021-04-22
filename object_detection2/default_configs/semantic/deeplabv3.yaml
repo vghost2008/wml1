@@ -6,7 +6,7 @@ MODEL:
   BACKBONE:
     NAME: "build_resnet_backbone"
   RESNETS:
-    FROZEN_BN: True
+    FROZEN_BN: False
     OUTPUT_STRIDE: 16
   DEEPLAB:
     IN_FEATURES: ["C2","C5"]
@@ -41,4 +41,4 @@ VERSION: 2
 GLOBAL:
   EVAL_TYPE: "miou"
   PROJ_NAME: "DeepLabV3COCODemon"
-  LOG_STEP: 2
+  LOG_STEP: 200

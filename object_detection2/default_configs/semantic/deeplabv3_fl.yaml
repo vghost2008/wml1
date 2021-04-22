@@ -6,7 +6,7 @@ MODEL:
   BACKBONE:
     NAME: "build_resnet_backbone"
   RESNETS:
-    FROZEN_BN: True
+    FROZEN_BN: False
     OUTPUT_STRIDE: 16
   DEEPLAB:
     PRED_BACKGROUND: False

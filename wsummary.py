@@ -320,16 +320,17 @@ def semantic_summary_img(img,masks,colors=None,name="semantic"):
     image: [height, width, 3] value range[0, 255]
     mask: [height, width,N] value range[0, 1]
     '''
-    masks = tf.transpose(masks,[2,0,1])
-    if img.dtype != tf.uint8:
-        min = tf.reduce_min(img)
-        max = tf.reduce_max(img)
-        img = (img-min)*255/(max-min+1e-8)
-        img = tf.cast(img,tf.uint8)
-    if colors is None:
-        colors = smv.STANDARD_COLORS
-    colors = tf.convert_to_tensor(colors)
-    img = smv.tf_draw_masks_on_image(img,masks,color=colors)
+    with tf.device("/cpu:0"):
+        masks = tf.transpose(masks,[2,0,1])
+        if img.dtype != tf.uint8:
+            min = tf.reduce_min(img)
+            max = tf.reduce_max(img)
+            img = (img-min)*255/(max-min+1e-8)
+            img = tf.cast(img,tf.uint8)
+        if colors is None:
+            colors = smv.STANDARD_COLORS
+        colors = tf.convert_to_tensor(colors)
+        img = smv.tf_draw_masks_on_image(img,masks,color=colors)
     return img
 
 def semantic_summary(img,masks,colors=None,name="semantic"):
@@ -345,9 +346,10 @@ def batch_semantic_summary(img,masks,max_outputs=3,colors=None,name="semantic"):
     image: [B,height, width, 3] value range[0, 255]
     mask: [B, height, width,N] value range[0, 1]
     '''
-    img = img[:max_outputs]
-    masks = masks[:max_outputs]
-    img = tf.map_fn(lambda x:semantic_summary_img(x[0],x[1],colors),elems=(img,masks),dtype=tf.uint8,
-                    back_prop=False)
-    tf.summary.image(name,img)
+    with tf.device("/cpu:0"):
+        img = img[:max_outputs]
+        masks = masks[:max_outputs]
+        img = tf.map_fn(lambda x:semantic_summary_img(x[0],x[1],colors),elems=(img,masks),dtype=tf.uint8,
+                        back_prop=False)
+        tf.summary.image(name,img)
 
