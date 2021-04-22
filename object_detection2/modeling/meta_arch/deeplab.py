@@ -65,11 +65,16 @@ class DeepLab(MetaArch):
             labels=gt_labels,
         )
         outputs.batched_inputs = batched_inputs
-        wsummary.feature_map_summary(gt_labels,name="gt_semantic",max_outputs=10)
+        max_outputs = 3
+        wsummary.batch_semantic_summary(batched_inputs[IMAGE],masks=gt_labels[...,1:],max_outputs=max_outputs,name="gt")
 
         if self.is_training:
             if self.cfg.GLOBAL.SUMMARY_LEVEL<=SummaryLevel.DEBUG:
                 results = outputs.inference(inputs=batched_inputs,logits=pred_logits)
+                wsummary.batch_semantic_summary(batched_inputs[IMAGE], masks=results[RD_SEMANTIC][...,1:],
+                                                max_outputs=max_outputs,
+                                                name="pred")
+                wsummary.feature_map_summary(gt_labels, name="gt_semantic", max_outputs=10)
                 wsummary.feature_map_summary(results[RD_SEMANTIC],name="pred_semantic", max_outputs=10)
             else:
                 results = {}
@@ -77,7 +82,12 @@ class DeepLab(MetaArch):
             return results,outputs.losses()
         else:
             results = outputs.inference(inputs=batched_inputs,logits=pred_logits)
-            wsummary.feature_map_summary(gt_labels, max_outputs=10)
+            wsummary.batch_semantic_summary(batched_inputs[IMAGE],
+                                            masks=results[RD_SEMANTIC][...,1:],
+                                            max_outputs=max_outputs,
+                                            name="pred")
+            wsummary.feature_map_summary(gt_labels, name="gt_semantic", max_outputs=10)
+            wsummary.feature_map_summary(results[RD_SEMANTIC], name="pred_semantic", max_outputs=10)
             return results,{}
     
     def doeval(self,evaler,datas):

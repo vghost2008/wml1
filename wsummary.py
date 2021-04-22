@@ -314,3 +314,40 @@ def summary_graph_by_bboxes(img,bboxes,adj_mt,name="summary_graph",is_relative_c
     cy = (ymin+ymax)/2
     points = tf.stack([cx,cy],axis=-1)
     summary_graph(img,points,adj_mt,name,is_relative_coordinate)
+
+def semantic_summary_img(img,masks,colors=None,name="semantic"):
+    ''''
+    image: [height, width, 3] value range[0, 255]
+    mask: [height, width,N] value range[0, 1]
+    '''
+    masks = tf.transpose(masks,[2,0,1])
+    if img.dtype != tf.uint8:
+        min = tf.reduce_min(img)
+        max = tf.reduce_max(img)
+        img = (img-min)*255/(max-min+1e-8)
+        img = tf.cast(img,tf.uint8)
+    if colors is None:
+        colors = smv.STANDARD_COLORS
+    colors = tf.convert_to_tensor(colors)
+    img = smv.tf_draw_masks_on_image(img,masks,color=colors)
+    return img
+
+def semantic_summary(img,masks,colors=None,name="semantic"):
+    ''''
+    image: [height, width, 3] value range[0, 255]
+    mask: [height, width,N] value range[0, 1]
+    '''
+    img = semantic_summary_img(img,masks,colors,name)
+    tf.summary.image(name,tf.expand_dims(img,axis=0))
+
+def batch_semantic_summary(img,masks,max_outputs=3,colors=None,name="semantic"):
+    ''''
+    image: [B,height, width, 3] value range[0, 255]
+    mask: [B, height, width,N] value range[0, 1]
+    '''
+    img = img[:max_outputs]
+    masks = masks[:max_outputs]
+    img = tf.map_fn(lambda x:semantic_summary_img(x[0],x[1],colors),elems=(img,masks),dtype=tf.uint8,
+                    back_prop=False)
+    tf.summary.image(name,img)
+

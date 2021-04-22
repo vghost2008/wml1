@@ -486,6 +486,8 @@ def draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
       np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
   pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
   pil_mask = Image.fromarray(np.uint8(255.0*alpha*mask)).convert('L')
+  if np.max(mask)==0:
+      return image
   pil_image = Image.composite(pil_solid_color, pil_image, pil_mask)
   np.copyto(image, np.array(pil_image.convert('RGB')))
   mask = mask*200
@@ -504,7 +506,7 @@ def tf_draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
         draw_mask_on_image_array,
         [image,mask,color,alpha],
         Tout=image.dtype,
-        stateful=True,
+        stateful=False,
         name=None
     )
     return tf.reshape(res,shape)
@@ -515,7 +517,35 @@ mask:[N,height,width] value range [0,1]
 colors:[N], string
 alpha:
 '''
-def tf_draw_masks_on_image(image, mask, color,alpha=0.4,name='summary_image_with_mask'):
+def tf_draw_masks_on_image(image, mask, color=None,alpha=0.4,name='summary_image_with_mask'):
+    if image.dtype is not tf.uint8:
+        image = tf.cast(image,tf.uint8)
+    if mask.dtype is not tf.uint8:
+        mask = tf.cast(mask,tf.uint8)
+    with tf.name_scope(name):
+        nr = tf.shape(mask)[0]
+        color_nr = tf.shape(color)[0]
+        indexs = tf.range(nr)
+        def fn(img,index):
+            m = mask[index]
+            c = color[index%color_nr]
+            def fn0():
+                return tf_draw_mask_on_image_array(img,m,c,alpha)
+            def fn1():
+                return img
+            return tf.cond(tf.greater(tf.reduce_max(m),0),fn0,fn1)
+
+        image = tf.foldl(fn,elems=indexs,initializer=image,back_prop=False)
+
+    return image
+
+'''
+image:[height,width,3] value range [0,255]
+mask:[N,height,width] value range [0,1]
+colors:[N], string
+alpha:
+'''
+def tf_draw_masks_on_imagev2(image, mask, color=None,alpha=0.4,name='summary_image_with_mask'):
     if image.dtype is not tf.uint8:
         image = tf.cast(image,tf.uint8)
     if mask.dtype is not tf.uint8:
@@ -531,7 +561,6 @@ def tf_draw_masks_on_image(image, mask, color,alpha=0.4,name='summary_image_with
         image = tf.foldl(fn,elems=indexs,initializer=image,back_prop=False)
 
     return image
-
 '''
 image:[batch_size,height,width,3]
 mask:[batch_size,height,width]

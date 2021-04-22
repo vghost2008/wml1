@@ -123,11 +123,11 @@ class DataLoader(wmodule.WModule):
                                              min_score_thresh=min_score_thresh,
                                              max_outputs=max_outputs,
                                              name=name)
-        wsummary.detection_image_summary(tf.ones_like(image)*255,boxes,classes,
+        '''wsummary.detection_image_summary(tf.ones_like(image)*255,boxes,classes,
                                          lengths=lengths,category_index=DataLoader.category_index,
                                          max_boxes_to_draw=max_boxes_to_draw,
                                          min_score_thresh=min_score_thresh,
                                          max_outputs=max_outputs,
-                                         name=name)
+                                         name=name)'''
 
 

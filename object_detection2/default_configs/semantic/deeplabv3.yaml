@@ -41,4 +41,4 @@ VERSION: 2
 GLOBAL:
   EVAL_TYPE: "miou"
   PROJ_NAME: "DeepLabV3COCODemon"
-  LOG_STEP: 200
+  LOG_STEP: 2
