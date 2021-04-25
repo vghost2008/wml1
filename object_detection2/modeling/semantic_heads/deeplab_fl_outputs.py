@@ -49,7 +49,7 @@ class DeepLabFLOutputs(wmodule.WChildModule):
         background = tf.ones(shape=shape,dtype=tf.float32)*self.cfg.SCORE_THRESH_TEST
         probs = tf.nn.sigmoid(logits)
         probs = tf.concat([background,probs],axis=-1)
-        mask = tf.argmax(probs, 3)+1
+        mask = tf.argmax(probs, 3)
         semantic = tf.one_hot(mask, depth=self.num_classes+1, on_value=1.0, off_value=0.0)
         return {RD_SPARSE_SEMANTIC: mask,
                 RD_SEMANTIC: semantic}

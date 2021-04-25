@@ -12,7 +12,6 @@ import os
 import numpy as np
 import PIL.Image
 import wml_utils as wmlu
-import object_detection.bboxes as odb
 import random
 import tensorflow as tf
 import time
@@ -232,10 +231,10 @@ def multithread_create_tf_record_by_files(files,output_dir,name="train",shufflin
 
 if __name__ == "__main__":
 
-    dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/test"
-    output_dir = "/home/vghost/ai/mldata2/mnistgeood_data/tftest"
-    dataset_dir = "/home/vghost/ai/mldata2/mnistgeood_data/train"
-    output_dir = "/home/vghost/ai/mldata2/mnistgeood_data/tftrain"
+    dataset_dir = "/home/vghost/ai/mldata/mnistgeood_data/test"
+    output_dir = "/home/vghost/ai/mldata/mnistgeood_data/tftest_big"
+    #dataset_dir = "/home/vghost/ai/mldata/mnistgeood_data/train"
+    #output_dir = "/home/vghost/ai/mldata/mnistgeood_data/tftrain_big"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

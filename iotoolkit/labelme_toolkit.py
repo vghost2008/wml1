@@ -3,7 +3,6 @@ import os
 import json
 import numpy as np
 import cv2 as cv
-import object_detection.bboxes as odb
 import object_detection.visualization as odv
 import copy
 import img_utils as wmli

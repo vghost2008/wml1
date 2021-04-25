@@ -751,7 +751,7 @@ class  MeanIOU(object):
             t_data1 = np.sum(np.equal(predictions,i).astype(np.int64))
             t_union = t_data0+t_data1-t_int
             self.intersection[i-1] += t_int
-            self.union += t_union
+            self.union[i-1] += t_union
 
 
     def show(self,name):
