@@ -144,6 +144,8 @@ class TrainerBase:
                 self.before_step()
                 self.run_step()
                 self.after_step()
+        except tf.errors.OutOfRangeError as e:
+            print(f"ERROR INFO {e}, SKIP_CROWD_DURING_TRAINING={self.cfg.DATASETS.SKIP_CROWD_DURING_TRAINING}.")
         except Exception:
             print(f"Total train time {(time.time()-self.time_stamp)/3600}")
             logger.exception("Exception during training:")

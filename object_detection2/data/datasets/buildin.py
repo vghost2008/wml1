@@ -8,7 +8,7 @@ from iotoolkit.coco_toolkit import COMPRESSED_ID_TO_TEXT as coco_compressed_id_t
 from iotoolkit.pascal_voc_data import ID_TO_TEXT as pascal_voc_id_to_text
 
 # ==== Predefined datasets and splits for COCO ==========
-dataset_root_path = "/home/vghost/ai/mldata"
+dataset_root_path = "/home/wj/ai/mldata"
 
 default_category_index = None
 coco_category_index = {}
