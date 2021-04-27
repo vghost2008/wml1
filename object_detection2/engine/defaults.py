@@ -48,12 +48,12 @@ def default_argument_parser():
     return parser
 
 def get_config_file(name:str):
-    CONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/"
-    COCOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/coco/"
-    MODCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistod/"
-    MODGEOCONFIG_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
-    RESEARCH_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/research/"
-    SEMANTIC_DIR = "/home/vghost/ai/work/wml/object_detection2/default_configs/semantic/"
+    CONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/"
+    COCOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/coco/"
+    MODCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistod/"
+    MODGEOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
+    RESEARCH_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/research/"
+    SEMANTIC_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/semantic/"
     search_dirs = [SEMANTIC_DIR,COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR]
     if os.path.exists(name):
         return name
