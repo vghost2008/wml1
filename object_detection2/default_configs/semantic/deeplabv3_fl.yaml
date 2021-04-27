@@ -20,6 +20,7 @@ DATASETS:
   TEST: "coco_2017_eval"
   #TRAIN: "mnistod_train"
   #TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
   IMS_PER_BATCH: 3
   BASE_LR: 0.0001 

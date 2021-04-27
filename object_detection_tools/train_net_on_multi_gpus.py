@@ -1,4 +1,6 @@
 #coding=utf-8
+import sys,os
+sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/.."))
 import object_detection2.config.config as config
 from object_detection2.engine.train_loop import SimpleTrainer
 from object_detection2.engine.defaults import default_argument_parser,get_config_file
@@ -9,6 +11,7 @@ import os
 import sys
 import datetime
 import time
+
 
 gpus = []
 

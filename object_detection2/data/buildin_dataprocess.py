@@ -26,6 +26,29 @@ def simple(cfg, is_training):
     return (trans_on_single_img, trans_on_batch_img)
 
 @DATAPROCESS_REGISTRY.register()
+def simple_semantic(cfg, is_training):
+    if is_training:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                                    trans.ResizeToFixedSize(),
+                                    trans.MaskHWN2NHW(),
+                                    trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                                    trans.GetSemanticMaskFromCOCO(num_classes=cfg.MODEL.NUM_CLASSES,no_background=False),
+                                    trans.AddBoxLens(),
+                                    trans.UpdateHeightWidth(),
+                                    ]
+        trans_on_batch_img = [trans.FixDataInfo()]
+    else:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                               trans.ResizeToFixedSize(),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+
+    return (trans_on_single_img, trans_on_batch_img)
+@DATAPROCESS_REGISTRY.register()
 def AA(cfg,is_training):
     if is_training:
         trans_on_single_img = [trans.AutoAugment(),

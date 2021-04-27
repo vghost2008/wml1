@@ -117,6 +117,7 @@ class SPP_PAN(Backbone):
                 paper convention: "p<stage>", where stage has stride = 2 ** stage e.g.,
                 ["p2", "p3", ..., "p6"].
         """
+        #x['image'] = tf.Print(x['image'],[tf.shape(x['image'],"-------------------")])
         bottom_up_features = self.bottom_up(x)
         if self.hook_before is not None:
             bottom_up_features = self.hook_before(bottom_up_features,x)

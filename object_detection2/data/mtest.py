@@ -19,12 +19,6 @@ import os
 
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
-
-
-NUM_CLASSES = 91
-tf.app.flags.DEFINE_integer("batch_size",4,"training steps")
-tf.app.flags.DEFINE_string('data_dir','/data/vghost/ai/mldata/coco/tfdata',"data dir.")
-tf.app.flags.DEFINE_integer('num_classes', NUM_CLASSES,"num of classes, include background.")
 tf.app.flags.DEFINE_string('logdir', wmlu.home_dir("ai/tmp/tools_logdir/"),"Logdir path")
 
 FLAGS = tf.app.flags.FLAGS
@@ -37,18 +31,43 @@ aa = trans.RandomSelectSubTransform([
 ])
 
 @DATAPROCESS_REGISTRY.register()
+def simple_semantic1(cfg, is_training):
+    if is_training:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                                    trans.ResizeToFixedSize(),
+                                    trans.MaskHWN2NHW(),
+                                    trans.WRemoveCrowdInstance(False),
+                                    trans.GetSemanticMaskFromCOCO(num_classes=3,no_background=False),
+                                    trans.AddBoxLens(),
+                                    trans.UpdateHeightWidth(),
+                                    ]
+        trans_on_batch_img = [trans.FixDataInfo()]
+    else:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                               trans.ResizeToFixedSize(),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+    return trans_on_single_img,trans_on_batch_img
+
+@DATAPROCESS_REGISTRY.register()
 def test(cfg,is_training):
     return [
+            trans.ShowInfo(),
             trans.BBoxesRelativeToAbsolute(),
              trans.RandomRotateAnyAngle(use_mask=False,rotate_bboxes_type=0,rotate_probability=1,max_angle=15),
              trans.RemoveZeroAreaBBox(),
+             trans.GetSemanticMaskFromCOCO(num_classes=3,no_background=False),
              trans.UpdateHeightWidth(),
             trans.AddBoxLens(),
             ],\
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
 _C = CN()
 _C.INPUT = CN()
-_C.INPUT.DATAPROCESS = "test"
+_C.INPUT.DATAPROCESS = "simple_semantic1"
 _C.INPUT.MIN_SIZE_TRAIN = (224,224)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
@@ -72,6 +91,7 @@ def main(_):
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)
     res = data.get_next()
+    print(res)
     data_loader.detection_image_summary(res,max_boxes_to_draw=200,max_outputs=4)
     wsummary.image_summaries(res['image'],'image')
     res[IMAGE] = tf.ones_like(res[IMAGE])*200
