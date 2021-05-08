@@ -16,10 +16,10 @@
 import numpy as np
 import tensorflow as tf
 
-from object_detection.metrics import standard_fields
-from object_detection.metrics import coco_tools
-from object_detection.metrics import json_utils
-from object_detection.metrics import object_detection_evaluation
+from object_detection2.metrics import standard_fields
+from object_detection2.metrics import coco_tools
+from object_detection2.metrics import json_utils
+from object_detection2.metrics import object_detection_evaluation
 
 
 class CocoDetectionEvaluator(object_detection_evaluation.DetectionEvaluator):

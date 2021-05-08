@@ -4,7 +4,6 @@ import sys
 import os
 import numpy as np
 from collections import OrderedDict
-import object_detection.utils as odu
 from semantic.visualization_utils import STANDARD_COLORS
 from object_detection2.standard_names import *
 import semantic.toolkit as smt

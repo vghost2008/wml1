@@ -3,7 +3,7 @@ import tensorflow as tf
 from GN.graph import DynamicAdjacentMatrix
 import image_visualization as imv
 import wsummary
-import object_detection.bboxes as odb
+import object_detection2.bboxes as odb
 from wtfop.wtfop_ops import adjacent_matrix_generator_by_iou,adjacent_matrix_generator_by_iouv2
 import wnnlayer as wnnl
 import wml_tfutils as wmlt

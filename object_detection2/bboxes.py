@@ -9,7 +9,7 @@ import random
 import basic_tftools as btf
 sys.path.append(os.path.dirname(__file__))
 import math
-import object_detection.wmath as wmath
+import object_detection2.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 import img_utils as wmli
 import cv2 as cv

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from GN.graph import DynamicAdjacentMatrix
 import wsummary
-import object_detection.bboxes as odb
+import object_detection2.bboxes as odb
 from wtfop.wtfop_ops import adjacent_matrix_generator_by_iou
 from object_detection2.modeling.box_regression import Box2BoxTransform
 import wnnlayer as wnnl

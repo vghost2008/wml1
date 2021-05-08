@@ -16,7 +16,7 @@
 """Numpy BoxMaskList classes and functions."""
 
 import numpy as np
-from object_detection.metrics import np_box_list
+from object_detection2.metrics import np_box_list
 
 
 class BoxMaskList(np_box_list.BoxList):

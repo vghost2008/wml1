@@ -35,10 +35,10 @@ import unicodedata
 import numpy as np
 import tensorflow as tf
 
-from object_detection.metrics import standard_fields
-from object_detection.metrics import label_map_util
-from object_detection.metrics import metrics
-from object_detection.metrics import per_image_evaluation
+from object_detection2.metrics import standard_fields
+from object_detection2.metrics import label_map_util
+from object_detection2.metrics import metrics
+from object_detection2.metrics import per_image_evaluation
 
 
 class DetectionEvaluator(object):

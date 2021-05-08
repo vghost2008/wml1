@@ -37,7 +37,7 @@ class RetinaNetGIOUOutputs(RetinaNetOutputs):
         gt_objectness_logits_i, scores, indices  = res
         self.mid_results['anchor_matcher'] = res
 
-        gt_anchor_deltas = wmlt.batch_gather(self.gt_boxes,indices)
+        gt_anchor_deltas = wmlt.batch_gather(self.gt_boxes,tf.nn.relu(indices))
         #gt_objectness_logits_i为相应anchor box的标签
         return gt_objectness_logits_i, gt_anchor_deltas
 

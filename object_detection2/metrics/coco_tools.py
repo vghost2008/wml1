@@ -50,7 +50,7 @@ from pycocotools import mask
 
 import tensorflow as tf
 
-from object_detection.metrics import json_utils
+from object_detection2.metrics import json_utils
 
 
 class COCOWrapper(coco.COCO):
