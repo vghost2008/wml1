@@ -13,7 +13,6 @@ import object_detection2.wmath as wmath
 import wtfop.wtfop_ops as wtfop
 import img_utils as wmli
 import cv2 as cv
-import copy
 
 def random_distored_boxes(bboxes,limits=[0.,0.,0.],size=1,keep_org=True):
     if bboxes.get_shape().ndims == 2:
