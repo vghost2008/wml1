@@ -9,6 +9,7 @@ import tensorflow as tf
 import iotoolkit.label_map_util as label_map_util
 import sys
 
+COCO_KP_NR = 17
 ID_TO_COMPRESSED_ID = {}
 COMPRESSED_ID_TO_ID = {}
 

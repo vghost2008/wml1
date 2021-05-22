@@ -57,6 +57,9 @@ class PredictModel(object):
         else:
             self.trainer.resume_or_load(sess=self.sess)
 
+    def __call__(self, imgs):
+        return self.predictImages(imgs)
+
     def predictImages(self,imgs):
         feed_dict = {self.input_imgs:imgs}
         if self.step % self.log_step == 0:
@@ -81,13 +84,18 @@ class PredictModel(object):
         data = self.trainer.res_data_for_eval
         if self.cfg.MODEL.MASK_ON:
             self.trainer.res_data_for_eval[RD_MASKS] = data[RD_MASKS][0][:len]
-        self.trainer.res_data_for_eval[RD_BOXES] = data[RD_BOXES][0][:len]
-        self.trainer.res_data_for_eval[RD_LABELS] = data[RD_LABELS][0][:len]
-        self.trainer.res_data_for_eval[RD_PROBABILITY] = data[RD_PROBABILITY][0][:len]
+        if RD_BOXES in data:
+            self.trainer.res_data_for_eval[RD_BOXES] = data[RD_BOXES][0][:len]
+        if RD_LABELS in data:
+            self.trainer.res_data_for_eval[RD_LABELS] = data[RD_LABELS][0][:len]
+        if RD_PROBABILITY in data:
+            self.trainer.res_data_for_eval[RD_PROBABILITY] = data[RD_PROBABILITY][0][:len]
         if RD_FULL_SIZE_MASKS in self.trainer.res_data_for_eval:
             self.trainer.res_data_for_eval[RD_FULL_SIZE_MASKS] = data[RD_FULL_SIZE_MASKS][0][:len]
         if RD_RESULT_IMAGE in self.trainer.res_data_for_eval:
             self.trainer.res_data_for_eval[RD_RESULT_IMAGE] = data[RD_RESULT_IMAGE][0]
+        if RD_ID in self.trainer.res_data_for_eval:
+            self.trainer.res_data_for_eval[RD_ID] = data[RD_ID][0][:len]
             
     def remove_batch_and_rename(self,rename_dict=None,rename_fn=None):
         assert self.trainer.res_data_for_eval[RD_BOXES].get_shape().as_list()[0]==1, "error batch size"
@@ -99,25 +107,28 @@ class PredictModel(object):
                     return rename_dict[name]
                 else:
                     return name
-            else:
-                assert rename_fn is not None, "rename_dict and rename_fn can not't both None."
+            elif rename_fn is not None:
                 return rename_fn(name)
+            else:
+                return None
+        def do_rename(key):
+            if key not in data:
+                return
+            name = get_name(key)
+            if name is not None:
+                self.trainer.res_data_for_eval[key] = tf.identity(data[key][0][:len],name)
             
         if self.cfg.MODEL.MASK_ON:
-            name = get_name(RD_MASKS)
-            self.trainer.res_data_for_eval[RD_MASKS] = tf.identity(data[RD_MASKS][0][:len],name)
-        name = get_name(RD_BOXES)
-        self.trainer.res_data_for_eval[RD_BOXES] = tf.identity(data[RD_BOXES][0][:len],name)
-        name = get_name(RD_LABELS)
-        self.trainer.res_data_for_eval[RD_LABELS] = tf.identity(data[RD_LABELS][0][:len],name)
-        name = get_name(RD_PROBABILITY)
-        self.trainer.res_data_for_eval[RD_PROBABILITY] = tf.identity(data[RD_PROBABILITY][0][:len],name)
-        if RD_FULL_SIZE_MASKS in self.trainer.res_data_for_eval:
-            name = get_name(RD_FULL_SIZE_MASKS)
-            self.trainer.res_data_for_eval[RD_FULL_SIZE_MASKS] = tf.identity(data[RD_FULL_SIZE_MASKS][0][:len],name)
+            do_rename(RD_MASKS)
+        do_rename(RD_BOXES)
+        do_rename(RD_LABELS)
+        do_rename(RD_PROBABILITY)
+        do_rename(RD_FULL_SIZE_MASKS)
+        do_rename(RD_ID)
         if RD_RESULT_IMAGE in self.trainer.res_data_for_eval:
             name = get_name(RD_RESULT_IMAGE)
-            self.trainer.res_data_for_eval[RD_RESULT_IMAGE] = tf.identity(data[RD_RESULT_IMAGE][0],name)
+            if name is not None:
+                self.trainer.res_data_for_eval[RD_RESULT_IMAGE] = tf.identity(data[RD_RESULT_IMAGE][0],name)
 
     def savePBFile(self,pb_path,output_names):
         sess = self.sess

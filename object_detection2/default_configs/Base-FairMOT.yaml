@@ -1,0 +1,43 @@
+MODEL:
+  META_ARCHITECTURE: "CenterNet2"
+  PREPROCESS: "ton1p1"
+  BACKBONE:
+    NAME: "build_any_fpn_backbone"
+  RESNETS:
+    FROZEN_BN: True
+  FPN:
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    IN_FEATURES: ["C2", "C3","C4","C5"]
+    ENABLE_DROPBLOCK: True
+    BACKBONE: "build_mobile_backbone"
+    BACKBONE_HOOK: ("","FusionBackboneHookV2")
+  CENTERNET2:
+    IN_FEATURES: ["F2"]
+    HEAD_NAME: "FairMOTHead"
+    OUTPUTS: "FairMOTOutputs"
+    NORM: "evo_norm_s0"
+    ACTIVATION_FN: "NA"
+    SCORE_THRESH_TEST: 0.5
+DATASETS:
+  TRAIN: "mnistod_train"
+  TEST: "mnistod_eval"
+  SKIP_CROWD_DURING_TRAINING: False
+SOLVER:
+  IMS_PER_BATCH: 12
+  BASE_LR: 0.02  # Note that RetinaNet uses a different default learning rate
+  WARMUP_ITERS: 1000
+  CLIP_NORM: 32
+  STEPS: (10000,)
+  LR_DECAY_TYPE: "cosine"
+INPUT:
+  MAX_SIZE_TRAIN: 800
+  MAX_SIZE_TEST: 1333
+  MIN_SIZE_TRAIN: (224,256,288)
+  MIN_SIZE_TEST: 1024
+  STITCH: 0.0
+  DATAPROCESS: "coco"
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "Base-FairMOT"
+  LOG_STEP: 2

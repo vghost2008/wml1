@@ -1,0 +1,19 @@
+MODEL:
+  META_ARCHITECTURE: "KeyPoints"
+  BACKBONE:
+    NAME: "build_retinanet_shufflenetv2_fpn_backbone"
+  KEYPOINTS:
+    IN_FEATURES: ["C3"]
+DATASETS:
+  TRAIN: "coco_2017_kp_train"
+  TEST: "coco_2017_kp_eval"
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.01 
+  STEPS: (6000,8000,10000)
+  MAX_ITER: 90000
+INPUT:
+  MIN_SIZE_TRAIN: (512,512)
+GLOBAL:
+  PROJ_NAME: "keypoints"
+VERSION: 2

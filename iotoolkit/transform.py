@@ -18,6 +18,7 @@ from basic_tftools import channel
 import copy
 import wnnlayer as wnnl
 import wtfop.wtfop_ops as wop
+import object_detection2.keypoints as kp
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -55,6 +56,9 @@ class WTransform(object):
     def is_bbox(self,key):
         return ('box' in key)
 
+    def is_keypoints(self,key):
+        return ('keypoint' in key)
+
     def is_label(self,key):
         return ('label' in key) or ('class' in key)
 
@@ -73,6 +77,9 @@ class WTransform(object):
 
     def apply_to_bbox(self,func,data_item,**kwargs):
         return self.apply_with_filter(func,data_item,filter=self.is_bbox,**kwargs)
+
+    def apply_to_keypoints(self,func,data_item,**kwargs):
+        return self.apply_with_filter(func,data_item,filter=self.is_keypoints,**kwargs)
 
     def apply_to_label(self,func,data_item,**kwargs):
         return self.apply_with_filter(func,data_item,filter=self.is_label,**kwargs)
@@ -316,8 +323,13 @@ class RandomFlipLeftRight(WTransform):
         is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
         func = tf.image.flip_left_right
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
-        func2 = wml_bboxes.bboxes_flip_left_right
-        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        if GT_BOXES in data_item:
+            func2 = wml_bboxes.bboxes_flip_left_right
+            data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        if GT_KEYPOINTS:
+            func3 = kp.keypoints_flip_left_right
+            data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
+
         return data_item
     
     def __str__(self):
@@ -336,9 +348,14 @@ class RandomFlipUpDown(WTransform):
         is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
         func = tf.image.flip_up_down
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
-        func2 = wml_bboxes.bboxes_flip_up_down
-        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        if GT_BOXES:
+            func2 = wml_bboxes.bboxes_flip_up_down
+            data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
+        if GT_KEYPOINTS:
+            func3 = kp.keypoints_flip_up_down
+            data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
         return data_item
+
     def __str__(self):
         return f"{RandomFlipUpDown.__name__}"
 
@@ -351,6 +368,8 @@ class AutoAugment(WTransform):
         image,bbox = distort_image_with_autoaugment(data_item[IMAGE],data_item[GT_BOXES],self.augmentation_name)
         data_item[IMAGE] = image
         data_item[GT_BOXES] = bbox
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
 '''
@@ -372,8 +391,12 @@ class RandomRotate(WTransform):
         is_rotate = tf.less_equal(tf.random_uniform(shape=[]),self.probability)
         func = partial(tf.image.rot90,k=self.k)
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_rotate)
-        func2 = partial(wml_bboxes.bboxes_rot90,clockwise=self.clockwise)
-        data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_rotate)
+        if GT_BOXES in data_item:
+            func2 = partial(wml_bboxes.bboxes_rot90,clockwise=self.clockwise)
+            data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_rotate)
+        if GT_KEYPOINTS in data_item:
+            func3 = partial(kp.keypoints_rot90, clockwise=self.clockwise)
+            data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_rotate)
         return data_item
     
     def __str__(self):
@@ -396,6 +419,8 @@ class RemoveZeroAreaBBox(WTransform):
         data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep)
         if GT_MASKS in data_item:
             data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep)
+        if GT_KEYPOINTS in data_item:
+            data_item[GT_KEYPOINTS] = tf.boolean_mask(data_item[GT_KEYPOINTS], keep)
 
         return data_item
     
@@ -450,6 +475,8 @@ class RandomRotateAnyAngle(WTransform):
             max_value = tf.cast(max_value,tf.float32)
             r_bboxes = tf.minimum(r_bboxes,max_value)
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
     
@@ -610,8 +637,14 @@ class BBoxesRelativeToAbsolute(WTransform):
         self.set_statu(WTransform.ABSOLUTE_COORDINATE)
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             size = tf.shape(data_item[self.img_key])
-            func = partial(wml_bboxes.tfrelative_boxes_to_absolutely_boxes,width=size[1],height=size[0])
-            return self.apply_to_bbox(func,data_item)
+            if GT_BOXES in data_item:
+                func = partial(wml_bboxes.tfrelative_boxes_to_absolutely_boxes,width=size[1],height=size[0])
+                data_item = self.apply_to_bbox(func,data_item)
+            if GT_KEYPOINTS in data_item:
+                func = partial(kp.keypoints_relative2absolute, width=size[1], height=size[0])
+                data_item = self.apply_to_keypoints(func, data_item)
+            return data_item
+
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -630,13 +663,17 @@ class BBoxesAbsoluteToRelative(WTransform):
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             if len(data_item[IMAGE].get_shape()) == 4:
                 size = tf.shape(data_item[self.img_key])[1:3]
-                func = partial(wml_bboxes.tfbatch_absolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
-                return self.apply_to_bbox(func,data_item)
             else:
                 size = tf.shape(data_item[self.img_key])[:2]
+            if GT_BOXES in data_item:
                 func = partial(wml_bboxes.tfabsolutely_boxes_to_relative_boxes,width=size[1],height=size[0])
-                return self.apply_to_bbox(func,data_item)
-            
+                data_item = self.apply_to_bbox(func,data_item)
+            if GT_KEYPOINTS in data_item:
+                func = partial(kp.keypoints_absolute2relative, width=size[1], height=size[0])
+                data_item = self.apply_to_keypoints(func, data_item)
+
+        return data_item
+
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -653,8 +690,10 @@ class ResizeToFixedSize(WTransform):
         if not self.test_statu(WTransform.HWN_MASK):
             print(f"WARNING: {self} need HWN format mask.")
         with tf.name_scope("resize_image"):
-            func = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
-            #data_item['gt_boxes'] = tf.Print(data_item['gt_boxes'],[tf.shape(data_item['gt_boxes']),data_item['fileindex']])
+            def func(image):
+                func0 = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
+                return tf.cond(tf.reduce_any(tf.equal(tf.shape(image),0)),lambda :image,
+                                 lambda:func0(image));
             items = self.apply_to_images_and_masks(func,data_item)
             if self.channels is not None:
                 func = partial(tf.reshape,shape=self.size+[self.channels])
@@ -793,6 +832,8 @@ class WRemoveOverlap(WTransform):
         data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep_pos)
         if GT_MASKS in data_item:
             data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep_pos)
+        if GT_KEYPOINTS in data_item:
+            data_item[GT_KEYPOINTS] = tf.boolean_mask(data_item[GT_KEYPOINTS], keep_pos)
 
         return data_item
 
@@ -851,6 +892,8 @@ class SampleDistortedBoundingBox(WTransform):
                 mask = tf.slice(mask,bbox_begin,bbox_size)
                 return mask
             data_item = self.apply_to_masks(func,data_item)
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
     
@@ -904,6 +947,8 @@ class RandomSampleDistortedBoundingBox(WTransform):
             mask = tf.slice(mask,bbox_begin,bbox_size)
             self.cond_set(data_item, GT_MASKS, distored, mask)
             pass
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
     
@@ -949,7 +994,12 @@ class WRemoveCrowdInstance(WTransform):
             if GT_MASKS in data_item:
                 masks = tf.gather(data_item[GT_MASKS],indices)
                 data_item[GT_MASKS] = masks
+            if GT_KEYPOINTS in data_item:
+                keypoints = tf.gather(data_item[GT_KEYPOINTS], indices)
+                data_item[GT_KEYPOINTS] = keypoints
+
         return data_item
+
     def __str__(self):
         return f"{type(self).__name__}"
 '''
@@ -985,6 +1035,23 @@ class FixDataInfo(WTransform):
             batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
             return tf.reshape(x,[batch_size,H,W,self.channel])
         return self.apply_to_images(func,data_item)
+    def __str__(self):
+        return f"{type(self).__name__}"
+'''
+operator on batch
+'''
+class CheckBBoxes(WTransform):
+    def __init__(self,min=0,max=1):
+        self.min = min
+        self.max = max
+
+    def __call__(self, data_item):
+        if GT_BOXES in data_item:
+            data_item[GT_BOXES] = tf.clip_by_value(data_item[GT_BOXES],self.min,self.max)
+        if GT_KEYPOINTS in data_item:
+            data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],self.min,self.max)
+        return data_item
+
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -1437,6 +1504,9 @@ class WRandomTranslate(WTransform):
         if GT_BOXES in data_item:
             bbox = self.box_offset(data_item[GT_BOXES])
             self.cond_set(data_item,GT_BOXES,is_trans,bbox)
+        if GT_KEYPOINTS in data_item:
+            keypoints = self.keypoints_offset(data_item[GT_KEYPOINTS])
+            self.cond_set(data_item,GT_KEYPOINTS,is_trans,keypoints)
         return data_item
 
     def image_offset(self,image):
@@ -1460,7 +1530,15 @@ class WRandomTranslate(WTransform):
         else:
             offset = tf.convert_to_tensor([[pad_pixels, 0, pad_pixels,0]], dtype=tf.float32)
         return bbox+offset
-    
+
+    def keypoints_offset(self,keypoints):
+        pad_pixels = tf.cast(self.pad_pixels,tf.float32)
+        if self.translate_horizontal:
+            offset = tf.convert_to_tensor([[pad_pixels,0]],dtype=tf.float32)
+        else:
+            offset = tf.convert_to_tensor([[0, pad_pixels]], dtype=tf.float32)
+        return keypoints+offset
+
     def __str__(self):
         return f"{type(self).__name__}"
 
@@ -1500,6 +1578,8 @@ class WShear(WTransform):
         data_item[GT_BOXES] = bboxes
         if GT_MASKS in data_item:
             data_item[GT_MASKS] = mask
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
     
@@ -1524,10 +1604,14 @@ class RemoveSpecifiedInstance(WTransform):
         remove = self.pred_fn(bboxes,labels,masks)
         keep = tf.logical_not(remove)
         
-        data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
+        if GT_BOXES in data_item:
+            data_item[GT_BOXES] = tf.boolean_mask(data_item[GT_BOXES],keep)
         data_item[GT_LABELS] = tf.boolean_mask(data_item[GT_LABELS],keep)
         data_item[IMAGE] = self.remove_instance_in_image(image,masks,remove)
-        data_item[GT_MASKS]= tf.boolean_mask(masks, keep)
+        if GT_MASKS in data_item:
+            data_item[GT_MASKS]= tf.boolean_mask(masks, keep)
+        if GT_KEYPOINTS in data_item:
+            data_item[GT_KEYPOINTS]= tf.boolean_mask(data_item[GT_KEYPOINTS], keep)
 
         return data_item
     @staticmethod
@@ -1583,6 +1667,8 @@ class ShowInfo(WTransform):
             tensors += ['labels:',tf.shape(data_item[GT_LABELS])]
         if GT_MASKS in data_item:
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
+        if GT_KEYPOINTS in data_item:
+            tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])]
 
         data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors+[data_item[GT_LABELS]],summarize=1000)
         return data_item
@@ -1697,6 +1783,8 @@ class NPRemoveSpecifiedInstance(WTransform):
         data_item[IMAGE] = self.remove_instance_in_image(image, masks, remove)
         if GT_MASKS in data_item:
             data_item[GT_MASKS] = masks[keep]
+        if GT_KEYPOINTS:
+            data_item[GT_KEYPOINTS] = data_item[GT_KEYPOINTS][keep]
 
         return data_item
 
@@ -1756,6 +1844,8 @@ class AddFakeInstance(WTransform):
         
         data_nr = tf.shape(data_item[GT_LABELS])[0]
         data_item = tf.cond(data_nr>0,lambda:data_item,partial(self.add_fake_obj,data_item))
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
         return data_item
 
     @btf.add_name_scope
@@ -1807,6 +1897,8 @@ class RemoveFakeInstance(WTransform):
             data_item = odt.boolean_mask_on_instances(data_item,mask,
                                                       labels_key=GT_LABELS,
                                                       length_key=GT_LENGTH)
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
         return data_item
 
 

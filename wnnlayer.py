@@ -1986,3 +1986,11 @@ def upsample(x,scale_factor=2,mode=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
     H = tf.to_float(H)
     W = tf.to_float(W)
     return tf.image.resize_images(x,[tf.to_int32(H*scale_factor[0]+0.1),tf.to_int32(W*scale_factor[1]+0.1)],method=mode)
+
+def l2_normalize(x, axis=None, epsilon=1e-12, name=None, dim=None):
+  with tf.name_scope(name, "l2_normalize", [x]) as name:
+    x = tf.convert_to_tensor(x, name="x")
+    square_sum = tf.reduce_sum(tf.square(x), axis, keepdims=True)
+    x_norm = tf.sqrt(tf.maximum(square_sum, epsilon))
+    return tf.divide(x, x_norm, name=name)
+

@@ -343,3 +343,64 @@ def draw_graph_by_bboxes(img,bboxes,adj_mt,relative_coordinate=True):
     cy = (ymin + ymax) / 2
     points = tf.stack([cx, cy], axis=-1)
     return draw_graph(img,points,adj_mt,relative_coordinate)
+
+@btf.add_name_scope
+def draw_keypoints_image_summary(images,
+                                 keypoints=None,
+                                 keypoints_pair=None,
+                                 lengths=None,
+                                 max_instance_to_draw=20):
+    assert len(images.get_shape())==4,"images must be 4 dimenstion."
+    if images.dtype == tf.float32 or images.dtype == tf.float64:
+        min = tf.reduce_min(images)
+        max = tf.reduce_max(images)
+        images = (images - min) * 255 / (max - min + 1e-8)
+        images = tf.clip_by_value(images, 0, 255)
+        images = tf.cast(images, tf.uint8)
+
+    elif images.dtype != tf.uint8:
+        images = tf.cast(images, tf.uint8)
+
+    if lengths is None:
+        def fn(image, kp_data):
+            kps = kp_data[:len]
+            __draw_keypoints_image_summary(image, kps,
+                                           points_pair=keypoints_pair,
+                                           max_instance_to_draw=max_instance_to_draw)
+        images = tf.map_fn(lambda x: fn(x[0], x[1]), elems=[images, keypoints], dtype=images.dtype)
+    else:
+        def fn(image,kp_data,len):
+            kps = kp_data[:len]
+            images = __draw_keypoints_image_summary(image,kps,
+                                           points_pair=keypoints_pair,
+                                           max_instance_to_draw=max_instance_to_draw)
+            return images
+
+        images = tf.map_fn(lambda x: fn(x[0], x[1], x[2]), elems=[images, keypoints,lengths], dtype=images.dtype)
+
+    return images
+
+def __draw_keypoints_image_summary(images,
+                                   keypoints=None,
+                                   points_pair=None,
+                                   max_instance_to_draw=20):
+    """Draws keypoints on image tensors.
+
+    Args:
+      images: A 3D uint8 image tensor of shape [H, W, C].
+      keypoints: A 3D float32 tensor of shape [max_detection, num_keypoints, 2]
+        with keypoints.
+      max_instance_to_draw: Maximum number of instance to draw on an image. Default 20.
+
+    Returns:
+      3D image tensor of type uint8, with boxes drawn on top.
+    """
+    assert images.dtype==tf.uint8,"error image type"
+
+    if images.get_shape().as_list()[-1] == 1:
+        images = tf.tile(images,[1,1,3])
+
+    images = smv.tf_draw_keypoints_on_image(images,
+                                            keypoints[:max_instance_to_draw],
+                                            points_pair=points_pair)
+    return images

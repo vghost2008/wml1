@@ -7,6 +7,8 @@ from basic_tftools import batch_gather
 import numpy as np
 import object_detection2.bboxes as odb
 import img_utils as wmli
+import basic_tftools as btf
+import wtfop.wtfop_ops as wop
 
 
 def get_img_size_from_batched_inputs(inputs):
@@ -196,3 +198,18 @@ def filter_by_classeswise_thresholds(labels,bboxes,probs,thresholds):
             n_probs.append(p)
 
     return np.array(n_labels),np.array(n_bboxes),np.array(n_probs)
+
+@btf.add_name_scope
+def batch_fill_bboxes(images,bboxes,length,v=1,W=None,H=None,relative_coord=True):
+    def fn(image,lbboxes,l):
+        lbboxes = lbboxes[:l]
+        image = wop.fill_bboxes(image=image,
+                                bboxes=lbboxes,
+                                v = v)
+        return image
+    if relative_coord:
+        bboxes = odb.tfrelative_boxes_to_absolutely_boxes(bboxes,width=W,height=H)
+    image = tf.map_fn(lambda x:fn(x[0],x[1],x[2]),elems=(images,bboxes,length),
+                    dtype=images.dtype,
+                      back_prop=False)
+    return image

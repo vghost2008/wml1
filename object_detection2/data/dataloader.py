@@ -8,6 +8,7 @@ from .build_dataprocess import DATAPROCESS_REGISTRY
 import socket
 from collections import Iterable
 import time
+from object_detection2.config.config import global_cfg
 
 DEFAULT_CATEGORY_INDEX = {}
 for i in range(100):
@@ -85,7 +86,7 @@ class DataLoader(wmodule.WModule):
         DataLoader.category_index = category_index
         data = data.padded_batch(batch_size,self.get_pad_shapes(data),drop_remainder=True)
         print("Trans on batch img:",self.trans_on_batch_img)
-        if len(self.trans_on_batch_img) == 1:
+        if len(self.trans_on_batch_img) == 1 and self.trans_on_batch_img[0] is not None:
             data = data.map(self.trans_on_batch_img[0],num_parallel_calls=num_parallel)
         elif len(self.trans_on_batch_img) > 1:
             data = data.map(trans.WTransformList(self.trans_on_batch_img),num_parallel_calls=num_parallel)
@@ -123,6 +124,11 @@ class DataLoader(wmodule.WModule):
                                              min_score_thresh=min_score_thresh,
                                              max_outputs=max_outputs,
                                              name=name)
+        if GT_KEYPOINTS in inputs:
+            wsummary.keypoints_image_summary(image,keypoints=inputs[GT_KEYPOINTS],
+                                             lengths=lengths,
+                                             keypoints_pair=global_cfg.MODEL.KEYPOINTS.POINTS_PAIRS,
+                                             name="keypoints")
         '''wsummary.detection_image_summary(tf.ones_like(image)*255,boxes,classes,
                                          lengths=lengths,category_index=DataLoader.category_index,
                                          max_boxes_to_draw=max_boxes_to_draw,

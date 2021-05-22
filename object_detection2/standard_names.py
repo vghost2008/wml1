@@ -21,6 +21,7 @@ GT_BOXES = 'gt_boxes'
 GT_LENGTH = 'gt_length'
 GT_LABELS = 'gt_labels'
 GT_MASKS = 'gt_masks'
+GT_KEYPOINTS = 'gt_keypoints'
 GT_SEMANTIC_LABELS = 'gt_semantic_mask_labels'
 FILEINDEX = "fileindex"
 FILENAME = "filename"
@@ -51,6 +52,7 @@ RD_FULL_SIZE_MASKS = "full_size_masks"  #标准格式为[batch_size,N,H,W]
 RD_RESULT_IMAGE = "result_image"
 RD_KEYPOINT = "keypoint"
 RD_MASK_AREA = MASK_AREA
+RD_ID = "rd_id"
 
 #Proposal network't result
 PD_BOXES = "boxes"

@@ -44,7 +44,8 @@ def bottom_pool(x,kernel=13):
 @META_ARCH_REGISTRY.register()
 class CenterNet(MetaArch):
     """
-    Implement CenterNet
+    Implement: CenterNet: Keypoint Triplets for Object Detectiontection
+    https://arxiv.org/abs/1904.08189
     """
 
     def __init__(self, cfg,*args,**kwargs):

@@ -353,3 +353,43 @@ def batch_semantic_summary(img,masks,max_outputs=3,colors=None,name="semantic"):
                         back_prop=False)
         tf.summary.image(name,img)
 
+def keypoints_image_summary(images,
+                            keypoints=None,
+                            lengths=None,
+                            max_instance_to_draw=20,
+                            keypoints_pair=None,
+                            name="keypoints_image_summary",max_outputs=3):
+    """Draws bounding keypoints on batch of image tensors.
+
+    Args:
+      images: A 4D uint8 image tensor of shape [N, H, W, C].
+      keypoints: A 4D float32 tensor of shape [N, max_detection, num_keypoints, 2]
+        with keypoints.
+      max_instance_to_draw: Maximum number of instance to draw on an image. Default 20.
+
+    Returns:
+      4D image tensor of type uint8, with boxes drawn on top.
+    """
+    assert len(keypoints.get_shape()) == 4, f"error keypoints dims {len(keypoints.get_shape())}"
+    assert len(images.get_shape()) == 4, f"error images dims {len(images.get_shape())}"
+    images = images[:max_outputs]
+    keypoints = keypoints[:max_outputs]
+    if lengths is not None:
+        lengths = lengths[:max_outputs]
+        assert len(lengths.get_shape()) == 1, f"error length dims {len(lengths.get_shape())}"
+
+    with tf.device(":/cpu:0"):
+        if images.get_shape().as_list()[0] is None:
+            nr = tf.reduce_prod(tf.shape(keypoints))
+            B,H,W,C = btf.combined_static_and_dynamic_shape(images)
+            B,MD,num_keypoints,_ = btf.combined_static_and_dynamic_shape(images)
+            images = tf.cond(tf.greater(B,0),lambda:images,lambda:tf.ones([1,H,W,C],dtype=images.dtype))
+            boxes = tf.cond(tf.greater(nr,0),lambda:boxes,lambda:tf.ones([1,1,4],dtype=boxes.dtype))
+            keypoints = tf.cond(tf.greater(nr, 0), lambda: keypoints, lambda: tf.zeros([B, 1,num_keypoints,2], dtype=keypoints.dtype))
+        images = imv.draw_keypoints_image_summary(images,
+                                                  keypoints,
+                                                  keypoints_pair=keypoints_pair,
+                                                  lengths=lengths,
+                                                  max_instance_to_draw=max_instance_to_draw)
+
+    tf.summary.image(name,images,max_outputs=max_outputs)

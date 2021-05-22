@@ -539,6 +539,33 @@ _C.MODEL.RETINANET.BOX_CLS_LOSS_SCALE = 1.0
 _C.MODEL.RETINANET.CLASSES_WISE_NMS = True
 
 # ---------------------------------------------------------------------------- #
+# CornerNet2 Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.CENTERNET2 = CN()
+
+_C.MODEL.CENTERNET2.IN_FEATURES = ["P3"]
+_C.MODEL.CENTERNET2.SCORE_THRESH_TEST = 0.05
+_C.MODEL.CENTERNET2.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.CENTERNET2.NMS_THRESH_TEST = 0.5
+_C.MODEL.CENTERNET2.DIS_THRESHOLD = 1.0
+
+# Loss parameters
+_C.MODEL.CENTERNET2.OUTPUTS = "CenterNet2Outputs"
+_C.MODEL.CENTERNET2.HEAD_NAME = "CenterNet2Head"
+_C.MODEL.CENTERNET2.NORM = "BN"
+_C.MODEL.CENTERNET2.ACTIVATION_FN = "relu"
+_C.MODEL.CENTERNET2.K = 100
+_C.MODEL.CENTERNET2.SIZE_THRESHOLD = 130
+_C.MODEL.CENTERNET2.LOSS_ALPHA = 2
+_C.MODEL.CENTERNET2.LOSS_BETA = 4
+_C.MODEL.CENTERNET2.LOSS_POS_THRESHOLD = 0.99
+_C.MODEL.CENTERNET2.LOSS_LAMBDA_SIZE = 0.1
+_C.MODEL.CENTERNET2.LOSS_LAMBDA_OFFSET = 1.0
+_C.MODEL.CENTERNET2.SCORE_THRESH_TEST= 0.1
+_C.MODEL.CENTERNET2.NMS_THRESH_TEST = 0.5
+# ---------------------------------------------------------------------------- #
+
+# ---------------------------------------------------------------------------- #
 # CornerNet Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.CENTERNET = CN()
@@ -782,6 +809,60 @@ _C.MODEL.BBDNET.BBOXES_NR = 96
 _C.MODEL.BBDNET.SHALLOW_GRAPH = False
 
 # ---------------------------------------------------------------------------- #
+# DEEPLAB Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.DEEPLAB = CN()
+
+_C.MODEL.DEEPLAB.HEAD_NAME = "DeepLabHead"
+# This is the number of foreground classes.
+_C.MODEL.DEEPLAB.NUM_CLASSES = 80
+_C.MODEL.DEEPLAB.PRED_BACKGROUND = True
+_C.MODEL.DEEPLAB.IN_FEATURES = ["P2","P6"]
+_C.MODEL.DEEPLAB.CONV_DIM = 256
+_C.MODEL.DEEPLAB.WEIGHT_DECAY = 4e-5
+_C.MODEL.DEEPLAB.ATROUS_RATES=[6,12,18]
+_C.MODEL.DEEPLAB.LOW_FEA_CONV_DIM=48
+_C.MODEL.DEEPLAB.UPSAMPLE_LOGITS=True
+_C.MODEL.DEEPLAB.ASPP_WITH_SEPARABLE_CONV = True
+_C.MODEL.DEEPLAB.OUTPUTS = "DeepLabOutputs"
+_C.MODEL.DEEPLAB.NORM = "BN"
+_C.MODEL.DEEPLAB.ACTIVATION_FN = "relu"
+_C.MODEL.DEEPLAB.USE_DROP_BLOCKS=True
+_C.MODEL.DEEPLAB.FOCAL_LOSS_GAMMA = 2.0
+_C.MODEL.DEEPLAB.FOCAL_LOSS_ALPHA = 0.25
+_C.MODEL.DEEPLAB.SCORE_THRESH_TEST=0.1
+
+# ---------------------------------------------------------------------------- #
+# KEYPOINTS
+# ---------------------------------------------------------------------------- #
+_C.MODEL.KEYPOINTS = CN()
+_C.MODEL.KEYPOINTS.NUM_KEYPOINTS= 17
+#_C.MODEL.KEYPOINTS.POINTS_PAIRS = [15,13,13,11,16,4,14,12,11,12,5,11,6,12,5,6,5,7,6,8,7,9,8,10,1,2,0,1,0,2,1,3,2,4,3,5,4,6]
+_C.MODEL.KEYPOINTS.POINTS_PAIRS = [0,1,1,2,2,0,1,3,2,4,0,5,0,6,5,6,5,11,6,12,11,12,5,7,7,9,6,8,8,10,11,13,13,15,12,14,14,16]
+_C.MODEL.KEYPOINTS.IN_FEATURES = ['C3']
+_C.MODEL.KEYPOINTS.HEAD_NAME = "OpenPoseHead"
+_C.MODEL.KEYPOINTS.OUTPUTS = "OpenPoseOutputs"
+_C.MODEL.KEYPOINTS.NUM_OPENPOSE_L1_BLOCKS = 4
+_C.MODEL.KEYPOINTS.NUM_OPENPOSE_L2_BLOCKS = 2
+_C.MODEL.KEYPOINTS.NUM_OPENPOSE_UNITS = 5
+_C.MODEL.KEYPOINTS.OPENPOSE_UNIT_CHANNELS = (96,128)
+_C.MODEL.KEYPOINTS.OPENPOSE_L_DELTA = 1.5
+_C.MODEL.KEYPOINTS.OPENPOSE_GAUSSIAN_DELTA = 1.0
+_C.MODEL.KEYPOINTS.OPENPOSE_KEYPOINTS_TH = 0.1
+_C.MODEL.KEYPOINTS.OPENPOSE_INTERP_SAMPLES = 10
+_C.MODEL.KEYPOINTS.OPENPOSE_PAF_SCORE_TH = 0.1
+_C.MODEL.KEYPOINTS.OPENPOSE_CONF_TH = 0.7
+_C.MODEL.KEYPOINTS.OPENPOSE_USE_LOSS_MASK = True
+_C.MODEL.KEYPOINTS.NORM = "BN"
+_C.MODEL.KEYPOINTS.ACTIVATION_FN = "leaky_relu"
+# ---------------------------------------------------------------------------- #
+# KEYPOINTS
+# ---------------------------------------------------------------------------- #
+_C.MODEL.MOT = CN()
+_C.MODEL.MOT.FAIR_MOT_ID_DIM = 64
+_C.MODEL.MOT.FAIR_MOT_NUM_CLASSES = 500
+_C.MODEL.MOT.FAIR_MOT_LOSS_LAMBDA_ID_EMBEDDING = 1.0
+# ---------------------------------------------------------------------------- #
 # Solver
 # ---------------------------------------------------------------------------- #
 _C.SOLVER = CN()
@@ -860,26 +941,3 @@ _C.log_dir = ""
 _C.ckpt_dir = ""
 #BalanceBackboneHookV2
 
-# ---------------------------------------------------------------------------- #
-# DEEPLAB Head
-# ---------------------------------------------------------------------------- #
-_C.MODEL.DEEPLAB = CN()
-
-_C.MODEL.DEEPLAB.HEAD_NAME = "DeepLabHead"
-# This is the number of foreground classes.
-_C.MODEL.DEEPLAB.NUM_CLASSES = 80
-_C.MODEL.DEEPLAB.PRED_BACKGROUND = True
-_C.MODEL.DEEPLAB.IN_FEATURES = ["P2","P6"]
-_C.MODEL.DEEPLAB.CONV_DIM = 256
-_C.MODEL.DEEPLAB.WEIGHT_DECAY = 4e-5
-_C.MODEL.DEEPLAB.ATROUS_RATES=[6,12,18]
-_C.MODEL.DEEPLAB.LOW_FEA_CONV_DIM=48
-_C.MODEL.DEEPLAB.UPSAMPLE_LOGITS=True
-_C.MODEL.DEEPLAB.ASPP_WITH_SEPARABLE_CONV = True
-_C.MODEL.DEEPLAB.OUTPUTS = "DeepLabOutputs"
-_C.MODEL.DEEPLAB.NORM = "BN"
-_C.MODEL.DEEPLAB.ACTIVATION_FN = "relu"
-_C.MODEL.DEEPLAB.USE_DROP_BLOCKS=True
-_C.MODEL.DEEPLAB.FOCAL_LOSS_GAMMA = 2.0
-_C.MODEL.DEEPLAB.FOCAL_LOSS_ALPHA = 0.25
-_C.MODEL.DEEPLAB.SCORE_THRESH_TEST=0.1

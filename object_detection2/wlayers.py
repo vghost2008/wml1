@@ -276,14 +276,20 @@ bboxes:[X,4]
 labels:[X]
 probs:[X]
 '''
-def boxes_nms(bboxes,labels,probs,threshold=0.5,max_output_size=None,classes_wise=True):
+def boxes_nms(bboxes,classes,confidence,threshold=0.5,max_output_size=None,classes_wise=True):
     if max_output_size is None:
-        max_output_size = tf.shape(labels)[0]
-    indices = tf.image.non_max_suppression(boxes=bboxes,scores=probs,iou_threshold=threshold,max_output_size=max_output_size)
+        max_output_size = tf.shape(classes)[0]
+    if classes_wise:
+        max_val = tf.reduce_max(bboxes)
+        fclasses = tf.cast(classes,tf.float32)
+        fclasses = tf.reshape(fclasses,[-1,1])*max_val
+        nms_bboxes = bboxes+fclasses
+    else:
+        nms_bboxes = bboxes
+    indices = tf.image.non_max_suppression(boxes=nms_bboxes,scores=confidence,iou_threshold=threshold,max_output_size=max_output_size)
     bboxes = tf.gather(bboxes,indices)
-    labels = tf.gather(labels,indices)
-    probs = tf.gather(probs,indices)
-    return bboxes,labels,probs
+    labels = tf.gather(classes,indices)
+    return bboxes,labels,indices
 '''
 get exactly k boxes
 policy: first use nms to remove same target, if after nms have less than k targets, put the top k-targets_size(by probability

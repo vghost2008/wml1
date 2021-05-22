@@ -4,7 +4,6 @@ import sys
 import os
 import numpy as np
 from collections import OrderedDict
-import object_detection.utils as odu
 from semantic.visualization_utils import STANDARD_COLORS
 import semantic.toolkit as smt
 import wml_tfutils as wmlt
@@ -134,7 +133,6 @@ def get_data(data_dir,batch_size,num_samples=1,num_classes=80,log_summary=True,f
         image = tf.reshape(image,shape=size)
         mask = tf.reshape(mask,shape=tf.stack([-1,height,width],axis=0))
         if log_summary:
-            odu.tf_summary_image_with_box(image,bboxes)
             wmlt.variable_summaries_v2(mask,"mask")
             wmlt.variable_summaries_v2(image,"image")
             if has_file_index:

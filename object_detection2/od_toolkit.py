@@ -113,6 +113,7 @@ def get_norm(name:str,is_training):
 def get_activation_fn(name):
     activation_dict = {"relu":tf.nn.relu,
                        "relu6":tf.nn.relu6,
+                       "leaky_relu":tf.nn.leaky_relu,
                        "NA":None,
                        "swish":tf.nn.swish,
                        "sigmoid":tf.nn.sigmoid,

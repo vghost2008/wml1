@@ -346,3 +346,91 @@ class OffsetBox2BoxTransform(AbstractBox2BoxTransform):
             gtboxes = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
             return gtboxes
 
+class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
+    '''
+    '''
+    def __init__(self,num_classes,k,nms_threshold=0.3,gaussian_iou=0.7,dis_threshold=1):
+        self.num_classes = num_classes
+        self.gaussian_iou = gaussian_iou
+        self.k = k
+        self.nms_threshold = nms_threshold
+        self.dis_threshold = dis_threshold
+
+
+    def get_deltas(self,gboxes,glabels,glength,output_size):
+        """
+        gboxes:[batch_size,M,4]
+        glabels:[batch_size,M]
+        output:
+        output_heatmaps_tl: top left heatmaps [B,OH,OW,C]
+        output_heatmaps_br: bottom right heatmaps [B,OH,OW,C]
+        output_heatmaps_c: center heatmaps [B,OH,OW,C]
+        output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
+        output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
+        """
+        g_heatmaps_c, hw_offset, mask = wop.center2_boxes_encode(gboxes,
+                                                                 glabels,
+                                                                 glength,
+                                                                 output_size,
+                                                                 self.num_classes,
+                                                                 gaussian_iou=self.gaussian_iou)
+        hw,offset = tf.split(hw_offset,2,axis=-1)
+        hw_mask,offset_mask = tf.split(mask,2,axis=-1)
+        outputs = {}
+        outputs['g_heatmaps_ct'] = g_heatmaps_c
+        outputs['g_offset'] = offset
+        outputs['g_hw'] = hw
+        outputs['g_hw_mask'] = hw_mask
+        outputs['g_offset_mask'] = offset_mask
+        return outputs
+
+
+    @staticmethod
+    def pixel_nms(heat,kernel=[3,3],threshold=0.3):
+        hmax=tf.nn.max_pool(heat,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
+        mask=tf.cast(tf.logical_and(tf.equal(hmax,heat),tf.greater(hmax,threshold)),tf.float32)
+        return mask*heat
+
+    @staticmethod
+    @wmlt.add_name_scope
+    def _topk(scores,k=100):
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(scores)
+        scores = tf.reshape(scores,[B,-1])
+        topk_scores,topk_inds = tf.nn.top_k(scores,k=k)
+        topk_classes = (topk_inds%C)+1
+        topk_inds = topk_inds//C
+        topk_ys = tf.cast(topk_inds//W,tf.float32)
+        topk_xs = tf.cast(topk_inds%W,tf.float32)
+        return topk_scores,topk_inds,topk_classes,topk_ys,topk_xs
+
+
+    @wmlt.add_name_scope
+    def apply_deltas(self,datas,img_size=None):
+        '''
+        '''
+        h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
+        offset = datas['offset']
+        hw = datas['hw']
+
+        B,H,W,C = wmlt.combined_static_and_dynamic_shape(h_ct)
+        offset = tf.reshape(offset,[B,-1,2])
+        hw = tf.reshape(hw,[B,-1,2])
+
+        h_ct = self.pixel_nms(h_ct, threshold=self.nms_threshold)
+        ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, k=self.k)
+        K = self.k
+        ct_ys = tf.reshape(ct_ys,[B,K])
+        ct_xs = tf.reshape(ct_xs,[B,K])
+        offset = wmlt.batch_gather(offset,ct_inds)
+        offset = tf.reshape(offset,[B,K,2])
+        offset_y,offset_x = tf.unstack(offset,axis=-1)
+        ct_xs = ct_xs+offset_x
+        ct_ys = ct_ys+offset_y
+        hw = wmlt.batch_gather(hw,ct_inds)
+        hw = tf.reshape(hw,[B,K,2])
+        h,w = tf.unstack(hw,axis=-1)
+        ymin,xmin,ymax,xmax = [ct_ys-h/2,ct_xs-w/2,ct_ys+h/2,ct_xs+w/2]
+        bboxes = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
+        bboxes = odb.tfabsolutely_boxes_to_relative_boxes(bboxes,width=W,height=H)
+
+        return bboxes,ct_clses,ct_scores,ct_inds

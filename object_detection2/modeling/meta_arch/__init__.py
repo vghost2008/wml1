@@ -1,1 +1,1 @@
-from . import rcnn,retinanet,ssd,yolact,centernet,fcos,bbd_retinanet,grcnn,deeplab
+from . import rcnn,retinanet,ssd,yolact,centernet,fcos,bbd_retinanet,grcnn,deeplab,keypoints,centernet2

@@ -34,6 +34,7 @@ import tensorflow as tf
 import cv2 as cv
 import cv2
 import sys
+import basic_tftools as btf
 
 _TITLE_LEFT_MARGIN = 10
 _TITLE_TOP_MARGIN = 10
@@ -407,27 +408,39 @@ def draw_keypoints_on_image_array(image,
                                   keypoints,
                                   color='red',
                                   radius=2,
+                                  points_pair=None,
                                   use_normalized_coordinates=True):
   """Draws keypoints on an image (numpy array).
 
   Args:
     image: a numpy array with shape [height, width, 3].
-    keypoints: a numpy array with shape [num_keypoints, 2].
+    keypoints: a numpy array with shape [num_keypoints, 2] or [N,num_keypoits,2].
     color: color to draw the keypoints with. Default is red.
     radius: keypoint radius. Default value is 2.
     use_normalized_coordinates: if True (default), treat keypoint values as
       relative to the image.  Otherwise treat them as absolute.
   """
   image_pil = Image.fromarray(np.uint8(image)).convert('RGB')
-  draw_keypoints_on_image(image_pil, keypoints, color, radius,
-                          use_normalized_coordinates)
+  if len(keypoints.shape) == 2:
+      draw_keypoints_on_image(image_pil, keypoints, color, radius,
+                              points_pair,
+                              use_normalized_coordinates)
+  elif len(keypoints.shape) == 3:
+      for i in range(keypoints.shape[0]):
+          draw_keypoints_on_image(image_pil, keypoints[i], color, radius,
+                                  points_pair,
+                                  use_normalized_coordinates)
+  else:
+      print(f"Error keypoints shape {keypoints.shape}")
   np.copyto(image, np.array(image_pil))
+  return image
 
 
 def draw_keypoints_on_image(image,
                             keypoints,
                             color='red',
                             radius=2,
+                            points_pair=None,
                             use_normalized_coordinates=True):
   """Draws keypoints on an image.
 
@@ -436,22 +449,56 @@ def draw_keypoints_on_image(image,
     keypoints: a numpy array with shape [num_keypoints, 2].
     color: color to draw the keypoints with. Default is red.
     radius: keypoint radius. Default value is 2.
+    points_pair:[[index0,index1],...] or None
     use_normalized_coordinates: if True (default), treat keypoint values as
       relative to the image.  Otherwise treat them as absolute.
   """
   draw = ImageDraw.Draw(image)
   im_width, im_height = image.size
-  keypoints_x = [k[1] for k in keypoints]
-  keypoints_y = [k[0] for k in keypoints]
+  keypoints_x = [k[0] for k in keypoints]
+  keypoints_y = [k[1] for k in keypoints]
   if use_normalized_coordinates:
-    keypoints_x = tuple([im_width * x for x in keypoints_x])
-    keypoints_y = tuple([im_height * y for y in keypoints_y])
+    keypoints_x = tuple([im_width * x if x>=0 else -1 for x in keypoints_x])
+    keypoints_y = tuple([im_height * y if y>=0 else -1 for y in keypoints_y])
+  i=0
   for keypoint_x, keypoint_y in zip(keypoints_x, keypoints_y):
-    draw.ellipse([(keypoint_x - radius, keypoint_y - radius),
-                  (keypoint_x + radius, keypoint_y + radius)],
-                 outline=color, fill=color)
+    if keypoint_x>=0:
+        draw.ellipse([(keypoint_x - radius, keypoint_y - radius),
+                      (keypoint_x + radius, keypoint_y + radius)],
+                     outline=color, fill=color)
+        #draw.text((keypoint_x,keypoint_y),f"{i}",fill=color)
+    i += 1
+
+  if points_pair is not None:
+      for pair in points_pair:
+          index0 = pair[0]
+          index1 = pair[1]
+          x0 = keypoints_x[index0]
+          y0 = keypoints_y[index0]
+          x1 = keypoints_x[index1]
+          y1 = keypoints_y[index1]
+          if x0>=0 and x1 >= 0:
+            draw.line((x0,y0,x1,y1),"blue")
+
+  return image
 
 
+def tf_draw_keypoints_on_image(image,
+                               keypoints,
+                               color='red',
+                               radius=2,
+                               points_pair=None,
+                               use_normalized_coordinates=True):
+    if points_pair is not None:
+        points_pair = np.array(points_pair)
+        points_pair = np.reshape(points_pair,[-1,2])
+    shape = btf.combined_static_and_dynamic_shape(image)
+    image = tf.py_func(lambda x,y:draw_keypoints_on_image_array(x,y,color=color,radius=radius,
+                                                          points_pair=points_pair,
+                                                          use_normalized_coordinates=use_normalized_coordinates)
+                       ,[image,keypoints],stateful=False,Tout=tf.uint8)
+    image = tf.reshape(image,shape)
+    return image
 def draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
   """Draws mask on an image.
 
@@ -510,7 +557,6 @@ def tf_draw_mask_on_image_array(image, mask, color='red', alpha=0.4):
         name=None
     )
     return tf.reshape(res,shape)
-
 '''
 image:[height,width,3] value range [0,255]
 mask:[N,height,width] value range [0,1]
@@ -666,7 +712,7 @@ def visualize_boxes_and_labels_on_image_array(
             if classes[i] in category_index.keys():
               class_name = category_index[classes[i]]
             else:
-              class_name = 'N/A'
+              class_name = f'L{classes[i]}'
             display_str = str(class_name)
         if not skip_scores and scores[i]<0.95:
           if not display_str:

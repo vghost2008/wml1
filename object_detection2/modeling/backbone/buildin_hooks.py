@@ -118,7 +118,8 @@ class FusionBackboneHook(wmodule.WChildModule):
         super().__init__(cfg, parent, *args, **kwargs)
 
     def forward(self, features, batched_inputs):
-        normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=self.is_training)
+        normalizer_fn,normalizer_params= odt.get_norm(self.cfg.NORM,self.is_training)
+        activation_fn = odt.get_activation_fn(self.cfg.ACTIVATION_FN)
         with tf.variable_scope("FusionBackboneHook"):
             del batched_inputs
             end_points = list(features.items())
@@ -132,7 +133,7 @@ class FusionBackboneHook(wmodule.WChildModule):
             net = tf.concat([v0,net],axis=-1)
             level0 = int(k0[1:])
             net = slim.conv2d(net, net.get_shape().as_list()[-1], [3, 3],
-                              activation_fn=None,
+                              activation_fn=activation_fn,
                               normalizer_fn=normalizer_fn,
                               normalizer_params=normalizer_params,
                               scope=f"smooth{level0}")
@@ -147,7 +148,8 @@ class FusionBackboneHookV2(wmodule.WChildModule):
         super().__init__(cfg, parent, *args, **kwargs)
 
     def forward(self, features, batched_inputs):
-        normalizer_fn,normalizer_params = odt.get_norm("evo_norm_s0",is_training=self.is_training)
+        normalizer_fn,normalizer_params= odt.get_norm(self.cfg.NORM,self.is_training)
+        activation_fn = odt.get_activation_fn(self.cfg.ACTIVATION_FN)
         with tf.variable_scope("FusionBackboneHookV2"):
             del batched_inputs
             end_points = list(features.items())
@@ -164,7 +166,7 @@ class FusionBackboneHookV2(wmodule.WChildModule):
             与上一个版本相比，输出的通道数小一些
             '''
             net = slim.conv2d(net, v0.get_shape().as_list()[-1], [3, 3],
-                              activation_fn=None,
+                              activation_fn=activation_fn,
                               normalizer_fn=normalizer_fn,
                               normalizer_params=normalizer_params,
                               scope=f"smooth{level0}")
