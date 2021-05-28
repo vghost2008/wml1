@@ -279,6 +279,18 @@ def npto_cyxhw(data):
     data = np.stack([cy,cx,h,w],axis=1)
     return data
 
+'''
+data:[X,4] (ymin,xmin,ymax,xmax)
+return:
+[X,4] (minx,miny,w,h)
+'''
+def npto_ctlwh(data):
+    ymin,xmin,ymax,xmax = data[...,0],data[...,1],data[...,2],data[...,3]
+    h = (ymax-ymin)
+    w = (xmax-xmin)
+    data = np.stack([xmin,ymin,w,h],axis=-1)
+    return data
+
 def npminxywh_toyxminmax(data):
     if not isinstance(data,np.ndarray):
         data = np.array(data)
@@ -806,10 +818,10 @@ boxes:[N,4],[ymin,xmin,ymax,xmax]
 '''
 def relative_boxes_to_absolutely_boxes(boxes,width,height):
     boxes = np.transpose(boxes)
-    ymin = boxes[0]*height
-    xmin = boxes[1]*width
-    ymax = boxes[2]*height
-    xmax = boxes[3]*width
+    ymin = boxes[0]*(height-1)
+    xmin = boxes[1]*(width-1)
+    ymax = boxes[2]*(height-1)
+    xmax = boxes[3]*(width-1)
 
     return np.stack([ymin,xmin,ymax,xmax],axis=1)
 '''

@@ -8,7 +8,7 @@ import time
 import cv2
 from object_detection2.standard_names import *
 from object_detection2.mot_toolkit.tracking_utils.utils import *
-from object_detection2.mot_toolkit.tracking_utils.log import logger
+import logging as logger
 from object_detection2.mot_toolkit.tracking_utils.kalman_filter import KalmanFilter
 from . import matching
 from .basetrack import BaseTrack, TrackState
@@ -56,7 +56,7 @@ class STrack(BaseTrack):
             multi_covariance = np.asarray([st.covariance for st in stracks])
             for i, st in enumerate(stracks):
                 if st.state != TrackState.Tracked:
-                    multi_mean[i][7] = 0
+                    multi_mean[i][7] = 0  #if not traced, velocity h set to zero
             multi_mean, multi_covariance = STrack.shared_kalman.multi_predict(multi_mean, multi_covariance)
             for i, (mean, cov) in enumerate(zip(multi_mean, multi_covariance)):
                 stracks[i].mean = mean
@@ -270,6 +270,9 @@ class JDETracker(object):
         ''' Step 3: Second association, with IOU'''
         detections = [detections[i] for i in u_detection]
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
+        for i in u_track:
+            if strack_pool[i].state != TrackState.Tracked:
+                print("A")
         dists = matching.iou_distance(r_tracked_stracks, detections)
         matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
 
@@ -363,15 +366,24 @@ def sub_stracks(tlista, tlistb):
 
 def remove_duplicate_stracks(stracksa, stracksb):
     pdist = matching.iou_distance(stracksa, stracksb)
+    '''
+    iou disstance less than 0.15 is duplicate
+    '''
     pairs = np.where(pdist < 0.15)
     dupa, dupb = list(), list()
     for p, q in zip(*pairs):
         timep = stracksa[p].frame_id - stracksa[p].start_frame
         timeq = stracksb[q].frame_id - stracksb[q].start_frame
+        '''
+        less length strack is duplicated
+        '''
         if timep > timeq:
             dupb.append(q)
         else:
             dupa.append(p)
     resa = [t for i, t in enumerate(stracksa) if not i in dupa]
     resb = [t for i, t in enumerate(stracksb) if not i in dupb]
+    '''
+    return stracks without duplicated
+    '''
     return resa, resb

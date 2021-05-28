@@ -21,9 +21,9 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 slim = tf.contrib.slim
 
 class PredictModel(object):
-    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,input_name=None,scope=None):
+    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,input_name=None,input_dtype=tf.uint8,scope=None):
 
-        self.input_imgs = tf.placeholder(tf.uint8,input_shape,name=input_name)        
+        self.input_imgs = tf.placeholder(input_dtype,input_shape,name=input_name)        
         is_training = False
         model = SimpleTrainer.build_model(cfg, is_training=is_training)
         self.cfg = cfg

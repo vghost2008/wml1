@@ -97,7 +97,7 @@ def embedding_distance(tracks, detections, metric='cosine'):
     :param metric:
     :return: cost_matrix np.ndarray
     """
-
+    #cost_matrix[i,j] is the distance of tracks[i] to detections[j]
     cost_matrix = np.zeros((len(tracks), len(detections)), dtype=np.float)
     if cost_matrix.size == 0:
         return cost_matrix
@@ -123,6 +123,10 @@ def gate_cost_matrix(kf, cost_matrix, tracks, detections, only_position=False):
 
 
 def fuse_motion(kf, cost_matrix, tracks, detections, only_position=False, lambda_=0.98):
+    '''
+    update cost matrix, if the tracks (after kalman predict process)'s distance to detections is too large,
+    set const_matrix value to inf, else set value to lambda*old_value+(1-lambda)*gating_distance (lambda=0.98)
+    '''
     if cost_matrix.size == 0:
         return cost_matrix
     gating_dim = 2 if only_position else 4

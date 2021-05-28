@@ -4,6 +4,7 @@ from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
 from wtfop.wtfop_ops import boxes_relative_to_absolute
 import object_detection2.bboxes as odb
 import wml_tfutils as wmlt
+from tensorflow.python.ops import gen_image_ops
 import wtfop.wtfop_ops as wop
 from basic_tftools import channel
 import object_detection2.od_toolkit as odt
@@ -286,7 +287,8 @@ def boxes_nms(bboxes,classes,confidence,threshold=0.5,max_output_size=None,class
         nms_bboxes = bboxes+fclasses
     else:
         nms_bboxes = bboxes
-    indices = tf.image.non_max_suppression(boxes=nms_bboxes,scores=confidence,iou_threshold=threshold,max_output_size=max_output_size)
+    #indices = tf.image.non_max_suppression(boxes=nms_bboxes,scores=confidence,iou_threshold=threshold,max_output_size=max_output_size)
+    indices = gen_image_ops.non_max_suppression_v2(boxes=nms_bboxes,scores=confidence,iou_threshold=threshold,max_output_size=max_output_size)
     bboxes = tf.gather(bboxes,indices)
     labels = tf.gather(classes,indices)
     return bboxes,labels,indices

@@ -566,6 +566,20 @@ _C.MODEL.CENTERNET2.NMS_THRESH_TEST = 0.5
 # ---------------------------------------------------------------------------- #
 
 # ---------------------------------------------------------------------------- #
+# CornerNet2 Head
+# ---------------------------------------------------------------------------- #
+_C.MODEL.SNPE = CN()
+
+_C.MODEL.SNPE.DLC_PATH = ""
+_C.MODEL.SNPE.SCORE_THRESH_TEST = 0.05
+_C.MODEL.SNPE.TOPK_CANDIDATES_TEST = 1000
+_C.MODEL.SNPE.SIZE_THRESHOLD = 130
+_C.MODEL.SNPE.NMS_THRESH_TEST = 0.5
+_C.MODEL.SNPE.DIS_THRESHOLD = 1.0
+_C.MODEL.SNPE.K = 100
+_C.MODEL.SNPE.OUTPUTS = "CenterNet2Outputs"
+
+# ---------------------------------------------------------------------------- #
 # CornerNet Head
 # ---------------------------------------------------------------------------- #
 _C.MODEL.CENTERNET = CN()

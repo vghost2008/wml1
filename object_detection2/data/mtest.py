@@ -8,7 +8,7 @@ import wsummary
 import wml_utils as wmlu
 import iotoolkit.coco_tf_decodev2 as cocodecode
 import iotoolkit.coco_toolkit as cocot
-from object_detection.utils import tf_summary_image_with_box,tf_summary_image_with_boxv2
+import wsummary
 import iotoolkit.transform as trans
 from object_detection2.config.config import CfgNode as CN
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
@@ -67,15 +67,15 @@ def test(cfg,is_training):
            [trans.NoTransform(),trans.BBoxesAbsoluteToRelative()]
 _C = CN()
 _C.INPUT = CN()
-_C.INPUT.DATAPROCESS = "simple_semantic1"
+_C.INPUT.DATAPROCESS = "NONE"
 _C.INPUT.MIN_SIZE_TRAIN = (224,224)
 _C.INPUT.MAX_SIZE_TRAIN = 1333
 _C.INPUT.SIZE_ALIGN = 1
 _C.DATASETS = CN()
 _C.DATASETS.SKIP_CROWD_DURING_TRAINING = True
-_C.DATASETS.TRAIN = "mnistod_train"
+_C.DATASETS.TRAIN = "mot_train"
 _C.SOLVER = CN()
-_C.SOLVER.IMS_PER_BATCH = 4
+_C.SOLVER.IMS_PER_BATCH = 1
 _C.INPUT.STITCH = 0.0
 _C.INPUT.ROTATE_ANY_ANGLE = CN()
 _C.INPUT.ROTATE_ANY_ANGLE.ENABLE = True
@@ -86,7 +86,7 @@ _C.INPUT.SHUFFLE_BUFFER_SIZE = 10
 _C.INPUT.EXTRA_FILTER = ""
 def main(_):
     cfg = _C
-    data_loader = DataLoader(cfg=cfg,is_training=True)
+    data_loader = DataLoader(cfg=cfg,is_training=False)
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)

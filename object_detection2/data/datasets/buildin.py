@@ -3,9 +3,11 @@ import os
 from .build import DATASETS_REGISTRY
 from iotoolkit.pascal_voc_tf_decodev2 import get_data as voc_get_data
 from iotoolkit.coco_tf_decodev2 import get_data as coco_get_data
+from iotoolkit.coco_tf_kp_deccode import get_data as coco_kp_get_data
 from iotoolkit.coco_toolkit import ID_TO_TEXT as coco_id_to_text
 from iotoolkit.coco_toolkit import COMPRESSED_ID_TO_TEXT as coco_compressed_id_to_text
 from iotoolkit.pascal_voc_data import ID_TO_TEXT as pascal_voc_id_to_text
+from iotoolkit.mot_tf_decode import get_data as mot_get_data
 
 # ==== Predefined datasets and splits for COCO ==========
 dataset_root_path = "/home/wj/ai/mldata"
@@ -46,12 +48,16 @@ def register_all_coco(root="datasets"):
     SPLITS = [
         ("coco_2017_train", os.path.join(dataset_root_path,"coco/tfdata_2017_train"),coco_get_data,80,coco_compressed_id_to_text),
         ("coco_2017_eval", os.path.join(dataset_root_path,"coco/tfdata_2017_val"),coco_get_data,80,coco_compressed_id_to_text),
+        ("coco_2017_kp_train", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_train"),coco_kp_get_data,80,coco_compressed_id_to_text),
+        #("coco_2017_kp_train", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_val"),coco_kp_get_data,80,coco_compressed_id_to_text),
+        ("coco_2017_kp_eval", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_val"),coco_kp_get_data,80,coco_compressed_id_to_text),
         ("coco_2014_train", os.path.join(dataset_root_path,"coco/tfdata1"),coco_get_data,90,coco_category_index),
         ("coco_2014_eval", os.path.join(dataset_root_path,"coco/tfdata_val"),coco_get_data,90,coco_category_index),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3,mod_category_index),
         ("mnistod_eval", os.path.join(dataset_root_path,"mnistod/eval_tfrecord"),coco_get_data,3,mod_category_index),
         ("mnistgeood_train", os.path.join(dataset_root_path,"mnistgeood_data/tftrain_big"),coco_get_data,10,modgeo_category_index),
         ("mnistgeood_eval", os.path.join(dataset_root_path,"mnistgeood_data/tftest_big"),coco_get_data,10,modgeo_category_index),
+        ("mot_train", os.path.join(dataset_root_path,"MOT/tfdata_mot_train"),mot_get_data,1,default_category_index), #1个类别表示只追踪人
         ("cell", "/home/wj/ai/mldata2/cell_instance_segmentation/train_tfrecord", coco_get_data, 1, {1:"1"})
     ]
     for x in SPLITS:

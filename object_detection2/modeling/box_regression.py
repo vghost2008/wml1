@@ -6,6 +6,7 @@ import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
 import object_detection2.bboxes as odb
 from basic_tftools import batch_size
+import basic_tftools as btf
 
 _DEFAULT_SCALE_CLAMP = math.log(1000.0 / 16)
 class AbstractBox2BoxTransform(object):
@@ -349,12 +350,13 @@ class OffsetBox2BoxTransform(AbstractBox2BoxTransform):
 class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
     '''
     '''
-    def __init__(self,num_classes,k,nms_threshold=0.3,gaussian_iou=0.7,dis_threshold=1):
+    def __init__(self,num_classes,k,score_threshold=0.1,gaussian_iou=0.7,dis_threshold=1):
         self.num_classes = num_classes
         self.gaussian_iou = gaussian_iou
         self.k = k
-        self.nms_threshold = nms_threshold
+        self.score_threshold = score_threshold
         self.dis_threshold = dis_threshold
+        self.use_custom_op = True
 
 
     def get_deltas(self,gboxes,glabels,glength,output_size):
@@ -403,9 +405,23 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
         topk_xs = tf.cast(topk_inds%W,tf.float32)
         return topk_scores,topk_inds,topk_classes,topk_ys,topk_xs
 
-
     @wmlt.add_name_scope
     def apply_deltas(self,datas,img_size=None):
+        if not self.use_custom_op:
+            return self.pyapply_deltas(datas,img_size)
+        else:
+            h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
+            offset = datas['offset']
+            hw = datas['hw']
+            bboxes, labels, probs, index, lens = wop.center2_boxes_decode(heatmaps=h_ct,
+                                                                          offset=offset,
+                                                                          hw=hw,
+                                                                          k=self.k,
+                                                                          threshold=self.score_threshold)
+            return bboxes,labels,probs,index
+
+    @wmlt.add_name_scope
+    def pyapply_deltas(self,datas,img_size=None):
         '''
         '''
         h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
@@ -416,21 +432,23 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
         offset = tf.reshape(offset,[B,-1,2])
         hw = tf.reshape(hw,[B,-1,2])
 
-        h_ct = self.pixel_nms(h_ct, threshold=self.nms_threshold)
+        h_ct = self.pixel_nms(h_ct, threshold=self.score_threshold)
         ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = self._topk(h_ct, k=self.k)
+        C = btf.channel(h_ct)
+        hw_inds = ct_inds//C
         K = self.k
         ct_ys = tf.reshape(ct_ys,[B,K])
         ct_xs = tf.reshape(ct_xs,[B,K])
-        offset = wmlt.batch_gather(offset,ct_inds)
+        offset = wmlt.batch_gather(offset,hw_inds)
         offset = tf.reshape(offset,[B,K,2])
         offset_y,offset_x = tf.unstack(offset,axis=-1)
         ct_xs = ct_xs+offset_x
         ct_ys = ct_ys+offset_y
-        hw = wmlt.batch_gather(hw,ct_inds)
+        hw = wmlt.batch_gather(hw,hw_inds)
         hw = tf.reshape(hw,[B,K,2])
         h,w = tf.unstack(hw,axis=-1)
         ymin,xmin,ymax,xmax = [ct_ys-h/2,ct_xs-w/2,ct_ys+h/2,ct_xs+w/2]
         bboxes = tf.stack([ymin,xmin,ymax,xmax],axis=-1)
         bboxes = odb.tfabsolutely_boxes_to_relative_boxes(bboxes,width=W,height=H)
 
-        return bboxes,ct_clses,ct_scores,ct_inds
+        return bboxes,ct_clses,ct_scores,hw_inds

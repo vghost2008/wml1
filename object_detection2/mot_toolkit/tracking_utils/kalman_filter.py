@@ -1,4 +1,6 @@
 # vim: expandtab:ts=4:sw=4
+import copy
+
 import numba
 import numpy as np
 import scipy.linalg
@@ -42,11 +44,13 @@ class KalmanFilter(object):
         ndim, dt = 4, 1.
 
         # Create Kalman filter model matrices.
-        self._motion_mat = np.eye(2 * ndim, 2 * ndim)
+        #this set of _motion_mat mean x_k = x_(k-1)+v_x,...,v_x_k = v_x_(k-1)
+        self._motion_mat = np.eye(2 * ndim, 2 * ndim)   #F_k in kalman filter
         for i in range(ndim):
             self._motion_mat[i, ndim + i] = dt
+        #this set of _update_mat mean mean_expected = mean_k, covariance_expected = zero
+        #_update_mat is inv(H_k) in paper, project state to measure, (in paper project measure to state).
         self._update_mat = np.eye(ndim, 2 * ndim)
-
         # Motion and observation uncertainty are chosen relative to the current
         # state estimate. These weights control the amount of uncertainty in
         # the model. This is a bit hacky.
@@ -55,7 +59,6 @@ class KalmanFilter(object):
 
     def initiate(self, measurement):
         """Create track from unassociated measurement.
-
         Parameters
         ----------
         measurement : ndarray
@@ -139,7 +142,7 @@ class KalmanFilter(object):
         (ndarray, ndarray)
             Returns the projected mean and covariance matrix of the given state
             estimate.
-
+            which is:H_k X_k, H_k P_k H_k^T +R_k
         """
         std = [
             self._std_weight_position * mean[3],
@@ -147,7 +150,7 @@ class KalmanFilter(object):
             1e-1,
             self._std_weight_position * mean[3]]
         innovation_cov = np.diag(np.square(std))
-
+        #innovation_conv is muasurement noise
         mean = np.dot(self._update_mat, mean)
         covariance = np.linalg.multi_dot((
             self._update_mat, covariance, self._update_mat.T))
@@ -155,7 +158,7 @@ class KalmanFilter(object):
 
     def multi_predict(self, mean, covariance):
         """Run Kalman filter prediction step (Vectorized version).
-        Parameters
+        #Implement P_k = F_k P_k-1 F_k-1^T + Q_k
         ----------
         mean : ndarray
             The Nx8 dimensional mean matrix of the object states at the previous
@@ -170,7 +173,7 @@ class KalmanFilter(object):
             state. Unobserved velocities are initialized to 0 mean.
         """
         std_pos = [
-            self._std_weight_position * mean[:, 3],
+            self._std_weight_position * mean[:, 3],  #mean[:,3] is h
             self._std_weight_position * mean[:, 3],
             1e-2 * np.ones_like(mean[:, 3]),
             self._std_weight_position * mean[:, 3]]
@@ -186,9 +189,9 @@ class KalmanFilter(object):
             motion_cov.append(np.diag(sqr[i]))
         motion_cov = np.asarray(motion_cov)
 
-        mean = np.dot(mean, self._motion_mat.T)
+        mean = np.dot(mean, self._motion_mat.T) #mat mul, predict step, this implement 'mean' use row vector, most paper use column vector
         left = np.dot(self._motion_mat, covariance).transpose((1, 0, 2))
-        covariance = np.dot(left, self._motion_mat.T) + motion_cov
+        covariance = np.dot(left, self._motion_mat.T) + motion_cov #motion_conv is Q_k (external noise)
 
         return mean, covariance
 
@@ -213,7 +216,7 @@ class KalmanFilter(object):
 
         """
         projected_mean, projected_cov = self.project(mean, covariance)
-
+        #Cholesky decomposition
         chol_factor, lower = scipy.linalg.cho_factor(
             projected_cov, lower=True, check_finite=False)
         kalman_gain = scipy.linalg.cho_solve(
@@ -224,6 +227,7 @@ class KalmanFilter(object):
         new_mean = mean + np.dot(innovation, kalman_gain.T)
         new_covariance = covariance - np.linalg.multi_dot((
             kalman_gain, projected_cov, kalman_gain.T))
+        #K PC K^T = K H_k P_k
         return new_mean, new_covariance
 
     def gating_distance(self, mean, covariance, measurements,
@@ -261,10 +265,14 @@ class KalmanFilter(object):
         if metric == 'gaussian':
             return np.sum(d * d, axis=1)
         elif metric == 'maha':
-            cholesky_factor = np.linalg.cholesky(covariance)
+            a = copy.deepcopy(covariance)
+            b = copy.deepcopy(d.T)
+            cholesky_factor = np.linalg.cholesky(covariance)  #covariance = cholesky_factor*cholesky_factor.T
+            #solve cholesky_factor*z = d.T
             z = scipy.linalg.solve_triangular(
                 cholesky_factor, d.T, lower=True, check_finite=False,
                 overwrite_b=True)
+            x = (np.dot(cholesky_factor,z)-b)
             squared_maha = np.sum(z * z, axis=0)
             return squared_maha
         else:

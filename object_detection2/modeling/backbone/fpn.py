@@ -12,6 +12,7 @@ import object_detection2.od_toolkit as odt
 from .build import build_backbone_hook
 import wnnlayer as wnnl
 from object_detection2.datadef import *
+import basic_tftools as btf
 
 slim = tf.contrib.slim
 
@@ -138,7 +139,7 @@ class FPN(Backbone):
                         image_features[level], depth, [1, 1],
                         activation_fn=None, normalizer_fn=None,
                         scope='projection_%d' % (level + 1))
-                    shape = tf.shape(lateral_features)[1:3]
+                    shape = btf.combined_static_and_dynamic_shape(lateral_features)[1:3]
                     top_down = self.interpolate_op(prev_features, shape)
                     #prev_features = top_down + lateral_features
                     prev_features = fusion_fn([top_down,lateral_features])

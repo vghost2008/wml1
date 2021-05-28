@@ -6,6 +6,7 @@ from object_detection2.data.dataloader import *
 from object_detection2.data.datasets.build import DATASETS_REGISTRY
 from object_detection_tools.predictmodel import PredictModel
 from object_detection2.mot_toolkit.fair_mot_tracker.multitracker import JDETracker
+from object_detection2.mot_toolkit.fair_mot_tracker.multitracker_cpp import CPPTracker
 from object_detection2.standard_names import *
 import tensorflow as tf
 import os
@@ -63,24 +64,32 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
-    model = PredictModel(cfg=cfg,is_remove_batch=False,input_name="input")
+    model = PredictModel(cfg=cfg,is_remove_batch=False,input_shape=[1,540,960,3],input_name="input",input_dtype=tf.float32)
     rename_dict = {RD_BOXES:"bboxes",RD_PROBABILITY:"probs",RD_ID:"id"}
     model.remove_batch_and_rename(rename_dict)
-    #model.restoreVariables()
-    model.savePBFile("/home/wj/0day/test.pb",["bboxes","probs","id"])
-    return
-    tracker = JDETracker(model)
+    model.restoreVariables()
+    names = ["shared_head/heat_ct/Conv_1/BiasAdd",
+            "shared_head/ct_regr/Conv_1/BiasAdd",
+            "shared_head/hw_regr/Conv_1/BiasAdd",
+            "shared_head/l2_normalize"]
+
+    #model.savePBFile("/home/wj/0day/test.pb",["bboxes","probs","id"])
+    #model.savePBFile("/home/wj/0day/test.pb",names)
+    #return
+    #tracker = JDETracker(model)
+    tracker = CPPTracker(model)
 
     path = '/home/wj/ai/mldata/MOT/MOT20/test/MOT20-04'
+    path = '/home/wj/ai/mldata/MOT/MOT20/test_1img'
     #files = wmlu.recurse_get_filepath_in_dir(args.test_data_dir,suffix=".jpg")
     files = wmlu.recurse_get_filepath_in_dir(path,suffix=".jpg")
     #save_path = args.save_data_dir
-    save_dir = '/home/wj/ai/mldata/MOT/output'
-    wmlu.create_empty_dir(save_dir,remove_if_exists=False)
+    save_dir = '/home/wj/ai/mldata/MOT/output1'
+    wmlu.create_empty_dir(save_dir,remove_if_exists=True,yes_to_all=True)
 
     for img_file in files:
         img = wmli.imread(img_file)
-        img = wmli.resize_img(img,(1920//2,1080//2),keep_aspect_ratio=True)
+        img = wmli.resize_img(img,(1920//2,1080//2),keep_aspect_ratio=False)
         objs = tracker.update(img)
         img = tracker.draw_tracks(img,objs)
         save_path = os.path.join(save_dir,os.path.basename(img_file))

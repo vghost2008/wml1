@@ -20,7 +20,11 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNetBBD.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="deeplabv3", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="OpenPose-coco.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="FairMOT-snpe.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="SNPEMOT.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="FairMOT-test.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="Base-CenterNet2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-box-free.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
@@ -48,13 +52,15 @@ def default_argument_parser():
     return parser
 
 def get_config_file(name:str):
-    CONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/"
+    CONFIG_DIR = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/"
     COCOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/coco/"
     MODCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistod/"
     MODGEOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
     RESEARCH_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/research/"
     SEMANTIC_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/semantic/"
-    search_dirs = [SEMANTIC_DIR,COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR]
+    KEYPOINTS = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/keypoints/"
+    MOT = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/MOT/"
+    search_dirs = [SEMANTIC_DIR,COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR,KEYPOINTS,MOT]
     if os.path.exists(name):
         return name
     if not name.endswith(".yaml"):

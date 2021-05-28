@@ -3,6 +3,16 @@ from .build_dataprocess import DATAPROCESS_REGISTRY
 
 
 @DATAPROCESS_REGISTRY.register()
+def NONE(cfg, is_training):
+    trans_on_single_img = [trans.AddBoxLens(),
+                           trans.BBoxesRelativeToAbsolute(),
+                           trans.UpdateHeightWidth(),
+                           ]
+    trans_on_batch_img = [trans.FixDataInfo(),
+                          trans.BBoxesAbsoluteToRelative()]
+    return (trans_on_single_img, trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
 def simple(cfg, is_training):
     if is_training:
         trans_on_single_img = [trans.MaskNHW2HWN(),
@@ -151,10 +161,12 @@ def coco(cfg,is_training):
         if cfg.INPUT.SIZE_ALIGN > 1:
             trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
                                        trans.BBoxesAbsoluteToRelative(),
+                                       trans.CheckBBoxes(),
                                        trans.FixDataInfo()]
         else:
             trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
-                                       trans.FixDataInfo()]
+                                  trans.CheckBBoxes(),
+                                  trans.FixDataInfo()]
     else:
         trans_on_single_img = [trans.AddSize(),
                                trans.MaskNHW2HWN(),
@@ -457,3 +469,38 @@ def TRANS1(cfg,is_training):
                               trans.FixDataInfo()]
 
     return (trans_on_single_img,trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
+def OPENPOSE(cfg, is_training):
+    if is_training:
+        size = cfg.INPUT.MIN_SIZE_TRAIN[0]
+        trans_on_single_img = [
+            trans.MaskNHW2HWN(),
+            trans.RandomFlipLeftRight(),
+            trans.WTransImgToFloat(),
+            #trans.ShowInfo("INFO0"),
+            trans.ResizeToFixedSize(size=[size,size]),
+            trans.MaskHWN2NHW(),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.AddBoxLens(),
+            trans.UpdateHeightWidth(),
+            trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+            #trans.ShowInfo("INFO1"),
+        ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.CheckBBoxes(),
+                              trans.FixDataInfo()]
+    else:
+        size = cfg.INPUT.MIN_SIZE_TEST
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
+                               trans.ResizeToFixedSize(size=[size,size]),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+
+    return (trans_on_single_img, trans_on_batch_img)
+

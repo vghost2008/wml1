@@ -46,7 +46,8 @@ class CenterNet2(MetaArch):
                                         *args,**kwargs)
 
         # Matching and loss
-        self.box2box_transform = CenterNet2Box2BoxTransform(num_classes=self.num_classes,k=self.k)
+        self.box2box_transform = CenterNet2Box2BoxTransform(num_classes=self.num_classes,k=self.k,
+                                                            score_threshold=cfg.MODEL.CENTERNET2.SCORE_THRESH_TEST)
 
     def forward(self, batched_inputs):
         """
