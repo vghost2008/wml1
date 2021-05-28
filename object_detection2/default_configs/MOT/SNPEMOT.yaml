@@ -1,0 +1,17 @@
+_BASE_: "../Base-FairMOT.yaml"
+MODEL:
+  META_ARCHITECTURE: "SNPE"
+  SNPE:
+    DLC_PATH: "/home/wj/0day/test.dlc"
+    SCORE_THRESH_TEST: 0.2
+    OUTPUTS: "FairMOTOutputs"
+  MOT:
+    FAIR_MOT_NUM_CLASSES: 4353
+DATASETS:
+  TRAIN: "mot_train"
+  TEST: "mot_train"
+  SKIP_CROWD_DURING_TRAINING: False
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "SNPEMOT"
+  LOG_STEP: 200
