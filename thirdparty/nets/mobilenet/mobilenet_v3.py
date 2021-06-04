@@ -209,6 +209,30 @@ V3_SMALL = dict(
         op(slim.conv2d, stride=1, kernel_size=[1, 1], num_outputs=1024,
            normalizer_fn=None, activation_fn=hard_swish)
     ]))
+def get_V3_SMALL(act=hard_swish):
+    return dict(
+        defaults=dict(DEFAULTS),
+        spec=([
+            # stage 1
+            op(slim.conv2d, stride=2, num_outputs=16, kernel_size=(3, 3),
+               activation_fn=act),
+            mbv3_op_se(ef=1, n=16, k=3, s=2),
+            mbv3_op(ef=72./16, n=24, k=3, s=2),
+            mbv3_op(ef=(88./24), n=24, k=3, s=1),
+            mbv3_op_se(ef=4, n=40, k=5, s=2, act=act),
+            mbv3_op_se(ef=6, n=40, k=5, s=1, act=act),
+            mbv3_op_se(ef=6, n=40, k=5, s=1, act=act),
+            mbv3_op_se(ef=3, n=48, k=5, s=1, act=act),
+            mbv3_op_se(ef=3, n=48, k=5, s=1, act=act),
+            mbv3_op_se(ef=6, n=96, k=5, s=2, act=act),
+            mbv3_op_se(ef=6, n=96, k=5, s=1, act=act),
+            mbv3_op_se(ef=6, n=96, k=5, s=1, act=act),
+            op(slim.conv2d, stride=1, kernel_size=[1, 1], num_outputs=576,
+               activation_fn=act),
+            op(reduce_to_1x1, default_size=7, stride=1, padding='VALID'),
+            op(slim.conv2d, stride=1, kernel_size=[1, 1], num_outputs=1024,
+               normalizer_fn=None, activation_fn=act)
+        ]))
 
 # 62% accuracy.
 V3_SMALL_MINIMALISTIC = dict(
@@ -393,6 +417,9 @@ def _reduce_consecutive_layers(conv_defs, start_id, end_id, multiplier=0.5):
 
 V3_LARGE_DETECTION = _reduce_consecutive_layers(V3_LARGE, 13, 16)
 V3_SMALL_DETECTION = _reduce_consecutive_layers(V3_SMALL, 9, 12)
+
+def get_V3_SMALL_DETECTION(act=hard_swish):
+    return _reduce_consecutive_layers(get_V3_SMALL(act), 9, 12)
 
 
 __all__ = ['training_scope', 'mobilenet', 'V3_LARGE', 'V3_SMALL', 'large',

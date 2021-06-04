@@ -48,6 +48,10 @@ class WModule(object):
     def disable_training(self):
         self.local_attr['is_training'] = False
 
+class WRootModule(WModule):
+    def __init__(self):
+        super().__init__(None,None)
+
 class WChildModule(WModule):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)

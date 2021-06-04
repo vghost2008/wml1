@@ -1768,6 +1768,10 @@ def swish(features):
   features = ops.convert_to_tensor(features, name="features")
   return features * math_ops.sigmoid(features)
 
+def hard_swish(x):
+  with tf.name_scope('hard_swish'):
+    return x * tf.nn.relu6(x + np.float32(3)) * np.float32(1. / 6.)
+
 # Minibatch standard deviation layer.
 
 @add_arg_scope

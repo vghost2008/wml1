@@ -117,6 +117,7 @@ def get_activation_fn(name):
                        "NA":None,
                        "swish":tf.nn.swish,
                        "sigmoid":tf.nn.sigmoid,
+                       "hard_swish":wnnl.hard_swish,
                        "tanh":tf.nn.tanh}
     if len(name) == 0:
         return None

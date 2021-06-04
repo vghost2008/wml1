@@ -58,6 +58,7 @@ def register_all_coco(root="datasets"):
         ("mnistgeood_train", os.path.join(dataset_root_path,"mnistgeood_data/tftrain_big"),coco_get_data,10,modgeo_category_index),
         ("mnistgeood_eval", os.path.join(dataset_root_path,"mnistgeood_data/tftest_big"),coco_get_data,10,modgeo_category_index),
         ("mot_train", os.path.join(dataset_root_path,"MOT/tfdata_mot_train"),mot_get_data,1,default_category_index), #1个类别表示只追踪人
+        ("mot_small_train", os.path.join(dataset_root_path,"MOT/tfdata_mot_small_trainv2"),mot_get_data,1,default_category_index), #1个类别表示只追踪人
         ("cell", "/home/wj/ai/mldata2/cell_instance_segmentation/train_tfrecord", coco_get_data, 1, {1:"1"})
     ]
     for x in SPLITS:

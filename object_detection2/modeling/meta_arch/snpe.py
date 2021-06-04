@@ -42,9 +42,11 @@ class SNPE(MetaArch):
                                         'shared_head/hw_regr/Conv_1/BiasAdd','shared_head/l2_normalize'],
                           output_layers=["shared_head/l2_normalize/Square", "shared_head/hw_regr/Conv_1/Conv2D",
                                          "shared_head/ct_regr/Conv_1/Conv2D","shared_head/heat_ct/Conv_1/Conv2D"],
-                          output_shapes=[[1,135,240,2],[1,135,240,1],[1,135,240,2],[1,135,240,64]])
+                          #output_shapes=[[1,135,240,2],[1,135,240,1],[1,135,240,2],[1,135,240,64]])
+                          output_shapes = [[1, 64, 120, 2], [1, 64, 120, 1], [1, 64, 120, 2], [1, 64, 120, 64]])
         # Matching and loss
         self.box2box_transform = CenterNet2Box2BoxTransform(num_classes=self.num_classes,k=self.k)
+        assert self.is_training==False,"Error training status."
 
     def forward(self, batched_inputs):
         outputs = self.snpe.tf_forward(batched_inputs[IMAGE])

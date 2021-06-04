@@ -94,6 +94,47 @@ class NonLocalBackboneHookV3(wmodule.WChildModule):
             return res
 
 @BACKBONE_HOOK_REGISTRY.register()
+class SPPBackboneHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def SPP(self,x):
+        with tf.name_scope("SPP"):
+            x0 = slim.max_pool2d(x,5,1,padding="SAME")
+            x1 = slim.max_pool2d(x,9,1,padding="SAME")
+            x2 = slim.max_pool2d(x,13,1,padding="SAME")
+            return tf.concat([x,x0,x1,x2],axis=-1)
+
+    def forward(self,features,batched_inputs):
+        del batched_inputs
+        k = list(features.keys())[-1]
+        v = list(features.values())[-1]
+        res = features
+        res[k] = self.SPP(v)
+
+        return res
+
+@BACKBONE_HOOK_REGISTRY.register()
+class SPPSmallBackboneHook(wmodule.WChildModule):
+    def __init__(self,cfg,parent,*args,**kwargs):
+        super().__init__(cfg,parent,*args,**kwargs)
+
+    def SPP(self,x):
+        with tf.name_scope("SPP"):
+            x0 = slim.max_pool2d(x,5,1,padding="SAME")
+            x1 = slim.max_pool2d(x,9,1,padding="SAME")
+            return tf.concat([x,x0,x1],axis=-1)
+
+    def forward(self,features,batched_inputs):
+        del batched_inputs
+        k = list(features.keys())[-1]
+        v = list(features.values())[-1]
+        res = features
+        res[k] = self.SPP(v)
+
+        return res
+
+@BACKBONE_HOOK_REGISTRY.register()
 class SEBackboneHook(wmodule.WChildModule):
     def __init__(self,cfg,parent,*args,**kwargs):
         super().__init__(cfg,parent,*args,**kwargs)

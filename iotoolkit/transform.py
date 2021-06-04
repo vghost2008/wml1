@@ -109,7 +109,10 @@ class WTransform(object):
 
     @staticmethod
     def cond_set(dict_data,key,pred,v):
-        dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
+        if pred is None:
+            dict_data[key] = v
+        else:
+            dict_data[key] = tf.cond(pred,lambda:v,lambda:dict_data[key])
 
     @staticmethod
     def cond_fn_set(dict_data,key,pred,fn):
@@ -208,6 +211,63 @@ def distort_color(image, color_ordering=2, fast_mode=False,
             scale = ori_dtype.max + 0.5
             image = image*scale
         return image
+
+def random_crop(image,
+                labels,
+                bboxes,
+                crop_size=(224,224),
+                filter_threshold=0.3,
+                scope=None):
+    '''
+    data argument for object detection
+    :param image: [height,width,channels], input image
+    :param labels: [num_boxes]
+    :param bboxes: [num_boxes,4] (ymin,xmin,ymax,xmax), relative coordinates
+    :param scope:
+    :return:
+    croped_image:[h,w,C]
+    labels:[n]
+    bboxes[n,4]
+    mask:[num_boxes]
+    bbox_begin:[3]
+    bbox_size:[3]
+    '''
+    with tf.name_scope(scope, 'random_crop', [image, bboxes]):
+        '''
+        在满足一定要求的前提下对图片进行随机的裁剪
+        '''
+        bbox = odb.get_random_crop_bboxes(image,crop_size)
+        bbox_begin = tf.concat([bbox[:2],tf.convert_to_tensor([0],tf.int32)],axis=0)
+        bbox_size = tf.concat([bbox[2:]-bbox[:2],tf.convert_to_tensor([-1],tf.int32)],axis=0)
+        img_shape = btf.combined_static_and_dynamic_shape(image)
+        fbbox = tf.cast(bbox,tf.float32)
+        distort_bbox = odb.tfabsolutely_boxes_to_relative_boxes(fbbox,width=img_shape[1],height=img_shape[0])
+        '''
+        distort_bbox的shape一定为[4],表示需要裁剪的裁剪框，与bbox_begin,bbox_size表达的内容重复
+        '''
+        image_channel = image.get_shape().as_list()[-1]
+        cropped_image = tf.slice(image, bbox_begin, bbox_size)
+        cropped_image.set_shape([None, None, image_channel])
+        #cropped_image.set_shape([crop_size[0], crop_size[1], image_channel])
+
+        '''
+        将在原图中的bboxes转换为在distort_bbox定义的子图中的bboxes
+        保留了distort_bbox界外的部分
+        '''
+        bigger_bboxes = wml_bboxes.bboxes_resize(distort_bbox, bboxes)
+        '''
+        仅保留交叉面积大于threshold的bbox
+        '''
+        labels, bboxes,mask,ignore_mask = wml_bboxes.bboxes_filter_overlap(labels, bigger_bboxes,
+                                                                           threshold=filter_threshold,
+                                                                           assign_negative=False,
+                                                                           return_ignore_mask=True)
+        ignore_bboxes = tf.boolean_mask(bigger_bboxes,ignore_mask)
+        ignore_bboxes = odb.tf_correct_yxminmax_boxes(ignore_bboxes)
+        H,W,C = btf.combined_static_and_dynamic_shape(cropped_image)
+        ignore_bboxes = odb.tfrelative_boxes_to_absolutely_boxes(ignore_bboxes,width=W,height=H)
+        #cropped_image = wop.fill_bboxes(image=cropped_image,bboxes=ignore_bboxes,v=127.5,include_last=True)
+        return cropped_image, labels, bboxes,bbox_begin,bbox_size,mask
 
 def distorted_bounding_box_crop(image,
                                 labels,
@@ -834,6 +894,55 @@ class WRemoveOverlap(WTransform):
             data_item[GT_MASKS] = tf.boolean_mask(data_item[GT_MASKS], keep_pos)
         if GT_KEYPOINTS in data_item:
             data_item[GT_KEYPOINTS] = tf.boolean_mask(data_item[GT_KEYPOINTS], keep_pos)
+
+        return data_item
+
+    def __str__(self):
+        return f"{type(self).__name__}"
+
+class RandomCrop(WTransform):
+    def __init__(self,
+                 crop_size=(224,224),
+                 probability=None,
+                 filter_threshold=0.3,
+                 ):
+        self.crop_size = crop_size
+        self.probability = probability
+        self.filter_threshold = filter_threshold
+
+    def __call__(self, data_item):
+        if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need relative coordinate.")
+        if not self.test_statu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need HWN format mask.")
+        #return data_item
+        labels = data_item[GT_LABELS]
+        data_item[GT_LABELS] = labels
+        image = data_item[IMAGE]
+        bboxes = data_item[GT_BOXES]
+        if self.probability is not None and self.probability<1:
+            distored = tf.less_equal(tf.random_uniform(shape=()),self.probability)
+        else:
+            distored = None
+        dst_image, labels, bboxes, bbox_begin,bbox_size,bboxes_mask= \
+            random_crop(image, labels, bboxes,
+                        crop_size=self.crop_size,
+                        filter_threshold=self.filter_threshold,
+                        scope="random_crop_bboxes")
+        self.cond_set(data_item,IMAGE,distored,dst_image)
+        self.cond_set(data_item,GT_LABELS,distored,labels)
+        self.cond_set(data_item,GT_BOXES,distored,bboxes)
+
+        if GT_MASKS in data_item:
+            mask = data_item[GT_MASKS]
+            mask = tf.transpose(mask,perm=[2,0,1])
+            mask = tf.boolean_mask(mask,bboxes_mask)
+            mask = tf.transpose(mask,perm=[1,2,0])
+            mask = tf.slice(mask,bbox_begin,bbox_size)
+            self.cond_set(data_item, GT_MASKS, distored, mask)
+            pass
+        if GT_KEYPOINTS in data_item:
+            print(f"WARNING: keypoints don't support transform {self}.")
 
         return data_item
 

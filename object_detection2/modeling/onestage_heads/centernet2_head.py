@@ -23,6 +23,7 @@ class CenterNet2Head(wmodule.WChildModule):
         self.normalizer_fn,self.norm_params = odtk.get_norm(self.cfg.NORM,is_training=self.is_training)
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
+        self.head_conv_dim = self.cfg.HEAD_CONV_DIM
 
     def forward(self, features,reuse=None):
         """
@@ -51,9 +52,12 @@ class CenterNet2Head(wmodule.WChildModule):
                     if ind >0:
                         scope.reuse_variables()
                     net = feature
-                    ct_heat = self.head(net,out_dim=num_classes,scope='heat_ct')
-                    ct_regr = self.head(net,out_dim=2,scope="ct_regr")
-                    hw_regr = self.head(net,out_dim=2,scope="hw_regr")
+                    ct_heat = self.head(net,mid_dim=self.head_conv_dim,
+                                        out_dim=num_classes,scope='heat_ct')
+                    ct_regr = self.head(net,mid_dim=self.head_conv_dim,
+                                        out_dim=2,scope="ct_regr")
+                    hw_regr = self.head(net,mid_dim=self.head_conv_dim,
+                                        out_dim=2,scope="hw_regr")
 
                     outs = {}
                     outs["heatmaps_ct"] = ct_heat

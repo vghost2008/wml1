@@ -1,1 +1,1 @@
-from . import fair_mot_head,fair_mot_outputs
+from . import fair_mot_head,fair_mot_outputs,fast_fair_mot_head

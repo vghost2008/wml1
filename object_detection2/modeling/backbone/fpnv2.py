@@ -13,10 +13,11 @@ from .build import build_backbone_hook
 import wnnlayer as wnnl
 from object_detection2.datadef import *
 import basic_tftools as btf
+from .fpn import LastLevelMaxPool,LastLevelP6P7
 
 slim = tf.contrib.slim
 
-class FPN(Backbone):
+class FPNV2(Backbone):
     """
     This module implements Feature Pyramid Network.
     It creates pyramid features built on top of some input feature maps.
@@ -50,7 +51,7 @@ class FPN(Backbone):
                 which takes the element-wise mean of the two.
         """
         stage = int(in_features[-1][-1:])
-        super(FPN, self).__init__(cfg,parent=parent,*args,**kwargs)
+        super(FPNV2, self).__init__(cfg,parent=parent,*args,**kwargs)
         assert isinstance(bottom_up, Backbone)
         def get_feature_name(x):
             p = x.find(":")
@@ -74,7 +75,6 @@ class FPN(Backbone):
         self.hook_before,self.hook_after = build_backbone_hook(cfg.MODEL.FPN,parent=self)
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.FPN.ACTIVATION_FN)
 
-
     @property
     def size_divisibility(self):
         return self._size_divisibility
@@ -95,7 +95,10 @@ class FPN(Backbone):
         """
         bottom_up_features = self.bottom_up(x)
         if self.hook_before is not None:
-            bottom_up_features = self.hook_before(bottom_up_features,x)
+            tmp_image_features = OrderedDict()
+            for k in self.in_features:
+                tmp_image_features[k] = bottom_up_features[k]
+            bottom_up_features = self.hook_before(tmp_image_features,x)
         image_features = [bottom_up_features[f] for f in self.in_features]
         use_depthwise = self.use_depthwise
         depth = self.out_channels
@@ -113,7 +116,7 @@ class FPN(Backbone):
             else:
                 normalizer_fn = None
             if use_depthwise:
-                conv_op = functools.partial(slim.separable_conv2d, 
+                conv_op = functools.partial(slim.separable_conv2d,
                                             depth_multiplier=1,
                                             normalizer_fn=normalizer_fn,
                                             activation_fn=self.activation_fn)
@@ -134,11 +137,12 @@ class FPN(Backbone):
 
             with slim.arg_scope(
                     [slim.conv2d], padding=padding, stride=1):
-                prev_features = slim.conv2d(
+                net = slim.conv2d(
                     image_features[-1],
                     depth, [1, 1], activation_fn=None, normalizer_fn=None,
                     scope='projection_%d' % num_levels)
-                output = conv_op(prev_features, out_depth,[kernel_size, kernel_size], scope=f"output_{num_levels}")
+                output = conv_op(net, out_depth,[kernel_size, kernel_size], scope=f"output_{num_levels}")
+                prev_features = output
                 output_feature_maps_list.append(output)
                 output_feature_map_keys.append(f"P{self.stage}")
 
@@ -150,12 +154,14 @@ class FPN(Backbone):
                     shape = btf.combined_static_and_dynamic_shape(lateral_features)[1:3]
                     top_down = self.interpolate_op(prev_features, shape)
                     #prev_features = top_down + lateral_features
-                    prev_features = fusion_fn([top_down,lateral_features])
-                    output_feature_maps_list.append(conv_op(
-                        prev_features,
-                        out_depth, [kernel_size, kernel_size],
-                        scope=f'output_{level + 1}'))
+                    net = fusion_fn([top_down,lateral_features])
+                    output = conv_op(net,
+                                     out_depth, [kernel_size, kernel_size],
+                                     scope=f'output_{level + 1}')
+                    output_feature_maps_list.append(output)
+                    prev_features = output
                     output_feature_map_keys.append(f"P{self.stage+level-num_levels+1}")
+
         output_feature_map_keys.reverse()
         output_feature_maps_list.reverse()
         if self.top_block is not None:
@@ -172,48 +178,8 @@ class FPN(Backbone):
         res.update(bottom_up_features)
         return res
 
-class LastLevelMaxPool(wmodule.WChildModule):
-    """
-    This module is used in the original FPN to generate a downsampled
-    P6 feature from P5.
-    """
-
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-        self.num_levels = 1
-
-    def forward(self, x):
-        return [slim.max_pool2d(x, kernel_size=1, stride=2, padding="SAME")]
-
-
-class LastLevelP6P7(wmodule.WChildModule):
-    """
-    This module is used in RetinaNet to generate extra layers, P6 and P7 from
-    C5 feature.
-    """
-
-    def __init__(self, out_channels,cfg,*args,**kwargs):
-        super().__init__(cfg=cfg,*args,**kwargs)
-        self.normalizer_fn,self.norm_params = odt.get_norm(self.cfg.MODEL.FPN.NORM,self.is_training)
-        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.FPN.ACTIVATION_FN)
-        self.out_channels = out_channels
-
-    def forward(self, c5):
-        with tf.variable_scope("FPNLastLevel"):
-            res = []
-            last_feature = c5
-            for i in range(self.cfg.MODEL.FPN.LAST_LEVEL_NUM_CONV):
-                last_feature  = slim.conv2d(last_feature,self.out_channels,[3,3],stride=2,
-                                            activation_fn=self.activation_fn,
-                                            normalizer_fn=self.normalizer_fn,
-                                            normalizer_params=self.norm_params,
-                                            scope=f"conv{i+1}")
-                res.append(last_feature)
-        return res
-
-
 @BACKBONE_REGISTRY.register()
-def build_resnet_fpn_backbone(cfg,*args,**kwargs):
+def build_resnet_fpnv2_backbone(cfg,*args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -224,7 +190,7 @@ def build_resnet_fpn_backbone(cfg,*args,**kwargs):
     bottom_up = build_resnet_backbone(cfg,*args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -238,7 +204,7 @@ def build_resnet_fpn_backbone(cfg,*args,**kwargs):
 
 
 @BACKBONE_REGISTRY.register()
-def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
+def build_retinanet_resnet_fpnv2_backbone(cfg, *args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -249,7 +215,7 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
     bottom_up = build_resnet_backbone(cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -262,7 +228,7 @@ def build_retinanet_resnet_fpn_backbone(cfg, *args,**kwargs):
     return backbone
 
 @BACKBONE_REGISTRY.register()
-def build_retinanet_resnetv2_fpn_backbone(cfg, *args,**kwargs):
+def build_retinanet_resnetv2_fpnv2_backbone(cfg, *args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -273,7 +239,7 @@ def build_retinanet_resnetv2_fpn_backbone(cfg, *args,**kwargs):
     bottom_up = build_resnetv2_backbone(cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -286,7 +252,7 @@ def build_retinanet_resnetv2_fpn_backbone(cfg, *args,**kwargs):
     return backbone
 
 @BACKBONE_REGISTRY.register()
-def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
+def build_retinanet_shufflenetv2_fpnv2_backbone(cfg, *args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -297,7 +263,7 @@ def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
     bottom_up = build_shufflenetv2_backbone(cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -310,7 +276,7 @@ def build_retinanet_shufflenetv2_fpn_backbone(cfg, *args,**kwargs):
     return backbone
 
 @BACKBONE_REGISTRY.register()
-def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
+def build_shufflenetv2_fpnv2_backbone(cfg,*args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -321,7 +287,7 @@ def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
     bottom_up = build_shufflenetv2_backbone(cfg,*args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -335,7 +301,7 @@ def build_shufflenetv2_fpn_backbone(cfg,*args,**kwargs):
 
 
 @BACKBONE_REGISTRY.register()
-def build_retinanet_any_fpn_backbone(cfg, *args,**kwargs):
+def build_retinanet_any_fpnv2_backbone(cfg, *args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -346,7 +312,7 @@ def build_retinanet_any_fpn_backbone(cfg, *args,**kwargs):
     bottom_up = build_backbone_by_name(cfg.MODEL.FPN.BACKBONE,cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,
@@ -359,7 +325,7 @@ def build_retinanet_any_fpn_backbone(cfg, *args,**kwargs):
     return backbone
 
 @BACKBONE_REGISTRY.register()
-def build_any_fpn_backbone(cfg,*args,**kwargs):
+def build_any_fpnv2_backbone(cfg,*args,**kwargs):
     """
     Args:
         cfg: a CfgNode
@@ -370,7 +336,7 @@ def build_any_fpn_backbone(cfg,*args,**kwargs):
     bottom_up = build_backbone_by_name(cfg.MODEL.FPN.BACKBONE,cfg, *args,**kwargs)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
-    backbone = FPN(
+    backbone = FPNV2(
         bottom_up=bottom_up,
         in_features=in_features,
         out_channels=out_channels,

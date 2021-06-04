@@ -33,7 +33,6 @@ def setup(args):
         gpus_str += str(g) + ","
     gpus_str = gpus_str[:-1]
     os.environ['CUDA_VISIBLE_DEVICES'] = gpus_str
-
     print(f"Config file {args.config_file}")
     config_path = get_config_file(args.config_file)
     cfg.merge_from_file(config_path)
@@ -64,7 +63,9 @@ def main(_):
     cfg.freeze()
     config.set_global_cfg(cfg)
 
-    model = PredictModel(cfg=cfg,is_remove_batch=False,input_shape=[1,540,960,3],input_name="input",input_dtype=tf.float32)
+    model = PredictModel(cfg=cfg,is_remove_batch=False,input_shape=[1,256,480,3],input_name="input",input_dtype=tf.float32)
+    #model = PredictModel(cfg=cfg,is_remove_batch=False,input_shape=[1,540,960,3],input_name="input",input_dtype=tf.float32)
+    #model = PredictModel(cfg=cfg,is_remove_batch=False,input_shape=[1,None,None,3],input_name="input",input_dtype=tf.float32)
     rename_dict = {RD_BOXES:"bboxes",RD_PROBABILITY:"probs",RD_ID:"id"}
     model.remove_batch_and_rename(rename_dict)
     model.restoreVariables()
@@ -74,22 +75,28 @@ def main(_):
             "shared_head/l2_normalize"]
 
     #model.savePBFile("/home/wj/0day/test.pb",["bboxes","probs","id"])
+    #model.savePBFile("/home/wj/0day/mot_large.pb",names)
+    model.savePBFile("/home/wj/0day/motv3.pb",names)
+    #return
+    tracker = JDETracker(model)
     #model.savePBFile("/home/wj/0day/test.pb",names)
     #return
     #tracker = JDETracker(model)
-    tracker = CPPTracker(model)
+    #tracker = CPPTracker(model)
 
     path = '/home/wj/ai/mldata/MOT/MOT20/test/MOT20-04'
     path = '/home/wj/ai/mldata/MOT/MOT20/test_1img'
+    path = '/home/wj/ai/mldata/MOT/MOT15/test2/TUD-Crossing/img1'
+    path = '/home/wj/0day/img1'
     #files = wmlu.recurse_get_filepath_in_dir(args.test_data_dir,suffix=".jpg")
     files = wmlu.recurse_get_filepath_in_dir(path,suffix=".jpg")
     #save_path = args.save_data_dir
-    save_dir = '/home/wj/ai/mldata/MOT/output1'
+    save_dir = '/home/wj/ai/mldata/MOT/output2'
     wmlu.create_empty_dir(save_dir,remove_if_exists=True,yes_to_all=True)
 
     for img_file in files:
         img = wmli.imread(img_file)
-        img = wmli.resize_img(img,(1920//2,1080//2),keep_aspect_ratio=False)
+        #img = wmli.resize_img(img,(1920//2,1080//2),keep_aspect_ratio=False)
         objs = tracker.update(img)
         img = tracker.draw_tracks(img,objs)
         save_path = os.path.join(save_dir,os.path.basename(img_file))

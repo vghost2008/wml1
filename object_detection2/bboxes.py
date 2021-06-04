@@ -1230,3 +1230,20 @@ def change_bboxes_nr(bboxes0,labels0,bboxes1,labels1,threshold=0.8):
             same_ids += 1
     return labels0.shape[0]+labels1.shape[0]-2*same_ids
 
+'''
+img: [H,W,C] or [B,H,W,C]
+size: [h,w]
+'''
+@btf.add_name_scope
+def get_random_crop_bboxes(img,size):
+    shape = btf.combined_static_and_dynamic_shape(img)
+    if len(shape)==4:
+        shape = shape[1:]
+    new_size = tf.minimum(size,shape[:2])
+    mh = tf.maximum(0,shape[0]-size[0])
+    mw = tf.maximum(0,shape[1]-size[1])
+    xmin = tf.random.uniform((),0,mw+1,dtype=tf.int32)
+    ymin = tf.random.uniform((),0,mh+1,dtype=tf.int32)
+    xmax = xmin+new_size[1]
+    ymax = ymin+new_size[0]
+    return tf.convert_to_tensor([ymin,xmin,ymax,xmax],dtype=tf.int32)

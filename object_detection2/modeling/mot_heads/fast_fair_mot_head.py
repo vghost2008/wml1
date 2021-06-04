@@ -4,10 +4,12 @@ import object_detection2.od_toolkit as odtk
 from object_detection2.modeling.onestage_heads.build import ONESTAGE_HEAD
 from object_detection2.config.config import global_cfg
 import wnnlayer as wnnl
+import functools
+
 slim = tf.contrib.slim
 
 @ONESTAGE_HEAD.register()
-class FairMOTHead(wmodule.WChildModule):
+class FastFairMOTHead(wmodule.WChildModule):
     """
     The head used in CenterNet for object classification and box regression.
     It has two subnets for the two tasks, with a common structure but separate parameters.
@@ -25,6 +27,11 @@ class FairMOTHead(wmodule.WChildModule):
         self.activation_fn = odtk.get_activation_fn(self.cfg.ACTIVATION_FN)
         self.norm_scope_name = odtk.get_norm_scope_name(self.cfg.NORM)
         self.head_conv_dim = self.cfg.HEAD_CONV_DIM
+        self.conv_op = functools.partial(slim.separable_conv2d,
+                                         depth_multiplier=1,
+                                         normalizer_fn=self.normalizer_fn,
+                                         normalizer_params=self.norm_params,
+                                         activation_fn=self.activation_fn)
 
     def forward(self, features,reuse=None):
         """
@@ -53,20 +60,18 @@ class FairMOTHead(wmodule.WChildModule):
                     if ind >0:
                         scope.reuse_variables()
                     net = feature
-                    ct_heat = self.head(net,mid_dim=self.head_conv_dim,
+                    net0 = self.conv_op(net,self.head_conv_dim,3,scope="Detection")
+                    net1 = self.conv_op(net,None,3,scope="Embedding")
+                    ct_heat = self.head(net0,mid_dim=self.head_conv_dim,
                                         out_dim=num_classes,scope='heat_ct')
-                    ct_regr = self.head(net,mid_dim=self.head_conv_dim,
+                    ct_regr = self.head(net0,mid_dim=self.head_conv_dim,
                                         out_dim=2,scope="ct_regr")
-                    hw_regr = self.head(net,mid_dim=self.head_conv_dim,
+                    hw_regr = self.head(net0,mid_dim=self.head_conv_dim,
                                         out_dim=2,scope="hw_regr")
-                    id_embedding = self.head(net,mid_dim=self.head_conv_dim,
+                    id_embedding = self.head(net1,mid_dim=self.head_conv_dim,
                                              out_dim=global_cfg.MODEL.MOT.FAIR_MOT_ID_DIM,
                                              scope="id_embedding")
                     id_embedding = tf.math.l2_normalize(id_embedding,axis=-1)
-                    '''if self.is_training:
-                        id_embedding = tf.math.l2_normalize(id_embedding,axis=-1)
-                    else:
-                        id_embedding = wnnl.l2_normalize(id_embedding,axis=-1)'''
                     outs = {}
                     outs["heatmaps_ct"] = ct_heat
                     outs['offset'] = ct_regr
@@ -80,6 +85,6 @@ class FairMOTHead(wmodule.WChildModule):
     def head(self,inputs,out_dim,mid_dim=256,scope='heat'):
         with tf.variable_scope(scope):
             input_dim = inputs.get_shape().as_list()[-1]
-            x=slim.conv2d(inputs,mid_dim,[3,3])
-            x=slim.conv2d(x,out_dim,1,activation_fn=None,normalizer_fn=None)
+            x=self.conv_op(inputs,None,[3,3])
+            x=slim.conv2d(x,out_dim,1,activation_fn=None,normalizer_fn=None,scope="Conv_1")
             return x

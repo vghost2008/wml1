@@ -145,7 +145,7 @@ class STrack(BaseTrack):
         """
         ret = np.asarray(tlwh).copy()
         ret[:2] += ret[2:] / 2
-        ret[2] /= ret[3]
+        ret[2] /= max(ret[3],1e-8)
         return ret
 
     def to_xyah(self):
@@ -270,9 +270,6 @@ class JDETracker(object):
         ''' Step 3: Second association, with IOU'''
         detections = [detections[i] for i in u_detection]
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
-        for i in u_track:
-            if strack_pool[i].state != TrackState.Tracked:
-                print("A")
         dists = matching.iou_distance(r_tracked_stracks, detections)
         matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
 

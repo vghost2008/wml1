@@ -59,7 +59,7 @@ class SNPEEngine(object):
         wmlu.show_list(all_files)
         print("-------------------------------")
         res_data = []
-        output_dir = "/home/wj" #for DEBUG
+        output_dir = "/home/wj/0day/output" #for DEBUG
         if self.output_names is not None:
             for name,shape in zip(self.output_names,self.output_shapes):
                 path = os.path.join(output_dir,"Result_0",name+self.output_suffix)

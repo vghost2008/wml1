@@ -52,6 +52,14 @@ class ResNet(Backbone):
                     print("ResNet-200")
                     self.scope_name = "200"
                     _, end_points = resnet_v1_200(x['image'], output_stride=output_stride)
+                elif self.cfg.MODEL.RESNETS.DEPTH == 34:
+                    print("ResNet-34")
+                    self.scope_name = "34"
+                    _, end_points = resnet_v1_34(x['image'], output_stride=output_stride)
+                elif self.cfg.MODEL.RESNETS.DEPTH == 18:
+                    print("ResNet-18")
+                    self.scope_name = "18"
+                    _, end_points = resnet_v1_18(x['image'], output_stride=output_stride)
                 else:
                     print("ResNet-50")
                     self.scope_name = "50"

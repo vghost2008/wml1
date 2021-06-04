@@ -356,7 +356,7 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
         self.k = k
         self.score_threshold = score_threshold
         self.dis_threshold = dis_threshold
-        self.use_custom_op = True
+        self.use_custom_op = False
 
 
     def get_deltas(self,gboxes,glabels,glength,output_size):
@@ -377,7 +377,7 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
                                                                  self.num_classes,
                                                                  gaussian_iou=self.gaussian_iou)
         hw,offset = tf.split(hw_offset,2,axis=-1)
-        hw_mask,offset_mask = tf.split(mask,2,axis=-1)
+        offset_mask,hw_mask = tf.split(mask,2,axis=-1)
         outputs = {}
         outputs['g_heatmaps_ct'] = g_heatmaps_c
         outputs['g_offset'] = offset

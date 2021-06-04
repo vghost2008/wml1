@@ -1,0 +1,51 @@
+_BASE_: "../Base-FairMOT.yaml"
+MODEL:
+  #WEIGHTS: "/home/wj/ai/mldata/v3-large_224_1.0_float/ema"
+  #ONLY_SCOPE: "MobilenetV3"
+  META_ARCHITECTURE: "CenterNet2"
+  PREPROCESS: "ton1p1"
+  BACKBONE:
+    NAME: "build_any_fpnv2_backbone"
+  MOBILENETS:
+    MINOR_VERSION: "SMALL_DETECTION"
+    ACTIVATION_FN: "relu"
+  FPN:
+    NORM: "BN"
+    ACTIVATION_FN: "relu"
+    IN_FEATURES: ["C2", "C3","C4","layer_10:5"]
+    ENABLE_DROPBLOCK: True
+    BACKBONE: "build_mobile_backbone"
+    BACKBONE_HOOK: ("SPPSmallBackboneHook","")
+    OUT_CHANNELS: 160
+    USE_DEPTHWISE: True
+  CENTERNET2:
+    HEAD_NAME: "FastFairMOTHead"
+    IN_FEATURES: ["P2"]
+    NORM: "BN"
+    ACTIVATION_FN: "relu"
+    SCORE_THRESH_TEST: 0.2
+    HEAD_CONV_DIM: 160
+  MOT:
+    FAIR_MOT_NUM_CLASSES: 4353
+DATASETS:
+  TRAIN: "mot_small_train"
+  TEST: "mot_small_train"
+  SKIP_CROWD_DURING_TRAINING: False
+SOLVER:
+  IMS_PER_BATCH: 16
+  BASE_LR: 0.0001
+  WARMUP_ITERS: 1000
+  CLIP_NORM: 32
+  STEPS: (260000,)
+  LR_DECAY_TYPE: "cosine"
+INPUT:
+  MAX_SIZE_TRAIN: 960
+  MAX_SIZE_TEST: 960
+  FIXED_SIZE_TRAIN: (256,480)
+  MIN_SIZE_TEST: 540
+  STITCH: 0.0
+  DATAPROCESS: "coco_fixed_size"
+VERSION: 2
+GLOBAL:
+  PROJ_NAME: "FairMOT-fastv3"
+  LOG_STEP: 200

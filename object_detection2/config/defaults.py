@@ -22,6 +22,7 @@ _C.INPUT = CN()
 _C.INPUT.MIN_SIZE_TRAIN = (224,256,288)
 # Maximum size of the side of the image during training
 _C.INPUT.MAX_SIZE_TRAIN = 1333
+_C.INPUT.FIXED_SIZE_TRAIN = (256,480) #H,W
 # Size of the smallest side of the image during testing. Set to zero to disable resize in testing.
 _C.INPUT.MIN_SIZE_TEST = 224
 # Maximum size of the side of the image during testing
@@ -95,6 +96,28 @@ _C.MODEL.FPN.BACKBONE_HOOK = ("","")
 _C.MODEL.FPN.ENABLE_DROPBLOCK = False
 _C.MODEL.FPN.DROPBLOCK_SIZE = 7
 _C.MODEL.FPN.KEEP_PROB = 0.9
+_C.MODEL.FPN.USE_DEPTHWISE = False
+
+# ---------------------------------------------------------------------------- #
+# DLA options
+# ---------------------------------------------------------------------------- #
+_C.MODEL.DLA = CN()
+# Names of the input feature maps to be used by DLA
+# They must have contiguous power of 2 strides
+# e.g., ["res2", "res3", "res4", "res5"]
+_C.MODEL.DLA.IN_FEATURES = ["C2","C3","C4","C5"]
+_C.MODEL.DLA.BACKBONE = ""
+
+# Options: "" (no norm), "GN", "BN"
+_C.MODEL.DLA.NORM = ""
+_C.MODEL.DLA.ACTIVATION_FN = "relu"
+
+# Types for fusing the DLA top-down and lateral features. Can be either "sum" or "avg"
+_C.MODEL.DLA.ENABLE_DROPBLOCK = False
+_C.MODEL.DLA.DROPBLOCK_SIZE = 7
+_C.MODEL.DLA.KEEP_PROB = 0.9
+_C.MODEL.DLA.USE_DEPTHWISE = False
+_C.MODEL.DLA.BACKBONE_HOOK = ("","")
 
 _C.MODEL.TWOWAYFPN = CN()
 # Names of the input feature maps to be used by TWOWAYFPN
@@ -554,6 +577,7 @@ _C.MODEL.CENTERNET2.OUTPUTS = "CenterNet2Outputs"
 _C.MODEL.CENTERNET2.HEAD_NAME = "CenterNet2Head"
 _C.MODEL.CENTERNET2.NORM = "BN"
 _C.MODEL.CENTERNET2.ACTIVATION_FN = "relu"
+_C.MODEL.CENTERNET2.HEAD_CONV_DIM = 256
 _C.MODEL.CENTERNET2.K = 100
 _C.MODEL.CENTERNET2.SIZE_THRESHOLD = 130
 _C.MODEL.CENTERNET2.LOSS_ALPHA = 2
@@ -790,10 +814,12 @@ _C.MODEL.MOBILENETS = CN()
 
 # Options: FrozenBN, GN, "SyncBN", "BN"
 _C.MODEL.MOBILENETS.VERSION = 3
+_C.MODEL.MOBILENETS.MINOR_VERSION = "LARGE" #LARGE,SMALL,SMALL_DETECTION
 
 _C.MODEL.MOBILENETS.DEPTH_MULTIPLIER = 1.0
 _C.MODEL.MOBILENETS.batch_norm_decay = 0.999
 _C.MODEL.MOBILENETS.FROZEN_BN = False
+_C.MODEL.MOBILENETS.ACTIVATION_FN = "hard_swish"
 
 _C.MODEL.EFFICIENTNETS = CN()
 

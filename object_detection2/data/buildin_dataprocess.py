@@ -188,6 +188,50 @@ def coco(cfg,is_training):
     return (trans_on_single_img,trans_on_batch_img)
 
 @DATAPROCESS_REGISTRY.register()
+def coco_fixed_size(cfg,is_training):
+    if is_training:
+        trans_on_single_img = [trans.MaskNHW2HWN(),
+                               trans.RandomFlipLeftRight(),
+                               trans.WTransImgToFloat(),
+                               trans.RandomCrop(crop_size=cfg.INPUT.FIXED_SIZE_TRAIN),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+                               trans.RandomRotateAnyAngle(max_angle=cfg.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE,
+                                                          rotate_probability=cfg.INPUT.ROTATE_ANY_ANGLE.PROBABILITY,
+                                                          enable=cfg.INPUT.ROTATE_ANY_ANGLE.ENABLE),
+                               trans.AddBoxLens(),
+                               trans.UpdateHeightWidth(),
+                               ]
+        if cfg.INPUT.SIZE_ALIGN > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.CheckBBoxes(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.CheckBBoxes(),
+                                  trans.FixDataInfo()]
+    else:
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
+                               trans.ResizeShortestEdge(short_edge_length=cfg.INPUT.MIN_SIZE_TEST,
+                                                        max_size=cfg.INPUT.MAX_SIZE_TEST,
+                                                        align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        if cfg.INPUT.SIZE_ALIGN_FOR_TEST > 1:
+            trans_on_batch_img = [trans.PadtoAlign(align=cfg.INPUT.SIZE_ALIGN_FOR_TEST),
+                                  trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+        else:
+            trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                                  trans.FixDataInfo()]
+
+    return (trans_on_single_img,trans_on_batch_img)
+@DATAPROCESS_REGISTRY.register()
 def coco_semantic(cfg,is_training):
     if is_training:
         trans_on_single_img = [trans.MaskNHW2HWN(),
