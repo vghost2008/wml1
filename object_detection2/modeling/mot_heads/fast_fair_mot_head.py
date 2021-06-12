@@ -40,16 +40,7 @@ class FastFairMOTHead(wmodule.WChildModule):
                 Each tensor in the list correspond to different feature levels.
 
         Returns:
-            logits (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi,AxK).
-                The tensor predicts the classification probability
-                at each spatial position for each of the A anchors and K object
-                classes.
-            bbox_reg (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi, Ax4).
-                The tensor predicts 4-vector (dx,dy,dw,dh) box
-                regression values for every anchor. These values are the
-                relative offset between the anchor and the ground truth box.
         """
-        cfg = self.cfg
         num_classes      = global_cfg.MODEL.NUM_CLASSES
         all_outs = []
         for ind,feature in enumerate(features):
@@ -84,7 +75,6 @@ class FastFairMOTHead(wmodule.WChildModule):
 
     def head(self,inputs,out_dim,mid_dim=256,scope='heat'):
         with tf.variable_scope(scope):
-            input_dim = inputs.get_shape().as_list()[-1]
             x=self.conv_op(inputs,None,[3,3])
             x=slim.conv2d(x,out_dim,1,activation_fn=None,normalizer_fn=None,scope="Conv_1")
             return x

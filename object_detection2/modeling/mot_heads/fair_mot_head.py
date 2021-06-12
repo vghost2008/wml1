@@ -33,16 +33,7 @@ class FairMOTHead(wmodule.WChildModule):
                 Each tensor in the list correspond to different feature levels.
 
         Returns:
-            logits (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi,AxK).
-                The tensor predicts the classification probability
-                at each spatial position for each of the A anchors and K object
-                classes.
-            bbox_reg (list[Tensor]): #lvl tensors, each has shape (N, Hi, Wi, Ax4).
-                The tensor predicts 4-vector (dx,dy,dw,dh) box
-                regression values for every anchor. These values are the
-                relative offset between the anchor and the ground truth box.
         """
-        cfg = self.cfg
         num_classes      = global_cfg.MODEL.NUM_CLASSES
         all_outs = []
         for ind,feature in enumerate(features):
@@ -63,10 +54,6 @@ class FairMOTHead(wmodule.WChildModule):
                                              out_dim=global_cfg.MODEL.MOT.FAIR_MOT_ID_DIM,
                                              scope="id_embedding")
                     id_embedding = tf.math.l2_normalize(id_embedding,axis=-1)
-                    '''if self.is_training:
-                        id_embedding = tf.math.l2_normalize(id_embedding,axis=-1)
-                    else:
-                        id_embedding = wnnl.l2_normalize(id_embedding,axis=-1)'''
                     outs = {}
                     outs["heatmaps_ct"] = ct_heat
                     outs['offset'] = ct_regr
@@ -79,7 +66,6 @@ class FairMOTHead(wmodule.WChildModule):
 
     def head(self,inputs,out_dim,mid_dim=256,scope='heat'):
         with tf.variable_scope(scope):
-            input_dim = inputs.get_shape().as_list()[-1]
             x=slim.conv2d(inputs,mid_dim,[3,3])
             x=slim.conv2d(x,out_dim,1,activation_fn=None,normalizer_fn=None)
             return x
