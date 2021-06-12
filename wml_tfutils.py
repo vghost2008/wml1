@@ -851,13 +851,13 @@ def batch_indices_to_mask(indices,lens,size):
 
 '''
 每一个element分别执行boolean mask并pad到size大小
-data:[N,X]
+data:[N,X,...]
 mask:[N,X]
 size:()
 return:
 [N,size]
 '''
-def batch_boolean_mask(data,mask,size,scope=None):
+def batch_boolean_mask(data,mask,size,return_length=False,scope=None):
     with tf.name_scope(scope,default_name="batch_boolean_mask"):
         if not isinstance(data,tf.Tensor):
             data = tf.convert_to_tensor(data)
@@ -868,7 +868,11 @@ def batch_boolean_mask(data,mask,size,scope=None):
                 padding = padding+[[0,0]]*(d.get_shape().ndims-1)
             d = tf.pad(d,padding)
             return d
-        return tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
+        data = tf.map_fn(lambda x:fn(x[0],x[1]),elems=(data,mask),dtype=(data.dtype),back_prop=False)
+        if return_length:
+            return data,tf.reduce_sum(tf.cast(mask,tf.int32),axis=-1,keepdims=False)
+        else:
+            return data
 
 '''
 每一个element分别执行boolean mask并 concat在一起

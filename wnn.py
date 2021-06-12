@@ -1072,6 +1072,38 @@ def sparse_softmax_cross_entropy_with_logits_alpha_balanced(
         loss = -alpha_t*tf.math.log(r_probability)
         return loss
 
+def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4,scope=None):
+    '''
+    focal loss for heat map, for example CenterNet2's heat map loss
+    '''
+    with tf.name_scope(scope,"heat_map_focal_loss"):
+        zeros = tf.zeros_like(labels)
+        ones = tf.ones_like(labels)
+        num_pos = tf.reduce_sum(tf.where(tf.greater_equal(labels, pos_threshold), ones, zeros))
+
+        # loss=tf.reduce_mean(tf.log(logits))
+        probs = tf.nn.sigmoid(logits)
+        pos_weight = tf.where(tf.greater_equal(labels, pos_threshold), ones - probs, zeros)
+        neg_weight = tf.where(tf.less(labels, pos_threshold), probs, zeros)
+        '''
+        用于保证数值稳定性，log(sigmoid(x)) = log(1/(1+e^-x) = -log(1+e^-x) = x-x-log(1+e^-x) = x-log(e^x +1)
+        pos_loss = tf.where(tf.less(logits,0),logits-tf.log(tf.exp(logits)+1),tf.log(probs))
+        '''
+        pure_pos_loss = tf.minimum(logits,0)-tf.log(1+tf.exp(-tf.abs(logits)))
+        pos_loss = pure_pos_loss*tf.pow(pos_weight, alpha)
+        pos_loss = tf.reduce_sum(pos_loss)
+        '''
+        用于保证数值稳定性
+        '''
+        pure_neg_loss = -tf.nn.relu(logits)-tf.log(1+tf.exp(-tf.abs(logits)))
+        neg_loss = tf.pow((1 - labels), beta) * tf.pow(neg_weight, alpha) * pure_neg_loss
+        neg_loss = tf.reduce_sum(neg_loss)
+        loss = -(pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
+        tf.summary.scalar("neg_loss",neg_loss)
+        tf.summary.scalar("pos_loss",pos_loss)
+        #loss = tf.Print(loss,["mloss",probs,pos_weight,neg_weight,pos_loss,neg_loss,num_pos],summarize=100)
+        return loss
+
 def save_pbfile(sess,pb_path,output_names):
     constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def, output_names)
     dirpath = os.path.dirname(pb_path)

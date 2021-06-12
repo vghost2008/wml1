@@ -3,7 +3,7 @@ import os
 import json
 import numpy as np
 import cv2 as cv
-import object_detection.visualization as odv
+import object_detection2.visualization as odv
 import copy
 import img_utils as wmli
 import random
@@ -60,7 +60,7 @@ def get_files(data_dir, img_suffix="jpg"):
 '''
 output:
 image_info: {'height','width'}
-annotations_list: [{'bbox','segmentation','category_id'}' #bbox[xmin,ymin,width,height] absolute coordinate, 
+annotations_list: [{'bbox','segmentation','category_id','points_x','points_y'}' #bbox[xmin,ymin,width,height] absolute coordinate, 
 'segmentation' [H,W]
 '''
 def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
@@ -83,6 +83,8 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
                     continue
                 points = np.transpose(all_points[0])
                 x,y = np.vsplit(points,2)
+                x = np.reshape(x,[-1])
+                y = np.reshape(y,[-1])
                 x = np.minimum(np.maximum(0,x),img_width-1)
                 y = np.minimum(np.maximum(0,y),img_height-1)
                 xmin = np.min(x)
@@ -94,7 +96,11 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
                     label = label_text_to_id(shape["label"])
                 else:
                     label = shape["label"]
-                annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),"segmentation":segmentation,"category_id":label})
+                annotations_list.append({"bbox":(xmin,ymin,xmax-xmin+1,ymax-ymin+1),
+                                         "segmentation":segmentation,
+                                         "category_id":label,
+                                         "points_x":x,
+                                         "points_y":y})
         except:
             print(f"Read file {os.path.basename(file_path)} faild.")
             pass

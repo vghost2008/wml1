@@ -17,6 +17,7 @@ import numpy as np
 from object_detection2.data.dataloader import DataLoader
 import wsummary
 from functools import partial
+import wnn
 
 
 @HEAD_OUTPUTS.register()
@@ -38,9 +39,9 @@ class CenterNet2Outputs(wmodule.WChildModule):
             cfg: Only the child part
             box2box_transform (Box2BoxTransform): :class:`Box2BoxTransform` instance for
                 anchor-proposal transformations.
-            images (ImageList): :class:`ImageList` instance representing N input images
-            gt_boxes (list[Boxes], optional): A list of N elements. Element i a Boxes storing
-                the ground-truth ("gt") boxes for image i.
+            gt_boxes: [B,N,4] (ymin,xmin,ymax,xmax)
+            gt_labels: [B,N]
+            gt_length: [B]
         """
         super().__init__(cfg, parent=parent, **kwargs)
         self.score_threshold = cfg.SCORE_THRESH_TEST
@@ -59,10 +60,6 @@ class CenterNet2Outputs(wmodule.WChildModule):
     def _get_ground_truth(self):
         """
         Returns:
-            gt_objectness_logits: list of N tensors. Tensor i is a vector whose length is the
-                total number of anchors in image i (i.e., len(anchors[i])). Label values are
-                in {-1, 0, 1}, with meanings: -1 = ignore; 0 = negative class; 1 = positive class.
-            gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), 4).
         """
         res = []
         for i,outputs in enumerate(self.head_outputs):
@@ -78,25 +75,15 @@ class CenterNet2Outputs(wmodule.WChildModule):
     def losses(self):
         """
         Args:
-            For `gt_classes` and `gt_anchors_deltas` parameters, see
-                :meth:`CenterNet.get_ground_truth`.
-            Their shapes are (N, R) and (N, R, 4), respectively, where R is
-            the total number of anchors across levels, i.e. sum(Hi x Wi x A)
-            For `pred_class_logits` and `pred_anchor_deltas`, see
-                :meth:`CenterNetHead.forward`.
 
         Returns:
-            dict[str: Tensor]:
-                mapping from a named loss to a scalar tensor
-                storing the loss. Used during training only. The dict keys are:
-                "loss_cls" and "loss_box_reg"
         """
         all_encoded_datas = self._get_ground_truth()
         all_loss0 = []
         all_loss1 = []
         all_loss2 = []
         for i,(encoded_datas,head_outputs) in enumerate(zip(all_encoded_datas,self.head_outputs)):
-            loss0 = self.focal_loss(labels=encoded_datas["g_heatmaps_ct"],
+            loss0 = wnn.focal_loss_for_heat_map(labels=encoded_datas["g_heatmaps_ct"],
                                     logits=head_outputs["heatmaps_ct"],scope="ct_loss",
                                     alpha=self.cfg.LOSS_ALPHA,
                                     beta=self.cfg.LOSS_BETA,
@@ -116,36 +103,6 @@ class CenterNet2Outputs(wmodule.WChildModule):
         return {"heatmaps_ct_loss": loss0,
                 "offset_loss": loss1,
                 "hw_loss":loss2}
-
-    @staticmethod
-    def focal_loss(labels,logits,pos_threshold=0.99,alpha=2,beta=4,scope=None):
-        with tf.name_scope(scope,"focal_loss"):
-            zeros = tf.zeros_like(labels)
-            ones = tf.ones_like(labels)
-            num_pos = tf.reduce_sum(tf.where(tf.greater_equal(labels, pos_threshold), ones, zeros))
-
-            # loss=tf.reduce_mean(tf.log(logits))
-            probs = tf.nn.sigmoid(logits)
-            pos_weight = tf.where(tf.greater_equal(labels, pos_threshold), ones - probs, zeros)
-            neg_weight = tf.where(tf.less(labels, pos_threshold), probs, zeros)
-            '''
-            用于保证数值稳定性，log(sigmoid(x)) = log(1/(1+e^-x) = -log(1+e^-x) = x-x-log(1+e^-x) = x-log(e^x +1)
-            pos_loss = tf.where(tf.less(logits,0),logits-tf.log(tf.exp(logits)+1),tf.log(probs))
-            '''
-            pure_pos_loss = tf.minimum(logits,0)-tf.log(1+tf.exp(-tf.abs(logits)))
-            pos_loss = pure_pos_loss*tf.pow(pos_weight, alpha)
-            pos_loss = tf.reduce_sum(pos_loss)
-            '''
-            用于保证数值稳定性
-            '''
-            pure_neg_loss = -tf.nn.relu(logits)-tf.log(1+tf.exp(-tf.abs(logits)))
-            neg_loss = tf.pow((1 - labels), beta) * tf.pow(neg_weight, alpha) * pure_neg_loss
-            neg_loss = tf.reduce_sum(neg_loss)
-            loss = -(pos_loss + neg_loss) / (num_pos + tf.convert_to_tensor(1e-4))
-            tf.summary.scalar("neg_loss",neg_loss)
-            tf.summary.scalar("pos_loss",pos_loss)
-            #loss = tf.Print(loss,["mloss",probs,pos_weight,neg_weight,pos_loss,neg_loss,num_pos],summarize=100)
-            return loss
 
     @wmlt.add_name_scope
     def inference(self,inputs,head_outputs):

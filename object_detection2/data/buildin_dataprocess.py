@@ -520,7 +520,44 @@ def OPENPOSE(cfg, is_training):
         size = cfg.INPUT.MIN_SIZE_TRAIN[0]
         trans_on_single_img = [
             trans.MaskNHW2HWN(),
-            trans.RandomFlipLeftRight(),
+            trans.RandomFlipLeftRight(cfg=cfg),
+            trans.RemoveMask(),
+            trans.WTransImgToFloat(),
+            #trans.ShowInfo("INFO0"),
+            trans.ResizeToFixedSize(size=[size,size]),
+            trans.MaskHWN2NHW(),
+            trans.BBoxesRelativeToAbsolute(),
+            trans.RandomRotateAnyAngle(max_angle=cfg.INPUT.ROTATE_ANY_ANGLE.MAX_ANGLE,
+                                       rotate_probability=cfg.INPUT.ROTATE_ANY_ANGLE.PROBABILITY,
+                                       enable=cfg.INPUT.ROTATE_ANY_ANGLE.ENABLE),
+            trans.AddBoxLens(),
+            trans.UpdateHeightWidth(),
+            trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
+            #trans.ShowInfo("INFO1"),
+        ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.CheckBBoxes(),
+                              trans.FixDataInfo()]
+    else:
+        size = cfg.INPUT.MIN_SIZE_TEST
+        trans_on_single_img = [trans.AddSize(),
+                               trans.MaskNHW2HWN(),
+                               trans.ResizeToFixedSize(size=[size,size]),
+                               trans.MaskHWN2NHW(),
+                               trans.BBoxesRelativeToAbsolute(),
+                               trans.AddBoxLens(),
+                               ]
+        trans_on_batch_img = [trans.BBoxesAbsoluteToRelative(),
+                              trans.FixDataInfo()]
+
+    return (trans_on_single_img, trans_on_batch_img)
+
+@DATAPROCESS_REGISTRY.register()
+def SIMPLE_KP(cfg, is_training):
+    if is_training:
+        size = cfg.INPUT.MIN_SIZE_TRAIN[0]
+        trans_on_single_img = [
+            trans.MaskNHW2HWN(),
             trans.WTransImgToFloat(),
             #trans.ShowInfo("INFO0"),
             trans.ResizeToFixedSize(size=[size,size]),

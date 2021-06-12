@@ -40,6 +40,7 @@ class ResNet(Backbone):
                                              is_training=train_bn)):
             with tf.variable_scope("FeatureExtractor") as sc:
                 ext_sc_name = sc.name+"/"
+                keys = ["conv1", "block1/unit_2/bottleneck_v1", "block1", "block2", "block4"]  # block3,block4都是1/32
                 if self.cfg.MODEL.RESNETS.DEPTH == 101:
                     print("ResNet-101")
                     self.scope_name = "101"
@@ -59,6 +60,7 @@ class ResNet(Backbone):
                 elif self.cfg.MODEL.RESNETS.DEPTH == 18:
                     print("ResNet-18")
                     self.scope_name = "18"
+                    keys = ["conv1", "block1/unit_1/bottleneck_v1","block2/unit_1/bottleneck_v1", "block3/unit_1/bottleneck_v1", "block4"]
                     _, end_points = resnet_v1_18(x['image'], output_stride=output_stride)
                 else:
                     print("ResNet-50")
@@ -67,7 +69,6 @@ class ResNet(Backbone):
 
         self.end_points = end_points
 
-        keys = ["conv1","block1/unit_2/bottleneck_v1","block1","block2","block4"] #block3,block4都是1/32
         keys2 = ["block1","block2","block3","block4"] #block3,block4都是1/32
         values2 = ["res1","res2","res3","res4"] #block3,block4都是1/32
         for i in range(1,6):

@@ -14,15 +14,23 @@ slim = tf.contrib.slim
 class HRNet(Backbone):
     def __init__(self,cfg,is_mini=False,**kwargs):
         super().__init__(cfg,**kwargs)
+        self.normalizer_fn, self.norm_params = odt.get_norm(self.cfg.MODEL.HRNET.NORM, self.is_training)
+        self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.HRNET.ACTIVATION_FN)
         self.is_mini = is_mini
 
     def forward(self, x):
         net = x['image']
         net = tf.image.resize_bilinear(net,(512,512))
         if self.is_mini:
-            end_points = HighResolutionNet(mini_cfg_w32,output_channel=256)(net)
+            end_points = HighResolutionNet(mini_cfg_w32,output_channel=256,
+                                           normalizer_fn=self.normalizer_fn,
+                                           normalizer_params=self.norm_params,
+                                           activation_fn=self.activation_fn)(net)
         else:
-            end_points = HighResolutionNet(output_channel=256)(net)
+            end_points = HighResolutionNet(output_channel=256,
+                                           normalizer_fn=self.normalizer_fn,
+                                           normalizer_params=self.norm_params,
+                                           activation_fn=self.activation_fn)(net)
         return end_points
 
 

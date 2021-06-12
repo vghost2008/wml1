@@ -41,7 +41,3 @@ class DeepLabOutputs(wmodule.WChildModule):
         semantic = tf.one_hot(mask,depth=self.num_classes,on_value=1.0,off_value=0.0)
         return {RD_SPARSE_SEMANTIC:mask,
                 RD_SEMANTIC:semantic}
-        
-                
-            
-            

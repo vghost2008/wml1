@@ -6,7 +6,7 @@ MODEL:
   BACKBONE:
     NAME: "build_vgg19_backbone"
   KEYPOINTS:
-    NUM_KEYPOINTS: 17
+    NUM_KEYPOINTS: 3
     IN_FEATURES: ["vgg_19/conv4/conv4_2"]
     HEAD_NAME: "OpenPoseHead"
     OUTPUTS: "OpenPoseOutputs"
@@ -21,9 +21,10 @@ MODEL:
     DET_SCORE_THRESHOLD_TEST: 0.7
     NORM: ""
     ACTIVATION_FN: "leaky_relu"
+    POINTS_LEFT_RIGHT_GROUP: [[1,2]]
 DATASETS:
-  TRAIN: "coco_2017_kp_train"
-  TEST: "coco_2017_kp_eval"
+  TRAIN: "mnist_kp_train"
+  TEST: "mnist_kp_train"
 SOLVER:
   IMS_PER_BATCH: 10
   BASE_LR: 0.0001
@@ -33,7 +34,7 @@ SOLVER:
   LR_DECAY_TYPE: "cosine"
   OPTIMIZER: "Adam"
 INPUT:
-  MIN_SIZE_TRAIN: (512,512)
+  MIN_SIZE_TRAIN: (320,320)
   #MIN_SIZE_TRAIN: (300,224)
   MAX_SIZE_TRAIN: 1333
   MIN_SIZE_TEST: 896
@@ -43,5 +44,5 @@ INPUT:
   DATAPROCESS: "OPENPOSE"
 VERSION: 2
 GLOBAL:
-  PROJ_NAME: "OpenPose-coco"
+  PROJ_NAME: "OpenPose-mnist"
   LOG_STEP: 200

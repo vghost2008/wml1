@@ -375,8 +375,9 @@ Boxes: relative coordinate
 mask:H,W,N format
 '''
 class RandomFlipLeftRight(WTransform):
-    def __init__(self):
-        pass
+    def __init__(self,cfg=None):
+        self.cfg = cfg
+
     def __call__(self, data_item):
         if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
             print(f"WARNING: {self} need relative coordinate.")
@@ -387,7 +388,15 @@ class RandomFlipLeftRight(WTransform):
             func2 = wml_bboxes.bboxes_flip_left_right
             data_item = self.apply_to_bbox(func2,data_item,runtime_filter=is_flip)
         if GT_KEYPOINTS:
-            func3 = kp.keypoints_flip_left_right
+            if self.cfg is not None:
+                swap_index = self.cfg.MODEL.KEYPOINTS.POINTS_LEFT_RIGHT_GROUP
+                X,N,C = data_item[GT_KEYPOINTS].shape.as_list()
+                if N is None:
+                    N = self.cfg.MODEL.KEYPOINTS.NUM_KEYPOINTS
+                    data_item[GT_KEYPOINTS].set_shape([X,N,C])
+            else:
+                swap_index = None
+            func3 = partial(kp.keypoints_flip_left_right,swap_index=swap_index)
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
 
         return data_item
@@ -519,6 +528,7 @@ class RandomRotateAnyAngle(WTransform):
 
         if GT_MASKS in data_item and self.use_mask:
             r_mask,r_bboxes = wop.mask_rotate(mask=data_item[GT_MASKS],angle=angle,get_bboxes_stride=4)
+            #r_bboxes = tf.Print(r_bboxes,["rbbox",tf.shape(r_bboxes)],summarize=100)
             WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
         else:
@@ -536,7 +546,9 @@ class RandomRotateAnyAngle(WTransform):
             r_bboxes = tf.minimum(r_bboxes,max_value)
             WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
         if GT_KEYPOINTS in data_item:
-            print(f"WARNING: keypoints don't support transform {self}.")
+            img_shape = tf.shape(data_item[IMAGE])
+            rotated_points = kp.keypoits_rotate(data_item[GT_KEYPOINTS],angle,width=img_shape[1],height=img_shape[0])
+            WTransform.cond_set(data_item, GT_KEYPOINTS, is_rotate, rotated_points)
 
         return data_item
     
@@ -752,8 +764,9 @@ class ResizeToFixedSize(WTransform):
         with tf.name_scope("resize_image"):
             def func(image):
                 func0 = partial(tf.image.resize_images,size=self.size, method=self.resize_method)
-                return tf.cond(tf.reduce_any(tf.equal(tf.shape(image),0)),lambda :image,
-                                 lambda:func0(image));
+                return func0(image)
+                #return tf.cond(tf.reduce_any(tf.equal(tf.shape(image),0)),lambda :image,
+                                 #lambda:func0(image));
             items = self.apply_to_images_and_masks(func,data_item)
             if self.channels is not None:
                 func = partial(tf.reshape,shape=self.size+[self.channels])
@@ -1158,7 +1171,7 @@ class CheckBBoxes(WTransform):
         if GT_BOXES in data_item:
             data_item[GT_BOXES] = tf.clip_by_value(data_item[GT_BOXES],self.min,self.max)
         if GT_KEYPOINTS in data_item:
-            data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],self.min,self.max)
+            data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],-2,self.max) #keypoints use -1 to indict unlabeled points
         return data_item
 
     def __str__(self):
@@ -1695,6 +1708,15 @@ class WShear(WTransform):
     def __str__(self):
         return f"{type(self).__name__}"
 
+class RemoveMask(WTransform):
+    def __init__(self):
+        pass
+
+    def __call__(self, data_item):
+        res = data_item
+        if GT_MASKS in res:
+            del res[GT_MASKS]
+        return res
 '''
 mask: [N,H,W]
 '''

@@ -466,7 +466,7 @@ def draw_keypoints_on_image(image,
         draw.ellipse([(keypoint_x - radius, keypoint_y - radius),
                       (keypoint_x + radius, keypoint_y + radius)],
                      outline=color, fill=color)
-        #draw.text((keypoint_x,keypoint_y),f"{i}",fill=color)
+        draw.text((keypoint_x,keypoint_y),f"{i}",fill=color)
     i += 1
 
   if points_pair is not None:

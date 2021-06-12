@@ -9,7 +9,7 @@ import wmodule
 
 global_cfg = get_cfg()
 #global_cfg.MODEL.MOBILENETS.MINOR_VERSION = "SMALL"
-global_cfg.MODEL.DLA.BACKBONE = "build_resnet_backbone"
+global_cfg.MODEL.DLA.BACKBONE = "build_hrnet_backbone"
 global_cfg.MODEL.RESNETS.DEPTH = 34
 #global_cfg.MODEL.MOBILENETS.MINOR_VERSION = "LARGE"
 net = tf.placeholder(tf.float32,[2,512,512,3])

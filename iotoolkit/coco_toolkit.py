@@ -95,6 +95,26 @@ ID_TO_TEXT={1: {u'supercategory': u'person', u'id': 1, u'name': u'person'},
             90: {u'supercategory': u'indoor', u'id': 90, u'name': u'toothbrush'}}
 COMPRESSED_ID_TO_TEXT = {}
 
+
+
+KEYPOINTS_NAME = ["nose",
+                "left_eye",
+                "right_eye",
+                "left_ear",
+                "right_ear",
+                "left_shoulder",
+                "right_shoulder",
+                "left_elbow",
+                "right_elbow",
+                "left_wrist",
+                "right_wrist",
+                "left_hip",
+                "right_hip",
+                "left_knee",
+                "right_knee",
+                "left_ankle",
+                "right_ankle"]
+
 j = 1
 for i in range(1,81):
     while j not in ID_TO_TEXT:

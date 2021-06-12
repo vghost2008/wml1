@@ -8,9 +8,10 @@ from iotoolkit.coco_toolkit import ID_TO_TEXT as coco_id_to_text
 from iotoolkit.coco_toolkit import COMPRESSED_ID_TO_TEXT as coco_compressed_id_to_text
 from iotoolkit.pascal_voc_data import ID_TO_TEXT as pascal_voc_id_to_text
 from iotoolkit.mot_tf_decode import get_data as mot_get_data
+import wml_utils as wmlu
 
 # ==== Predefined datasets and splits for COCO ==========
-dataset_root_path = "/home/wj/ai/mldata"
+dataset_root_path = wmlu.home_dir("ai/mldata")
 
 default_category_index = None
 coco_category_index = {}
@@ -49,8 +50,10 @@ def register_all_coco(root="datasets"):
         ("coco_2017_train", os.path.join(dataset_root_path,"coco/tfdata_2017_train"),coco_get_data,80,coco_compressed_id_to_text),
         ("coco_2017_eval", os.path.join(dataset_root_path,"coco/tfdata_2017_val"),coco_get_data,80,coco_compressed_id_to_text),
         ("coco_2017_kp_train", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_train"),coco_kp_get_data,80,coco_compressed_id_to_text),
+        ("coco_2017_kp_train_test", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_train_test"),coco_kp_get_data,80,coco_compressed_id_to_text),
         #("coco_2017_kp_train", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_val"),coco_kp_get_data,80,coco_compressed_id_to_text),
         ("coco_2017_kp_eval", os.path.join(dataset_root_path,"coco/tfdata_2017_kp_val"),coco_kp_get_data,80,coco_compressed_id_to_text),
+        ("mnist_kp_train", os.path.join(dataset_root_path,"mnistkp_data/tftrain"),coco_kp_get_data,1,default_category_index),
         ("coco_2014_train", os.path.join(dataset_root_path,"coco/tfdata1"),coco_get_data,90,coco_category_index),
         ("coco_2014_eval", os.path.join(dataset_root_path,"coco/tfdata_val"),coco_get_data,90,coco_category_index),
         ("mnistod_train", os.path.join(dataset_root_path,"mnistod/train_tfrecord"),coco_get_data,3,mod_category_index),

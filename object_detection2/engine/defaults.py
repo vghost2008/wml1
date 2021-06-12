@@ -12,7 +12,7 @@ def default_argument_parser():
     Returns:
         argparse.ArgumentParser:
     """
-    parser = argparse.ArgumentParser(description="ObjectDetection2 Training")
+    parser = argparse.ArgumentParser(description="hhrnet Training")
     #parser.add_argument("--config-file", default="Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
@@ -21,11 +21,12 @@ def default_argument_parser():
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="RetinaNetBBD.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="OpenPose-coco.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="FairMOT-fastv3.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="FairMOT.yaml", metavar="FILE", help="path to config file")
+    #parser.add_argument("--config-file", default="FairMOT-fastv3.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="FairMOT-snpe.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="SNPEMOT.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="FairMOT-test.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="Base-CenterNet2.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="ts_pose_estimation_mnist.yaml", metavar="FILE", help="path to config file")
     #parser.add_argument("--config-file", default="Mask-RCNN-FPN-box-free.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",

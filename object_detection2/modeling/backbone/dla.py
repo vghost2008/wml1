@@ -56,10 +56,12 @@ class DLA(Backbone):
         self.activation_fn = odt.get_activation_fn(self.cfg.MODEL.DLA.ACTIVATION_FN)
         self.out_channels = [ 64,64,128,256]
         self.conv_op = functools.partial(slim.conv2d,normalizer_fn=self.normalizer_fn,
+                                         activation_fn=self.activation_fn,
                                          normalizer_params=self.norm_params)
         self.upsample_op = functools.partial(slim.conv2d_transpose,
                                              kernel_size=4,
                                              stride=2,
+                                             activation_fn=self.activation_fn,
                                              normalizer_fn=self.normalizer_fn,
                                              normalizer_params=self.norm_params)
 
@@ -91,9 +93,9 @@ class DLA(Backbone):
             self._dla_upv2(features,1,len(features),scope="ida_up")
         res = OrderedDict()
         res.update(bottom_up_features)
-        k = self.in_features[-1]
+        k = self.in_features[0]
         index = k[-1:]
-        res[f"P{index}"] = tf.identity(features[-1],name="output")
+        res[f"P{index}"] = features[-1]
         if self.hook_after is not None:
             res = self.hook_after(res, x)
         return res
@@ -126,12 +128,11 @@ class DLA(Backbone):
 
     def _dla_upv2(self,features,startp,endp,scope="ida"):
         conv_op = self.conv_op
-        with tf.variable_scope(scope):
-            for i in range(startp,endp):
-                upsample_op = functools.partial(slim.conv2d_transpose,
-                                                kernel_size=4**i,
-                                                stride=2**i,
+        with tf.variable_scope(scope): 
+            for i in range(startp,endp): 
+                upsample_op = functools.partial(slim.conv2d_transpose, kernel_size=4**i, stride=2**i,
                                                 normalizer_fn=self.normalizer_fn,
+                                                activation_fn=self.activation_fn,
                                                 normalizer_params=self.norm_params)
                 C = btf.channel(features[i-1])
                 x = conv_op(features[i],C,[3,3],scope=f"project_{i}")

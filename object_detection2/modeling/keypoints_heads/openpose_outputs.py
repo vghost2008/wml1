@@ -8,6 +8,7 @@ from object_detection2.datadef import *
 from object_detection2.config.config import global_cfg
 from object_detection2.modeling.build import HEAD_OUTPUTS
 import object_detection2.odtools as odtl
+import object_detection2.keypoints as kp
 import wsummary
 import basic_tftools as btf
 
@@ -28,9 +29,10 @@ class OpenPoseOutputs(wmodule.WChildModule):
         """
         Args:
             cfg: Only the child part
-            images (ImageList): :class:`ImageList` instance representing N input images
-            gt_boxes (list[Boxes], optional): A list of N elements. Element i a Boxes storing
-                the ground-truth ("gt") boxes for image i.
+            gt_boxes: [B,N,4] (ymin,xmin,ymax,xmax)
+            gt_labels: [B,N]
+            gt_length: [B]
+            gt_keypoints: [B,N,NUM_KEYPOINTS,2] (x,y)
         """
         super().__init__(cfg, parent=parent, **kwargs)
         self.max_detections_per_image = max_detections_per_image
@@ -53,7 +55,7 @@ class OpenPoseOutputs(wmodule.WChildModule):
         gt_paf_maps = output[1]
         wsummary.feature_map_summary(gt_conf_maps,"gt_conf_maps",max_outputs=5)
         wsummary.feature_map_summary(gt_paf_maps,"gt_paf_maps",max_outputs=5)
-        if self.cfg.OPENPOSE_USE_LOSS_MASK:
+        if self.cfg.USE_LOSS_MASK:
             B,H,W,_ = btf.combined_static_and_dynamic_shape(gt_paf_maps)
             image = tf.zeros([B,H,W,1])
             mask = odtl.batch_fill_bboxes(image,self.gt_boxes,v=1.0,
@@ -73,18 +75,11 @@ class OpenPoseOutputs(wmodule.WChildModule):
     def losses(self):
         """
         Args:
-            For `gt_classes` and `gt_anchors_deltas` parameters, see
-                :meth:`RetinaNet.get_ground_truth`.
-            Their shapes are (N, R) and (N, R, 4), respectively, where R is
-            the total number of anchors across levels, i.e. sum(Hi x Wi x A)
-            For `pred_class_logits` and `pred_anchor_deltas`, see
-                :meth:`RetinaNetHead.forward`.
 
         Returns:
             dict[str: Tensor]:
                 mapping from a named loss to a scalar tensor
-                storing the loss. Used during training only. The dict keys are:
-                "loss_cls" and "loss_box_reg"
+                storing the loss. Used during training only.
         """
         assert len(self.pred_maps[0][0].get_shape()) == 4, "error logits dim"
         pred_paf_maps,pred_conf_maps,pred_finaly_maps = self.pred_maps
@@ -122,12 +117,13 @@ class OpenPoseOutputs(wmodule.WChildModule):
     def inference(self, inputs, pred_maps):
         """
         Arguments:
-            inputs: same as RetinaNet.forward's batched_inputs
+            inputs: same as forward's batched_inputs
+            pred_maps: outputs of openpose head
         Returns:
             results:
             RD_BOXES: [B,N,4]
             RD_PROBABILITY:[ B,N]
-            RD_KEYPOINTS:[B,N,X]
+            RD_KEYPOINTS:[B,N,NUM_KEYPOINTS,2]
             RD_LENGTH:[B]
         """
         _,_,pred_finaly_maps = pred_maps
@@ -139,15 +135,11 @@ class OpenPoseOutputs(wmodule.WChildModule):
                                                 keypoints_th=self.cfg.OPENPOSE_KEYPOINTS_TH,
                                                 interp_samples=self.cfg.OPENPOSE_INTERP_SAMPLES,
                                                 paf_score_th=self.cfg.OPENPOSE_PAF_SCORE_TH,
-                                                conf_th=self.cfg.OPENPOSE_CONF_TH,
+                                                conf_th=self.cfg.DET_SCORE_THRESHOLD_TEST,
                                                 max_detection=self.max_detections_per_image
                                                 )
 
-        bboxes = wmlt.static_or_dynamic_map_fn(
-            lambda x: self.get_bboxes(x[0], x[1]),
-            elems=[output_keypoints,output_lens],
-            dtype=tf.float32,
-            back_prop=False)
+        bboxes = kp.batch_get_bboxes(output_keypoints,output_lens)
         outdata = {RD_BOXES: bboxes, RD_LENGTH: output_lens,
                    RD_KEYPOINT: output_keypoints}
         if global_cfg.GLOBAL.SUMMARY_LEVEL <= SummaryLevel.DEBUG:
@@ -158,32 +150,3 @@ class OpenPoseOutputs(wmodule.WChildModule):
                                              name="KeyPoints_result")
         return outdata
 
-    @wmlt.add_name_scope
-    def get_bboxes(self, keypoints,len):
-        """
-        Single-image inference. Return keypoints detection results
-
-        Arguments:
-            pred_maps;WxHx(num_classes+num_classes*2) #conf_maps,paf_maps
-        Returns:
-            Same as `inference`, but for only one image.
-        """
-        shape = btf.combined_static_and_dynamic_shape(keypoints)
-        keypoints = keypoints[:len]
-        bboxes = tf.map_fn(self.get_bbox,elems=keypoints,dtype=tf.float32,
-                           back_prop=False)
-        bboxes = tf.pad(bboxes,[[0,shape[0]-len],[0,0]])
-        bboxes = tf.reshape(bboxes,[shape[0],4])
-
-        return bboxes
-
-    def get_bbox(self, keypoints):
-        x,y = tf.split(keypoints,2,axis=-1)
-        mask = tf.greater_equal(x,0)
-        x = tf.boolean_mask(x,mask)
-        y = tf.boolean_mask(y,mask)
-        xmin = tf.reduce_min(x)
-        xmax = tf.reduce_max(x)
-        ymin = tf.reduce_min(y)
-        ymax = tf.reduce_max(y)
-        return tf.convert_to_tensor([ymin,xmin,ymax,xmax])

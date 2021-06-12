@@ -38,15 +38,17 @@ class BasicBlock(object):
                               normalizer_fn=self.normalizer_fn,
                               normalizer_params=self.normalizer_params)
             out = slim.conv2d(out,self.num_outputs,3,1,
+                             activation_fn=None,
                              normalizer_fn=self.normalizer_fn,
                              normalizer_params=self.normalizer_params)
 
             if self.downsample is not None:
                 residual = self.downsample(x)
             if get_channel(residual) != get_channel(out):
-                residual = slim.conv2d(out,self.num_outputs,1,1,
+                residual = slim.conv2d(residual,self.num_outputs,1,1,
                                        activation_fn=None,
-                                       normalizer_fn=None)
+                                       normalizer_fn=self.normalizer_fn,
+                                       normalizer_params=self.normalizer_params)
 
             out += residual
             if self.activation_fn is not None:
@@ -72,13 +74,13 @@ class Bottleneck(object):
     def __call__(self, x,scope=None):
         with tf.variable_scope(scope,default_name="Bottleneck"):
             residual = x
-            out = slim.conv2d(x,self.num_outputs,3,1,activation_fn=self.activation_fn,
+            out = slim.conv2d(x,self.num_outputs,1,1,activation_fn=self.activation_fn,
                               normalizer_fn=self.normalizer_fn,
                               normalizer_params=self.normalizer_params)
             out = slim.conv2d(out,self.num_outputs,3,self.stride,activation_fn=self.activation_fn,
                               normalizer_fn=self.normalizer_fn,
                               normalizer_params=self.normalizer_params)
-            out = slim.conv2d(out,self.num_outputs*self.expansion,3,1,
+            out = slim.conv2d(out,self.num_outputs*self.expansion,1,1,
                              activation_fn=None,
                              normalizer_fn=self.normalizer_fn,
                              normalizer_params=self.normalizer_params)
@@ -86,9 +88,10 @@ class Bottleneck(object):
             if self.downsample is not None:
                 residual = self.downsample(x)
             if get_channel(residual) != get_channel(out):
-                residual = slim.conv2d(out,self.num_outputs*self.expansion,1,1,
-                             activation_fn=None,
-                             normalizer_fn=None)
+                residual = slim.conv2d(residual,self.num_outputs*self.expansion,1,1,
+                                       activation_fn=None,
+                                       normalizer_fn=self.normalizer_fn,
+                                       normalizer_params=self.normalizer_params)
 
             out += residual
             if self.activation_fn is not None:
@@ -148,6 +151,19 @@ class HighResolutionModule(object):
                           normalizer_params=self.normalizer_params)
             return out
 
+    def downsamplev2(self,x,outchannel,order,scope=None):
+        with tf.variable_scope(scope,default_name="downsample"):
+            out = x
+            for i in range(order):
+                num_outputs = get_channel(x) if i != order-1 else outchannel
+                activation_fn = self.activation_fn if i !=order-1 else None
+                out = slim.conv2d(out, num_outputs, 3, 2,
+                                  normalizer_fn=self.normalizer_fn,
+                                  normalizer_params=self.normalizer_params,
+                                  activation_fn=activation_fn,
+                                  scope=f"downsample_conv_{i}")
+            return out
+
     def _make_one_branch(self, x,branch_index, block, num_blocks, num_channels,
                          stride=1,scope=None):
         with tf.variable_scope(scope,f"one_branch_{branch_index}"):
@@ -167,37 +183,6 @@ class HighResolutionModule(object):
                           activation_fn=self.activation_fn,
                           normalizer_fn=self.normalizer_fn,
                           normalizer_params=self.normalizer_params)(x,scope=f"block{i}")
-            return x
-
-    def fuse_layers(self,i,j,x,scope=None):
-        if self.num_branches == 1:
-            return None
-        with tf.variable_scope(scope,default_name=f"fuse_layer{i}_{j}"):
-            num_inchannels = self.num_inchannels
-            if j > i:
-                x = slim.conv2d(x, num_inchannels[i], 1, 1, activation_fn=None,
-                                  normalizer_fn=self.normalizer_fn,
-                                  normalizer_params=self.normalizer_params)
-                x = wnnl.upsample(x,scale_factor=2 ** (j - i), mode=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            elif j == i:
-                return x
-            else:
-                for k in range(i - j):
-                    if k == i - j - 1:
-                        num_outchannels_conv3x3 = num_inchannels[i]
-                        x = slim.conv2d(x, num_outchannels_conv3x3,
-                                          3, 2, activation_fn=None,
-                                          normalizer_fn=self.normalizer_fn,
-                                          normalizer_params=self.normalizer_params,
-                                          padding="SAME")
-                    else:
-                        num_outchannels_conv3x3 = num_inchannels[j]
-                        x = slim.conv2d(x, num_outchannels_conv3x3,
-                                        3, 2, activation_fn=self.activation_fn,
-                                        normalizer_fn=self.normalizer_fn,
-                                        normalizer_params=self.normalizer_params,
-                                        padding="SAME")
-
             return x
 
     def get_num_inchannels(self):
@@ -220,19 +205,27 @@ class HighResolutionModule(object):
         with tf.variable_scope("Fuse"):
             ys = []
             for i,v0 in enumerate(xs):
-                shape0 = wmlt.combined_static_and_dynamic_shape(v0)
+                chl = get_channel(xs[i])
+                shape0 = wmlt.combined_static_and_dynamic_shape(v0)[1:3]
                 datas = []
-                for j,v1 in enumerate(xs):
-                    if i!=j:
-                        chl = get_channel(v0)
-                        v1 = tf.image.resize_nearest_neighbor(v1, shape0[1:3])
-                        v1 = slim.conv2d(v1, chl, [3, 3],
-                                         activation_fn=None,
-                                         normalizer_fn=self.normalizer_fn,
-                                         normalizer_params=self.normalizer_params,
-                                         scope=f"smooth{i}_{j}")
+                for j, v1 in enumerate(xs):
+                    if i != j:
+                        if i<j: #upsample
+                            v1 = tf.image.resize_nearest_neighbor(v1, shape0,name="upsample")
+                            v1 = slim.conv2d(v1, chl, [1, 1],
+                                             activation_fn=None,
+                                             normalizer_fn=self.normalizer_fn,
+                                             normalizer_params=self.normalizer_params,
+                                             scope=f"smooth{i}_{j}")
+                        elif i>j:
+                            v1 = self.downsamplev2(v1,chl,i-j)
                     datas.append(v1)
-                v = tf.add_n(datas)/len(datas)
+                if len(datas)>1:
+                    v = tf.add_n(datas) / len(datas)
+                    if self.activation_fn is not None:
+                        v = self.activation_fn(v)
+                else:
+                    v = datas[0]
                 ys.append(v)
 
             return ys
@@ -259,15 +252,19 @@ mini_cfg_w32 = {
 
 class HighResolutionNet(object):
 
-    def __init__(self, cfg=cfg_w32,output_channel=None, **kwargs):
+    def __init__(self, cfg=cfg_w32,output_channel=None,
+                 activation_fn=tf.nn.relu,
+                 normalizer_fn=slim.batch_norm,
+                 normalizer_params=None,
+                 **kwargs):
         self.cfg = cfg
         self.stage1_cfg = cfg['STAGE1']
         self.stage2_cfg = cfg['STAGE2']
         self.stage3_cfg = cfg['STAGE3']
         self.stage4_cfg = cfg['STAGE4']
-        self.activation_fn = None
-        self.normalizer_fn = wnnl.evo_norm_s0
-        self.normalizer_params = None
+        self.activation_fn = activation_fn
+        self.normalizer_fn = normalizer_fn
+        self.normalizer_params = normalizer_params
         self.output_channel = output_channel
 
     def _make_transition_layer(self,xs,
@@ -289,26 +286,37 @@ class HighResolutionNet(object):
 
             with tf.variable_scope("Fuse"):
                 for i in range(num_branches_cur):
+                    chl = num_channels_cur_layer[i]
                     shape0 = out_shapes[i]
                     datas = []
                     for j, v1 in enumerate(xs):
                         if i != j:
-                            chl = num_channels_cur_layer[i]
-                            v1 = tf.image.resize_nearest_neighbor(v1, shape0)
+                            if i<j: #upsample
+                                v1 = tf.image.resize_nearest_neighbor(v1, shape0,name="upsample")
+                                v1 = slim.conv2d(v1, chl, [1, 1],
+                                                 activation_fn=None,
+                                                 normalizer_fn=self.normalizer_fn,
+                                                 normalizer_params=self.normalizer_params,
+                                                 scope=f"smooth{i}_{j}")
+                            elif i>j:
+                                v1 = self.downsamplev2(v1,chl,i-j)
+                        elif chl != get_channel(v1):
                             v1 = slim.conv2d(v1, chl, [3, 3],
                                              activation_fn=None,
                                              normalizer_fn=self.normalizer_fn,
                                              normalizer_params=self.normalizer_params,
-                                             scope=f"smooth{i}_{j}")
+                                             scope=f"project_{i}_{j}")
+
                         datas.append(v1)
                     if len(datas)>1:
                         v = tf.add_n(datas) / len(datas)
+                        if self.activation_fn is not None:
+                            v = self.activation_fn(v)
                     else:
                         v = datas[0]
                     ys.append(v)
 
         return ys
-
 
     def downsample(self,x,expansion,stride,scope=None):
         with tf.variable_scope(scope,default_name="downsample"):
@@ -318,11 +326,24 @@ class HighResolutionNet(object):
                               normalizer_params=self.normalizer_params)
             return out
 
+    def downsamplev2(self,x,outchannel,order,scope=None):
+        with tf.variable_scope(scope,default_name="downsample"):
+            out = x
+            for i in range(order):
+                num_outputs = get_channel(x) if i != order-1 else outchannel
+                activation_fn = self.activation_fn if i !=order-1 else None
+                out = slim.conv2d(out, num_outputs, 3, 2,
+                                  normalizer_fn=self.normalizer_fn,
+                                  normalizer_params=self.normalizer_params,
+                                  activation_fn=activation_fn,
+                                  scope=f"downsample_conv_{i}")
+            return out
+
     def _make_layer(self, x,block, planes, blocks, stride=1,scope=None):
         with tf.variable_scope(scope,default_name="layer"):
             downsample = None
             inplanes = get_channel(x)
-            if stride != 1 or inplanes != planes * block.expansion:
+            if stride != 1:
                 downsample = partial(self.downsample,expansion=block.expansion,stride=stride)
 
             x = block(planes, stride, downsample,normalizer_fn=self.normalizer_fn,

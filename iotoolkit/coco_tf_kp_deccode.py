@@ -69,8 +69,9 @@ def __parse_func(example_proto):
     ymin = tf.reshape(ymin,[-1,1])
     xmax = tf.reshape(xmax,[-1,1])
     ymax = tf.reshape(ymax,[-1,1])
-    kp_x = tf.reshape(kp_x,[-1,COCO_KP_NR,1])
-    kp_y = tf.reshape(kp_y,[-1,COCO_KP_NR,1])
+    nr = tf.shape(ymax)[0]
+    kp_x = tf.reshape(kp_x,[nr,-1,1])
+    kp_y = tf.reshape(kp_y,[nr,-1,1])
     boxes = tf.concat([ymin,xmin,ymax,xmax],axis=1)
     keypoints = tf.concat([kp_x,kp_y],axis=-1)
     keys_to_res = {

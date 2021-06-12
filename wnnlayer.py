@@ -1998,3 +1998,15 @@ def l2_normalize(x, axis=None, epsilon=1e-12, name=None, dim=None):
     x_norm = tf.sqrt(tf.maximum(square_sum, epsilon))
     return tf.divide(x, x_norm, name=name)
 
+def pixel_nms(tensor,kernel=[3,3],threshold=None):
+    if isinstance(kernel,int):
+        kernel = [kernel,kernel]
+    hmax=tf.nn.max_pool(tensor,ksize=[1]+kernel+[1],strides=[1,1,1,1],padding='SAME')
+    if threshold is not None:
+        mask=tf.cast(tf.logical_and(tf.equal(hmax,tensor),tf.greater(hmax,threshold)),tf.float32)
+    else:
+        mask = tf.cast(tf.equal(hmax, tensor),tf.float32)
+    return mask*tensor
+
+def null_activation(net):
+    return net
