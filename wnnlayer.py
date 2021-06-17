@@ -1616,6 +1616,15 @@ def orthogonal_regularizerv2(scale=1e-4) :
     return ortho_reg
 
 
+def ignore_gradient_before_step(x,step,debug=False):
+    gs = tf.train.get_global_step()
+    cond = tf.less_equal(gs,step)
+    if not debug:
+        x = tf.cond(cond,lambda:tf.stop_gradient(x),lambda:x)
+    else:
+        x = tf.cond(cond, lambda: tf.Print(tf.stop_gradient(x),[f"stop gradient{x.name}"]), lambda: x)
+    return x
+
 def scale_gradient(x,scale,is_training=True):
     if not is_training:
         return x
