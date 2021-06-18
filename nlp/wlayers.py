@@ -5,7 +5,7 @@ from tensorflow.python.ops import nn
 from tensorflow.python.ops import init_ops
 from tensorflow.contrib.layers.python.layers import initializers
 import wml_tfutils as wmlt
-import wtfop.wtfop_ops as wop
+import tfop
 import numpy as np
 
 slim = tf.contrib.slim
@@ -116,7 +116,7 @@ def relative_multi_head_attention(Q, K, V,n_head,Q_len=None,V_len=None,keep_prob
         #new V is [batch_size,nb_head,m,size_per_head1]
         #计算内积，然后mask，然后softmax
         A = tf.matmul(Q, K, transpose_b=True,name="MatMul_QK")
-        P = tf.expand_dims(wop.plane_position_embedding(size=tf.shape(A)[2:]),axis=0)
+        P = tf.expand_dims(tfop.plane_position_embedding(size=tf.shape(A)[2:]),axis=0)
         A = (A+P)*tf.rsqrt(tf.cast(tf.shape(V)[-1],tf.float32))
         #now A is [batch_size, nb_head,n,m]
         if use_mask:

@@ -248,7 +248,7 @@ class BoxFreeROIHeads(ROIHeads):
     @wmlt.add_name_scope
     def merge_bboxes_and_mask_results(self,instances):
         
-        nms = functools.partial(wop.boxes_nms, threshold=self.test_nms_thresh, classes_wise=True)
+        nms = functools.partial(tfop.boxes_nms, threshold=self.test_nms_thresh, classes_wise=True)
         mask = tf.squeeze(instances[RD_MASKS],axis=0)
         bmask = tf.expand_dims(mask,axis=-1)
         bmask = wnnl.min_pool2d(bmask,kernel_size=2,stride=1,padding="SAME")
@@ -256,7 +256,7 @@ class BoxFreeROIHeads(ROIHeads):
         bmask = tf.squeeze(bmask,axis=-1)
         bmask = tf.cast(bmask*255,tf.uint8)
         #bboxes = tf.squeeze(instances[RD_BOXES],axis=0)
-        bboxes = wop.get_bboxes_from_mask(bmask)
+        bboxes = tfop.get_bboxes_from_mask(bmask)
         #bboxes = tf.Print(bboxes,["xbboxes",tf.reduce_max(xboxes,keepdims=False),
                                   #tf.reduce_max(mask)],summarize=100)
         Nr,H,W = btf.combined_static_and_dynamic_shape(mask)

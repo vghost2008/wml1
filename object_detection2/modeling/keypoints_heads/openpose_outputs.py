@@ -1,7 +1,7 @@
 # coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
-import wtfop.wtfop_ops as wop
+import tfop
 from object_detection2.standard_names import *
 import wmodule
 from object_detection2.datadef import *
@@ -45,7 +45,7 @@ class OpenPoseOutputs(wmodule.WChildModule):
     @btf.add_name_scope
     def _get_ground_truth(self):
         map_shape = btf.combined_static_and_dynamic_shape(self.pred_maps[0][0])
-        output = wop.open_pose_encode(keypoints=self.gt_keypoints,
+        output = tfop.open_pose_encode(keypoints=self.gt_keypoints,
                                       output_size=map_shape[1:3],
                                       glength=self.gt_length,
                                       keypoints_pair=self.cfg.POINTS_PAIRS,
@@ -131,7 +131,7 @@ class OpenPoseOutputs(wmodule.WChildModule):
         conf_maps,paf_maps = tf.split(pred_finaly_maps,
                                       [self.cfg.NUM_KEYPOINTS,C-self.cfg.NUM_KEYPOINTS],
                                       axis=-1)
-        output_keypoints,output_lens = wop.open_pose_decode(conf_maps,paf_maps,self.cfg.POINTS_PAIRS,
+        output_keypoints,output_lens = tfop.open_pose_decode(conf_maps,paf_maps,self.cfg.POINTS_PAIRS,
                                                 keypoints_th=self.cfg.OPENPOSE_KEYPOINTS_TH,
                                                 interp_samples=self.cfg.OPENPOSE_INTERP_SAMPLES,
                                                 paf_score_th=self.cfg.OPENPOSE_PAF_SCORE_TH,

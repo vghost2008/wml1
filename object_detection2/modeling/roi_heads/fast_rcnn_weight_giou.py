@@ -5,7 +5,7 @@ import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
 from .build import HEAD_OUTPUTS
 from .fast_rcnn import FastRCNNOutputs as _FastRCNNOutputs
-import wtfop.wtfop_ops as wop
+import tfop
 import functools
 from object_detection2.datadef import *
 import numpy as np

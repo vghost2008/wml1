@@ -3,7 +3,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import wnn
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 import wmodule
@@ -280,7 +280,7 @@ class RetinaNetOutputs(wmodule.WChildModule):
             nms = functools.partial(boxes_nms, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
                                 k=self.max_detections_per_image)
         else:
-            nms = functools.partial(wop.boxes_nms_nr2, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
+            nms = functools.partial(tfop.boxes_nms_nr2, threshold=self.nms_threshold, classes_wise=self.cfg.CLASSES_WISE_NMS,
                                     k=output_fix_nr,
                                     allow_less_output=True)
         boxes,labels,nms_idxs = nms(bboxes=boxes_all,classes=class_idxs_all)

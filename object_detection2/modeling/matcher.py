@@ -1,5 +1,5 @@
 #coding=utf-8
-import wtfop.wtfop_ops as wop
+import tfop
 import wmodule
 import tensorflow as tf
 import basic_tftools as btf
@@ -37,7 +37,7 @@ class Matcher(wmodule.WChildModule):
         scores: [batch_size,X], the overlap score with boxes' match gt box
         indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
         '''
-        labels,scores,indices = wop.matcher(bboxes=boxes,gboxes=gboxes,
+        labels,scores,indices = tfop.matcher(bboxes=boxes,gboxes=gboxes,
                            glabels=glabels,
                            length=glength,
                            neg_threshold=self.thresholds[0],
@@ -476,7 +476,7 @@ class MatcherV2(wmodule.WChildModule):
         scores: [batch_size,X], the overlap score with boxes' match gt box
         indices: [batch_size,X] the index of matched gt boxes when it's a positive anchor box, else it's -1
         '''
-        labels,scores,indices = wop.matcherv2(bboxes=boxes,gboxes=gboxes,
+        labels,scores,indices = tfop.matcherv2(bboxes=boxes,gboxes=gboxes,
                                             glabels=glabels,
                                             length=glength,
                                             threshold=self.thresholds)

@@ -1,7 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
-import wtfop.wtfop_ops as wop
+import tfop
 import basic_tftools as btf
 
 
@@ -111,10 +111,10 @@ def find_top_rpn_proposals_for_single_level(
         def fn(bboxes,probability):
             labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
             if is_training or batch_size>1:
-                boxes,labels,indices = wop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                boxes,labels,indices = tfop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
                 probability = tf.gather(probability,indices)
             else:
-                boxes,labels,indices = wop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                boxes,labels,indices = tfop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
                 probability = tf.gather(probability,indices)
                 if score_threshold > 1e-10:
                     p_mask = tf.greater(probability,score_threshold)

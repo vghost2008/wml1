@@ -3,7 +3,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import wnn
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 from .retinanet_outputs import RetinaNetOutputs

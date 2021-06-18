@@ -9,7 +9,7 @@ from tensorflow.python.training import moving_averages
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
-from wtfop.wtfop_ops import slide_batch
+from tfop import slide_batch
 import scipy
 import img_utils
 import re
@@ -751,12 +751,13 @@ def accuracy_num(logits,labels):
 
     return correct_num,tf.reduce_prod(tf.shape(labels))
 
-def get_regularization_losses(scopes=None,re_pattern=None,reduction="mean"):
+def get_regularization_losses(scopes=None,re_pattern=None,reduction="sum"):
     with tf.name_scope("regularization_losses"):
         col = get_variables_of_collection(tf.GraphKeys.REGULARIZATION_LOSSES,scopes=scopes,re_pattern=re_pattern)
         if len(col)>0:
             print("wr_loss")
             wmlu.show_list(col)
+            print("end wr_loss")
             if reduction == "mean":
                 return tf.reduce_mean(col)
             elif reduction == "sum":

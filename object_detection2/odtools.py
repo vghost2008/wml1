@@ -8,7 +8,7 @@ import numpy as np
 import object_detection2.bboxes as odb
 import img_utils as wmli
 import basic_tftools as btf
-import wtfop.wtfop_ops as wop
+import tfop
 
 
 def get_img_size_from_batched_inputs(inputs):
@@ -203,7 +203,7 @@ def filter_by_classeswise_thresholds(labels,bboxes,probs,thresholds):
 def batch_fill_bboxes(images,bboxes,length,v=1,W=None,H=None,relative_coord=True):
     def fn(image,lbboxes,l):
         lbboxes = lbboxes[:l]
-        image = wop.fill_bboxes(image=image,
+        image = tfop.fill_bboxes(image=image,
                                 bboxes=lbboxes,
                                 v = v)
         return image

@@ -1,11 +1,11 @@
 #coding=utf-8
 import tensorflow as tf
-from wtfop.wtfop_ops import roi_pooling,boxes_nms,decode_boxes1
-from wtfop.wtfop_ops import boxes_relative_to_absolute
+from tfop import roi_pooling,boxes_nms,decode_boxes1
+from tfop import boxes_relative_to_absolute
 import object_detection2.bboxes as odb
 import wml_tfutils as wmlt
 from tensorflow.python.ops import gen_image_ops
-import wtfop.wtfop_ops as wop
+import tfop
 from basic_tftools import channel
 import object_detection2.od_toolkit as odt
 import wnnlayer as wnnl
@@ -231,7 +231,7 @@ class WROIKeepRatio:
             B,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
 
             def draw_boxes(img,box):
-                return wop.fill_bboxes(img,tf.expand_dims(box,axis=0),v=0.0,include_last=False)
+                return tfop.fill_bboxes(img,tf.expand_dims(box,axis=0),v=0.0,include_last=False)
             mask = tf.ones([B,crop_height,crop_width,1])
 
             tmp_bboxes = tf.stack([tf.zeros([B]),tf.zeros([B]),tf.ones([B])*crop_height,xmin_pad],axis=-1)

@@ -1,7 +1,7 @@
 # coding=utf-8
 import tensorflow as tf
 import wml_tfutils as wmlt
-import wtfop.wtfop_ops as wop
+import tfop
 from object_detection2.standard_names import *
 import wmodule
 from object_detection2.datadef import *
@@ -47,7 +47,7 @@ class HRNetPEOutputs(wmodule.WChildModule):
     @btf.add_name_scope
     def _get_ground_truth(self,net):
         map_shape = btf.combined_static_and_dynamic_shape(net)
-        output = wop.hr_net_encode(keypoints=self.gt_keypoints,
+        output = tfop.hr_net_encode(keypoints=self.gt_keypoints,
                                    output_size=map_shape[1:3],
                                    glength=self.gt_length,
                                    gaussian_delta=self.cfg.OPENPOSE_GAUSSIAN_DELTA)
@@ -171,7 +171,7 @@ class HRNetPEOutputs(wmodule.WChildModule):
         tag_k,loc_k,val_k = self.top_k(det,tags)
         ans = self.match(tag_k,loc_k,val_k)
         ans = self.adjust(ans,det=det)
-        ans = wop.hr_net_refine(ans,det=det,tag=tags)
+        ans = tfop.hr_net_refine(ans,det=det,tag=tags)
 
         scores = ans[...,2]
         scores = tf.reduce_mean(scores,axis=-1,keepdims=False)
@@ -273,7 +273,7 @@ class HRNetPEOutputs(wmodule.WChildModule):
         return tag_k,loc_k,val_k
 
     def match(self,tag_k,loc_k,val_k):
-        res = tf.map_fn(lambda x:wop.match_by_tag(x[0],x[1],x[2],
+        res = tf.map_fn(lambda x:tfop.match_by_tag(x[0],x[1],x[2],
                                          detection_threshold=self.cfg.HRNET_DETECTION_THRESHOLD,
                                          tag_threshold=self.cfg.HRNET_TAG_THRESHOLD,
                                          use_detection_val=self.cfg.HRNET_USE_DETECTION_VAL),

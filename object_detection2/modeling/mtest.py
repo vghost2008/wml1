@@ -150,7 +150,7 @@ class WMLTest(tf.test.TestCase):
             size = [2.5,3.5]
             scales = [1.1, 1.2, 1.8]
             aspect_ratios = [0.5, 1.0, 2.0]
-            boxes0 = wop.anchor_generator([H, W], size, scales=scales, aspect_ratios=aspect_ratios)
+            boxes0 = tfop.anchor_generator([H, W], size, scales=scales, aspect_ratios=aspect_ratios)
             ag = AnchorGeneratorF(scales=scales,aspect_ratios=aspect_ratios)
             boxes1 = ag(shape=[H,W],size=size)
             boxes0 = odb.to_cxyhw(boxes0)

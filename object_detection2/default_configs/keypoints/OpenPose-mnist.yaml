@@ -22,11 +22,14 @@ MODEL:
     NORM: ""
     ACTIVATION_FN: "leaky_relu"
     POINTS_LEFT_RIGHT_GROUP: [[1,2]]
+    POINTS_PAIRS: [0,1,1,2,2,0]
 DATASETS:
   TRAIN: "mnist_kp_train"
   TEST: "mnist_kp_train"
+  SKIP_CROWD_DURING_TRAINING: False
+
 SOLVER:
-  IMS_PER_BATCH: 10
+  IMS_PER_BATCH: 6
   BASE_LR: 0.0001
   WARMUP_ITERS: 1000
   CLIP_NORM: 32

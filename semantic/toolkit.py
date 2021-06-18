@@ -1,6 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
-from wtfop.wtfop_ops import set_value
+from tfop import set_value
 import sys
 import os
 from .mask_utils import iou,np_iou

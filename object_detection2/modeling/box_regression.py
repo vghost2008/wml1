@@ -1,7 +1,7 @@
 #coding=utf-8
 import tensorflow as tf
 import math
-import wtfop.wtfop_ops as wop
+import tfop
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
 import object_detection2.bboxes as odb
@@ -65,12 +65,12 @@ class Box2BoxTransform(AbstractBox2BoxTransform):
         output:
         [batch_size,N,4]
         """
-        return wop.get_boxes_deltas(boxes=boxes,gboxes=gboxes,labels=labels,indices=indices,
+        return tfop.get_boxes_deltas(boxes=boxes,gboxes=gboxes,labels=labels,indices=indices,
                                     scale_weights=self.weights)
 
     @staticmethod
     def decode_boxes(boxes,deltas,prio_scaling):
-        #return wop.decode_boxes1(boxes=boxes,res=deltas,prio_scaling=prio_scaling)
+        #return tfop.decode_boxes1(boxes=boxes,res=deltas,prio_scaling=prio_scaling)
         return odb.decode_boxes(boxes=boxes,regs=deltas,prio_scaling=prio_scaling)
 
     def apply_deltas(self,deltas,boxes,img_size=None):
@@ -118,7 +118,7 @@ class CenterBox2BoxTransform(AbstractBox2BoxTransform):
         output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
         output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
         """
-        g_heatmaps_tl, g_heatmaps_br, g_heatmaps_c, g_offset, g_tags = wop.center_boxes_encode(gboxes,
+        g_heatmaps_tl, g_heatmaps_br, g_heatmaps_c, g_offset, g_tags = tfop.center_boxes_encode(gboxes,
                                                                                            glabels,
                                                                                            glength,
                                                                                            output_size,
@@ -210,7 +210,7 @@ class CenterBox2BoxTransform(AbstractBox2BoxTransform):
         height_inds = (br_ys<tl_ys)
 
         ct = tf.stack([ct_xs, ct_ys], axis=-1)
-        center_inds = wop.center_filter(bboxes,ct,sizes=[],nr=[3,5])
+        center_inds = tfop.center_filter(bboxes,ct,sizes=[],nr=[3,5])
 
         all_inds = tf.logical_or(cls_inds,dis_inds)
         all_inds = tf.logical_or(all_inds,width_inds)
@@ -253,7 +253,7 @@ class FCOSBox2BoxTransform(AbstractBox2BoxTransform):
         """
         if self.num_classes is not None:
             glabels = tf.clip_by_value(glabels,0,self.num_classes)
-        g_regression,g_center_ness,gt_boxes,gt_classes = wop.fcos_boxes_encode(gbboxes=gboxes,
+        g_regression,g_center_ness,gt_boxes,gt_classes = tfop.fcos_boxes_encode(gbboxes=gboxes,
                                                                                glabels=tf.cast(glabels,tf.int32),
                                                                                glength=glength,
                                                                                img_size=img_size,
@@ -370,7 +370,7 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
         output_offset: positive point offset [B,max_box_nr,6] (ytl,xtl,ybr,xbr,yc,xc)
         output_tags: positive point index [B,max_box_nr,3] (itl,ibr,ic)
         """
-        g_heatmaps_c, hw_offset, mask = wop.center2_boxes_encode(gboxes,
+        g_heatmaps_c, hw_offset, mask = tfop.center2_boxes_encode(gboxes,
                                                                  glabels,
                                                                  glength,
                                                                  output_size,
@@ -413,7 +413,7 @@ class CenterNet2Box2BoxTransform(AbstractBox2BoxTransform):
             h_ct = tf.nn.sigmoid(datas['heatmaps_ct'])
             offset = datas['offset']
             hw = datas['hw']
-            bboxes, labels, probs, index, lens = wop.center2_boxes_decode(heatmaps=h_ct,
+            bboxes, labels, probs, index, lens = tfop.center2_boxes_decode(heatmaps=h_ct,
                                                                           offset=offset,
                                                                           hw=hw,
                                                                           k=self.k,

@@ -504,15 +504,19 @@ class SimpleTrainer(TrainerBase):
                         DataLoader.detection_image_summary(data,name=f"data_source{i}")
 
                     self.res_data,loss_dict = self.model.forward(data)
-                loss_values = []
+
                 for k,v in loss_dict.items():
                     all_loss_dict[k+f"_stage{i}"] = v
                     tf.summary.scalar(f"loss/{k}",v)
-                    ##
-                    #v = tf.Print(v,[k,tf.is_nan(v), tf.is_inf(v)])
-                    ##
-                    v = tf.cond(tf.logical_or(tf.is_nan(v), tf.is_inf(v)), lambda: tf.zeros_like(v), lambda: v)
-                    loss_values.append(v)
+
+                loss_values = []
+                with tf.name_scope("filter_nan_and_inf_loss"):
+                    for k,v in loss_dict.items():
+                        ##
+                        #v = tf.Print(v,[k,tf.is_nan(v), tf.is_inf(v)])
+                        ##
+                        v = tf.cond(tf.logical_or(tf.is_nan(v), tf.is_inf(v)), lambda: tf.zeros_like(v), lambda: v)
+                        loss_values.append(v)
 
                 scope._reuse = tf.AUTO_REUSE
                 '''if (i==0) and len(tf.get_collection(GRADIENT_DEBUG_COLLECTION))>0:
@@ -527,17 +531,18 @@ class SimpleTrainer(TrainerBase):
                                                                           re_pattern=train_repattern)
                 #
                 if self.cfg.SOLVER.FILTER_NAN_AND_INF_GRADS:
-                    grads = [list(x) for x in grads]
-                    for i,(g, v) in enumerate(grads):
-                        try:
-                            if g is not None:
-                                g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
-                                                                                               stddev=1e-5),
-                                     g)
-                        except:
-                            print(f"Error {g}/{v}")
-                            raise Exception("Error")
-                        grads[i][0] = g
+                    with tf.name_scope("filter_nan_and_inf_grads"):
+                        grads = [list(x) for x in grads]
+                        for i,(g, v) in enumerate(grads):
+                            try:
+                                if g is not None:
+                                    g = tf.where(tf.logical_or(tf.is_nan(g),tf.is_inf(g)),tf.random_normal(shape=wmlt.combined_static_and_dynamic_shape(g),
+                                                                                                   stddev=1e-5),
+                                         g)
+                            except:
+                                print(f"Error {g}/{v}")
+                                raise Exception("Error")
+                            grads[i][0] = g
                 #
                 tower_grads.append(grads)
         ########################
@@ -720,6 +725,7 @@ class SimpleTrainer(TrainerBase):
         self.sess.run(init)
         print("batch_norm_ops.")
         wmlu.show_list([x.name for x in tf.get_collection(tf.GraphKeys.UPDATE_OPS)])
+
     def resume_or_load(self,ckpt_path=None,sess=None,option="auto",**kwargs):
         if ckpt_path is None:
             ckpt_path = self.ckpt_dir

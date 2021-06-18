@@ -1,7 +1,7 @@
 import tensorflow as tf
 from object_detection2.standard_names import *
 from object_detection2.mot_toolkit.tracking_utils.utils import *
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odb
 from object_detection2.visualization import colors_tableau
 import object_detection2.visualization as odv
@@ -19,7 +19,7 @@ class SORTCPPTracker(object):
         self.is_first_frame = tf.placeholder(tf.bool, shape=())
         self.bboxes = tf.placeholder(tf.float32, shape=[None, 4])
         self.probs = tf.placeholder(tf.float32, shape=[None])
-        self.tracked_id,self.tracked_bboxes = wop.sort_mot(self.bboxes,self.probs,
+        self.tracked_id,self.tracked_bboxes = tfop.sort_mot(self.bboxes,self.probs,
                                                            self.is_first_frame,
                                                            det_thredh=self.det_thresh,
                                                            frame_rate=self.frame_rate,

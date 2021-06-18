@@ -1,6 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
-import wtfop.wtfop_ops as wop
+import tfop
 import wml_tfutils as wmlt
 import wnnlayer as wnnl
 import basic_tftools as btf
@@ -22,7 +22,7 @@ def random_select_boxes(boxes,size,len=None):
         else:
             data_nr = len
         indexs = tf.range(data_nr)
-        indexs = wop.wpad(indexs, [0, tf.reshape(size - data_nr,())])
+        indexs = tfop.wpad(indexs, [0, tf.reshape(size - data_nr,())])
         indexs = tf.random_shuffle(indexs)
         indexs = tf.random_crop(indexs, [size])
         boxes = tf.gather(boxes, indexs)

@@ -4,7 +4,7 @@ import wml_tfutils as wmlt
 import wnn
 from basic_tftools import channel
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 import wmodule
@@ -149,7 +149,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             pull = tag0+tag1
 
         with tf.name_scope("push_loss"):
-            neg_index = wop.make_neg_pair_index(mask)
+            neg_index = tfop.make_neg_pair_index(mask)
             push_mask = tf.greater(neg_index,-1)
             neg_index = tf.nn.relu(neg_index)
             num = tf.reduce_sum(tf.cast(push_mask,tf.float32))+1e-4
@@ -197,7 +197,7 @@ class CenterNetOutputs(wmodule.WChildModule):
             scores,_ = wmlt.batch_concat_with_length(all_scores,all_length)
             clses,length = wmlt.batch_concat_with_length(all_clses,all_length)
 
-            nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold,
+            nms = functools.partial(tfop.boxes_nms, threshold=self.nms_threshold,
                                     classes_wise=True,
                                     k=self.max_detections_per_image)
             #预测时没有背景, 这里加上1使背景=0
@@ -341,7 +341,7 @@ class CenterNetOutputs(wmodule.WChildModule):
         _,box_nr,_ = wmlt.combined_static_and_dynamic_shape(bboxes)
         length = tf.ones([B],tf.int32)*box_nr
         #bboxes = tf.Print(bboxes,["bboxes",tf.reduce_min(bboxes),tf.reduce_max(bboxes),tf.reduce_min(ct),tf.reduce_max(ct)],summarize=100)
-        center_index = wop.center_boxes_filter(bboxes=bboxes,
+        center_index = tfop.center_boxes_filter(bboxes=bboxes,
                                               bboxes_clses=clses,
                                               center_points=ct,
                                               center_clses=ct_clses,

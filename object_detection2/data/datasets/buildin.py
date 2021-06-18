@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 from .build import DATASETS_REGISTRY
-from iotoolkit.pascal_voc_tf_decodev2 import get_data as voc_get_data
-from iotoolkit.coco_tf_decodev2 import get_data as coco_get_data
-from iotoolkit.coco_tf_kp_deccode import get_data as coco_kp_get_data
+from datasets_tools.pascal_voc_tf_decodev2 import get_data as voc_get_data
+from datasets_tools.coco_tf_decode import get_data as coco_get_data
+from datasets_tools.coco_tf_kp_decode import get_data as coco_kp_get_data
 from iotoolkit.coco_toolkit import ID_TO_TEXT as coco_id_to_text
 from iotoolkit.coco_toolkit import COMPRESSED_ID_TO_TEXT as coco_compressed_id_to_text
 from iotoolkit.pascal_voc_data import ID_TO_TEXT as pascal_voc_id_to_text
-from iotoolkit.mot_tf_decode import get_data as mot_get_data
+from datasets_tools.mot_tf_decode import get_data as mot_get_data
 import wml_utils as wmlu
 
 # ==== Predefined datasets and splits for COCO ==========

@@ -1,5 +1,5 @@
 import tensorflow as tf
-import wtfop.wtfop_ops as wtfop
+import tfop
 import wml_tfutils as wmlt
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import variable_scope
@@ -92,11 +92,11 @@ def separable_conv1d(inputs,num_outputs,kernel_size,padding='SAME',depth_multipl
 
 def probability_adjust(probs,classes=[]):
     if probs.get_shape().ndims == 2:
-        return wtfop.probability_adjust(probs=probs,classes=classes)
+        return tfop.probability_adjust(probs=probs,classes=classes)
     else:
         old_shape = tf.shape(probs)
         probs = tf.reshape(probs,[-1,old_shape[-1]])
-        out = wtfop.probability_adjust(probs=probs,classes=classes)
+        out = tfop.probability_adjust(probs=probs,classes=classes)
         out = tf.reshape(out,old_shape)
         return out
 
@@ -1720,7 +1720,7 @@ def deform_conv2d(inputs,
 
         inputs = tf.transpose(inputs,perm=[0,3,1,2])
         offset = tf.transpose(offset,perm=[0,3,1,2])
-        outputs = wtfop.deform_conv_op(x=inputs,
+        outputs = tfop.deform_conv_op(x=inputs,
                                        filter=w,
                                        offset=offset,
                                        strides=[1, 1,stride, stride],padding=padding,

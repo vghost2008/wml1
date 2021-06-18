@@ -5,7 +5,7 @@ import basic_tftools as btf
 import wnn
 from basic_tftools import channel
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 import wmodule
@@ -75,7 +75,7 @@ class FairMOTOutputs(wmodule.WChildModule):
                                                 tf.ones_like(self.gt_labels),
                                                 self.gt_length,
                                                 output_size=shape)
-            g_heatmaps_c, _, _= wop.center2_boxes_encode(self.gt_boxes,
+            g_heatmaps_c, _, _= tfop.center2_boxes_encode(self.gt_boxes,
                                                          self.gt_labels,
                                                          self.gt_length,
                                                          shape,

@@ -6,7 +6,7 @@ import wml_tfutils as wmlt
 import functools
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
-import wtfop.wtfop_ops as wop
+import tfop
 from functools import partial
 from object_detection2.modeling.build import HEAD_OUTPUTS
 
@@ -27,7 +27,7 @@ class PGFCOSOutputs(_FCOSGIOUOutputs):
 
     def inference(self, inputs,box_cls, box_regression,center_ness):
         k = self.post_nms_topk[self.is_training]
-        nms = partial(wop.boxes_nms_nr2,k=k,
+        nms = partial(tfop.boxes_nms_nr2,k=k,
                       threshold=self.nms_threshold,
                       confidence=tf.convert_to_tensor([1.0],dtype=tf.float32))
         return super().inference(inputs,box_cls,box_regression,center_ness,nms=nms,pad=False)

@@ -3,7 +3,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import wnn
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 import wmodule
@@ -305,7 +305,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
         boxes_all,class_idxs_all = y
         scores_all,_ = x
         if nms is None:
-            nms = functools.partial(wop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
+            nms = functools.partial(tfop.boxes_nms, threshold=self.nms_threshold, classes_wise=True,k=self.max_detections_per_image)
         boxes,labels,nms_idxs = nms(bboxes=boxes_all,classes=class_idxs_all)
         scores = tf.gather(scores_all,nms_idxs)
 

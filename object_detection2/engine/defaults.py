@@ -12,22 +12,9 @@ def default_argument_parser():
     Returns:
         argparse.ArgumentParser:
     """
-    parser = argparse.ArgumentParser(description="hhrnet Training")
-    #parser.add_argument("--config-file", default="Base-RetinaNet.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="RetinaNet-anchor.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="RetinaNet.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="EfficientDet-DR.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="Mask-RCNN-FPN-sephv2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="Mask-RCNN-FPN-3-2.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="RetinaNetBBD.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="OpenPose-coco.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="FairMOT.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="FairMOT-fastv3.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="FairMOT-snpe.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="SNPEMOT.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="FairMOT-test.yaml", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="ts_pose_estimation_mnist.yaml", metavar="FILE", help="path to config file")
-    #parser.add_argument("--config-file", default="Mask-RCNN-FPN-box-free.yaml", metavar="FILE", help="path to config file")
+    parser = argparse.ArgumentParser(description="Arguments")
+    #parser.add_argument("--config-file", default="cascade_mask_FPN_M", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="/home/vghost/ai/work/wml/object_detection2/default_configs/keypoints/OpenPose-mnist.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",
@@ -40,8 +27,8 @@ def default_argument_parser():
         default=None,
         nargs=argparse.REMAINDER,
     )
-    parser.add_argument("--log_dir", default=wmlu.home_dir("ai/tmp3/object_detection2_log"),type=str,help="path to log dir")
-    parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp3/object_detection2"),type=str,help="path to ckpt dir")
+    parser.add_argument("--log_dir", default=wmlu.home_dir("ai/tmp/object_detection2_log"),type=str,help="path to log dir")
+    parser.add_argument("--ckpt_dir", default=wmlu.home_dir("ai/tmp/object_detection2"),type=str,help="path to ckpt dir")
     parser.add_argument("--test_data_dir", default="/2_data/wj/mldata/coco/val2017",type=str,help="path to test data dir")
     parser.add_argument("--save_data_dir", default="/2_data/wj/mldata/coco/coco_results",type=str,help="path to save data dir")
     '''
@@ -54,14 +41,14 @@ def default_argument_parser():
     return parser
 
 def get_config_file(name:str):
-    CONFIG_DIR = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/"
-    COCOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/coco/"
-    MODCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistod/"
-    MODGEOCONFIG_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/mnistodgeo/"
-    RESEARCH_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/research/"
-    SEMANTIC_DIR = "/home/wj/ai/work/wml/object_detection2/default_configs/semantic/"
-    KEYPOINTS = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/keypoints/"
-    MOT = "/home/wj/ai/work/pose_estimation/wml/object_detection2/default_configs/MOT/"
+    CONFIG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),"default_configs")
+    COCOCONFIG_DIR = os.path.join(CONFIG_DIR,"coco")
+    MODCONFIG_DIR = os.path.join(CONFIG_DIR,"mnistod")
+    MODGEOCONFIG_DIR = os.path.join(CONFIG_DIR,"mnistodgeo")
+    RESEARCH_DIR = os.path.join(CONFIG_DIR,"research")
+    SEMANTIC_DIR = os.path.join(CONFIG_DIR,"semantic")
+    KEYPOINTS = os.path.join(CONFIG_DIR,"keypoints")
+    MOT = os.path.join(CONFIG_DIR,"MOT")
     search_dirs = [SEMANTIC_DIR,COCOCONFIG_DIR,MODCONFIG_DIR,CONFIG_DIR,RESEARCH_DIR,MODGEOCONFIG_DIR,KEYPOINTS,MOT]
     if os.path.exists(name):
         return name
@@ -72,5 +59,11 @@ def get_config_file(name:str):
         path = os.path.join(dir,name)
         if os.path.exists(path):
             return path
+
+    ALL_FILES = wmlu.recurse_get_filepath_in_dir(CONFIG_DIR,suffix="yaml")
+
+    for file in ALL_FILES:
+        if os.path.basename(file)==name:
+            return file
 
     return name

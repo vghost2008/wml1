@@ -5,7 +5,7 @@ import wml_tfutils as wmlt
 import functools
 from object_detection2.standard_names import *
 from object_detection2.datadef import *
-import wtfop.wtfop_ops as wop
+import tfop
 from object_detection2.modeling.build import HEAD_OUTPUTS
 
 @HEAD_OUTPUTS.register()

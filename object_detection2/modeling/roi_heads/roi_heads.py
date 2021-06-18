@@ -14,7 +14,7 @@ from .mask_head import *
 import object_detection2.od_toolkit as od
 import object_detection2.bboxes as bboxes
 from object_detection2.standard_names import *
-from wtfop.wtfop_ops import wpad
+from tfop import wpad
 from object_detection2.datadef import *
 from .keypoint_head import build_keypoint_head
 from object_detection2.odtools import *
@@ -124,7 +124,7 @@ class ROIHeads(wmodule.WChildModule):
 
                 print("Use balanced fastrcnn pos sampler.")
                 with tf.name_scope("random_select"):
-                    indexs = wop.his_random_select(data=p_gt_index,select_nr=size)
+                    indexs = tfop.his_random_select(data=p_gt_index,select_nr=size)
                     #indexs = tf.Print(indexs,["indexs",tf.shape(p_gt_index),indexs],summarize=100)
                     indices = tf.gather(indices, indexs)
                     return indices
@@ -137,7 +137,7 @@ class ROIHeads(wmodule.WChildModule):
                 low_value = self.cfg.MODEL.ROI_HEADS.BALANCED_NEG_SAMPLE_LOW_VALUE
                 print(f"Use balanced fastrcnn neg sampler, low value = {low_value}.")
                 with tf.name_scope("random_select"):
-                    indexs = wop.his_random_select(his_nr=8,min=low_value,max=0.5,data=ious,select_nr=size)
+                    indexs = tfop.his_random_select(his_nr=8,min=low_value,max=0.5,data=ious,select_nr=size)
                     indices = tf.gather(indices, indexs)
                     return indices
 

@@ -3,7 +3,7 @@ import tensorflow as tf
 import wmodule
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
-import wtfop.wtfop_ops as wop
+import tfop
 import functools
 from object_detection2.datadef import *
 import numpy as np
@@ -509,10 +509,10 @@ class FastRCNNOutputs(wmodule.WChildModule):
         with tf.name_scope("fast_rcnn_outputs_inference"):
             output_fix_nr = self.cfg.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES
             if output_fix_nr < 1:
-                nms = functools.partial(wop.boxes_nms, threshold=nms_thresh,
+                nms = functools.partial(tfop.boxes_nms, threshold=nms_thresh,
                                         classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
             else:
-                nms = functools.partial(wop.boxes_nms_nr2, threshold=nms_thresh,
+                nms = functools.partial(tfop.boxes_nms_nr2, threshold=nms_thresh,
                                         classes_wise = self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,
                                         k=output_fix_nr,
                                         allow_less_output=True)

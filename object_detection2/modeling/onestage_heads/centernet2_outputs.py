@@ -4,7 +4,7 @@ import wml_tfutils as wmlt
 import wnn
 from basic_tftools import channel
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import object_detection2.bboxes as odbox
 from object_detection2.standard_names import *
 import wmodule

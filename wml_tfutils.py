@@ -9,7 +9,7 @@ import numpy as np
 import logging
 import wsummary
 import basic_tftools as btf
-from wtfop.wtfop_ops import set_value
+from tfop import set_value
 
 
 _HASH_TABLE_COLLECTION = "HASH_TABLE"

@@ -6,7 +6,7 @@ import semantic.visualization_utils as visu
 import numpy as np
 import cv2
 import sys
-import wtfop.wtfop_ops as wop
+import tfop
 
 def __draw_detection_image_summary(images,
                            boxes,
@@ -268,7 +268,7 @@ shape=[N,H,W]
 '''
 @btf.add_name_scope
 def tf_get_fullsize_mask(boxes,masks,size,mask_bg_value=0):
-    return wop.full_size_mask(mask=masks,bboxes=boxes,size=size)
+    return tfop.full_size_mask(mask=masks,bboxes=boxes,size=size)
     '''res = tf.py_func(get_fullsize_mask,[boxes,masks,size,mask_bg_value],Tout=masks.dtype)
     N,h,w = btf.combined_static_and_dynamic_shape(masks)
     H,W = size[0],size[1]

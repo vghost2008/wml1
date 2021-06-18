@@ -4,7 +4,7 @@ import wmodule
 import basic_tftools as btf
 import wml_tfutils as wmlt
 from object_detection2.datadef import EncodedData
-import wtfop.wtfop_ops as wop
+import tfop
 import functools
 from object_detection2.datadef import *
 import numpy as np

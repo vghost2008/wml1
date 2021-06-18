@@ -1,6 +1,6 @@
 import tensorflow as tf
 import wml_tfutils as wmlt
-import wtfop.wtfop_ops as wop
+import tfop
 from object_detection2.config.config import global_cfg
 from object_detection2.modeling.build import HEAD_OUTPUTS
 import itertools

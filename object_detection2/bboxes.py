@@ -1,6 +1,6 @@
 #coding=utf-8
 import tensorflow as tf
-import wtfop.wtfop_ops as wtfop
+import tfop
 import basic_tftools as btf
 import numpy as np
 import os
@@ -10,15 +10,15 @@ import basic_tftools as btf
 sys.path.append(os.path.dirname(__file__))
 import math
 import object_detection2.wmath as wmath
-import wtfop.wtfop_ops as wtfop
+import tfop
 import img_utils as wmli
 import cv2 as cv
 
 def random_distored_boxes(bboxes,limits=[0.,0.,0.],size=1,keep_org=True):
     if bboxes.get_shape().ndims == 2:
-        return wtfop.random_distored_boxes(boxes=bboxes,limits=limits,size=size,keep_org=keep_org)
+        return tfop.random_distored_boxes(boxes=bboxes,limits=limits,size=size,keep_org=keep_org)
     else:
-        return tf.map_fn(lambda x: wtfop.random_distored_boxes(boxes=x,limits=limits,size=size,keep_org=keep_org),
+        return tf.map_fn(lambda x: tfop.random_distored_boxes(boxes=x,limits=limits,size=size,keep_org=keep_org),
                          elems=bboxes,back_prop=False)
 
 '''
@@ -470,9 +470,9 @@ def tf_correct_yxminmax_boxes(data):
 
 def distored_boxes(bboxes,scale=[],xoffset=[],yoffset=[],keep_org=True):
     if bboxes.get_shape().ndims == 2:
-        return wtfop.distored_boxes(boxes=bboxes,scale=scale,xoffset=xoffset,yoffset=yoffset,keep_org=keep_org)
+        return tfop.distored_boxes(boxes=bboxes,scale=scale,xoffset=xoffset,yoffset=yoffset,keep_org=keep_org)
     else:
-        return tf.map_fn(lambda x: wtfop.distored_boxes(boxes=x,scale=scale,xoffset=xoffset,yoffset=yoffset,keep_org=keep_org),
+        return tf.map_fn(lambda x: tfop.distored_boxes(boxes=x,scale=scale,xoffset=xoffset,yoffset=yoffset,keep_org=keep_org),
                          elems=bboxes,back_prop=False)
 
 '''
@@ -572,13 +572,13 @@ def batch_decode_boxes(anchor_bboxes,regs,prio_scaling=[0.1,0.1,0.2,0.2]):
         old_shape = tf.shape(regs)
     if anchor_bboxes.get_shape().as_list()[0] == 1:
         anchor_bboxes = tf.squeeze(anchor_bboxes,axis=0)
-        return btf.static_or_dynamic_map_fn(lambda reg:wtfop.decode_boxes1(anchor_bboxes,reg,prio_scaling=prio_scaling),
+        return btf.static_or_dynamic_map_fn(lambda reg:tfop.decode_boxes1(anchor_bboxes,reg,prio_scaling=prio_scaling),
                                              elems=regs,
                                              dtype=tf.float32,back_prop=False)
     else:
         anchor_bboxes = tf.reshape(anchor_bboxes,[-1,4])
         regs = tf.reshape(regs,[-1,4])
-        res = wtfop.decode_boxes1(anchor_bboxes,regs,prio_scaling=prio_scaling)
+        res = tfop.decode_boxes1(anchor_bboxes,regs,prio_scaling=prio_scaling)
         return tf.reshape(res,old_shape)
 
 '''

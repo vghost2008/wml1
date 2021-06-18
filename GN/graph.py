@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import wml_tfutils as wmlt
 import functools
-import wtfop.wtfop_ops as wop
+import tfop
 import basic_tftools as btf
 
 slim = tf.contrib.slim
@@ -122,8 +122,8 @@ class DynamicAdjacentMatrix(AbstractAdjacentGraph):
         r_edges_indexs = to_realedge_indices(r_edges_indexs)
         points_to_sedges,points_to_redges = tf.unstack(datas,axis=0)
         #points_to_sedges = tf.Print(points_to_sedges,["shape g:",tf.shape(points_to_sedges),i,tf.shape(s_edges_indexs)])
-        points_to_sedges = wop.set_value(points_to_sedges,i,tf.reshape(s_edges_indexs,[-1,1]))
-        points_to_redges = wop.set_value(points_to_redges,i,tf.reshape(r_edges_indexs,[-1,1]))
+        points_to_sedges = tfop.set_value(points_to_sedges,i,tf.reshape(s_edges_indexs,[-1,1]))
+        points_to_redges = tfop.set_value(points_to_redges,i,tf.reshape(r_edges_indexs,[-1,1]))
         return tf.stack([points_to_sedges,points_to_redges],axis=0)
 
     def gather_points_data_for_edges(self):
