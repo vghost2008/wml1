@@ -44,6 +44,7 @@ def register_all_pascal_voc(root="datasets"):
         name = x[0]
         args = x[1:]
         DATASETS_REGISTRY.register(name,args)
+
 def register_all_coco(root="datasets"):
     #名字，tfrecord文件路径,解码函数，num_classes(不包含背景)
     SPLITS = [

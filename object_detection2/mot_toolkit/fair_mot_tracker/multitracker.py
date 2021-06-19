@@ -15,6 +15,7 @@ from .basetrack import BaseTrack, TrackState
 import object_detection2.bboxes as odb
 from object_detection2.visualization import colors_tableau
 import object_detection2.visualization as odv
+from ..build import MOT_REGISTRY
 
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
@@ -168,6 +169,7 @@ class STrack(BaseTrack):
     def __repr__(self):
         return 'OT_{}_({}-{})'.format(self.track_id, self.start_frame, self.end_frame)
 
+@MOT_REGISTRY.register()
 class JDETracker(object):
     def __init__(self, model, det_thresh=0.1,frame_rate=30,track_buffer=30):
         self.model = model

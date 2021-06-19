@@ -13,18 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-r"""Convert raw COCO dataset to TFRecord for object_detection.
-
-Example usage:
-    python create_coco_tf_record.py --logtostderr \
-      --train_image_dir="${TRAIN_IMAGE_DIR}" \
-      --val_image_dir="${VAL_IMAGE_DIR}" \
-      --test_image_dir="${TEST_IMAGE_DIR}" \
-      --train_annotations_file="${TRAIN_ANNOTATIONS_FILE}" \
-      --val_annotations_file="${VAL_ANNOTATIONS_FILE}" \
-      --testdev_annotations_file="${TESTDEV_ANNOTATIONS_FILE}" \
-      --output_dir="${OUTPUT_DIR}"
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -48,19 +36,8 @@ flags = tf.app.flags
 tf.flags.DEFINE_boolean('include_masks', True,
                         'Whether to include instance segmentations masks '
                         '(PNG encoded) in the result. default: False.')
-tf.flags.DEFINE_string('train_image_dir', '',
-                       'Training image directory.')
-tf.flags.DEFINE_string('val_image_dir', '',
-                       'Validation image directory.')
-tf.flags.DEFINE_string('test_image_dir', '',
-                       'Test image directory.')
-tf.flags.DEFINE_string('train_annotations_file', '',
-                       'Training annotations JSON file.')
-tf.flags.DEFINE_string('val_annotations_file', '',
-                       'Validation annotations JSON file.')
-tf.flags.DEFINE_string('testdev_annotations_file', '',
-                       'Test-dev annotations JSON file.')
-tf.flags.DEFINE_string('output_dir', '/tmp/', 'Output data directory.')
+tf.flags.DEFINE_string('data_dir', wmlu.home_dir("ai/mldata/coco"),
+                       'data dir.')
 
 FLAGS = flags.FLAGS
 
@@ -82,7 +59,7 @@ def reverse_trans_id(category_id):
     return COMPRESSED_ID_TO_ID[category_id]
     #return category_id
 
-labels_repeat_nr = np.ones(shape=[91],dtype=np.int32)
+'''labels_repeat_nr = np.ones(shape=[91],dtype=np.int32)
 max_repeat = 100
 for i in range(91):
     if i in ID_TO_TEXT:
@@ -91,10 +68,9 @@ for i in range(91):
             print(f"Error id {i}/{name}")
             raise ValueError(name)
         else:
-            labels_repeat_nr[i] = max(min(int(30/COCO_CLASSES_FREQ[name]),max_repeat),1)
-print("labels_repeat_nr",labels_repeat_nr)
-def get_repeat_nr(label):
-    return labels_repeat_nr[label]
+            labels_repeat_nr[i] = max(min(int(30/COCO_CLASSES_FREQ[name]),max_repeat),1)'''
+
+
 
 def create_tf_example(image,
                       annotations_list,
@@ -163,7 +139,6 @@ def create_tf_example(image,
       num_annotations_skipped += 1
       continue
     category_id = int(object_annotations['category_id'])
-    repeat_nr = max(repeat_nr,get_repeat_nr(category_id))
     category_id = trans_id(category_id)
     if not category_id_filter(category_id):
       num_annotations_skipped += 1
@@ -309,27 +284,31 @@ def get_save_path(save_dir,name,fidx):
     return '%s/%s_%03d.tfrecord' % (save_dir, name, fidx)
 
 def main(_):
-  assert FLAGS.train_image_dir, '`train_image_dir` missing.'
-  assert FLAGS.val_image_dir, '`val_image_dir` missing.'
-  assert FLAGS.train_annotations_file, '`train_annotations_file` missing.'
-  assert FLAGS.val_annotations_file, '`val_annotations_file` missing.'
+  SCRATCH_DIR = FLAGS.data_dir
+  train_image_dir = os.path.join(SCRATCH_DIR, "train2017")
+  val_image_dir = os.path.join(SCRATCH_DIR, "val2017")
+  train_annotations_file = os.path.join(SCRATCH_DIR, "annotations/instances_train2017.json")
+  val_annotations_file = os.path.join(SCRATCH_DIR, "annotations/instances_val2017.json")
+  output_dir = os.path.join(SCRATCH_DIR,"tfdata_2017")
 
-  if not tf.gfile.IsDirectory(FLAGS.output_dir):
-    tf.gfile.MakeDirs(FLAGS.output_dir)
-  train_output_path = FLAGS.output_dir+"_train"
-  val_output_path = FLAGS.output_dir+"_val"
 
-  '''_create_tf_record_from_coco_annotations(
-      FLAGS.train_annotations_file,
-      FLAGS.train_image_dir,
+
+  if not tf.gfile.IsDirectory(output_dir):
+    tf.gfile.MakeDirs(output_dir)
+  train_output_path = output_dir+"_train"
+  val_output_path = output_dir+"_val"
+
+  _create_tf_record_from_coco_annotations(
+      train_annotations_file,
+      train_image_dir,
       train_output_path,
       FLAGS.include_masks,
       name='coco_train',
-      is_train_data=True)'''
+      is_train_data=True)
 
   _create_tf_record_from_coco_annotations(
-      FLAGS.val_annotations_file,
-      FLAGS.val_image_dir,
+      val_annotations_file,
+      val_image_dir,
       val_output_path,
       FLAGS.include_masks,
       name='coco_val',
@@ -337,10 +316,4 @@ def main(_):
 
 
 if __name__ == '__main__':
-    SCRATCH_DIR=wmlu.home_dir("ai/mldata/coco")
-    FLAGS.train_image_dir = os.path.join(SCRATCH_DIR,"train2017")
-    FLAGS.val_image_dir =  os.path.join(SCRATCH_DIR,"val2017")
-    FLAGS.train_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_train2017.json")
-    FLAGS.val_annotations_file = os.path.join(SCRATCH_DIR,"annotations/instances_val2017.json")
-    FLAGS.output_dir = output_dir = wmlu.home_dir("ai/mldata/coco/tfdata_2017")
     tf.app.run()

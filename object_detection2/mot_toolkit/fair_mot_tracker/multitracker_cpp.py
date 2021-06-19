@@ -5,7 +5,9 @@ import tfop
 import object_detection2.bboxes as odb
 from object_detection2.visualization import colors_tableau
 import object_detection2.visualization as odv
+from ..build import MOT_REGISTRY
 
+@MOT_REGISTRY.register()
 class CPPTracker(object):
     def __init__(self, model, det_thresh=0.1, frame_rate=30, track_buffer=30):
         self.model = model

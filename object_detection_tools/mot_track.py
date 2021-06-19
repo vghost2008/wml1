@@ -8,6 +8,7 @@ from object_detection_tools.predictmodel import PredictModel
 from object_detection2.mot_toolkit.fair_mot_tracker.multitracker import JDETracker
 from object_detection2.mot_toolkit.fair_mot_tracker.multitracker_cpp import CPPTracker
 from object_detection2.standard_names import *
+from object_detection2.mot_toolkit.build import build_mot
 import tensorflow as tf
 import os
 import wml_utils as wmlu
@@ -78,7 +79,7 @@ def main(_):
     #model.savePBFile("/home/wj/0day/mot_large.pb",names)
     model.savePBFile("/home/wj/0day/motv3.pb",names)
     #return
-    tracker = JDETracker(model)
+    tracker = build_mot(cfg)
     #model.savePBFile("/home/wj/0day/test.pb",names)
     #return
     #tracker = JDETracker(model)

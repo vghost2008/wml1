@@ -911,6 +911,7 @@ _C.MODEL.KEYPOINTS.AE_LOSS_SCALE=1e-3
 # KEYPOINTS
 # ---------------------------------------------------------------------------- #
 _C.MODEL.MOT = CN()
+_C.MODEL.MOT.NAME = "JDETracker"
 _C.MODEL.MOT.FAIR_MOT_ID_DIM = 64
 _C.MODEL.MOT.FAIR_MOT_NUM_CLASSES = 500
 _C.MODEL.MOT.FAIR_MOT_LOSS_LAMBDA_ID_EMBEDDING = 1.0
