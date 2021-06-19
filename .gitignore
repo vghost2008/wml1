@@ -7,4 +7,6 @@ __pycache__
 *.log
 *~
 *.swp
+*.o
+*.so
 core
