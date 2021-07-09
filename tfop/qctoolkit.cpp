@@ -342,7 +342,7 @@ class QcPostProcessOp: public OpKernel {
                     }
                     new_contours.push_back(new_points);
                 }
-                cv::drawContours(res_mask,new_contours,-1,cv::Scalar(1),CV_FILLED,8,hierarchy);
+                cv::drawContours(res_mask,new_contours,-1,cv::Scalar(1),cv::FILLED,8,hierarchy);
 
             }
 
@@ -351,7 +351,7 @@ class QcPostProcessOp: public OpKernel {
             vector<cv::Vec4i> hierarchy;
             cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3), cv::Point(-1, -1));
 
-            cv::morphologyEx(res_mask, res_mask1, CV_MOP_CLOSE, kernel);
+            cv::morphologyEx(res_mask, res_mask1, cv::MORPH_CLOSE, kernel);
 
             mask_t r_mask(mask_size,mask_size);
             memcpy(r_mask.data(),res_mask1.data,mask_size*mask_size);

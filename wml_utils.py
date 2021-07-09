@@ -2,7 +2,6 @@
 import os
 import numpy as np
 import os
-import tensorflow as tf
 import shutil
 import scipy
 import random
@@ -14,9 +13,6 @@ import sys
 import socket
 import datetime
 import hashlib
-
-slim = tf.contrib.slim
-
 
 def convert_to_nparray(value,shape=None,dtype=np.float32):
     if shape is None:

@@ -344,7 +344,7 @@ class MinAreaRectWithBboxesOp: public OpKernel {
                     auto size = get_size(box);
                     cv::Mat n_mask;
 
-                    cv::resize(m_mask,n_mask,cv::Size(get<1>(size),get<0>(size)),0,0,CV_INTER_LINEAR);
+                    cv::resize(m_mask,n_mask,cv::Size(get<1>(size),get<0>(size)),0,0,cv::INTER_LINEAR);
 
                     auto rect = getRotatedRect(n_mask);
                     auto scale = get<2>(size);

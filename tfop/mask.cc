@@ -276,7 +276,7 @@ class FullSizeMaskOp: public OpKernel {
                 const cv::Mat input_mask(mh,mw,bm::at<type_to_int,T>::type::value,(void*)(mask.data()+i*mh*mw));
                 cv::Mat dst_mask(ymax-ymin+1,xmax-xmin+1,bm::at<type_to_int,T>::type::value);
 
-                cv::resize(input_mask,dst_mask,cv::Size(xmax-xmin+1,ymax-ymin+1),0,0,CV_INTER_LINEAR);
+                cv::resize(input_mask,dst_mask,cv::Size(xmax-xmin+1,ymax-ymin+1),0,0,cv::INTER_LINEAR);
 
 
                 tensor_map_t src_map((T*)dst_mask.data,dst_mask.rows,dst_mask.cols);
@@ -442,12 +442,12 @@ class GetBboxesFromMaskOp: public OpKernel {
 
 
             if(cv_type == CV_32FC1) {
-                cv::threshold(img,dst_img,0.5,255,CV_THRESH_BINARY);
+                cv::threshold(img,dst_img,0.5,255,cv::THRESH_BINARY);
                 cv::Mat dst_img1;
                 dst_img.convertTo(dst_img1,CV_8UC1);
                 cv::findContours(dst_img1, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point(0,0));
             } else {
-                cv::threshold(img,dst_img,127,255,CV_THRESH_BINARY);
+                cv::threshold(img,dst_img,127,255,cv::THRESH_BINARY);
                 cv::findContours(dst_img, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point(0,0));
             }
 
@@ -746,7 +746,7 @@ class MergeInstanceByMaskOp: public OpKernel {
             cv::Mat dst_mask(size,size,CV_8UC1);
             mask_t res_mask(size,size);
 
-            cv::resize(input_mask,dst_mask,cv::Size(size,size),0,0,CV_INTER_LINEAR);
+            cv::resize(input_mask,dst_mask,cv::Size(size,size),0,0,cv::INTER_LINEAR);
             memcpy(res_mask.data(),dst_mask.data,size*size);
 
             return res_mask;
@@ -861,7 +861,7 @@ class MergeInstanceByMaskOp: public OpKernel {
                     }
                     new_contours.push_back(new_points);
                 }
-                cv::drawContours(res_mask,new_contours,-1,cv::Scalar(1),CV_FILLED,8,hierarchy);
+                cv::drawContours(res_mask,new_contours,-1,cv::Scalar(1),cv::FILLED,8,hierarchy);
 
                 total_nr += contours.size();
             }
@@ -871,7 +871,7 @@ class MergeInstanceByMaskOp: public OpKernel {
             vector<cv::Vec4i> hierarchy;
             cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(kerner_size_, kerner_size_), cv::Point(-1, -1));
 
-            cv::morphologyEx(res_mask, res_mask1, CV_MOP_CLOSE, kernel);
+            cv::morphologyEx(res_mask, res_mask1, cv::MORPH_CLOSE, kernel);
             cv::findContours(res_mask1.clone(), contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point(0,0));
 
             if((contours.size()==1)

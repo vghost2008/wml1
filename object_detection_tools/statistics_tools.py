@@ -1,19 +1,19 @@
 #coding=utf-8
 import os
-import object_detection.utils as odu
-import object_detection.npod_toolkit as npod
+import object_detection2.npod_toolkit as npod
 import wml_utils
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-import object_detection.visualization as odv
+import object_detection2.visualization as odv
 import img_utils as wmli
-from iotoolkit.pascal_voc_toolkit import PascalVOCData
+from iotoolkit.pascal_voc_toolkit import PascalVOCData,read_voc_xml
 from iotoolkit.coco_toolkit import COCOData
 from iotoolkit.labelme_toolkit import LabelMeData
 import object_detection2.bboxes as odb 
 import pandas as pd
 import wml_utils as wmlu
+from iotoolkit.mapillary_vistas_toolkit import MapillaryVistasData
 from sklearn.cluster import KMeans
 
 '''
@@ -128,7 +128,7 @@ def statistics_boxes_in_dir(dir_path,label_encoder=default_encode_label,labels_t
         files = wml_utils.recurse_get_filepath_in_dir(dir_path,suffix=".xml")
         print("\ntotal file size {}.".format(len(files)))
         for file in files:
-            shape, bboxes, labels_text, difficult, truncated = odu.read_voc_xml(file,aspect_range=aspect_range)
+            shape, bboxes, labels_text, difficult, truncated = read_voc_xml(file,aspect_range=aspect_range)
             yield bboxes,labels_text,os.path.basename(file)
 
     return statistics_boxes_with_datas(get_datas(),label_encoder,labels_to_remove,nr)
@@ -358,6 +358,36 @@ def labelme_dataset():
     data.read_data("/home/vghost/ai/mldata2/mnistgeood_data/test")
     return data.get_items()
 
+
+lid = 0
+def mapillary_vistas_dataset():
+    NAME2ID = {}
+    ID2NAME = {}
+
+    def name_to_id(x):
+        global lid
+        if x in NAME2ID:
+            return NAME2ID[x]
+        else:
+            NAME2ID[x] = lid
+            ID2NAME[lid] = x
+            lid += 1
+            return NAME2ID[x]
+    ignored_labels = [
+        'manhole', 'dashed', 'other-marking', 'static', 'front', 'back',
+        'solid', 'catch-basin','utility-pole', 'pole', 'street-light','direction-back', 'direction-front'
+         'ambiguous', 'other','text','diagonal','left','right','water-valve','general-single','temporary-front',
+        'wheeled-slow','parking-meter','split-left-or-straight','split-right-or-straight','zigzag',
+        'give-way-row','ground-animal','phone-booth','give-way-single','garage','temporary-back','caravan','other-barrier'
+    ]
+    data = MapillaryVistasData(label_text2id=name_to_id, shuffle=False, ignored_labels=ignored_labels)
+    # data.read_data("/data/mldata/qualitycontrol/rdatasv5_splited/rdatasv5")
+    # data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatav10_preproc")
+    # data.read_data("/home/vghost/ai/mldata2/qualitycontrol/rdatasv10_neg_preproc")
+    data.read_data(wmlu.home_dir("ai/mldata/mapillary_vistas/mapillary-vistas-dataset_public_v2.0"))
+    return data.get_boxes_items()
+
+
 if __name__ == "__main__":
     nr = 100
     def trans_img_long_size(img_size):
@@ -375,8 +405,9 @@ if __name__ == "__main__":
         return [k*img_size[0],k*img_size[1]]
 
     statics = statistics_boxes_with_datas(
-                                          pascal_voc_dataset(),
+                                          #pascal_voc_dataset(),
                                           #labelme_dataset(),
+                                        mapillary_vistas_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,
