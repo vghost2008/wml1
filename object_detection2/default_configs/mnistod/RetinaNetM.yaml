@@ -4,8 +4,8 @@ MODEL:
   #WEIGHTS: "/home/vghost/ai/mldata/mobilenet/v3-large_224_1.0_float/ema"
   #ONLY_SCOPE: "MobilenetV3"
   BACKBONE:
-    NAME: "build_retinanet_shufflenetv2_fpn_backbone"
-    #NAME: "build_mobile_backbone"
+    #NAME: "build_retinanet_shufflenetv2_fpn_backbone"
+    NAME: "build_any_fpn_backbone"
   RESNETS:
     OUT_FEATURES: ["P2", "P3", "P4"]
   ANCHOR_GENERATOR:
@@ -16,6 +16,7 @@ MODEL:
     NORM: "evo_norm_s0"
     ACTIVATION_FN: "NA"
     ENABLE_DROPBLOCK: True
+    BACKBONE: "build_darknet_backbone"
   RETINANET:
     IN_FEATURES: ["P2","P3","P4"]
     IOU_THRESHOLDS: [0.4, 0.5]
@@ -29,12 +30,14 @@ DATASETS:
   TEST: "mnistod_eval"
   SKIP_CROWD_DURING_TRAINING: False
 SOLVER:
-  IMS_PER_BATCH: 2
+  IMS_PER_BATCH: 1
   BASE_LR: 0.01  # Note that RetinaNet uses a different default learning rate
   STEPS: (6000,8000,10000)
   MAX_ITER: 90000
 INPUT:
-  MIN_SIZE_TRAIN: (224,256,288)
+  DATAPROCESS: "simple"
+  FIXED_SIZE_TRAIN: (640,640)
+  MIN_SIZE_TRAIN: (112,112,112)
   MIN_SIZE_TEST: 224
 VERSION: 2
 GLOBAL:

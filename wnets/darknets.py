@@ -50,29 +50,8 @@ class CSPFirst(object):
                               activation_fn=self.activation_fn,
                               normalizer_fn=self.normalizer_fn,
                               normalizer_params=self.normalizer_params)
-            out_0 = slim.conv2d(x,self.out_chnls,
-                            1,1,
-                            activation_fn=self.activation_fn,
-                            normalizer_fn=self.normalizer_fn,
-                            normalizer_params=self.normalizer_params)
-            out_1 = slim.conv2d(x,self.out_chnls,
-                                1,1,
-                                activation_fn=self.activation_fn,
-                                normalizer_fn=self.normalizer_fn,
-                                normalizer_params=self.normalizer_params)
-            out_1 = self.block.forward(out_1,scope="unit_0")
-            out_1 = slim.conv2d(out_1,self.out_chnls,
-                                1,1,
-                                activation_fn=self.activation_fn,
-                                normalizer_fn=self.normalizer_fn,
-                                normalizer_params=self.normalizer_params)
-            out = tf.concat([out_0,out_1],axis=-1)
-            out = slim.conv2d(out,self.out_chnls,
-                                1,1,
-                                activation_fn=self.activation_fn,
-                                normalizer_fn=self.normalizer_fn,
-                                normalizer_params=self.normalizer_params)
-            return out
+            x = self.block.forward(x,scope="unit_0")
+            return x
 
 class CSPStem(object):
     def __init__(self,in_chnls,out_chnls,num_block,normalizer_fn=None,normalizer_params=None,activation_fn=None):
@@ -107,11 +86,6 @@ class CSPStem(object):
                                 normalizer_params=self.normalizer_params)
             for i in range(self.num_block):
                 out_1 = self.block.forward(out_1,scope=f"unit_{i}")
-            out_1 = slim.conv2d(out_1,self.out_chnls,
-                                1,1,
-                                activation_fn=self.activation_fn,
-                                normalizer_fn=self.normalizer_fn,
-                                normalizer_params=self.normalizer_params)
             out = tf.concat([out_0,out_1],axis=-1)
             out = slim.conv2d(out,self.out_chnls,
                               1,1,

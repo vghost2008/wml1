@@ -1,4 +1,7 @@
-import object_detection2.data.transforms.transform as trans
+#import object_detection2.data.transforms.transform as trans
+from . import transforms
+trans = transforms.transform
+#from . import transforms.transform as trans
 from .build_dataprocess import DATAPROCESS_REGISTRY
 
 
@@ -16,7 +19,7 @@ def NONE(cfg, is_training):
 def simple(cfg, is_training):
     if is_training:
         trans_on_single_img = [trans.MaskNHW2HWN(),
-                                    trans.ResizeToFixedSize(),
+                                    trans.ResizeToFixedSize(cfg.INPUT.FIXED_SIZE_TRAIN),
                                     trans.MaskHWN2NHW(),
                                     trans.WRemoveCrowdInstance(cfg.DATASETS.SKIP_CROWD_DURING_TRAINING),
                                     trans.AddBoxLens(),

@@ -155,7 +155,7 @@ REGISTER_KERNEL_BUILDER(Name("HrNetPe").Device(DEVICE_CPU).TypeConstraint<float>
  * det: [B,H,W,num_keypoints]
  * tag: [B,H,W,num_keypoints,tag_C]
  * output:
- * output_ans: [B,N,num_keypoints,3+tag_C]
+ * output_ans: [B,N,num_keypoints,3+tag_C] (x,y,scores,tag0,tag1,...)
  */
 REGISTER_OP("HrNetRefine")
     .Attr("T: {float,double,int32,int64}")

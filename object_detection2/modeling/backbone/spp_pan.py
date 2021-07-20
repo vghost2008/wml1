@@ -70,6 +70,7 @@ class SPP_PAN(Backbone):
             x1 = slim.max_pool2d(x,9,1,padding="SAME")
             x2 = slim.max_pool2d(x,13,1,padding="SAME")
             return tf.concat([x,x0,x1,x2],axis=-1)
+
     def conv_block(self,x,chs,three_conv=False,name=None):
         with tf.variable_scope(name,default_name="conv_block"):
             x = slim.conv2d(x, chs, 1,
@@ -91,9 +92,23 @@ class SPP_PAN(Backbone):
                                 )
             return x
 
+    def conv_blockv2(self,x,chs,name=None):
+        with tf.variable_scope(name,default_name="conv_block"):
+            x = slim.conv2d(x, chs*2, 3,
+                            normalizer_fn=self.normalizer_fn,
+                            normalizer_params=self.norm_params,
+                            activation_fn=self.activation_fn
+                            )
+            x = slim.conv2d(x, chs, 1,
+                            normalizer_fn=self.normalizer_fn,
+                            normalizer_params=self.norm_params,
+                            activation_fn=self.activation_fn
+                            )
+            return x
+
     def process_c5(self,x):
         with tf.variable_scope("process_c5"):
-            x = self.conv_block(x,512,True,name="block0")
+            x = self.conv_blockv2(x,512,name="block0")
             x = self.SPP(x)
             x = self.conv_block(x,512,True,name="block1")
             return x
@@ -102,6 +117,12 @@ class SPP_PAN(Backbone):
         with tf.variable_scope("process_c4"):
             x = self.conv_block(x,256,False,name="block0")
             x = self.conv_block(x,256,True,name="block1")
+            return x
+
+    def process_c3(self,x):
+        with tf.variable_scope("process_c3"):
+            x = self.conv_block(x,128,False,name="block0")
+            x = self.conv_block(x,128,True,name="block1")
             return x
 
     def forward(self, x):
@@ -140,39 +161,41 @@ class SPP_PAN(Backbone):
                             activation_fn=self.activation_fn
                             )
             net_c5_upsample = btf.resize_to(net_c5_upsample,image_features[-2])
-            net_c4 = slim.conv2d(image_features[-2], 256, 1,
+            net_c5 = slim.conv2d(net_c5, 256, 1,
                                  normalizer_fn=self.normalizer_fn,
                                  normalizer_params=self.norm_params,
                                  activation_fn=self.activation_fn
                                  )
-            net_c4 = tf.concat([net_c5_upsample,net_c4],axis=-1)
+            net_c4 = tf.concat([net_c5_upsample,image_features[-2]],axis=-1)
+            net_c4 = slim.conv2d(net_c4, 256, 1,
+                                 normalizer_fn=self.normalizer_fn,
+                                 normalizer_params=self.norm_params,
+                                 activation_fn=self.activation_fn
+                                 )
             net_c4 =self.process_c4(net_c4)
-            net_c4_upsample = slim.conv2d(net_c4, 256, 1,
+            net_c4_upsample = slim.conv2d(net_c4, 128, 1,
                                           normalizer_fn=self.normalizer_fn,
                                           normalizer_params=self.norm_params,
                                           activation_fn=self.activation_fn
                                           )
             net_c4_upsample = btf.resize_to(net_c4_upsample,image_features[-3])
-            net_c3 = slim.conv2d(image_features[-3], 128, 1,
+            net_c4 = slim.conv2d(net_c4, 256, 1,
                                  normalizer_fn=self.normalizer_fn,
                                  normalizer_params=self.norm_params,
                                  activation_fn=self.activation_fn
                                  )
-            net_c3 = tf.concat([net_c4_upsample,net_c3],axis=-1)
-            net_c3_downsample = slim.conv2d(net_c3, 256, 3,
-                                            stride=2,
-                                            normalizer_fn=self.normalizer_fn,
-                                            normalizer_params=self.norm_params,
-                                            activation_fn=self.activation_fn
-                                            )
-            net_c4 = tf.concat([net_c4,net_c3_downsample],axis=-1)
-            net_c4_downsample = slim.conv2d(net_c4, 256, 3,
-                                            stride=2,
-                                            normalizer_fn=self.normalizer_fn,
-                                            normalizer_params=self.norm_params,
-                                            activation_fn=self.activation_fn
-                                            )
-            net_c5 = tf.concat([net_c4_downsample,net_c5],axis=-1)
+            net_c3 = tf.concat([net_c4_upsample,image_features[-3]],axis=-1)
+            net_c3 = slim.conv2d(net_c3, 128, 1,
+                                 normalizer_fn=self.normalizer_fn,
+                                 normalizer_params=self.norm_params,
+                                 activation_fn=self.activation_fn
+                                 )
+            net_c3 =self.process_c3(net_c3)
+            net_c3 = slim.conv2d(net_c3, 256, 1,
+                                 normalizer_fn=self.normalizer_fn,
+                                 normalizer_params=self.norm_params,
+                                 activation_fn=self.activation_fn
+                                 )
 
         res = OrderedDict()
         res_data = [net_c3,net_c4,net_c5]

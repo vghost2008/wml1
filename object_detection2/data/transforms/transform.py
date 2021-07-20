@@ -754,7 +754,7 @@ class BBoxesAbsoluteToRelative(WTransform):
 class ResizeToFixedSize(WTransform):
     def __init__(self,size=[224,224],resize_method=tf.image.ResizeMethod.BILINEAR,channels=3):
         self.resize_method = resize_method
-        self.size = size
+        self.size = list(size)
         self.channels = channels
 
     def __call__(self, data_item):
