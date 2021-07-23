@@ -136,6 +136,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
         gt_results = self._get_ground_truth()
         loss_cls_list = []
         loss_regression_list = []
+        loss_center_ness_list = []
         total_num_foreground = []
         
         img_size = tf.shape(self.batched_inputs[IMAGE])[1:3]
@@ -143,6 +144,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
         for i,gt_results_item in enumerate(gt_results):
             gt_classes = gt_results_item['g_classes']
             gt_boxes = gt_results_item['g_boxes']
+            g_center_ness = gt_results_item['g_center_ness']
             pred_class_logits = self.pred_logits[i]
             pred_regression = self.pred_regression[i]
             pred_center_ness = self.pred_center_ness[i]
@@ -155,15 +157,14 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             gt_classes_target = gt_classes_target[...,1:]
 
             #
-            pred_center_ness = tf.expand_dims(tf.nn.sigmoid(pred_center_ness),axis=-1)
+            pred_center_ness = tf.expand_dims(pred_center_ness,axis=-1)
             wsummary.histogram_or_scalar(pred_center_ness,"center_ness")
             # logits loss
             loss_cls = tf.reduce_sum(wnn.sigmoid_cross_entropy_with_logits_FL(
                 labels = gt_classes_target,
                 logits = pred_class_logits,
                 alpha=self.focal_loss_alpha,
-                gamma=self.focal_loss_gamma,
-            )*pred_center_ness+tf.pow(1-pred_center_ness,2)/3)
+                gamma=self.focal_loss_gamma))
 
             # regression loss
             pred_boxes = self.box2box_transform.apply_deltas(regression=pred_regression,img_size=img_size)
@@ -176,22 +177,31 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
                                                  boxes=boxes1,
                                                  name="FCOSGIou_decode_test")
             pred_center_ness = tf.boolean_mask(pred_center_ness,foreground_idxs)
+            g_center_ness = tf.boolean_mask(g_center_ness,foreground_idxs)
             pred_boxes = tf.boolean_mask(pred_boxes,foreground_idxs)
             gt_boxes = tf.boolean_mask(gt_boxes,foreground_idxs)
             wsummary.histogram_or_scalar(pred_center_ness,"center_ness_pos")
             reg_loss_sum = (1.0-odl.giou(pred_boxes,gt_boxes))
             wmlt.variable_summaries_v2(reg_loss_sum,f"giou_loss{i}")
             pred_center_ness = tf.squeeze(pred_center_ness,axis=-1)
-            reg_loss_sum = reg_loss_sum*(pred_center_ness+1e-2)
+            reg_norm = tf.reduce_sum(g_center_ness)+1e-5
+            reg_loss_sum = reg_loss_sum*g_center_ness
             wmlt.variable_summaries_v2(reg_loss_sum,f"loss_sum{i}")
-            loss_box_reg = tf.reduce_sum(reg_loss_sum)
+            loss_box_reg = tf.reduce_sum(reg_loss_sum)*100/reg_norm
             wmlt.variable_summaries_v2(loss_box_reg,f"box_reg_loss_{i}")
+
+            loss_center_ness = tf.nn.sigmoid_cross_entropy_with_logits(labels=g_center_ness,
+                                                                       logits=pred_center_ness)
+            loss_center_ness = tf.reduce_sum(loss_center_ness)*0.1
+            wmlt.variable_summaries_v2(loss_center_ness,f"center_ness_loss{i}")
 
             loss_cls_list.append(loss_cls)
             loss_regression_list.append(loss_box_reg)
+            loss_center_ness_list.append(loss_center_ness)
 
         total_num_foreground = tf.to_float(tf.maximum(tf.add_n(total_num_foreground),1))
         return {"fcos_loss_cls": tf.add_n(loss_cls_list)/total_num_foreground,
+                "fcos_loss_center_ness": tf.add_n(loss_center_ness_list)/total_num_foreground,
                 "fcos_loss_box_reg": tf.add_n(loss_regression_list)/total_num_foreground}
 
     @wmlt.add_name_scope

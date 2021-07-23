@@ -14,7 +14,7 @@ def default_argument_parser():
     """
     parser = argparse.ArgumentParser(description="Arguments")
     #parser.add_argument("--config-file", default="cascade_mask_FPN_M", metavar="FILE", help="path to config file")
-    parser.add_argument("--config-file", default="OpenPose-mnist.yaml", metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file", default="FCOS_M.yaml", metavar="FILE", help="path to config file")
     parser.add_argument(
         "--resume",
         action="store_true",

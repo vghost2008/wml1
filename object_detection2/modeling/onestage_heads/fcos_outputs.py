@@ -173,6 +173,10 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
                 wsummary.detection_image_summary(images=self.batched_inputs[IMAGE][1:2],
                                                  boxes=boxes1,
                                                  name="FCOSGIou_decode_test")
+
+            gt_center_ness = tf.boolean_mask(gt_center_ness,foreground_idxs)
+            pred_center_ness = tf.boolean_mask(pred_center_ness,foreground_idxs)
+
             pred_boxes = tf.boolean_mask(pred_boxes,foreground_idxs)
             gt_boxes = tf.boolean_mask(gt_boxes,foreground_idxs)
             reg_loss_sum = odl.giou_loss(pred_boxes,gt_boxes)
@@ -182,8 +186,6 @@ class FCOSGIOUOutputs(wmodule.WChildModule):
             #gt_center_ness = wmlt.PrintSummary(gt_center_ness,"center_ness")
             #pred_center_ness = wmlt.PrintSummary(pred_center_ness,"pred_center_ness")
             # logits loss
-            gt_center_ness = tf.boolean_mask(gt_center_ness,foreground_idxs)
-            pred_center_ness = tf.boolean_mask(pred_center_ness,foreground_idxs)
             '''loss_center_ness = tf.reduce_sum(wnn.sigmoid_cross_entropy_with_logits_FL(
                 labels = gt_center_ness,
                 logits = pred_center_ness,
