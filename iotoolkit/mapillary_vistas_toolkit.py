@@ -28,25 +28,39 @@ def get_files(dir_path, sub_dir_name):
 
 
 class MapillaryVistasData(object):
-    def __init__(self, label_text2id=None, shuffle=False, sub_dir_name="training",ignored_labels=[],label_map={}):
+    def __init__(self, label_text2id=None, shuffle=False, sub_dir_name="training",ignored_labels=[],label_map={},
+                 allowed_labels_fn=None):
         self.files = None
         self.label_text2id = label_text2id
         self.shuffle = shuffle
         self.sub_dir_name = sub_dir_name
         self.ignored_labels = ignored_labels
         self.label_map = label_map
+        self.allowed_labels_fn = None if allowed_labels_fn is None or len(allowed_labels_fn)==0 else allowed_labels_fn
+        if self.allowed_labels_fn is not None and isinstance(self.allowed_labels_fn,list):
+            self.allowed_labels_fn = lambda x:x in allowed_labels_fn
 
     def read_data(self, dir_path):
         self.files = get_files(dir_path, self.sub_dir_name)
         if self.shuffle:
             random.shuffle(self.files)
 
-    def get_items(self):
+    def __len__(self):
+        return len(self.files)
+
+    def get_items(self,beg=0,end=None,filter=None):
         '''
         :return:
+        binary_masks [N,H,W], value is 0 or 1,
         full_path,img_size,category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
         '''
-        for i, (img_file, json_file) in enumerate(self.files):
+        if end is None:
+            end = len(self.files)
+        if beg is None:
+            beg = 0
+        for i, (img_file, json_file) in enumerate(self.files[beg:end]):
+            if filter is not None and not filter(img_file,json_file):
+                continue
             print(img_file,json_file)
             sys.stdout.write('\r>> read data %d/%d' % (i + 1, len(self.files)))
             sys.stdout.flush()
@@ -95,12 +109,13 @@ class MapillaryVistasData(object):
                 image["width"] = int(img_width)
                 image["file_name"] = wmlu.base_name(file_path)
                 for shape in json_data["objects"]:
-                    label = shape["label"].split("--")[-1]
-                    if label in self.ignored_labels:
+                    #label = shape["label"].split("--")[-1]
+                    label = shape["label"]
+                    if self.ignored_labels is not None and label in self.ignored_labels:
                         continue
-                    if label not in ['person-group']:
+                    if self.allowed_labels_fn is not None and not self.allowed_labels_fn(label):
                         continue
-                    if label in self.label_map:
+                    if self.label_map is not None and label in self.label_map:
                         label = self.label_map[label]
                     mask = np.zeros(shape=[img_height, img_width], dtype=np.uint8)
                     all_points = np.array([shape["polygon"]]).astype(np.int32)
@@ -132,6 +147,9 @@ class MapillaryVistasData(object):
                 print(f"Read file {os.path.basename(file_path)} faild.")
                 pass
         if use_semantic:
+            '''
+            Each pixel only belong to one classes, and the latter annotation will overwrite the previous
+            '''
             for i in range(1, len(annotations_list)):
                 mask = annotations_list[i]['segmentation']
                 mask = 1 - mask

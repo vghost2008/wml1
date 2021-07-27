@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import object_detection2.bboxes as bboxes
 import basic_tftools as btf
+import numpy as np
 
 '''
 mask: [N,h,w]仅实例的box内部部分的mask, 值为1或0
@@ -52,5 +53,24 @@ def resize_mask(mask,size):
         mask = tf.cast(mask+0.5,old_type)
     
     return mask
-        
-        
+
+'''
+mask: [N,H,W] value is 0 or 1
+labels: [N] labels of mask
+'''
+def dense_mask_to_sparse_mask(mask:np.ndarray,labels,default_label=0):
+    if len(labels) == 0 and not isinstance(mask,np.ndarray):
+        return None
+    elif len(labels)==0:
+        _,H,W = mask.shape
+        return np.ones([H,W],dtype=np.int32)*default_label
+    else:
+        N,H,W = mask.shape
+        res_mask = np.ones([H,W],dtype=np.int32)*default_label
+        for i in range(N):
+            pos_mask = mask[i].astype(np.bool)
+            res_mask[pos_mask] = labels[i]
+        return res_mask
+
+
+
