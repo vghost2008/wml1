@@ -150,11 +150,11 @@ class MapillaryVistasData(object):
             '''
             Each pixel only belong to one classes, and the latter annotation will overwrite the previous
             '''
-            for i in range(1, len(annotations_list)):
-                mask = annotations_list[i]['segmentation']
-                mask = 1 - mask
-                for j in range(i):
-                    annotations_list[j]['segmentation'] = np.logical_and(annotations_list[j]['segmentation'], mask)
+            if len(annotations_list)>2:
+                mask = 1-annotations_list[-1]['segmentation']
+                for i in reversed(range(len(annotations_list)-1)):
+                    annotations_list[i]['segmentation'] = np.logical_and(annotations_list[i]['segmentation'], mask)
+                    mask = np.logical_and(mask,1-annotations_list[i]['segmentation'])
         return image, annotations_list
 
 

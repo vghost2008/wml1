@@ -63,6 +63,7 @@ STANDARD_COLORS = [
     'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'White',
     'WhiteSmoke', 'Yellow', 'YellowGreen'
 ]
+RGB_STANDARD_COLORS=[ImageColor.getrgb(x) for x in STANDARD_COLORS]
 MIN_RANDOM_STANDARD_COLORS = [
     'Red', 'Yellow', 'Green', 'MediumSlateBlue', 'Chartreuse',
     'Aqua', 'Aquamarine', 'Fuchsia', 'Azure', 'Beige', 'Bisque',
@@ -88,6 +89,7 @@ MIN_RANDOM_STANDARD_COLORS = [
     'SlateGray', 'SlateGrey', 'Snow', 'SpringGreen', 'SteelBlue', 'GreenYellow',
     'Teal', 'Thistle', 'Tomato', 'Turquoise', 'Violet', 'Wheat', 'YellowGreen'
 ]
+RGB_MIN_RANDOM_STANDARD_COLORS =[ImageColor.getrgb(x) for x in MIN_RANDOM_STANDARD_COLORS]
 
 
 def save_image_array_as_png(image, output_path):

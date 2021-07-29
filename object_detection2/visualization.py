@@ -3,6 +3,7 @@ import cv2
 import random
 import numpy as np
 import semantic.visualization_utils as smv
+from PIL import Image
 
 colors_tableau = [(255, 255, 255), (31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
                   (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -51,7 +52,9 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
                         get_text_pos_fn=get_text_pos_fn,
                         thickness=4,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
                         is_relative_coordinate=True,
-                        is_show_text=None):
+                        is_show_text=None,
+                        fill_bboxes=False):
+    bboxes_thickness = thickness if not fill_bboxes else -1
     if is_relative_coordinate:
         shape = img.shape
     else:
@@ -73,7 +76,7 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
                 color = (random.random()*255, random.random()*255, random.random()*255)
             p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
             p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
-            cv2.rectangle(img, p10[::-1], p2[::-1], color, thickness)
+            cv2.rectangle(img, p10[::-1], p2[::-1], color, bboxes_thickness)
             if show_text and text_fn is not None:
                 f_show_text = True
                 if is_show_text is not None:
@@ -99,7 +102,20 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
 
     return img
 
-def draw_legend(labels,text_fn,img_size,color_fn,thickness=4,font_scale=1.2,text_color=(0.,255.,0.)):
+def draw_legend(labels,text_fn,img_size,color_fn,thickness=4,font_scale=1.2,text_color=(0.,255.,0.),fill_bboxes=True):
+    '''
+    Generate a legend image
+    Args:
+        labels: list[int] labels
+        text_fn: str fn(label) trans label to text
+        img_size: (H,W) the legend image size, the legend is drawed in veritical direction
+        color_fn: tuple(3) fn(label): trans label to RGB color
+        thickness: text thickness
+        font_scale: font size
+        text_color: text color
+    Returns:
+
+    '''
     boxes_width = max(img_size[1]//3,20)
     boxes_height = img_size[0]/(2*len(labels))
     def lget_text_pos_fn(pmin, pmax, bbox, label):
@@ -114,13 +130,16 @@ def draw_legend(labels,text_fn,img_size,color_fn,thickness=4,font_scale=1.2,text
         ymax = ymin + boxes_height
         bboxes.append([ymin,xmin,ymax,xmax])
     img = np.ones([img_size[0],img_size[1],3],dtype=np.uint8)
-    return draw_bboxes(img,labels,bboxes=bboxes,color_fn=color_fn,text_fn=text_fn,
+    def _text_fn(x,_):
+        return text_fn(x)
+    return draw_bboxes(img,labels,bboxes=bboxes,color_fn=color_fn,text_fn=_text_fn,
                 get_text_pos_fn=lget_text_pos_fn,
                 thickness=thickness,
                 show_text=True,
                 font_scale=font_scale,
                 text_color=text_color,
-                is_relative_coordinate=False)
+                is_relative_coordinate=False,
+                fill_bboxes=fill_bboxes)
 
 
 
@@ -183,3 +202,37 @@ def draw_bboxes_and_maskv2(img,classes,scores,bboxes,masks,color_fn=None,text_fn
                                show_text=show_text,
                                fontScale=fontScale)
     return img
+
+def convert_semantic_to_rgb(semantic,color_map,return_nparray=False):
+    '''
+    convert semantic label map to rgb PIL image or a np.ndarray
+    Args:
+        semantic: [H,W] label value
+        color_map: list[int], [r0,g0,b0,r1,g1,b1,....]
+    Returns:
+        image: [H,W,3]
+    '''
+    new_mask = Image.fromarray(semantic.astype(np.uint8)).convert('P')
+    new_mask.putpalette(color_map)
+    if return_nparray:
+        return np.array(new_mask.convert('RGB'))
+    return new_mask
+
+def draw_semantic_on_image(image,semantic,color_map,alpha=0.4,ignored_label=0):
+    '''
+    draw semantic on image
+    Args:
+        image:
+        semantic: [H,W] label value
+        color_map: list[int], [r0,g0,b0,r1,g1,b1,....]
+        alpha:
+        ignored_label:
+    Returns:
+        return image*(1-alpha)+semantic+alpha
+    '''
+    mask = convert_semantic_to_rgb(semantic,color_map=color_map,return_nparray=True)
+    new_img = image.astype(np.float32)*(1-alpha)+mask.astype(np.float32)*alpha
+    new_img = np.clip(new_img,0,255).astype(np.uint8)
+    pred = np.expand_dims(semantic!=ignored_label,axis=-1)
+    new_img = np.where(pred,new_img,image)
+    return new_img
