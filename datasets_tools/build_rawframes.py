@@ -39,6 +39,7 @@ def extract_frame(vid_item):
             out_full_path = osp.join(out_full_path, video_name)
 
             vr = mmcv.VideoReader(full_path)
+            print(f"{full_path} fps {vr.fps}.")
             # for i in range(len(vr)):
             for i, vr_frame in enumerate(vr):
                 if vr_frame is not None:

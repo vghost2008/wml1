@@ -1,5 +1,4 @@
 #coding=utf-8
-import tensorflow as tf
 import os
 import sys
 import random
@@ -8,7 +7,6 @@ import wml_utils as wmlu
 from multiprocessing import Process,Queue
 import logging
 import shutil
-
 
 def get_file_name_in_ckp(name):
     names = name.split(":")

@@ -187,7 +187,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             reg_norm = tf.reduce_sum(g_center_ness)+1e-5
             reg_loss_sum = reg_loss_sum*g_center_ness
             wmlt.variable_summaries_v2(reg_loss_sum,f"loss_sum{i}")
-            loss_box_reg = tf.reduce_sum(reg_loss_sum)*100/reg_norm
+            loss_box_reg = tf.reduce_sum(reg_loss_sum)*300/reg_norm
             wmlt.variable_summaries_v2(loss_box_reg,f"box_reg_loss_{i}")
 
             loss_center_ness = tf.nn.sigmoid_cross_entropy_with_logits(labels=g_center_ness,
@@ -302,7 +302,6 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             boxes_i = tf.gather(boxes_i,boxes_idxs)
             center_ness = tf.nn.sigmoid(tf.gather(centern_ness_i,boxes_idxs))
             # predict boxes
-
 
             boxes_all.append(boxes_i)
             scores_all.append(predicted_prob*center_ness)

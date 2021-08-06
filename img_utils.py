@@ -96,18 +96,20 @@ def npgray_to_rgbv2(img):
         img = np.concatenate([r(img), g(img), b(img)], axis=2)
     return img
 
-def nprgb_to_gray(img):
-    R = img[:, :, 0]
-    G = img[:, :, 1]
-    B = img[:, :, 2]
-    img_gray = R * 299. / 1000 + G * 587. / 1000 + B * 114. / 1000
+def nprgb_to_gray(img,keep_channels=False):
+    img_gray = img * np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    img_gray = np.sum(img_gray,axis=-1)
+    if keep_channels:
+        img_gray = np.stack([img_gray,img_gray,img_gray],axis=-1)
     return img_gray
 
-def npbatch_rgb_to_gray(img):
-    R = img[:,:, :, 0]
-    G = img[:,:, :, 1]
-    B = img[:,:, :, 2]
-    img_gray = R * 299. / 1000 + G * 587. / 1000 + B * 114. / 1000
+def npbatch_rgb_to_gray(img,keep_channels=False):
+    if not isinstance(img,np.ndarray):
+        img = np.array(img)
+    img_gray = img * np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    img_gray = np.sum(img_gray,axis=-1)
+    if keep_channels:
+        img_gray = np.stack([img_gray,img_gray,img_gray],axis=-1)
     return img_gray
 
 '''

@@ -7,7 +7,6 @@ import sys
 import random
 from iotoolkit.labelme_toolkit import get_labels_and_bboxes
 
-
 def read_json(file_path):
     annotations_list = []
     image = {}
@@ -47,13 +46,14 @@ def read_json(file_path):
         except:
             print(f"Read file {os.path.basename(file_path)} faild.")
             pass
-    for i in range(1,len(annotations_list)):
-        mask = annotations_list[i]['segmentation']
-        mask = 1-mask
-        for j in range(i):
-            annotations_list[j]['segmentation'] = np.logical_and(annotations_list[j]['segmentation'],mask)
-    return image, annotations_list
 
+    if len(annotations_list) > 2:
+        mask = 1 - annotations_list[-1]['segmentation']
+        for i in reversed(range(len(annotations_list) - 1)):
+            annotations_list[i]['segmentation'] = np.logical_and(annotations_list[i]['segmentation'], mask)
+            mask = np.logical_and(mask, 1 - annotations_list[i]['segmentation'])
+
+    return image, annotations_list
 
 def get_files(dir_path, sub_dir_name):
     img_dir = os.path.join(dir_path, 'leftImg8bit', sub_dir_name)
@@ -73,7 +73,6 @@ def get_files(dir_path, sub_dir_name):
                 print(f"ERROR: Find {igf} faild, json file is {jf}")
 
     return res
-
 
 class CityscapesData(object):
     def __init__(self, label_text2id=None, shuffle=False, sub_dir_name="train"):

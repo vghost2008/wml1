@@ -15,6 +15,7 @@ import shutil
 import wml_utils as wmlu
 import img_utils as wmli
 import copy
+
 def get_shape_from_img(xml_path):
     img_path = wmlu.change_suffix(xml_path, "jpg")
     if not os.path.exists(img_path):

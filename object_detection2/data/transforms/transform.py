@@ -99,7 +99,7 @@ class WTransform(object):
                     res[k] = v
         return res
 
-    def __str__(self):
+    def __repr__(self):
         return type(self).__name__
 
     @staticmethod
@@ -400,7 +400,7 @@ class RandomFlipLeftRight(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{RandomFlipLeftRight.__name__}"
 
 '''
@@ -424,7 +424,7 @@ class RandomFlipUpDown(WTransform):
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{RandomFlipUpDown.__name__}"
 
 class AutoAugment(WTransform):
@@ -467,7 +467,7 @@ class RandomRotate(WTransform):
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_rotate)
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{RandomRotate.__name__}"
 
 class RemoveZeroAreaBBox(WTransform):
@@ -492,7 +492,7 @@ class RemoveZeroAreaBBox(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{RemoveZeroAreaBBox.__name__}"
 
 
@@ -551,7 +551,7 @@ class RandomRotateAnyAngle(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{RandomRotateAnyAngle.__name__}"
 '''
 mask:H,W,N format
@@ -594,7 +594,7 @@ class ResizeShortestEdge(WTransform):
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
         
-    def __str__(self):
+    def __repr__(self):
         return type(self).__name__+f"[{self.short_edge_length}, max_size={self.max_size}]"
 '''
 mask:H,W,N format
@@ -634,7 +634,7 @@ class ResizeLongestEdge(WTransform):
                                resize_method=self.resize_method)
             return self.apply_to_images_and_masks(func,data_item)
         
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class MaskNHW2HWN(WTransform):
@@ -649,7 +649,7 @@ class MaskNHW2HWN(WTransform):
             func = partial(tf.transpose,perm=[1,2,0])
             return self.apply_to_masks(func,data_item)
         
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class MaskHWN2NHW(WTransform):
@@ -664,7 +664,7 @@ class MaskHWN2NHW(WTransform):
             func = partial(tf.transpose,perm=[2,0,1])
             return self.apply_to_masks(func,data_item)
         
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class DelHeightWidth(WTransform):
@@ -674,7 +674,7 @@ class DelHeightWidth(WTransform):
         if 'width' in data_item:
             del data_item['width']
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class UpdateHeightWidth(WTransform):
@@ -685,7 +685,7 @@ class UpdateHeightWidth(WTransform):
         if WIDTH in data_item:
             data_item[WIDTH] = shape[1]
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class AddSize(WTransform):
@@ -695,7 +695,7 @@ class AddSize(WTransform):
         assert len(data_item[self.img_key].get_shape())<=3,"error image dims size."
         data_item['size'] = tf.shape(data_item[self.img_key])[0:2]
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class BBoxesRelativeToAbsolute(WTransform):
@@ -716,7 +716,7 @@ class BBoxesRelativeToAbsolute(WTransform):
                 data_item = self.apply_to_keypoints(func, data_item)
             return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -745,7 +745,7 @@ class BBoxesAbsoluteToRelative(WTransform):
 
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -772,7 +772,7 @@ class ResizeToFixedSize(WTransform):
                 items = self.apply_to_images(func,items)
             return items
         
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class NoTransform(WTransform):
@@ -784,7 +784,7 @@ class NoTransform(WTransform):
         else:
             data_item[IMAGE] = tf.Print(data_item[IMAGE],["id:",self.id])
             return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class RandomSelectSubTransform(WTransform):
@@ -811,7 +811,7 @@ class RandomSelectSubTransform(WTransform):
             if d != ref_data:
                 return False
         return True
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name}: "+str(self.trans)
 
 class AddBoxLens(WTransform):
@@ -823,7 +823,7 @@ class AddBoxLens(WTransform):
         gt_len = tf.shape(data_item[self.box_key])[0]
         data_item[self.gt_len_key] = gt_len
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WDistortColor(WTransform):
@@ -834,7 +834,7 @@ class WDistortColor(WTransform):
     def __call__(self, data_item):
         func = partial(distort_color,color_ordering=self.color_ordering,**self.kwargs)
         return self.apply_to_images(func,data_item)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WRandomDistortColor(WTransform):
@@ -853,7 +853,7 @@ class WRandomDistortColor(WTransform):
                                        fn,fn2)
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WRandomBlur(WTransform):
@@ -861,7 +861,7 @@ class WRandomBlur(WTransform):
         self.kwargs = kwargs
     def __call__(self, data_item):
         return self.apply_to_images(random_blur,data_item)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WTransImgToFloat(WTransform):
@@ -872,7 +872,7 @@ class WTransImgToFloat(WTransform):
         data_item[IMAGE] = tf.cast(data_item[IMAGE],tf.float32)
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WTransImgToGray(WTransform):
@@ -880,7 +880,7 @@ class WTransImgToGray(WTransform):
         self.kwargs = kwargs
     def __call__(self, data_item):
         return self.apply_to_images(tf.image.rgb_to_grayscale,data_item)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WPerImgStandardization(WTransform):
@@ -889,7 +889,7 @@ class WPerImgStandardization(WTransform):
 
     def __call__(self, data_item):
         return self.apply_to_images(tf.image.per_image_standardization,data_item)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WRemoveOverlap(WTransform):
@@ -909,7 +909,7 @@ class WRemoveOverlap(WTransform):
 
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class RandomCrop(WTransform):
@@ -958,7 +958,7 @@ class RandomCrop(WTransform):
 
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 '''
 bboxes: relative coordinate
@@ -1018,7 +1018,7 @@ class SampleDistortedBoundingBox(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class RandomSampleDistortedBoundingBox(WTransform):
@@ -1073,7 +1073,7 @@ class RandomSampleDistortedBoundingBox(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WTransLabels(WTransform):
@@ -1089,7 +1089,7 @@ class WTransLabels(WTransform):
         labels = tfop.int_hash(labels,self.id_to_label)
         data_item[GT_LABELS] = labels
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1121,7 +1121,7 @@ class WRemoveCrowdInstance(WTransform):
 
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 '''
 Mask必须为HWN格式
@@ -1142,7 +1142,7 @@ class WScale(WTransform):
             data_item[GT_MASKS] = mask
 
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 '''
 operator on batch
@@ -1156,7 +1156,7 @@ class FixDataInfo(WTransform):
             batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
             return tf.reshape(x,[batch_size,H,W,self.channel])
         return self.apply_to_images(func,data_item)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 '''
 operator on batch
@@ -1173,7 +1173,7 @@ class CheckBBoxes(WTransform):
             data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],-2,self.max) #keypoints use -1 to indict unlabeled points
         return data_item
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1212,7 +1212,7 @@ class PadtoAlign(WTransform):
         data_item = self.apply_to_images(func4img,data_item)
         return self.apply_to_masks(func4mask,data_item)
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1557,7 +1557,7 @@ class Stitch(WTransform):
                                 width=width,
                                 height=height,
                                 length=length)
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1571,7 +1571,7 @@ class WRandomEqualize(WTransform):
         image = equalize(data_item[IMAGE])
         self.probability_set(data_item,IMAGE,self.prob,image)
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class WRandomCutout(WTransform):
@@ -1584,7 +1584,7 @@ class WRandomCutout(WTransform):
         self.probability_set(data_item,IMAGE,self.prob,image)
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1660,7 +1660,7 @@ class WRandomTranslate(WTransform):
             offset = tf.convert_to_tensor([[0, pad_pixels]], dtype=tf.float32)
         return keypoints+offset
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 '''
@@ -1704,7 +1704,7 @@ class WShear(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class RemoveMask(WTransform):
@@ -1763,7 +1763,7 @@ class RemoveSpecifiedInstance(WTransform):
         #an example
         return tf.equal(labels,1)
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 class RandomNoise(WTransform):
@@ -1886,7 +1886,7 @@ class RandomMoveRect(WTransform):
         image = tf.cond(need_move,lambda:t_image,lambda:image)
         return image
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 
@@ -1943,7 +1943,7 @@ class NPRemoveSpecifiedInstance(WTransform):
         # an example
         return np.equal(labels, 1)
 
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}"
 
 
@@ -1954,7 +1954,7 @@ class WTransformList(WTransform):
         for trans in self.trans_list:
             data_item = trans(data_item)
         return data_item
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}: "+str(self.trans_list)
     
 
@@ -1999,7 +1999,7 @@ class AddFakeInstance(WTransform):
 
         return data_item
     
-    def __str__(self):
+    def __repr__(self):
         return f"{type(self).__name__}: "+str(self.trans_list)
 
 '''
