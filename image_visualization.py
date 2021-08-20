@@ -388,7 +388,7 @@ def __draw_keypoints_image_summary(images,
 
     Args:
       images: A 3D uint8 image tensor of shape [H, W, C].
-      keypoints: A 3D float32 tensor of shape [max_detection, num_keypoints, 2]
+      keypoints: A 3D float32 tensor of shape [max_detection, num_keypoints, 2] (x,y)
         with keypoints.
       max_instance_to_draw: Maximum number of instance to draw on an image. Default 20.
 

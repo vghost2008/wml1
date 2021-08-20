@@ -146,7 +146,7 @@ class HRNetPEOutputs(wmodule.WChildModule):
         """
         Arguments:
             inputs: same as forward's batched_inputs
-            pred_maps: output of hrnet head
+            pred_maps: output of hrnet head [B,H,W,NUM_KEYPOINTS*2],[B,H,W,NUM_KEYPOINTS]
         Returns:
             results:
             RD_BOXES: [B,N,4]
@@ -163,8 +163,8 @@ class HRNetPEOutputs(wmodule.WChildModule):
             H,W = target_size
             wsummary.feature_map_summary(tags,"tags",max_outputs=5)
 
-            tags = tf.expand_dims(tags,axis=-1)
-            det = (det0+det1)/2
+            tags = tf.expand_dims(tags,axis=-1) #shape [B,H,W,NUM_KEYPOINTS,1]
+            det = (det0+det1)/2 #shape [B,H,W,NUM_KEYPOINTS]
             wsummary.feature_map_summary(det0,"det0",max_outputs=5)
             wsummary.feature_map_summary(det1,"det1",max_outputs=5)
 

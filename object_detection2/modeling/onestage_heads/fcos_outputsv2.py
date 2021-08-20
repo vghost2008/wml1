@@ -190,7 +190,7 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             loss_box_reg = tf.reduce_sum(reg_loss_sum)*300/reg_norm
             wmlt.variable_summaries_v2(loss_box_reg,f"box_reg_loss_{i}")
 
-            loss_center_ness = tf.nn.sigmoid_cross_entropy_with_logits(labels=g_center_ness,
+            loss_center_ness = 0.5*tf.nn.sigmoid_cross_entropy_with_logits(labels=g_center_ness,
                                                                        logits=pred_center_ness)
             loss_center_ness = tf.reduce_sum(loss_center_ness)*0.1
             wmlt.variable_summaries_v2(loss_center_ness,f"center_ness_loss{i}")
@@ -280,7 +280,9 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
                                                                  width=img_size[1], height=img_size[0])
 
             # (HxWxAxK,)
-            box_cls_i = tf.nn.sigmoid(tf.reshape(box_cls_i,[-1]))
+            center_ness_i = tf.reshape(tf.nn.sigmoid(centern_ness_i),[-1,1])
+            box_cls_i = tf.nn.sigmoid(tf.reshape(box_cls_i,[-1,self.num_classes]))*center_ness_i
+            box_cls_i = tf.reshape(box_cls_i,[-1])
 
             # Keep top k top scoring indices only.
             num_topk = tf.minimum(self.topk_candidates, tf.shape(box_reg_i)[0])
@@ -298,13 +300,10 @@ class FCOSGIOUOutputsV2(wmodule.WChildModule):
             classes_idxs = topk_idxs % self.num_classes
 
             # filter out the proposals with low confidence score
-
             boxes_i = tf.gather(boxes_i,boxes_idxs)
-            center_ness = tf.nn.sigmoid(tf.gather(centern_ness_i,boxes_idxs))
-            # predict boxes
 
             boxes_all.append(boxes_i)
-            scores_all.append(predicted_prob*center_ness)
+            scores_all.append(predicted_prob)
             class_idxs_all.append(classes_idxs)
 
         boxes_all, scores_all, class_idxs_all= [

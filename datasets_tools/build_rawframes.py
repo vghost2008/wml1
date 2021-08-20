@@ -13,6 +13,10 @@ from multiprocessing import Pool
 import mmcv
 import numpy as np
 
+#img_process_fn = None
+def img_process_fn(img):
+    H,W,_ = img.shape
+    return img[:,W//2:]
 
 def extract_frame(vid_item):
     """Generate optical flow using dense flow.
@@ -44,6 +48,8 @@ def extract_frame(vid_item):
             for i, vr_frame in enumerate(vr):
                 if vr_frame is not None:
                     w, h, _ = np.shape(vr_frame)
+                    if img_process_fn is not None:
+                        vr_frame = img_process_fn(vr_frame)
                     if args.new_short == 0:
                         if args.new_width == 0 or args.new_height == 0:
                             # Keep original shape
@@ -156,7 +162,7 @@ def parse_args():
         '--ext',
         type=str,
         default='mp4',
-        choices=['avi', 'mp4', 'webm'],
+        choices=['avi', 'mp4', 'webm','MOV'],
         help='video file extensions')
     parser.add_argument(
         '--mixed-ext',

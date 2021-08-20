@@ -234,7 +234,7 @@ class HRNetRefine: public OpKernel {
                 }
             }
 
-            if(tags_nr<1)
+            if((tags_nr<2) || (tags_nr>=num_keypoints))
                 return res_keypoints;
 
             Tensor1d_t _tags_mean0 = tags.sum(Eigen::array<int,1>({0}));
@@ -257,13 +257,17 @@ class HRNetRefine: public OpKernel {
 
                 Tensor2d_t _tt = _tt0+_tt0.constant(0.5);
                 Tensor2d_t tt = _tt.cast<int>().cast<float>();
-                Tensor2d_t tmp_det2 = tmp_det-tt*tt.constant(100);
+                Tensor2d_t tmp_det2 = tmp_det-tt;
+                //Tensor2d_t tmp_det2 = tmp_det-tt*tt.constant(100);
                 int xx,yy;
                 float y,x;
 
                 tie(yy,xx) = argmax(tmp_det2);
 
-                const auto val = tmp_det(yy,xx);
+                auto val = tmp_det(yy,xx);
+
+                if(_tt0(yy,xx)>=1.0)
+                    val = 0;
 
                 y = yy;
                 x = xx;
@@ -284,7 +288,7 @@ class HRNetRefine: public OpKernel {
                 ans.emplace_back(make_tuple(x,y,val));
             }
             for(auto i=0; i<num_keypoints; ++i) {
-                if((std::get<2>(ans[i])>0) && (keypoints(i,2)<=0)) {
+                if((std::get<2>(ans[i])>0.1) && (keypoints(i,2)<=0)) {
                     res_keypoints(i,0) = std::get<0>(ans[i]);
                     res_keypoints(i,1) = std::get<1>(ans[i]);
                     res_keypoints(i,2) = std::get<2>(ans[i]);

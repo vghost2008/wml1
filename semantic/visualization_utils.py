@@ -416,7 +416,7 @@ def draw_keypoints_on_image_array(image,
 
   Args:
     image: a numpy array with shape [height, width, 3].
-    keypoints: a numpy array with shape [num_keypoints, 2] or [N,num_keypoits,2].
+    keypoints: a numpy array with shape [num_keypoints, 2] or [N,num_keypoits,2] (x,y)
     color: color to draw the keypoints with. Default is red.
     radius: keypoint radius. Default value is 2.
     use_normalized_coordinates: if True (default), treat keypoint values as
@@ -448,7 +448,7 @@ def draw_keypoints_on_image(image,
 
   Args:
     image: a PIL.Image object.
-    keypoints: a numpy array with shape [num_keypoints, 2].
+    keypoints: a numpy array with shape [num_keypoints, 2], (x,y)
     color: color to draw the keypoints with. Default is red.
     radius: keypoint radius. Default value is 2.
     points_pair:[[index0,index1],...] or None
