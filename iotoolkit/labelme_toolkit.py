@@ -63,7 +63,7 @@ image_info: {'height','width'}
 annotations_list: [{'bbox','segmentation','category_id','points_x','points_y'}' #bbox[xmin,ymin,width,height] absolute coordinate, 
 'segmentation' [H,W]
 '''
-def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
+def read_labelme_data(file_path,label_text_to_id=lambda x:int(x),use_semantic=True):
     annotations_list = []
     image = {}
     with open(file_path,"r",encoding="gb18030") as f:
@@ -104,6 +104,15 @@ def read_labelme_data(file_path,label_text_to_id=lambda x:int(x)):
         except:
             print(f"Read file {os.path.basename(file_path)} faild.")
             pass
+    if use_semantic:
+        '''
+        Each pixel only belong to one classes, and the latter annotation will overwrite the previous
+        '''
+        if len(annotations_list) > 2:
+            mask = 1 - annotations_list[-1]['segmentation']
+            for i in reversed(range(len(annotations_list) - 1)):
+                annotations_list[i]['segmentation'] = np.logical_and(annotations_list[i]['segmentation'], mask)
+                mask = np.logical_and(mask, 1 - annotations_list[i]['segmentation'])
     return image,annotations_list
 
 def save_labelme_data(file_path,image_path,image,annotations_list,label_to_text=lambda x:str(x)):
@@ -416,7 +425,7 @@ class LabelMeData(object):
         for i,(img_file, json_file) in enumerate(self.files):
             sys.stdout.write('\r>> read data %d/%d' % (i + 1, len(self.files)))
             sys.stdout.flush()
-            image, annotations_list = read_labelme_data(json_file, None)
+            image, annotations_list = read_labelme_data(json_file, None,use_semantic=True)
             labels_names,bboxes = get_labels_and_bboxes(image,annotations_list)
             masks = [ann["segmentation"] for ann in annotations_list]
             if len(masks)>0:

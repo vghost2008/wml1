@@ -129,9 +129,9 @@ def fill_colormap_and_names(config_fn):
     return colormap
 
 if __name__ == "__main__":
-    dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir="images",label_sub_dir="boe_labels")
-    dataset.read_data("/home/wj/ai/mldata/mapillary_vistas/training")
-    save_dir = wmlu.home_dir("ai/tmp/boe_images")
+    dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir="boe_labels",label_sub_dir="boe_labels")
+    dataset.read_data("/home/wj/ai/mldata/boesemantic")
+    save_dir = wmlu.home_dir("ai/tmp/boe_images2")
     wmlu.create_empty_dir(save_dir,remove_if_exists=False)
     color_map = fill_colormap_and_names("/home/wj/ai/mldata/mapillary_vistas/config_v2.0.json")
     def text_fn(l):

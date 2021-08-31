@@ -166,7 +166,7 @@ def merge_hotgraph_image(src,dst,alpha):
 '''
 size:(w,h)
 '''
-def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR):
+def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR,align=None):
 
     img_shape = img.shape
     if np.any(np.array(img_shape)==0):
@@ -183,6 +183,11 @@ def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR):
             size = list(copy.deepcopy(size))
             size[0] = int(img_shape[1]*ratio)
             size[1] = int(img_shape[0]*ratio)
+
+            if align:
+                size[0] = (size[0]+align-1)//align*align
+                size[1] = (size[1] + align - 1) // align * align
+
     if not isinstance(size,tuple):
         size = tuple(size)
     if size[0]==img_shape[0] and size[1]==img_shape[1]:

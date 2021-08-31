@@ -13,10 +13,10 @@ from multiprocessing import Pool
 import mmcv
 import numpy as np
 
-#img_process_fn = None
-def img_process_fn(img):
+img_process_fn = None
+'''def img_process_fn(img):
     H,W,_ = img.shape
-    return img[:,W//2:]
+    return img[:,W//2:]'''
 
 def extract_frame(vid_item):
     """Generate optical flow using dense flow.
