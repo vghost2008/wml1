@@ -2,8 +2,9 @@ import torch
 from wsummary import _draw_text_on_image
 from collections import Iterable
 import numpy as np
-#import tensorboardX as tb
+import tensorboardX as tb
 #tb.SummaryWriter.add_video()
+#tb.add_sc
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     for name,param in net.named_parameters():
@@ -20,6 +21,19 @@ def log_all_variable(tb,net:torch.nn.Module,global_step):
                 tb.add_histogram("BN_"+name,param,global_step)
             else:
                 tb.add_scalar("BN"+name,param,global_step)
+
+def log_basic_info(tb,name,value:torch.Tensor,global_step):
+    if value.numel()>1:
+        min_v = torch.min(value)
+        max_v = torch.max(value)
+        mean_v = torch.mean(value)
+        std_v = torch.std(value)
+        tb.add_scalar(name+"_min",min_v,global_step)
+        tb.add_scalar(name+"_max",max_v,global_step)
+        tb.add_scalar(name+"_mean",mean_v,global_step)
+        tb.add_scalar(name+"_std",std_v,global_step)
+    else:
+        tb.add_scalar(name,value,global_step)
 
 def add_image_with_label(tb,name,image,label,global_step):
     label = str(label)

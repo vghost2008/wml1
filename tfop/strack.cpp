@@ -78,6 +78,9 @@ void STrack::re_activate(const STrack& new_track,int frame_id,bool new_id)
     state_ = STrackState::TRACKED;
     is_activated_ = true;
     frame_id_ = frame_id;
+
+    set_track_idx(new_track.track_idx());
+
     if(new_id)
         track_id_ = next_id();
 }
@@ -91,6 +94,7 @@ void STrack::update(const STrack& new_track,int frame_id,bool update_feature)
     state_ = STrack::TRACKED;
     is_activated_ = true;
     score_ = new_track.score_;
+    set_track_idx(new_track.track_idx());
     if(update_feature)
         update_features(new_track.curr_feat_);
 }

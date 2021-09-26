@@ -8,9 +8,6 @@ import random
 from iotoolkit.labelme_toolkit import get_labels_and_bboxes
 
 
-
-
-
 def get_files(dir_path, sub_dir_name):
     img_dir = os.path.join(dir_path, sub_dir_name,'images')
     label_dir = os.path.join(dir_path, sub_dir_name,"v2.0","polygons")
@@ -36,7 +33,7 @@ class MapillaryVistasData(object):
         self.sub_dir_name = sub_dir_name
         self.ignored_labels = ignored_labels
         self.label_map = label_map
-        self.allowed_labels_fn = None if allowed_labels_fn is None or len(allowed_labels_fn)==0 else allowed_labels_fn
+        self.allowed_labels_fn = None if allowed_labels_fn is None or (isinstance(allowed_labels_fn,list ) and len(allowed_labels_fn)==0) else allowed_labels_fn
         if self.allowed_labels_fn is not None and isinstance(self.allowed_labels_fn,list):
             self.allowed_labels_fn = lambda x:x in allowed_labels_fn
 

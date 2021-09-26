@@ -1,4 +1,5 @@
 #coding=utf-8
+import sys
 import os
 import object_detection2.npod_toolkit as npod
 import wml_utils
@@ -15,7 +16,6 @@ import pandas as pd
 import wml_utils as wmlu
 from iotoolkit.mapillary_vistas_toolkit import MapillaryVistasData
 from sklearn.cluster import KMeans
-
 '''
 ratio: h/w
 '''
@@ -299,34 +299,11 @@ def test_dataset():
 
 def pascal_voc_dataset():
     data = PascalVOCData(label_text2id=None)
-    #data_path = "/home/wj/ai/mldata3/cell/output/data1"
-    #data_path = '/home/wj/ai/mldata3/cell/binary_test_images/pos_cell_for_test5'
-    #ata_path = '/home/wj/ai/mldata3/cell/binary_test_images/pos_cell_for_test5/SLICEID_20200903100753_C_15_M1'
-    #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/verify_ptp01_1118_p1_proc'
-    #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/tmp_test'
-    #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/tmp_test'
-    #data_path = '/home/wj/ai/mldata3/cell/binary_test_images/pos_cell_for_test20'
-    data_path = "/home/wj/ai/mldata3/cell/neg_stage04_preproc/"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_neg_test"
-    data_path = "/home/vghost/ai/work/mnistgeood_data_generate/data"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv7_neg_proc/"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/rdatasv7_pos_proc_m/"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/verify_n100_0125_1_p1_proc_m"
-    data_path = "/home/wj/ai/mldata2/cell/annotationed_data/tmp_test"
-    data_path = "/home/wj/ai/mldata3/cell/data2annotation/data_cmp_210412_2"
-    #data_path = "/home/vghost/ai/mldata3/cell/data2annotation/verify_n205_kp_210305"
-    #data_path = "/home/vghost/ai/mldata2/cell/annotationed_data/verify_n100_0125_1_p1_proc"
 
-    #data_path = "/home/wj/ai/mldata3/cell/data2annotation/verify_n07_1230_2/"
-    #data_path = "/0_data/data/user/wbz/OCR/rdatav23/"
-    #data_path = '/home/wj/ai/mldata2/cell/annotationed_data/rdatasv4_pos_proc_m'
-    #data_path = '/home/vghost/ai/mldata3/cell/pos_stage_01_verify_preprocv3_1'
-    #data_path = '/home/wj/ai/mldata3/cell/data2annotation/verify_p04_1105_2'
-    #data.read_data("/home/vghost/ai/mldata2/ocrdata/rdatasv20/train")
-    #data.read_data("/2_data/wj/mldata/cell/stage01_verify_preproc/")
-    #data.read_data('/home/vghost/ai/mldata2/cell/annotationed_data/verify_p03_1020_2_proc')
-    #data.read_data('/home/vghost/桌面/verify_p04_1105')
-    #data.read_data('/home/vghost/ai/mldata3/cell/output/faild_neg_images_不要标注')
+    data_path = "/mnt/data1/wj/ai/smldata/boedcvehicle/train"
+    data_path = "/mnt/data1/wj/ai/smldata/boedcvehicle/wt_06"
+    #data_path = "/home/wj/0day/wt_06"
+    #data_path = '/home/wj/0day/pyz'
     data.read_data(data_path,silent=True)
 
     return data.get_items()
@@ -405,9 +382,9 @@ if __name__ == "__main__":
         return [k*img_size[0],k*img_size[1]]
 
     statics = statistics_boxes_with_datas(
-                                          #pascal_voc_dataset(),
+                                          pascal_voc_dataset(),
                                           #labelme_dataset(),
-                                        mapillary_vistas_dataset(),
+                                        #mapillary_vistas_dataset(),
                                           label_encoder=default_encode_label,
                                           labels_to_remove=None,
                                           max_aspect=None,absolute_size=True,

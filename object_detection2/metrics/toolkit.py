@@ -429,7 +429,7 @@ class GeneralCOCOEvaluation(object):
     '''
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],
                  gtmasks=None,
-                 masks=None,is_crowd=None):
+                 masks=None,is_crowd=None,use_relative_coord=True):
         if probability is None:
             probability = np.ones_like(labels,dtype=np.float32)
         if not isinstance(gtboxes,np.ndarray):
@@ -446,7 +446,8 @@ class GeneralCOCOEvaluation(object):
         if probability is not None and not isinstance(probability,np.ndarray):
             probability = np.array(probability)
         if gtlabels.shape[0]>0:
-            gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
+            if use_relative_coord:
+                gtboxes = gtboxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
             groundtruth_dict={
                 standard_fields.InputDataFields.groundtruth_boxes:
                     gtboxes,
@@ -462,7 +463,8 @@ class GeneralCOCOEvaluation(object):
                 image_id=str(self.image_id),
                 groundtruth_dict=groundtruth_dict)
         if labels.shape[0]>0 and gtlabels.shape[0]>0:
-            boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
+            if use_relative_coord:
+                boxes = boxes*[[img_size[0],img_size[1],img_size[0],img_size[1]]]
             detections_dict={
                 standard_fields.DetectionResultFields.detection_boxes:
                     boxes,
@@ -594,7 +596,7 @@ class ClassesWiseModelPerformace(object):
         rlabels = labels[mask]
         return rbboxes,rlabels,mask
 
-    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=None):
+    def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=None,use_relative_coord=True):
         if not isinstance(gtboxes,np.ndarray):
             gtboxes = np.array(gtboxes)
         if not isinstance(gtlabels,np.ndarray):
@@ -616,7 +618,7 @@ class ClassesWiseModelPerformace(object):
             if lgtlabels.shape[0]==0:
                 continue
             self.have_data[i] = True
-            self.data[i](lgtboxes,lgtlabels,lboxes,llabels,lprobs,img_size=img_size)
+            self.data[i](lgtboxes,lgtlabels,lboxes,llabels,lprobs,img_size=img_size,use_relative_coord=use_relative_coord)
         return self.mp(gtboxes,gtlabels,boxes,labels)
 
     def show(self):
@@ -626,6 +628,7 @@ class ClassesWiseModelPerformace(object):
             classes = i+self.clases_begin_value
             print(f"Classes:{classes}")
             self.data[i].show()
+        self.mp.show()
         str0 = "|配置|"
         str1 = "|---|"
         str2 = "||"

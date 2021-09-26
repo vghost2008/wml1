@@ -126,6 +126,7 @@ REGISTER_OP("SortMot")
     .Input("is_first_frame: bool")
 	.Output("output_track_id:int32")
 	.Output("output_bboxes:float32")
+	.Output("output_idx:int32")
 	.SetShapeFn([](shape_inference::InferenceContext* c) {
             auto shape0 = c->MakeShape({-1});
             auto shape1 = c->MakeShape({-1,4});
@@ -177,6 +178,7 @@ class SORTMOTOp: public OpKernel {
             TensorShape  outshape1;
             Tensor      *output_bboxes = NULL;
             Tensor      *output_ids    = NULL;
+            Tensor      *output_idx    = NULL;
 
             TensorShapeUtils::MakeShape(dims_1d0, 1, &outshape0);
             TensorShapeUtils::MakeShape(dims_2d0, 2, &outshape1);
@@ -184,17 +186,21 @@ class SORTMOTOp: public OpKernel {
 
             OP_REQUIRES_OK(context, context->allocate_output(0, outshape0, &output_ids));
             OP_REQUIRES_OK(context, context->allocate_output(1, outshape1, &output_bboxes));
+            OP_REQUIRES_OK(context, context->allocate_output(2, outshape0, &output_idx));
 
             auto ids = output_ids->template tensor<int,1>();
             auto o_bboxes = output_bboxes->template tensor<float,2>();
+            auto o_idx = output_idx->template tensor<float,1>();
 
             ids.setZero();
             o_bboxes.setZero();
+            o_idx.setZero();
 
             for(auto i=0; i<data_nr; ++i) {
                 auto& track = tracks[i];
                 const auto& bbox = track->get_latest_yminxminymaxxmax_bbox();
                 ids(i) = track->track_id();
+                o_idx(i) = track->track_idx();
                 for(auto j=0; j<4; ++j)
                     o_bboxes(i,j) = bbox(j);
             }

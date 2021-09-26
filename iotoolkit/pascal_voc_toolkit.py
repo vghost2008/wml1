@@ -151,7 +151,7 @@ boxes:相对大小
 '''
 def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
 
-    if shape[0] < 5 or shape[1] < 5:
+    if shape is None or shape[0] < 5 or shape[1] < 5:
         _shape = get_shape_from_img(save_path)
         print(f"Force update img shape, old={shape}, new={_shape}.")
         shape = list(_shape)

@@ -56,6 +56,8 @@ class STrack
         inline float score()const { return score_; }
         inline int end_frame()const { return frame_id_; }
         inline int track_id()const { return track_id_; }
+        inline int track_idx()const { return track_idx_; }
+        inline void set_track_idx(int idx) { track_idx_ = idx; }
     private:
         static int g_id_count_;
         static inline int next_id() { return g_id_count_++; }
@@ -72,6 +74,7 @@ class STrack
         int start_frame_ = 0;
         int buffer_size_ = 0;
         int track_id_;
+        int track_idx_ = -1;
         STrackState state_;
         std::shared_ptr<KalmanFilter> kalman_filter_;
         float score_ = 0.0f;

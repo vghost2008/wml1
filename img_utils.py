@@ -169,6 +169,9 @@ size:(w,h)
 def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR,align=None):
 
     img_shape = img.shape
+    if size[0] == img.shape[1] and size[1]==img.shape[0]:
+        return img
+
     if np.any(np.array(img_shape)==0):
         img_shape = list(img_shape)
         img_shape[0] = size[1]
@@ -193,6 +196,25 @@ def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR,a
     if size[0]==img_shape[0] and size[1]==img_shape[1]:
         return img
     return cv2.resize(img,dsize=size,interpolation=interpolation)
+
+'''
+size:(w,h)
+'''
+def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0)):
+    img = resize_img(img,size,keep_aspect_ratio=True,interpolation=interpolation)
+    if img.shape[0] == size[1] and img.shape[1] == size[0]:
+        return img
+    else:
+        res = np.ones([size[1],size[0],3],dtype=img.dtype)
+        pad_color = np.array(list(pad_color))
+        pad_color = pad_color.reshape([1,1,3])
+        res = res*pad_color
+        offset_x = (size[0]-img.shape[1])//2
+        offset_y = (size[1]-img.shape[0])//2
+        w = img.shape[1]
+        h = img.shape[0]
+        res[offset_y:offset_y+h,offset_x:offset_x+w,:] = img
+        return res
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)

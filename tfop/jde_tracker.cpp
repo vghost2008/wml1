@@ -23,8 +23,10 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     frame_id_ += 1;
     
     for(auto i=0; i<bboxes.rows(); ++i) {
-        detections.emplace_back(make_shared<STrack>(bboxes.block<1,4>(i,0).transpose(),
-                    probs(i,0),embds.block(i,0,1,embds.cols()).transpose(),buffer_size_));
+        auto track = make_shared<STrack>(bboxes.block<1,4>(i,0).transpose(),
+                    probs(i,0),embds.block(i,0,1,embds.cols()).transpose(),buffer_size_);
+        track->set_track_idx(i);
+        detections.emplace_back(track);
     }
 
     //Add newly detected tracklets to tracked_stracks
@@ -37,6 +39,9 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
 
     //Step 2: First association, with embedding
     auto strack_pool = joint_stracks(tracked_stracks,lost_stracks_);
+
+    for(auto& track:strack_pool)
+        track->set_track_idx(-1);
 
     STrack::multi_predict(strack_pool);
 
@@ -151,8 +156,10 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
     frame_id_ += 1;
     
     for(auto i=0; i<bboxes.rows(); ++i) {
-        detections.emplace_back(make_shared<STrack>(bboxes.block<1,4>(i,0).transpose(),
-                    probs(i,0),Eigen::VectorXf(),buffer_size_));
+        auto track = make_shared<STrack>(bboxes.block<1,4>(i,0).transpose(),
+                    probs(i,0),Eigen::VectorXf(),buffer_size_);
+        track->set_track_idx(i);
+        detections.emplace_back(track);
     }
 
     //Add newly detected tracklets to tracked_stracks
@@ -165,6 +172,9 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
 
     //Step 2: predict
     auto strack_pool = joint_stracks(tracked_stracks,lost_stracks_);
+
+    for(auto& track:strack_pool)
+        track->set_track_idx(-1);
 
     STrack::multi_predict(strack_pool);
 

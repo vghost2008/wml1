@@ -348,6 +348,17 @@ def change_suffix(path,suffix):
     dir_path = os.path.dirname(path)
     return os.path.join(dir_path,base_name(path)+"."+suffix)
 
+def change_name(path,suffix=None,prefix=None,basename=None):
+    dir_path = os.path.dirname(path)
+    if basename is None:
+        basename = basename(path)
+    if prefix is not None:
+        basename = prefix+basename
+    if suffix is not None:
+        basename = basename+suffix
+    suffix = os.path.splitext(path)[-1]
+    return os.path.join(dir_path,basename+"."+suffix)
+
 def show_member(obj,name=None):
     if name is not None:
         print("Show %s."%(name))
@@ -732,5 +743,16 @@ def file_md5(path):
         data = f.read()
     return hashlib.md5(data).hexdigest()
 
+def get_unused_path(path):
+    if not os.path.exists(path):
+        return path
+    org_path = path
+    if org_path[-1] == "/":
+        org_path = org_path[:-1]
+    i = 0
+    while os.path.exists(path):
+        path = org_path + f"_{i}"
+        i += 1
+    return path
 
 
