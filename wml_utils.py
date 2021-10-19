@@ -258,6 +258,18 @@ def to_chinese_num(i):
         res = res.encode("utf-8")
     return res
 
+def try_link(src_file,dst_file):
+    if os.path.isdir(dst_file):
+        dst_file = os.path.join(dst_file,os.path.basename(src_file))
+    try:
+        os.link(src_file,dst_file)
+    except Exception as e:
+        print(f"{e} try copy file.")
+        try:
+            shutil.copy(src_file,dst_file)
+        except Exception as e:
+            print(f"{e} copy file {src_file} to {dst_file} faild.")
+
 def copy_and_rename_file(input_dir,output_dir,input_suffix=".jpg",out_name_pattern="IMG_%04d.jpg",begin_index=1):
     inputfilenames = recurse_get_filepath_in_dir(input_dir,suffix=input_suffix)
     if not os.path.exists(output_dir):

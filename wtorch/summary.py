@@ -2,9 +2,9 @@ import torch
 from wsummary import _draw_text_on_image
 from collections import Iterable
 import numpy as np
-import tensorboardX as tb
+#import tensorboardX as tb
 #tb.SummaryWriter.add_video()
-#tb.add_sc
+#tb.add_images
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     for name,param in net.named_parameters():

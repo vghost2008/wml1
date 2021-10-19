@@ -9,7 +9,6 @@
 #include <random>
 #include "third_party/eigen3/unsupported/Eigen/CXX11/Tensor"
 #include "unsupported/Eigen/CXX11/src/Tensor/TensorDeviceCuda.h"
-//#include "unsupported/Eigen/CXX11/Tensor"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_shape.h"
@@ -27,18 +26,21 @@ REGISTER_OP("FairMot")
     .Attr("det_thredh:float=0.1")
     .Attr("frame_rate:int=30")
     .Attr("track_buffer:int=30")
+    .Attr("assignment_thresh:list(float)")
     .Input("bboxes: float32") //(ymin,xmin,ymax,xmax) absolute coordinate
     .Input("probs: float32")
     .Input("embedding: float32")
     .Input("is_first_frame: bool")
 	.Output("output_track_id:int32")
 	.Output("output_bboxes:float32")
+	.Output("output_index:int32")
 	.SetShapeFn([](shape_inference::InferenceContext* c) {
             auto shape0 = c->MakeShape({-1});
             auto shape1 = c->MakeShape({-1,4});
 
 			c->set_output(0, shape0);
 			c->set_output(1, shape1);
+			c->set_output(2, shape0);
 
 			return Status::OK();
 			});
@@ -49,6 +51,7 @@ class FairMOTOp: public OpKernel {
 			OP_REQUIRES_OK(context, context->GetAttr("det_thredh", &det_thredh_));
 			OP_REQUIRES_OK(context, context->GetAttr("track_buffer", &track_buffer_));
 			OP_REQUIRES_OK(context, context->GetAttr("frame_rate", &frame_rate_));
+			OP_REQUIRES_OK(context, context->GetAttr("assignment_thresh", &assignment_thresh_));
         }
 
         void Compute(OpKernelContext* context) override
@@ -67,7 +70,7 @@ class FairMOTOp: public OpKernel {
                 if(!is_first_frame) {
                     cout<<"WARNING: First frame should set is_first_frame to true."<<endl;
                 }
-                jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_);
+                jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_,assignment_thresh_);
             }
 
             auto bboxes    = _bboxes.template tensor<float,2>();
@@ -86,6 +89,7 @@ class FairMOTOp: public OpKernel {
             TensorShape  outshape0;
             TensorShape  outshape1;
             Tensor      *output_bboxes = NULL;
+            Tensor      *output_idx    = NULL;
             Tensor      *output_ids    = NULL;
 
             TensorShapeUtils::MakeShape(dims_1d0, 1, &outshape0);
@@ -94,23 +98,28 @@ class FairMOTOp: public OpKernel {
 
             OP_REQUIRES_OK(context, context->allocate_output(0, outshape0, &output_ids));
             OP_REQUIRES_OK(context, context->allocate_output(1, outshape1, &output_bboxes));
+            OP_REQUIRES_OK(context, context->allocate_output(2, outshape0, &output_idx));
 
             auto ids = output_ids->template tensor<int,1>();
             auto o_bboxes = output_bboxes->template tensor<float,2>();
+            auto o_idx = output_idx->template tensor<int,1>();
 
             ids.setZero();
             o_bboxes.setZero();
+            o_idx.setZero();
 
             for(auto i=0; i<data_nr; ++i) {
                 auto& track = tracks[i];
                 const auto& bbox = track->get_latest_yminxminymaxxmax_bbox();
                 ids(i) = track->track_id();
+                o_idx(i) = track->track_idx();
                 for(auto j=0; j<4; ++j)
                     o_bboxes(i,j) = bbox(j);
             }
         }
     private:
         shared_ptr<MOT::JDETracker> jde_tracker_;
+        std::vector<float> assignment_thresh_;
         float det_thredh_   = 0.1;
         int   frame_rate_   = 30;
         int   track_buffer_ = 30;
@@ -121,6 +130,7 @@ REGISTER_OP("SortMot")
     .Attr("det_thredh:float=0.1")
     .Attr("frame_rate:int=30")
     .Attr("track_buffer:int=30")
+    .Attr("assignment_thresh:list(float)")
     .Input("bboxes: float32") //(ymin,xmin,ymax,xmax) absolute coordinate
     .Input("probs: float32")
     .Input("is_first_frame: bool")
@@ -133,6 +143,7 @@ REGISTER_OP("SortMot")
 
 			c->set_output(0, shape0);
 			c->set_output(1, shape1);
+			c->set_output(2, shape0);
 
 			return Status::OK();
 			});
@@ -144,6 +155,7 @@ class SORTMOTOp: public OpKernel {
 			OP_REQUIRES_OK(context, context->GetAttr("det_thredh", &det_thredh_));
 			OP_REQUIRES_OK(context, context->GetAttr("track_buffer", &track_buffer_));
 			OP_REQUIRES_OK(context, context->GetAttr("frame_rate", &frame_rate_));
+			OP_REQUIRES_OK(context, context->GetAttr("assignment_thresh", &assignment_thresh_));
         }
 
         void Compute(OpKernelContext* context) override
@@ -160,7 +172,8 @@ class SORTMOTOp: public OpKernel {
                 if(!is_first_frame) {
                     cout<<"WARNING: First frame should set is_first_frame to true."<<endl;
                 }
-                jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_);
+                jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_,
+                                                            assignment_thresh_);
             }
 
             auto bboxes    = _bboxes.template tensor<float,2>();
@@ -190,7 +203,7 @@ class SORTMOTOp: public OpKernel {
 
             auto ids = output_ids->template tensor<int,1>();
             auto o_bboxes = output_bboxes->template tensor<float,2>();
-            auto o_idx = output_idx->template tensor<float,1>();
+            auto o_idx = output_idx->template tensor<int,1>();
 
             ids.setZero();
             o_bboxes.setZero();
@@ -207,6 +220,7 @@ class SORTMOTOp: public OpKernel {
         }
     private:
         shared_ptr<MOT::JDETracker> jde_tracker_;
+        std::vector<float> assignment_thresh_;
         float det_thredh_   = 0.1;
         int   frame_rate_   = 30;
         int   track_buffer_ = 30;

@@ -7,11 +7,13 @@ using namespace std;
 using namespace MOT;
 
 namespace MOT {
-JDETracker::JDETracker(float det_thresh,int frame_rate,int track_buffer)
+JDETracker::JDETracker(float det_thresh,int frame_rate,int track_buffer,const vector<float>& assignment_thresh)
 :det_thresh_(det_thresh)
 ,frame_rate_(frame_rate)
 ,track_buffer_(track_buffer)
 ,buffer_size_(int(frame_rate*track_buffer/30))
+,max_time_lost_(track_buffer)
+,assignment_thresh_(assignment_thresh)
 {
     kalman_filter_ = make_shared<KalmanFilter>();
 }
@@ -53,7 +55,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     vector<int> u_track,u_detection;
     int itracked,idet;
 
-    linear_assignment(dists,0.4,&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[2],&matches,&u_track,&u_detection);
 
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
@@ -76,7 +78,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     lost_stracks = gather(strack_pool,u_track,[](const STrackPtr_t& t){ return t->state()!=STrack::TRACKED;});
 
     dists = iou_distance(r_tracked_stracks,detections);
-    linear_assignment(dists,0.5,&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[0],&matches,&u_track,&u_detection);
 
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
@@ -105,7 +107,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
 
     inplace_gather(detections,u_detection);
     dists = iou_distance(unconfirmed,detections);
-    linear_assignment(dists,0.7,&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[1],&matches,&u_track,&u_detection);
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
         auto& track = unconfirmed[itracked];
@@ -188,7 +190,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
     copy_if(strack_pool.begin(),strack_pool.end(),back_inserter(lost_stracks),[](const STrackPtr_t& t){ return t->state()!=STrack::TRACKED;});
 
     auto dists = iou_distance(r_tracked_stracks,detections);
-    linear_assignment(dists,0.5,&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[0],&matches,&u_track,&u_detection);
 
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
@@ -217,7 +219,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
 
     inplace_gather(detections,u_detection);
     dists = iou_distance(unconfirmed,detections);
-    linear_assignment(dists,0.7,&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[1],&matches,&u_track,&u_detection);
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
         auto& track = unconfirmed[itracked];

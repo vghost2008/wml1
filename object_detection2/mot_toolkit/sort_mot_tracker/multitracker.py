@@ -21,7 +21,7 @@ class SORTCPPTracker(object):
         self.is_first_frame = tf.placeholder(tf.bool, shape=())
         self.bboxes = tf.placeholder(tf.float32, shape=[None, 4])
         self.probs = tf.placeholder(tf.float32, shape=[None])
-        self.tracked_id,self.tracked_bboxes = tfop.sort_mot(self.bboxes,self.probs,
+        self.tracked_id,self.tracked_bboxes,self.tracked_idx = tfop.sort_mot(self.bboxes,self.probs,
                                                            self.is_first_frame,
                                                            det_thredh=self.det_thresh,
                                                            frame_rate=self.frame_rate,

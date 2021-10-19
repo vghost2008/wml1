@@ -381,6 +381,56 @@ def imwrite(filename, img):
         cv2.cvtColor(img, cv2.COLOR_RGB2BGR,img)
     cv2.imwrite(filename, img)
 
+def read_and_write_img(src_path,dst_path):
+    img = cv2.imread(src_path)
+    cv2.imwrite(dst_path,img)
+
+def videowrite(filename,imgs,fps=30,fmt="RGB"):
+    if len(imgs)==0:
+        return
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    write_size = imgs[0].shape[:2][::-1]
+    video_writer = cv2.VideoWriter(filename, fourcc, fps,write_size)
+    if fmt == "BGR":
+        for img in imgs:
+            video_writer.write(img)
+    elif fmt=="RGB":
+        for img in imgs:
+            video_writer.write(img[...,::-1])
+    else:
+        print(f"ERROR fmt {fmt}.")
+    video_writer.release()
+
+class VideoWriter:
+    def __init__(self,filename,fps=30,fmt='RGB'):
+        self.video_writer = None
+        self.fmt = fmt
+        self.fps = fps
+        self.filename = filename
+
+    def init_writer(self,img):
+        if self.video_writer is not None:
+            return
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        write_size = img.shape[:2][::-1]
+        self.video_writer = cv2.VideoWriter(self.filename, fourcc, self.fps, write_size)
+
+    def write(self,img):
+        if self.video_writer is None:
+            self.init_writer(img)
+        fmt = self.fmt
+        if fmt == "BGR":
+            self.video_writer.write(img)
+        elif fmt=="RGB":
+            self.video_writer.write(img[...,::-1])
+        else:
+            print(f"ERROR fmt {fmt}.")
+
+    def release(self):
+        if self.video_writer is not None:
+            self.video_writer.release()
+            self.video_writer = None
+
 def rotate_img(img,angle,scale=1.0):
     center = (img.shape[1]//2,img.shape[0]//2)
     M = cv2.getRotationMatrix2D(center,angle,scale)

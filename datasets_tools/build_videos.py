@@ -8,13 +8,19 @@ data_dir = sys.argv[1]
 output_path = sys.argv[2]
 format_str = "img_{:05d}.jpg"
 beg_idx = 1
+end_idx = -1
 if len(sys.argv)>3:
     beg_idx = int(sys.argv[3])
-if len(sys.argv)>=5:
-    format_str = sys.argv[4]
+if len(sys.argv)>4:
+    end_idx = int(sys.argv[4])
+if len(sys.argv)>5:
+    format_str = sys.argv[5]
 fps = 30.0
-files = glob.glob(os.path.join(data_dir,"*.jpg"))
-total_frames_nr = len(files)
+if end_idx == -1:
+    files = glob.glob(os.path.join(data_dir,"*.jpg"))
+    total_frames_nr = len(files)
+else:
+    total_frames_nr = end_idx-beg_idx+1
 files = []
 for i in range(total_frames_nr):
     files.append(os.path.join(data_dir,format_str.format(i+beg_idx)))

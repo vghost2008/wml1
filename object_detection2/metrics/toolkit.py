@@ -179,7 +179,7 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
     :param gtlabels: [N]
     :param boxes: [M,4]
     :param labels: [M]
-    :param threshold: float
+    :param threshold: nms_threshold,float
     :return: precision,recall float
     '''
     if not isinstance(gtboxes,np.ndarray):
@@ -259,7 +259,7 @@ class PrecisionAndRecall:
 
     def __call__(self, gtboxes,gtlabels,boxes,labels,probability=None,img_size=[512,512],
                  gtmasks=None,
-                 masks=None,is_crowd=None):
+                 masks=None,is_crowd=None,use_relative_coord=True):
         if self.label_trans is not None:
             gtlabels = self.label_trans(gtlabels)
             labels = self.label_trans(labels)
@@ -615,7 +615,7 @@ class ClassesWiseModelPerformace(object):
                 lprobs = probability[lmask]
             else:
                 lprobs = None
-            if lgtlabels.shape[0]==0:
+            if (lgtlabels.shape[0]==0) and (llabels.shape[0] ==0):
                 continue
             self.have_data[i] = True
             self.data[i](lgtboxes,lgtlabels,lboxes,llabels,lprobs,img_size=img_size,use_relative_coord=use_relative_coord)

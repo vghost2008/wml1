@@ -162,7 +162,7 @@ def parse_args():
         '--ext',
         type=str,
         default='mp4',
-        choices=['avi', 'mp4', 'webm','MOV'],
+        #choices=['avi', 'mp4', 'webm','MOV'],
         help='video file extensions')
     parser.add_argument(
         '--mixed-ext',
@@ -228,6 +228,8 @@ if __name__ == '__main__':
             fullpath_list = glob.glob(args.src_dir + '/*' * args.level + '.' +
                                       args.ext)
             done_fullpath_list = glob.glob(args.out_dir + '/*' * args.level)
+        if len(fullpath_list) == 0 and osp.isfile(args.src_dir):
+            fullpath_list = [args.src_dir]
         print('Total number of videos found: ', len(fullpath_list))
 
     if args.resume:
