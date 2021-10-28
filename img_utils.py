@@ -408,6 +408,9 @@ class VideoWriter:
         self.fps = fps
         self.filename = filename
 
+    def __del__(self):
+        self.release()
+
     def init_writer(self,img):
         if self.video_writer is not None:
             return

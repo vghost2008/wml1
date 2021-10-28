@@ -18,6 +18,7 @@ import copy
 import wnnlayer as wnnl
 import tfop
 import object_detection2.keypoints as kp
+from .transform_toolkit import motion_blur
 
 '''
 所有的变换都只针对一张图, 部分可以兼容同时处理一个batch
@@ -856,6 +857,26 @@ class WRandomDistortColor(WTransform):
     def __repr__(self):
         return f"{type(self).__name__}"
 
+class WRandomMotionBlur(WTransform):
+    def __init__(self,probability=0.5,degree=10, angle=180,**kwargs):
+        self.kwargs = kwargs
+        self.probability = probability
+        self.degree = degree
+        self.max_angle = angle
+        
+    def __call__(self, data_item):
+        def fn():
+            img = data_item[IMAGE]
+            degree = tf.random_uniform(shape=(),minval=3,maxval=self.degree+1,dtype=tf.int32)
+            angle = tf.random_uniform(shape=(),minval=-self.max_angle,maxval=self.max_angle,dtype=tf.int32)
+            return tf.py_func(motion_blur,[img,degree,angle],dtype=img.dtype)
+        self.probability_fn_set(data_item,IMAGE,self.probability,
+                                       fn)
+        return data_item
+    
+    def __repr__(self):
+        return f"{type(self).__name__}"
+
 class WRandomBlur(WTransform):
     def __init__(self,**kwargs):
         self.kwargs = kwargs
@@ -1207,6 +1228,49 @@ class PadtoAlign(WTransform):
             batch_size, N,H, W = btf.combined_static_and_dynamic_shape(x)
             padd_H = get_pad_value(H)
             padd_W = get_pad_value(W)
+            return tf.pad(x, paddings=[[0, 0, ], [0,0],[0, padd_H], [0, padd_W]])
+
+        data_item = self.apply_to_images(func4img,data_item)
+        return self.apply_to_masks(func4mask,data_item)
+    
+    def __repr__(self):
+        return f"{type(self).__name__}"
+'''
+image: [B,H,W,C]
+bboxes: absolute coordinate
+如果有Mask分支，Mask必须为[B,N,H,W]
+'''
+class PadtoFixedSize(WTransform):
+    def __init__(self,size=1):
+        '''
+        size: [H,W]
+        '''
+        self.size = size 
+
+    def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+        if self.align <= 1:
+            return data_item
+
+        def get_padh_value(v):
+            return self.size[0]-v
+        def get_padw_value(v):
+            return self.size[1]-v
+
+
+        def func4img(x):
+            batch_size,H,W,C = btf.combined_static_and_dynamic_shape(x)
+            padd_H = get_padh_value(H)
+            padd_W = get_padw_value(W)
+            return tf.pad(x,paddings=[[0,0,],[0,padd_H],[0,padd_W],[0,0]])
+
+        def func4mask(x):
+            batch_size, N,H, W = btf.combined_static_and_dynamic_shape(x)
+            padd_H = get_padh_value(H)
+            padd_W = get_padw_value(W)
             return tf.pad(x, paddings=[[0, 0, ], [0,0],[0, padd_H], [0, padd_W]])
 
         data_item = self.apply_to_images(func4img,data_item)

@@ -395,7 +395,7 @@ def show_list(values,fmt=None,recurse=False):
             if recurse and isinstance(v,(list,tuple)):
                 show_list(v)
             else:
-                print(fmt%v)
+                print(fmt.format(v))
 
     print("]")
 
