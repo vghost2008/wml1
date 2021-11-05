@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import basic_tftools as btf
 
@@ -188,3 +189,36 @@ def get_bbox(keypoints):
     ymax = tf.reduce_max(y)
 
     return tf.convert_to_tensor([ymin,xmin,ymax,xmax])
+
+def npget_bbox(keypoints,threshold=0.02):
+    '''
+
+    Args:
+        keypoints: [N,3] or [N,2]
+        threshold:
+
+    Returns:
+
+    '''
+    if keypoints.shape[1]>=3:
+        mask = keypoints[:,2]>threshold
+        if np.any(mask):
+            keypoints = keypoints[mask]
+    xmin = np.min(keypoints[:,0])
+    xmax = np.max(keypoints[:,0])
+    ymin = np.min(keypoints[:,1])
+    ymax = np.max(keypoints[:,1])
+    return np.array([xmin,ymin,xmax,ymax],dtype=np.float32)
+
+def npbatchget_bboxes(keypoints,threshold=0.02):
+    if not isinstance(keypoints,np.ndarray):
+        keypoints = np.array(keypoints)
+
+    if len(keypoints.shape)==2:
+        return npget_bbox(keypoints,threshold)
+
+    bboxes = []
+    for kps in keypoints:
+        bboxes.append(npget_bbox(kps,threshold))
+    return np.array(bboxes)
+

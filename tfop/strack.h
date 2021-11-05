@@ -52,6 +52,8 @@ class STrack
         inline void set_state(STrackState s) { state_ = s; }
         inline void mark_lost() { state_ = LOST; }
         inline void mark_removed() { state_ = REMOVED; }
+        inline bool is_removed()const { return state_==REMOVED;}
+        inline bool is_losted()const { return state_==LOST;}
     public:
         inline float score()const { return score_; }
         inline int end_frame()const { return frame_id_; }

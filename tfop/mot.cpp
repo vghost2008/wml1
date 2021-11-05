@@ -27,6 +27,7 @@ REGISTER_OP("FairMot")
     .Attr("frame_rate:int=30")
     .Attr("track_buffer:int=30")
     .Attr("assignment_thresh:list(float)")
+    .Attr("return_losted:bool")
     .Input("bboxes: float32") //(ymin,xmin,ymax,xmax) absolute coordinate
     .Input("probs: float32")
     .Input("embedding: float32")
@@ -52,6 +53,10 @@ class FairMOTOp: public OpKernel {
 			OP_REQUIRES_OK(context, context->GetAttr("track_buffer", &track_buffer_));
 			OP_REQUIRES_OK(context, context->GetAttr("frame_rate", &frame_rate_));
 			OP_REQUIRES_OK(context, context->GetAttr("assignment_thresh", &assignment_thresh_));
+			OP_REQUIRES_OK(context, context->GetAttr("return_losted", &return_losted_));
+            if(assignment_thresh_.size()<3) {
+                cout<<"ERROR assignment threshold length "<<assignment_thresh_.size()<<endl;
+            }
         }
 
         void Compute(OpKernelContext* context) override
@@ -81,7 +86,7 @@ class FairMOTOp: public OpKernel {
             auto jt_bboxes    = Eigen::Map<const BBoxes_t>(bboxes.data(),bboxes.dimension(0),4);
             auto jt_probs     = Eigen::Map<const Probs_t>(probs.data(),probs.dimension(0),1);
             auto jt_embedding = Eigen::Map<const Embeddings_t>(embedding.data(),embedding.dimension(0),embedding.dimension(1));
-            auto tracks       = jde_tracker_->update(jt_bboxes,jt_probs,jt_embedding);
+            auto tracks       = jde_tracker_->update(jt_bboxes,jt_probs,jt_embedding,return_losted_);
             auto data_nr      = tracks.size();
             int  dims_1d0[1]  = {data_nr};
             int  dims_2d0[2]  = {data_nr,4};
@@ -120,9 +125,10 @@ class FairMOTOp: public OpKernel {
     private:
         shared_ptr<MOT::JDETracker> jde_tracker_;
         std::vector<float> assignment_thresh_;
-        float det_thredh_   = 0.1;
-        int   frame_rate_   = 30;
-        int   track_buffer_ = 30;
+        float det_thredh_    = 0.1;
+        int   frame_rate_    = 30;
+        int   track_buffer_  = 30;
+        bool  return_losted_ = false;
 };
 REGISTER_KERNEL_BUILDER(Name("FairMot").Device(DEVICE_CPU), FairMOTOp<CPUDevice>);
 
@@ -156,6 +162,9 @@ class SORTMOTOp: public OpKernel {
 			OP_REQUIRES_OK(context, context->GetAttr("track_buffer", &track_buffer_));
 			OP_REQUIRES_OK(context, context->GetAttr("frame_rate", &frame_rate_));
 			OP_REQUIRES_OK(context, context->GetAttr("assignment_thresh", &assignment_thresh_));
+            if(assignment_thresh_.size()<2) {
+                cout<<"ERROR assignment threshold length "<<assignment_thresh_.size()<<endl;
+            }
         }
 
         void Compute(OpKernelContext* context) override

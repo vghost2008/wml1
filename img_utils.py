@@ -197,6 +197,24 @@ def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR,a
         return img
     return cv2.resize(img,dsize=size,interpolation=interpolation)
 
+def resize_height(img,h,interpolation=cv2.INTER_LINEAR):
+    shape = img.shape
+    new_h = h
+    new_w = int(shape[1]*new_h/shape[0])
+    return cv2.resize(img,dsize=(new_w,new_h),interpolation=interpolation)
+
+def resize_width(img,w,interpolation=cv2.INTER_LINEAR):
+    shape = img.shape
+    new_w = w
+    new_h = int(shape[0]*new_w/shape[1])
+    return cv2.resize(img,dsize=(new_w,new_h),interpolation=interpolation)
+
+def resize_short_size(img,size,interpolation=cv2.INTER_LINEAR):
+    shape = img.shape
+    if shape[0]<shape[1]:
+        return resize_height(img,size,interpolation)
+    else:
+        return resize_width(img,size,interpolation)
 '''
 size:(w,h)
 '''
@@ -433,6 +451,21 @@ class VideoWriter:
         if self.video_writer is not None:
             self.video_writer.release()
             self.video_writer = None
+
+class VideoReader:
+    def __init__(self,path) -> None:
+        self.reader = cv2.VideoCapture(path)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        ret,frame = self.reader.read()
+        if not ret:
+            raise StopIteration()
+        else:
+            return frame[...,::-1]
+
 
 def rotate_img(img,angle,scale=1.0):
     center = (img.shape[1]//2,img.shape[0]//2)

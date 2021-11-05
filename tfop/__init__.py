@@ -513,10 +513,11 @@ def mach_words(targets, texts):
     out = tfop_module.mach_words(targets=targets,texts=texts)
     return out
 
-def fair_mot(bboxes,probs,embedding,is_first_frame,det_thredh=0.1,frame_rate=30,track_buffer=30,assignment_thresh=[0.4,0.5,0.7]):
+def fair_mot(bboxes,probs,embedding,is_first_frame,det_thredh=0.1,frame_rate=30,track_buffer=30,assignment_thresh=[0.4,0.5,0.7],return_losted=False):
     out = tfop_module.fair_mot(bboxes=bboxes,probs=probs,embedding=embedding,is_first_frame=is_first_frame,det_thredh=det_thredh,
                                 frame_rate=frame_rate,track_buffer=track_buffer,
-                                assignment_thresh=assignment_thresh)
+                                assignment_thresh=assignment_thresh,
+                                return_losted=return_losted)
     return out[0],out[1],out[2]
 
 def sort_mot(bboxes,probs,is_first_frame,det_thredh=0.1,frame_rate=30,track_buffer=30,assignment_thresh=[0.4,0.5,0.7]):

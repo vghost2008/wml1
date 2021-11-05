@@ -193,7 +193,7 @@ def main(_):
         "/home/wj/ai/mldata/MOT/MOT17/test",
         "/home/wj/ai/mldata/MOT/MOT15/train",
         "/home/wj/ai/mldata/MOT/MOT15/test",
-         "/home/wj/ai/mldata/MOT/MOT20/train",
+        "/home/wj/ai/mldata/MOT/MOT20/train",
     ]
 
     train_output_path = FLAGS.output_dir

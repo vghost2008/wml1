@@ -57,7 +57,7 @@ void linear_assignment(const Eigen::MatrixXf& cost_matrix,float thresh,vector<pa
         return;
     }
 
-    float max_cost = cost_matrix.sum()+1.0f;
+    float max_cost = cost_matrix.sum()+1.0f+thresh;
     auto data_nr = max(cost_matrix.cols(),cost_matrix.rows());
     Matrix<float,Dynamic,Dynamic,RowMajor> new_cost_matrix(data_nr,data_nr);
 

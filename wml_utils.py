@@ -363,13 +363,13 @@ def change_suffix(path,suffix):
 def change_name(path,suffix=None,prefix=None,basename=None):
     dir_path = os.path.dirname(path)
     if basename is None:
-        basename = basename(path)
+        basename = base_name(path)
     if prefix is not None:
         basename = prefix+basename
     if suffix is not None:
         basename = basename+suffix
     suffix = os.path.splitext(path)[-1]
-    return os.path.join(dir_path,basename+"."+suffix)
+    return os.path.join(dir_path,basename+suffix)
 
 def show_member(obj,name=None):
     if name is not None:
@@ -531,7 +531,9 @@ class TimeThis():
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.time()
         if self.auto_show:
-            print(f"{self.name}: total time {self.end_time-self.begin_time}.")
+            te = (self.end_time-self.begin_time)*1000
+            fps = 1000/(te+1e-8)
+            print(f"{self.name}: total time {te:.3f}, FPS={fps:.3f}.")
 
     def time(self):
         return self.end_time-self.begin_time

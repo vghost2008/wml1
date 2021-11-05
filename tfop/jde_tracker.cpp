@@ -17,16 +17,16 @@ JDETracker::JDETracker(float det_thresh,int frame_rate,int track_buffer,const ve
 {
     kalman_filter_ = make_shared<KalmanFilter>();
 }
-STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, const Embeddings_t& embds)
+STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, const Embeddings_t& embds,bool return_losted)
 {
     STrackPtrs_t activated_stracks,refind_stracks,lost_stracks,removed_stracks,detections;
     STrackPtrs_t unconfirmed,tracked_stracks;
 
     frame_id_ += 1;
-    
+
     for(auto i=0; i<bboxes.rows(); ++i) {
         auto track = make_shared<STrack>(bboxes.block<1,4>(i,0).transpose(),
-                    probs(i,0),embds.block(i,0,1,embds.cols()).transpose(),buffer_size_);
+                probs(i,0),embds.block(i,0,1,embds.cols()).transpose(),buffer_size_);
         track->set_track_idx(i);
         detections.emplace_back(track);
     }
@@ -35,8 +35,8 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     for(auto track:tracked_stracks_) {
         if(track->is_activated())
             tracked_stracks.push_back(track);
-         else
-             unconfirmed.push_back(track);
+        else
+            unconfirmed.push_back(track);
     }
 
     //Step 2: First association, with embedding
@@ -59,8 +59,8 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
 
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
-        auto& track = strack_pool[itracked];
-        auto& det = detections[idet];
+        auto& track = strack_pool.at(itracked);
+        auto& det = detections.at(idet);
 
         if(track->state() == STrack::TRACKED) {
             track->update(*det,frame_id_);
@@ -136,19 +136,24 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
      * the follow line is not included original python code, since some tracks in lost_stracks_ become activated, so only tracks still 
      * in lost state will be removed
      */
-    lost_stracks_ = lost_stracks;
     for(auto& track:lost_stracks_) {
         if(frame_id_-track->end_frame()>max_time_lost_) {
             track->mark_removed();
             removed_stracks.push_back(track);
         }
     }
+    lost_stracks_.clear();
+    copy_if(lost_stracks.begin(),lost_stracks.end(),back_inserter(lost_stracks_),[](const auto& v) {
+        return !v->is_removed();
+    });
 
     tracked_stracks_ = joint_stracks(activated_stracks,refind_stracks);
     removed_stracks_ = joint_stracks(removed_stracks_,removed_stracks);
 
-    return tracked_stracks_;
-
+    if(return_losted)
+        return joint_stracks(tracked_stracks_,lost_stracks_);
+    else
+        return tracked_stracks_;
 }
 STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
 {

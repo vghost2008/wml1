@@ -236,3 +236,123 @@ def draw_semantic_on_image(image,semantic,color_map,alpha=0.4,ignored_label=0):
     pred = np.expand_dims(semantic!=ignored_label,axis=-1)
     new_img = np.where(pred,new_img,image)
     return new_img
+
+def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None):
+
+    def link(a, b, color):
+        jointa = joints[a]
+        jointb = joints[b]
+        cv2.line(
+                image,
+                (int(jointa[0]), int(jointa[1])),
+                (int(jointb[0]), int(jointb[1])),
+                color, 2 )
+
+    # add link
+    if not no_line and joints_pair is not None:
+        for pair in joints_pair:
+            link(pair[0], pair[1], color)
+
+    # add joints
+    for i, joint in enumerate(joints):
+        cv2.circle(image, (int(joint[0]), int(joint[1])), r, colors_tableau[i], -1)
+
+    return image
+
+def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None):
+
+    def link(a, b, color):
+        jointa = joints[a]
+        jointb = joints[b]
+        if jointa[2] > 0.01 and jointb[2] > 0.01:
+            cv2.line(
+                image,
+                (int(jointa[0]), int(jointa[1])),
+                (int(jointb[0]), int(jointb[1])),
+                color, 2 )
+
+    # add link
+    if not no_line and joints_pair is not None:
+        for pair in joints_pair:
+            link(pair[0], pair[1], color)
+
+    # add joints
+    for i, joint in enumerate(joints):
+        if joint[2] > 0.05 and joint[0] > 1 and joint[1] > 1:
+            cv2.circle(image, (int(joint[0]), int(joint[1])), r, colors_tableau[i], -1)
+
+    return image
+
+def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=None):
+    '''
+
+    Args:
+        image: [H,W,3]
+        joints: [N,kps_nr,2] or [kps_nr,2]
+        color:
+        no_line:
+        joints_pair: [[first idx,second idx],...]
+    Returns:
+
+    '''
+    image = np.ascontiguousarray(image)
+    joints = np.array(joints)
+    if color is None:
+        use_random_color=True
+    else:
+        use_random_color = False
+    if len(joints.shape)==2:
+        joints = [joints]
+    else:
+        assert len(joints.shape)==3,"keypoints need to be 3-dimensional."
+
+    for person in joints:
+        if use_random_color:
+            color = np.random.randint(0, 255, size=3)
+            color = [int(i) for i in color]
+        if person.shape[-1] == 3:
+            add_jointsv2(image, person, color=color,no_line=no_line,joints_pair=joints_pair)
+        else:
+            add_jointsv1(image, person, color=color,no_line=no_line,joints_pair=joints_pair)
+
+    return image
+
+
+def draw_keypoints_diff(image, joints0, joints1,color=[0,255,0]):
+    image = np.ascontiguousarray(image)
+    joints0 = np.array(joints0)
+    joints1 = np.array(joints1)
+    if color is None:
+        use_random_color=True
+    else:
+        use_random_color = False
+    if len(joints0.shape)==2:
+        points_nr = joints0.shape[0]
+        joints0 = [joints0]
+        joints1 = [joints1]
+    else:
+        points_nr = joints0.shape[1]
+        assert len(joints0.shape)==3,"keypoints need to be 3-dimensional."
+
+    for person0,person1 in zip(joints0,joints1):
+        if use_random_color:
+            color = np.random.randint(0, 255, size=3)
+            color = [int(i) for i in color]
+        for i in range(points_nr):
+            jointa = person0[i]
+            jointb = person1[i]
+            if person0.shape[-1] == 3:
+                if person0[i][-1]>0.015 and person1[i][-1]>0.015:
+                    cv2.line(
+                    image,
+                    (int(jointa[0]), int(jointa[1])),
+                    (int(jointb[0]), int(jointb[1])),
+                     color, 2 )
+            else:
+                cv2.line(
+                    image,
+                    (int(jointa[0]), int(jointa[1])),
+                    (int(jointb[0]), int(jointb[1])),
+                     color, 2 )
+
+    return image

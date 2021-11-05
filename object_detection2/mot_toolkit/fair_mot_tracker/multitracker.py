@@ -34,6 +34,7 @@ class STrack(BaseTrack):
         self.update_features(temp_feat)
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
+        self.cur_det_bboxes = None
 
     def update_features(self, feat):
         self.curr_feat = feat
@@ -102,6 +103,7 @@ class STrack(BaseTrack):
         self.tracklet_len += 1
 
         new_tlwh = new_track.tlwh
+        self.cur_det_bboxes = new_tlwh
         self.mean, self.covariance = self.kalman_filter.update(
             self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
         self.state = TrackState.Tracked
@@ -123,9 +125,18 @@ class STrack(BaseTrack):
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2
         return ret
+
     @property
     def yminxminymaxxmax(self):
         ret = self.tlwh.copy()
+        return [ret[1],ret[0],ret[1]+ret[3],ret[0]+ret[2]]
+
+    @property
+    def yminxminymaxxmax_det(self):
+        if self.cur_det_bboxes is None:
+            ret = self.tlwh.copy()
+        else:
+            ret = self.cur_det_bboxes
         return [ret[1],ret[0],ret[1]+ret[3],ret[0]+ret[2]]
 
     @property
@@ -187,34 +198,31 @@ class JDETracker(object):
     def draw_tracks(self,img,tracks):
         labels = []
         bboxes = []
+        det_bboxes = []
         def color_fn(l):
             index = l%len(colors_tableau)
             return colors_tableau[index]
+        def det_color_fn(l):
+            return (0,255,0)
         def text_fn(l,scires):
             return f"{l}"
         for track in tracks:
             labels.append(track.track_id)
             bboxes.append(track.yminxminymaxxmax)
+            det_bboxes.append(track.yminxminymaxxmax_det)
         print(f"bboxes:",bboxes)
         img = odv.draw_bboxes(img,labels,bboxes=bboxes,
                               color_fn=color_fn,text_fn=text_fn,
-                              show_text=True,is_relative_coordinate=False)
+                              show_text=True,
+                              is_relative_coordinate=False)
+        img = odv.draw_bboxes(img,labels,bboxes=det_bboxes,
+                              color_fn=det_color_fn,text_fn=text_fn,
+                              show_text=False,
+                              is_relative_coordinate=False)
         return img
 
-
     def update(self, img0):
-        self.frame_id += 1
-        activated_starcks = []
-        refind_stracks = []
-        lost_stracks = []
-        removed_stracks = []
-
-        width = img0.shape[1]
-        height = img0.shape[0]
-        inp_height = height
-        inp_width = width
-
-        ''' Step 1: Network forward, get detections & embeddings'''
+        ''' Network forward, get detections & embeddings'''
         output = self.model(np.expand_dims(img0,axis=0))
         if len(output[RD_BOXES].shape) == 3:
             l = output[RD_LENGTH][0]
@@ -231,6 +239,15 @@ class JDETracker(object):
             probs = output[RD_PROBABILITY]
             ids = output[RD_ID]
             pass
+        
+        return self.apply(bboxes,probs,ids)
+
+    def apply(self, bboxes,probs,ids):
+        self.frame_id += 1
+        activated_starcks = []
+        refind_stracks = []
+        lost_stracks = []
+        removed_stracks = []
 
         if len(ids) > 0:
             '''Detections'''
@@ -335,6 +352,7 @@ class JDETracker(object):
         logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
         logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
+        output_stracks.extend(lost_stracks)
         return output_stracks
 
 

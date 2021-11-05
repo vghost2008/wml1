@@ -7,6 +7,7 @@ import os
 import sys
 import random
 import basic_tftools as btf
+from collections import Iterable
 sys.path.append(os.path.dirname(__file__))
 import math
 import object_detection2.wmath as wmath
@@ -385,6 +386,51 @@ def scale_bboxes(bboxes,scale,correct=False):
     data = tf.reshape(data, old_shape)
     if correct:
         data = tf_correct_yxminmax_boxes(data)
+    return data
+
+'''
+boxes:[...,4] ymin,xmin,ymax,xmax
+scale:[hscale,wscale]
+'''
+def npscale_bboxes(bboxes,scale,correct=False,max_size=None):
+    if not isinstance(scale,Iterable):
+        scale = [scale,scale]
+    ymin,xmin,ymax,xmax = bboxes[...,0],bboxes[...,1],bboxes[...,2],bboxes[...,3]
+    cy = (ymin+ymax)/2.
+    cx = (xmin+xmax)/2.
+    h = ymax-ymin
+    w = xmax-xmin
+    h = scale[0]*h
+    w = scale[1]*w
+    ymin = cy - h / 2.
+    ymax = cy + h / 2.
+    xmin = cx - w / 2.
+    xmax = cx + w / 2.
+    xmin = np.maximum(xmin,0)
+    ymin = np.maximum(ymin,0)
+    if max_size is not None:
+        xmax = np.minimum(xmax,max_size[1]-1)
+        ymax = np.minimum(ymax,max_size[0]-1)
+    data = np.stack([ymin, xmin, ymax, xmax], axis=-1)
+    return data
+
+'''
+boxes:[...,4] ymin,xmin,ymax,xmax
+scale:[hscale,wscale]
+'''
+def npclip_bboxes(bboxes,max_size):
+    ymin,xmin,ymax,xmax = bboxes[...,0],bboxes[...,1],bboxes[...,2],bboxes[...,3]
+    xmin = np.maximum(xmin,0)
+    ymin = np.maximum(ymin,0)
+    if max_size is not None:
+        xmax = np.minimum(xmax,max_size[1]-1)
+        ymax = np.minimum(ymax,max_size[0]-1)
+    data = np.stack([ymin, xmin, ymax, xmax], axis=-1)
+    return data
+
+def npchangexyorder(bboxes):
+    ymin,xmin,ymax,xmax = bboxes[...,0],bboxes[...,1],bboxes[...,2],bboxes[...,3]
+    data = np.stack([xmin, ymin, xmax, ymax], axis=-1)
     return data
 
 '''
@@ -785,7 +831,7 @@ def bbox_of_boxes(boxes):
     xmin = np.min(boxes[1])
     ymax = np.max(boxes[2])
     xmax = np.max(boxes[3])
-    return [ymin,xmin,ymax,xmax]
+    return np.array([ymin,xmin,ymax,xmax])
 
 '''
 boxes:[N,4],[ymin,xmin,ymax,xmax]

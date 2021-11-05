@@ -361,7 +361,7 @@ class SimpleTrainer(TrainerBase):
                                    name="XXXXX")'''
         self.res_data,loss_dict = self.model.forward(data)
         config = tf.ConfigProto(allow_soft_placement=True)
-        # config.gpu_options.allow_growth = True
+        config.gpu_options.allow_growth = True
         self.top_variable_name_scope = "Model"
 
         print("batch_norm_ops.")
@@ -569,7 +569,7 @@ class SimpleTrainer(TrainerBase):
         self.loss_dict = all_loss_dict
 
         config = tf.ConfigProto(allow_soft_placement=True)
-        #config.gpu_options.allow_growth = True
+        config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
         if self.debug_tf:
@@ -749,6 +749,7 @@ class SimpleTrainer(TrainerBase):
         if sess is None:
             sess = self.sess
 
+        ckpt_path = os.path.expanduser(ckpt_path)
         wnn.restore_variables(sess,ckpt_path,**kwargs)
 
     def run_step(self):
