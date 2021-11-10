@@ -16,6 +16,22 @@ def unnormalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
     x = x*scale+offset
     return x
 
+def normalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
+    if len(x.size())==4:
+        scale = np.reshape(np.array(std,dtype=np.float32),[1,3,1,1])
+        offset = np.reshape(np.array(mean,dtype=np.float32),[1,3,1,1])
+    elif len(x.size())==5:
+        scale = np.reshape(np.array(std, dtype=np.float32), [1, 1,3, 1, 1])
+        offset = np.reshape(np.array(mean, dtype=np.float32), [1,1, 3, 1, 1])
+    elif len(x.size())==3:
+        scale = np.reshape(np.array(std, dtype=np.float32), [3, 1, 1])
+        offset = np.reshape(np.array(mean, dtype=np.float32), [3, 1, 1])
+
+    offset = torch.from_numpy(offset).to(x.device)
+    scale = torch.from_numpy(scale).to(x.device)
+    x = (x-offset)/scale
+    return x
+
 def forgiving_state_restore(net, loaded_dict):
     """
     Handle partial loading when some tensors don't match up in size.

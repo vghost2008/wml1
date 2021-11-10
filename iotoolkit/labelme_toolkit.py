@@ -51,8 +51,11 @@ def get_files(data_dir, img_suffix="jpg"):
     res = []
     for file in files:
         img_file = wmlu.change_suffix(file, img_suffix)
+        img_file1 = wmlu.change_suffix(file, "jpeg")
         if os.path.exists(img_file):
             res.append((img_file, file))
+        elif os.path.exists(img_file1):
+            res.append((img_file1, file))
 
     return res
 
@@ -471,7 +474,39 @@ def remove_instance(image,annotations_list,remove_pred_fn,default_value=[127, 12
             res.append(ann)
     
     return image,res
-            
+
+def read_labelme_kp_data(file_path,label_text_to_id=lambda x:int(x)):
+    '''
+
+    Args:
+        file_path: json file path
+        label_text_to_id: int f(string)
+
+    Returns:
+        labels:[N]
+        points:[N,2]
+    '''
+    labels = []
+    points = []
+    image_info = {}
+    with open(file_path,"r") as f:
+        data = json.load(f)
+
+    for d in data['shapes']:
+        label = d['label']
+        point = d['points'][0]
+        if label_text_to_id is not None:
+            label = label_text_to_id(label)
+        labels.append(label)
+        points.append(point)
+
+    image_info['width'] = int(data['imageWidth'])
+    image_info['height'] = int(data["imageHeight"])
+    image_info['file_name'] = wmlu.base_name(data["imagePath"])
+
+    return image_info,labels,points
+
+
 if __name__ == "__main__":
     #data_statistics("/home/vghost/ai/mldata/qualitycontrol/rdatasv3")
     import img_utils as wmli

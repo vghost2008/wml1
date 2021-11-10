@@ -1,5 +1,7 @@
 #coding=utf-8
 from itertools import count
+
+import cv2
 import tensorflow as tf
 import img_utils as wmli
 from collections import Iterable
@@ -15,6 +17,7 @@ import object_detection2.bboxes as odb
 import object_detection2.od_toolkit as odt
 from basic_tftools import channel
 import copy
+import random
 import wnnlayer as wnnl
 import tfop
 import object_detection2.keypoints as kp
@@ -511,10 +514,14 @@ class RandomRotateAnyAngle(WTransform):
 
     def __call__(self, data_item):
         if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
-            print(f"WARNING: {self} need absolute coordinate.")
+            print("------------------------------------------------")
+            print(f"ERROR: {self} need absolute coordinate.")
+            print("------------------------------------------------")
         if self.use_mask and GT_MASKS in data_item:
             if not self.test_unstatu(WTransform.HWN_MASK):
-                print(f"WARNING: {self} need NHW format mask.")
+                print("------------------------------------------------")
+                print(f"ERROR: {self} need NHW format mask.")
+                print("------------------------------------------------")
         if not self.enable:
             return data_item
         is_rotate = tf.less(tf.random_uniform(shape=[]),self.rotate_probability)
@@ -535,16 +542,16 @@ class RandomRotateAnyAngle(WTransform):
             if GT_MASKS in data_item:
                 r_mask, _ = tfop.mask_rotate(mask=data_item[GT_MASKS], angle=angle, get_bboxes_stride=4)
                 WTransform.cond_set(data_item,GT_MASKS,is_rotate,r_mask)
-
-            img_shape = tf.shape(data_item[IMAGE])
-            r_bboxes = tfop.bboxes_rotate(bboxes=data_item[GT_BOXES],angle=angle,
-                                       img_size = img_shape,
-                                       type=self.rotate_bboxes_type)
-            r_bboxes = tf.maximum(r_bboxes,0)
-            max_value = tf.convert_to_tensor([[img_shape[0]-1,img_shape[1]-1,img_shape[0]-1,img_shape[1]-1]])
-            max_value = tf.cast(max_value,tf.float32)
-            r_bboxes = tf.minimum(r_bboxes,max_value)
-            WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
+            if GT_BOXES in data_item:
+                img_shape = tf.shape(data_item[IMAGE])
+                r_bboxes = tfop.bboxes_rotate(bboxes=data_item[GT_BOXES],angle=angle,
+                                           img_size = img_shape,
+                                           type=self.rotate_bboxes_type)
+                r_bboxes = tf.maximum(r_bboxes,0)
+                max_value = tf.convert_to_tensor([[img_shape[0]-1,img_shape[1]-1,img_shape[0]-1,img_shape[1]-1]])
+                max_value = tf.cast(max_value,tf.float32)
+                r_bboxes = tf.minimum(r_bboxes,max_value)
+                WTransform.cond_set(data_item, GT_BOXES, is_rotate, r_bboxes)
         if GT_KEYPOINTS in data_item:
             img_shape = tf.shape(data_item[IMAGE])
             rotated_points = kp.keypoits_rotate(data_item[GT_KEYPOINTS],angle,width=img_shape[1],height=img_shape[0])
@@ -767,9 +774,13 @@ class ResizeToFixedSize(WTransform):
                 return func0(image)
                 #return tf.cond(tf.reduce_any(tf.equal(tf.shape(image),0)),lambda :image,
                                  #lambda:func0(image));
+            print("SIZE:",self.size)
             items = self.apply_to_images_and_masks(func,data_item)
             if self.channels is not None:
-                func = partial(tf.reshape,shape=self.size+[self.channels])
+                shape = self.size+[self.channels]
+                if len(items[IMAGE].shape)==4:
+                    shape = [items[IMAGE].shape[0]]+shape
+                func = partial(tf.reshape,shape=shape)
                 items = self.apply_to_images(func,items)
             return items
         
@@ -1624,6 +1635,292 @@ class Stitch(WTransform):
     def __repr__(self):
         return f"{type(self).__name__}"
 
+
+'''
+用于将多个图像拼在一起，生成一个包含更多（通常也更清晰）的小目标
+image: [B,H,W,C]
+如果有Mask分支，Mask必须为[B,N,H,W]
+bboxes:absolute coordinate
+'''
+class CopyPaste(WTransform):
+    def __init__(self, nr=1):
+        if nr < 1:
+            self.nr = 1
+            self.probability = nr
+        else:
+            self.nr = nr
+            self.probability = None
+
+    def __call__(self, data_item):
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"WARNING: {self} need absolute coordinate.")
+        if not self.test_unstatu(WTransform.HWN_MASK):
+            print(f"WARNING: {self} need NHW format mask.")
+        B, H, W, C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        if B < 2:
+            return data_item
+
+        if self.probability is None:
+            return self.apply_copy_paste(data_item)
+        else:
+            p = tf.less(tf.random_uniform(shape=()), self.probability)
+            return tf.cond(p, partial(self.apply_copy_paste, dict(data_item)), lambda: dict(data_item))
+
+    def apply_copy_paste(self, data_item):
+        B, H, W, C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        if B < 2:
+            return data_item
+
+        indexs = tf.range((B // 2) * 2)
+        indexs = tf.random_shuffle(indexs, seed=time.time())
+        indexs = tf.reshape(indexs, [B // 2, 2])
+        nr = tf.minimum(B // 2, int(self.nr + 0.5))
+        indexs = indexs[:nr]
+        B, H, W, C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
+        if GT_BOXES in data_item:
+            B, _, BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
+        indexs = tf.transpose(indexs, [1, 0])
+        o_indexs = indexs[0]
+        # get maxlength
+        l0 = tf.gather(data_item[GT_LENGTH], indexs[0])
+        l1 = tf.gather(data_item[GT_LENGTH], indexs[1])
+        sum_l = l0 + l1
+        max_length = tf.maximum(tf.reduce_max(sum_l), tf.shape(data_item[GT_LABELS])[1])
+        pad_value = tf.maximum(0, max_length - tf.shape(data_item[GT_LABELS])[1])
+        if GT_BOXES in data_item:
+            WTransform.pad(data_item, GT_BOXES, [[0, 0], [0, pad_value]])
+        if GT_KEYPOINTS in data_item:
+            WTransform.pad(data_item, GT_KEYPOINTS, [[0, 0], [0, pad_value]])
+        WTransform.pad(data_item, GT_LABELS, [[0, 0], [0, pad_value]])
+        if GT_MASKS in data_item:
+            WTransform.pad(data_item, GT_MASKS, [[0, 0], [0, pad_value]])
+        #
+        indexs = tf.reshape(indexs, [-1])
+
+        i_image = tf.gather(data_item[IMAGE], indexs)
+        if GT_BOXES in data_item:
+            i_bboxes = tf.gather(data_item[GT_BOXES], indexs)
+        if GT_KEYPOINTS in data_item:
+            i_kps = tf.gather(data_item[GT_KEYPOINTS], indexs)
+        i_labels = tf.gather(data_item[GT_LABELS], indexs)
+        i_length = tf.gather(data_item[GT_LENGTH], indexs)
+
+        def set_value(data_dict, key, value, indexs):
+            org_v = data_dict[key]
+            shape = btf.combined_static_and_dynamic_shape(org_v)
+            cond_v = tf.scatter_nd(tf.reshape(indexs, [-1, 1]), value, shape)
+            is_set = tf.cast(btf.indices_to_dense_vector(indexs, size=shape[0]), tf.bool)
+            cond_v = tf.where(is_set, cond_v, org_v)
+            data_dict[key] = cond_v
+            pass
+
+        o_kps = None
+
+        if GT_MASKS in data_item:
+            mask = tf.gather(data_item[GT_MASKS], indexs)
+            mask = tf.transpose(mask, perm=[0, 2, 3, 1])
+            image, mask, bboxes, labels, length = tf.py_func(CopyPaste.process_with_masks, [i_image,
+                                                                                         mask,
+                                                                                         i_bboxes,
+                                                                                         i_labels,
+                                                                                         i_length],
+                                                             (data_item[IMAGE].dtype,
+                                                              data_item[GT_MASKS].dtype,
+                                                              tf.float32,
+                                                              data_item[GT_LABELS].dtype,
+                                                              data_item[GT_LENGTH].dtype),
+                                                             stateful=False)
+            mask = tf.transpose(mask, perm=[0, 3, 1, 2])
+            mask = tf.reshape(mask, [nr, max_length, H, W])
+            set_value(data_item, GT_MASKS, mask, o_indexs)
+        elif GT_BOXES in data_item:
+            image, bboxes, labels, length = tf.py_func(CopyPaste.process, [i_image,
+                                                                        i_bboxes,
+                                                                        i_labels,
+                                                                        i_length],
+                                                       (data_item[IMAGE].dtype,
+                                                        tf.float32,
+                                                        data_item[GT_LABELS].dtype,
+                                                        data_item[GT_LENGTH].dtype),
+                                                       stateful=False)
+        elif GT_KEYPOINTS in data_item:
+            image, labels, o_kps,length = tf.py_func(CopyPaste.process_kps, [i_image,
+                                                                       i_labels,
+                                                                       i_kps,
+                                                                       i_length],
+                                                       (data_item[IMAGE].dtype,
+                                                        data_item[GT_LABELS].dtype,
+                                                        tf.float32,
+                                                        data_item[GT_LENGTH].dtype),
+                                                       stateful=False)
+        else:
+            print(f"ERROR: error data item.")
+
+        image = tf.reshape(image, [nr, H, W, C])
+        if GT_BOXES in data_item:
+            bboxes = tf.reshape(bboxes, [nr, max_length, BOX_DIM])
+            set_value(data_item, GT_BOXES, bboxes, o_indexs)
+        if GT_KEYPOINTS in data_item and o_kps is not None:
+            set_value(data_item, GT_KEYPOINTS, o_kps, o_indexs)
+
+        labels = tf.reshape(labels, [nr, max_length])
+        length = tf.reshape(length, [nr])
+        set_value(data_item, IMAGE, image, o_indexs)
+        set_value(data_item, GT_LABELS, labels, o_indexs)
+        set_value(data_item, GT_LENGTH, length, o_indexs)
+
+        return data_item
+
+    @staticmethod
+    def concat_mask(imgs):
+        '''
+
+        :param imgs: [[H,W,N0],[H,W,N1]]
+        :return:
+        '''
+        return np.concatenate(imgs, axis=-1)
+
+    @staticmethod
+    def scale_bboxes(bboxes, sw, sh):
+        return np.array([[sh, sw, sh, sw]]) * bboxes
+
+    @staticmethod
+    def concat_bboxes(bboxes):
+        return np.concatenate(bboxes, axis=0)
+
+    @staticmethod
+    def concat_kps(kps):
+        return np.concatenate(kps, axis=0)
+
+    @staticmethod
+    def concat_labels(labels):
+        return np.concatenate(labels, axis=0)
+
+    @staticmethod
+    def resize_data(img,bboxes,masks,kps,min_ratio=0.5):
+        OH,OW = img.shape[:2]
+        new_img = np.zeros_like(img)
+        ratio = np.random.rand(1)*(1-min_ratio)+min_ratio
+        NH = int(OH*ratio)
+        NW = int(OW*ratio)
+        img = wmli.resize_img(img,(NW,NH))
+        offset_x = random.randint(0,max(0,OW-NW))
+        offset_y = random.randint(0,max(0,OH-NH))
+        new_img[ offset_y:offset_y + img.shape[0],offset_x:offset_x + img.shape[1]] = img
+        if bboxes is not None:
+            bboxes = bboxes*ratio+np.array([[offset_y,offset_x,offset_y,offset_x]],dtype=bboxes.dtype)
+        if kps is not None:
+            if len(kps.shape)==2:
+                kps = kps*ratio+np.array([[offset_x,offset_y]],dtype=kps.dtype)
+            elif len(kps.shape)==3:
+                kps = kps * ratio + np.array([[[offset_x, offset_y]]], dtype=kps.dtype)
+
+        if masks is not None:
+            OMH,OMW = masks.shape[:2]
+            NMH = int(OMH*ratio)
+            NMW = int(OMW*ratio)
+            new_masks = np.zeros_like(masks)
+            masks = wmli.resize_img(masks,(NMW,NMH),interpolation=cv2.INTER_NEAREST)
+            mask_offset_x = int(offset_x*OMW/OW)
+            mask_offset_y = int(offset_y*OMH/OH)
+            new_masks[mask_offset_y:mask_offset_y+masks.shape[0],mask_offset_x:mask_offset_x+masks.shape[1]] = masks
+        else:
+            new_masks = None
+        return new_img,bboxes,new_masks,kps
+
+    @staticmethod
+    def __process(image, mask=None, bboxes=None, labels=None, kps=None, length=None):
+        B, H, W = image.shape[:3]
+        res_nr = B // 2
+        indexs = np.array(range(B))
+        indexs = np.transpose(np.reshape(indexs, [2, -1]), axes=[1, 0])
+        max_length = labels.shape[1]
+        res_length = np.copy(length)
+        type = length.dtype
+        length = np.reshape(length, [2, -1])
+
+        for i, inds in enumerate(indexs):
+            id0 = inds[0]
+            id1 = inds[1]
+            len0, len1 = length[:, id0]
+            bboxes_in = bboxes[id1][:len1] if bboxes is not None else None
+            masks_in = mask[id0][:,:,:len1] if mask is not None else None
+            kps_in = kps[id1][:len1] if kps is not None else None
+            image1,bboxes1,masks1,kps1 = CopyPaste.resize_data(image[id1],bboxes_in,masks_in,kps_in
+            )
+            img_type = image[id0].dtype
+            img = (image[id0]*0.5+image1*0.5).astype(img_type)
+            image[id0] = img
+
+            if bboxes is not None:
+                bbox = CopyPaste.concat_bboxes([bboxes[id0][:len0], bboxes1])
+                bbox = np.pad(bbox, [(0, max_length - len0 - len1), (0, 0)], 'constant', constant_values=(0, 0))
+                bboxes[id0] = bbox
+
+            if kps is not None:
+                tkps = CopyPaste.concat_kps([kps[id0][:len0],kps1])
+                tkps = np.pad(tkps, [(0, max_length - len0 - len1)]+[(0,0)]*(len(tkps.shape)-1), 'constant', constant_values=(0, 0))
+                kps[id0] = tkps
+            label = CopyPaste.concat_labels([labels[id0][:len0], labels[id1][:len1]])
+            label = np.pad(label, [(0, max_length - len0 - len1)], 'constant', constant_values=(0, 0))
+            res_length[id0] = len0 + len1
+            labels[id0] = label
+            try:
+                if mask is not None:
+                    m = CopyPaste.concat_mask([mask[id0][:, :, :len0], mask[id1][:, :, :len1]])
+                    m = np.pad(m, [(0, 0), (0, 0), (0, max_length - len0 - len1)], 'constant', constant_values=(0, 0))
+                    mask[id0] = m
+            except:
+                raise 1
+                pass
+
+        if bboxes is not None:
+            res_bboxes = bboxes[:res_nr]
+        else:
+            res_bboxes = None
+
+        if mask is not None:
+            res_mask = mask[:res_nr]
+        else:
+            res_mask = None
+        if kps is not None:
+            res_kps = kps[:res_nr]
+        else:
+            res_kps = None
+
+        return image[:res_nr], res_mask, res_bboxes,labels[:res_nr], res_kps,res_length.astype(type)[:res_nr]
+
+    @staticmethod
+    def process(image, bboxes, labels,length):
+        res = CopyPaste.__process(image=image,
+                                mask=None,
+                                bboxes=bboxes,
+                                labels=labels,
+                                length=length)
+        return res[0],res[2],res[3],res[5]
+
+    @staticmethod
+    def process_kps(image, labels, kps,length):
+        res = CopyPaste.__process(image=image,
+                                  mask=None,
+                                  bboxes=None,
+                                  labels=labels,
+                                  kps=kps,
+                                  length=length)
+        return res[0],res[3],res[4],res[5]
+
+    @staticmethod
+    def process_with_masks(image, mask, bboxes, labels,kps, length):
+        res = CopyPaste.__process(image=image,
+                                mask=mask,
+                                bboxes=bboxes,
+                                labels=labels,
+                                kps=kps,
+                                length=length)
+        return res[0],res[1],res[2],res[3],res[5]
+
+    def __repr__(self):
+        return f"{type(self).__name__}"
 '''
 image: in [0,255]
 '''
@@ -1862,7 +2159,7 @@ class ShowInfo(WTransform):
         if GT_MASKS in data_item:
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
         if GT_KEYPOINTS in data_item:
-            tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])]
+            tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
 
         data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors+[data_item[GT_LABELS]],summarize=1000)
         return data_item
