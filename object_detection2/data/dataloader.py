@@ -15,13 +15,14 @@ for i in range(100):
     DEFAULT_CATEGORY_INDEX[i] = f"{i}"
 class DataLoader(wmodule.WModule):
     category_index = None
-    def __init__(self,cfg,*args,**kwargs):
+    def __init__(self,cfg,use_initializable_iterator=False, *args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
         self.trans_on_single_img,self.trans_on_batch_img = DATAPROCESS_REGISTRY.get(self.cfg.INPUT.DATAPROCESS)(cfg,self.is_training)
         if not isinstance(self.trans_on_batch_img,Iterable):
             self.trans_on_batch_img = [self.trans_on_batch_img]
         if self.cfg.INPUT.STITCH > 0.001:
             self.trans_on_batch_img = [trans.Stitch(self.cfg.INPUT.STITCH)]+self.trans_on_batch_img
+        self.use_initializable_iterator = use_initializable_iterator
 
     @staticmethod
     def get_pad_shapes(dataset):
@@ -91,7 +92,11 @@ class DataLoader(wmodule.WModule):
         elif len(self.trans_on_batch_img) > 1:
             data = data.map(trans.WTransformList(self.trans_on_batch_img),num_parallel_calls=num_parallel)
         data = data.prefetch(16)
-        return data.make_one_shot_iterator(),num_classes
+        if self.use_initializable_iterator:
+            #need     sess.run(data.initializer)
+            return data.make_initializable_iterator(),num_classes
+        else:
+            return data.make_one_shot_iterator(),num_classes
 
     @staticmethod
     def detection_image_summary(inputs,

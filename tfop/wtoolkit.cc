@@ -15,6 +15,7 @@
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/util/work_sharder.h"
+#include <atomic>
 
 using namespace tensorflow;
 using namespace std;
@@ -1767,3 +1768,43 @@ REGISTER_KERNEL_BUILDER(Name("Counting").Device(DEVICE_CPU).TypeConstraint<int32
 REGISTER_KERNEL_BUILDER(Name("Counting").Device(DEVICE_CPU).TypeConstraint<uint8_t>("T"), CountingOp<CPUDevice, uint8_t>);
 REGISTER_KERNEL_BUILDER(Name("Counting").Device(DEVICE_CPU).TypeConstraint<int8_t>("T"), CountingOp<CPUDevice, int8_t>);
 REGISTER_KERNEL_BUILDER(Name("Counting").Device(DEVICE_CPU).TypeConstraint<tensorflow::int64>("T"), CountingOp<CPUDevice, tensorflow::int64>);
+
+REGISTER_OP("Counter")
+    .Attr("T: {float, double,int32,int64}")
+	.Attr("init_v:int")
+    .Input("any_value: T")
+	.Output("output:int32")
+    .SetShapeFn([](shape_inference::InferenceContext* c){
+        auto shape = c->MakeShape({1});
+        c->set_output(0,shape);
+		return Status::OK();
+    });
+
+template <typename Device, typename T>
+class CounterOp: public OpKernel {
+	public:
+		explicit CounterOp(OpKernelConstruction* context) : OpKernel(context) {
+            int init_v;
+			OP_REQUIRES_OK(context, context->GetAttr("init_v", &init_v));
+            v_ = init_v;
+
+		}
+
+		void Compute(OpKernelContext* context) override
+		{
+
+            int dim1d = 1;
+			TensorShape  output_shape;
+			Tensor      *output_tensor = nullptr;
+
+            TensorShapeUtils::MakeShape(&dim1d,1,&output_shape);
+			OP_REQUIRES_OK(context,context->allocate_output(0,output_shape,&output_tensor));
+            ++v_;
+            output_tensor->flat<int>().data()[0] = v_;
+		}
+	private:
+		std::atomic_int v_;
+};
+REGISTER_KERNEL_BUILDER(Name("Counter").Device(DEVICE_CPU).TypeConstraint<float>("T"), CounterOp<CPUDevice, float>);
+REGISTER_KERNEL_BUILDER(Name("Counter").Device(DEVICE_CPU).TypeConstraint<int>("T"), CounterOp<CPUDevice, int>);
+REGISTER_KERNEL_BUILDER(Name("Counter").Device(DEVICE_CPU).TypeConstraint<tensorflow::int64>("T"), CounterOp<CPUDevice, tensorflow::int64>);

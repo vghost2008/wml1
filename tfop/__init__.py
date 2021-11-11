@@ -63,6 +63,7 @@ cell_decode_label = tfop_module.cell_decode_label
 cell_encode_label2 = tfop_module.cell_encode_label2
 cell_decode_label2 = tfop_module.cell_decode_label2
 bboxes_rotate = tfop_module.bboxes_rotate
+counter = tfop_module.counter
 #deform_conv_op = tfop_module.deform_conv_op
 #deform_conv_grad_op = tfop_module.deform_conv_backprop_op
 

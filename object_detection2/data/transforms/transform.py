@@ -140,6 +140,26 @@ class WTransform(object):
         if len(paddings)<len(data.get_shape()):
             paddings = paddings+[[0,0]]*(len(data.get_shape())-len(paddings))
         dict_data[key] = tf.pad(data,paddings=paddings)
+
+    @staticmethod
+    def is_in_range(value,value_range,init_p=None):
+        if init_p is None:
+            p = tf.constant(True, tf.bool)
+        else:
+            p = init_p
+        if value_range[0] > 0:
+            p0 = tf.less(tf.constant(value_range[0], dtype=value.dtype), value)
+            p = tf.logical_and(p0, p)
+        if value_range[1] > 0:
+            p0 = tf.less(value, tf.constant(value_range[1], dtype=value.dtype))
+            p = tf.logical_and(p0, p)
+        return p
+    @staticmethod
+    def get_pred_by_probs(probability):
+        if probability is not None:
+            return tf.less(tf.random_uniform(shape=()),self.probability)
+        else:
+            return tf.constant(True,tf.bool,shape=())
 '''
 img:[H,W,C]
 '''
@@ -1297,13 +1317,16 @@ image: [B,H,W,C]
 bboxes:absolute coordinate
 '''
 class Stitch(WTransform):
-    def __init__(self,nr=1):
+    def __init__(self,nr=1,step_range=None):
         if nr<1:
             self.nr = 1
             self.probability = nr
         else:
             self.nr = nr
             self.probability = None
+        if step_range is not None:
+            assert len(step_range)==2,f"Error step range {step_range}, expected length is 2."
+        self.step_range = step_range
             
 
     def __call__(self, data_item):
@@ -1315,10 +1338,13 @@ class Stitch(WTransform):
         if B<2:
             return data_item
 
-        if self.probability is None:
+        if self.probability is None and self.step_range is None:
             return self.apply_stitch(data_item)
         else:
-            p = tf.less(tf.random_uniform(shape=()),self.probability)
+            p = WTransform.get_pred_by_probs(self.probability)
+            if self.step_range is not None:
+                global_step = tfop.counter(data_item[GT_LABELS],init_v=0)
+                p = WTransform.is_in_range(global_step,self.step_range,p)
             return tf.cond(p,partial(self.apply_stitch,dict(data_item)),lambda:dict(data_item))
 
     def apply_stitch(self, data_item):
@@ -1332,7 +1358,8 @@ class Stitch(WTransform):
         nr = tf.minimum(B//2,int(self.nr+0.5))
         indexs = indexs[:nr]
         B,H,W,C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
-        B,_,BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
+        if GT_BOXES in data_item:
+            B,_,BOX_DIM = btf.combined_static_and_dynamic_shape(data_item[GT_BOXES])
         indexs = tf.transpose(indexs, [1, 0])
         o_indexs = indexs[0]
         #get maxlength
@@ -1341,15 +1368,21 @@ class Stitch(WTransform):
         sum_l = l0+l1
         max_length = tf.maximum(tf.reduce_max(sum_l),tf.shape(data_item[GT_LABELS])[1])
         pad_value = tf.maximum(0,max_length-tf.shape(data_item[GT_LABELS])[1])
-        WTransform.pad(data_item,GT_BOXES,[[0,0],[0,pad_value]])
+        if GT_BOXES in data_item:
+            WTransform.pad(data_item,GT_BOXES,[[0,0],[0,pad_value]])
         WTransform.pad(data_item,GT_LABELS,[[0,0],[0,pad_value]])
         if GT_MASKS in data_item:
             WTransform.pad(data_item,GT_MASKS,[[0,0],[0,pad_value]])
+        if GT_KEYPOINTS in data_item:
+            WTransform.pad(data_item, GT_KEYPOINTS, [[0, 0], [0, pad_value]])
         #
         indexs = tf.reshape(indexs, [-1])
 
         i_image = tf.gather(data_item[IMAGE],indexs)
-        i_bboxes = tf.gather(data_item[GT_BOXES],indexs)
+        if GT_BOXES in data_item:
+            i_bboxes = tf.gather(data_item[GT_BOXES],indexs)
+        if GT_KEYPOINTS in data_item:
+            i_keypoints = tf.gather(data_item[GT_KEYPOINTS],indexs)
         i_labels = tf.gather(data_item[GT_LABELS],indexs)
         i_width = tf.gather(data_item[WIDTH],indexs)
         i_height = tf.gather(data_item[HEIGHT],indexs)
@@ -1383,7 +1416,7 @@ class Stitch(WTransform):
             mask = tf.transpose(mask,perm=[0,3,1,2])
             mask = tf.reshape(mask, [nr,max_length,H,W])
             set_value(data_item,GT_MASKS,mask,o_indexs)
-        else:
+        elif GT_BOXES in data_item:
             image, bboxes, labels,length = tf.py_func(Stitch.process,[i_image,
                                                                               i_bboxes,
                                                                               i_labels,
@@ -1395,13 +1428,30 @@ class Stitch(WTransform):
                                                             data_item[GT_LABELS].dtype,
                                                             data_item[GT_LENGTH].dtype),
                                                             stateful=False)
+        elif GT_KEYPOINTS in data_item:
+            image, o_keypoints, labels,length = tf.py_func(Stitch.process_kps,[i_image,
+                                                                      i_keypoints,
+                                                                      i_labels,
+                                                                      i_width,
+                                                                      i_height,
+                                                                      i_length],
+                                                      (data_item[IMAGE].dtype,
+                                                       tf.float32,
+                                                       data_item[GT_LABELS].dtype,
+                                                       data_item[GT_LENGTH].dtype),
+                                                      stateful=False)
 
         image = tf.reshape(image, [nr,H,W,C])
-        bboxes = tf.reshape(bboxes, [nr, max_length, BOX_DIM])
+        if GT_BOXES in data_item:
+            bboxes = tf.reshape(bboxes, [nr, max_length, BOX_DIM])
+            set_value(data_item, GT_BOXES,  bboxes,o_indexs)
+        if GT_KEYPOINTS in data_item:
+            kps_shape = i_keypoints.get_shape().as_list()[2:]
+            o_keypoints = tf.reshape(o_keypoints, [nr, max_length]+kps_shape)
+            set_value(data_item, GT_KEYPOINTS,  o_keypoints,o_indexs)
         labels = tf.reshape(labels, [nr, max_length])
         length = tf.reshape(length, [nr])
         set_value(data_item, IMAGE,  image,o_indexs)
-        set_value(data_item, GT_BOXES,  bboxes,o_indexs)
         set_value(data_item, GT_LABELS,  labels,o_indexs)
         set_value(data_item, GT_LENGTH,  length,o_indexs)
 
@@ -1552,6 +1602,15 @@ class Stitch(WTransform):
         return np.array([[sh,sw,sh,sw]])*bboxes
 
     @staticmethod
+    def scale_kps(kps,sw,sh):
+        if len(kps.shape) == 3:
+            return np.array([[[sw,sh]]])*kps
+        elif len(kps.shape) == 2:
+            return np.array([[sw,sh]])*kps
+        else:
+            print(f"ERROR: error kps length {kps.shape}")
+
+    @staticmethod
     def concat_bboxes(bboxes,widths,heights,W,H,is_h):
         ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
         sw0,sh0 = Stitch.get_scales(widths[0],heights[0],ws[0],hs[0])
@@ -1567,16 +1626,34 @@ class Stitch(WTransform):
         return np.concatenate([bboxes0,bboxes1],axis=0)
 
     @staticmethod
+    def concat_kps(kps,widths,heights,W,H,is_h):
+        ws,hs = Stitch.get_sizes(W,H,widths,heights,is_h)
+        sw0,sh0 = Stitch.get_scales(widths[0],heights[0],ws[0],hs[0])
+        sw1,sh1 = Stitch.get_scales(widths[1],heights[1],ws[1],hs[1])
+        kps0 = Stitch.scale_kps(kps[0],sw0,sh0)
+        kps1 = Stitch.scale_kps(kps[1],sw1,sh1)
+
+        if is_h:
+            offset = [0,H//2]
+        else:
+            offset = [W//2,0]
+        kps_offset = np.array([[offset[0], offset[1]]])
+        if len(kps1.shape)==3:
+            kps_offset = np.expand_dims(kps_offset,axis=0)
+        kps1 = kps1 + kps_offset
+        return np.concatenate([kps0,kps1],axis=0)
+
+    @staticmethod
     def concat_labels(labels):
         return np.concatenate(labels,axis=0)
 
     @staticmethod
-    def __process(image,mask,bboxes,labels,width,height,length):
+    def __process(image,mask=None,bboxes=None,kps=None,labels=None,width=None,height=None,length=None):
         B,H,W = image.shape[:3]
         res_nr = B//2
         indexs = np.array(range(B))
         indexs = np.transpose(np.reshape(indexs,[2,-1]),axes=[1,0])
-        max_length = bboxes.shape[1]
+        max_length = labels.shape[1]
         res_length = np.copy(length)
         type = length.dtype
         width = np.reshape(width,[2,-1])
@@ -1591,13 +1668,19 @@ class Stitch(WTransform):
             ih = Stitch.is_h(W,H,widths,heights)
             len0,len1 = length[:,id0]
             img = Stitch.concat_img([image[id0],image[id1]],widths,heights,W,H,ih)
-            bbox = Stitch.concat_bboxes([bboxes[id0][:len0],bboxes[id1][:len1]],widths,heights,W,H,ih)
+            if bboxes is not None:
+                bbox = Stitch.concat_bboxes([bboxes[id0][:len0],bboxes[id1][:len1]],widths,heights,W,H,ih)
+                bbox = np.pad(bbox,[(0,max_length-len0-len1),(0,0)],'constant', constant_values=(0,0))
+                bboxes[id0] = bbox
+            if kps is not None:
+                o_kps = Stitch.concat_kps([kps[id0][:len0],kps[id1][:len1]],widths,heights,W,H,ih)
+                o_kps = np.pad(o_kps,[(0,max_length-len0-len1)]+[(0,0)]*(len(kps.shape)-2),'constant', constant_values=(0,0))
+                kps[id0] = o_kps
+
             label = Stitch.concat_labels([labels[id0][:len0],labels[id1][:len1]])
-            bbox = np.pad(bbox,[(0,max_length-len0-len1),(0,0)],'constant', constant_values=(0,0))
             label = np.pad(label,[(0,max_length-len0-len1)],'constant', constant_values=(0,0))
             res_length[id0] = len0+len1
             image[id0] = img
-            bboxes[id0] = bbox
             labels[id0] = label
             try:
                 if mask is not None:
@@ -1608,30 +1691,45 @@ class Stitch(WTransform):
                 raise 1
                 pass
 
-        if mask is not None:
-            return image[:res_nr],mask[:res_nr],bboxes[:res_nr],labels[:res_nr],res_length.astype(type)[:res_nr]
-        else:
-            return image[:res_nr],bboxes[:res_nr],labels[:res_nr],res_length.astype(type)[:res_nr]
+        o_mask = mask[:res_nr] if mask is not None else None
+        o_kps = kps[:res_nr] if kps is not None else None
+        o_bboxes = bboxes[:res_nr] if bboxes is not None else None
+        return image[:res_nr],o_mask,o_bboxes,o_kps,labels[:res_nr],res_length.astype(type)[:res_nr]
 
     @staticmethod
     def process(image,bboxes,labels,width,height,length):
-        return Stitch.__process(image=image,
+        image,mask,bboxes,kps,labels,length = Stitch.__process(image=image,
                                 mask=None,
                                 bboxes=bboxes,
                                 labels=labels,
                                 width=width,
                                 height=height,
                                 length=length)
+        return image,bboxes,labels,length
+
+    @staticmethod
+    def process_kps(image,kps,labels,width,height,length):
+        image,mask,bboxes,kps,labels,length = Stitch.__process(image=image,
+                                                               mask=None,
+                                                               kps=kps,
+                                                               labels=labels,
+                                                               width=width,
+                                                               height=height,
+                                                               length=length)
+        return image,kps,labels,length
 
     @staticmethod
     def process_with_masks(image,mask,bboxes,labels,width,height,length):
-        return Stitch.__process(image=image,
+        image,mask,bboxes,kps,labels,length = Stitch.__process(image=image,
                                 mask=mask,
                                 bboxes=bboxes,
                                 labels=labels,
                                 width=width,
                                 height=height,
                                 length=length)
+
+        return image, mask,bboxes, labels, length
+
     def __repr__(self):
         return f"{type(self).__name__}"
 
@@ -1643,13 +1741,21 @@ image: [B,H,W,C]
 bboxes:absolute coordinate
 '''
 class CopyPaste(WTransform):
-    def __init__(self, nr=1):
+    def __init__(self, nr=1,step_range=None):
+        '''
+        Args:
+            nr:
+            step_range:
+        '''
         if nr < 1:
             self.nr = 1
             self.probability = nr
         else:
             self.nr = nr
             self.probability = None
+        if step_range is not None:
+            assert len(step_range)==2, f"Error step range {step_range}, expected 2."
+        self.step_range = step_range
 
     def __call__(self, data_item):
         if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
@@ -1660,11 +1766,20 @@ class CopyPaste(WTransform):
         if B < 2:
             return data_item
 
-        if self.probability is None:
+        if self.probability is None and self.step_range is None:
             return self.apply_copy_paste(data_item)
         else:
-            p = tf.less(tf.random_uniform(shape=()), self.probability)
-            return tf.cond(p, partial(self.apply_copy_paste, dict(data_item)), lambda: dict(data_item))
+            if self.probability is not None:
+                p = tf.less(tf.random_uniform(shape=()), self.probability)
+            else:
+                p = tf.constant(True,tf.bool)
+            if self.step_range is not None:
+                step = tfop.counter(data_item[GT_LABELS],init_v=0)
+                p0 = WTransform.is_in_range(step,self.step_range)
+                p = tf.logical_and(p0,p)
+
+            res = tf.cond(p, partial(self.apply_copy_paste, dict(data_item)), lambda: dict(data_item))
+            return res
 
     def apply_copy_paste(self, data_item):
         B, H, W, C = btf.combined_static_and_dynamic_shape(data_item[IMAGE])
