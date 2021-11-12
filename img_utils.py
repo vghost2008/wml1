@@ -218,7 +218,7 @@ def resize_short_size(img,size,interpolation=cv2.INTER_LINEAR):
 '''
 size:(w,h)
 '''
-def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0)):
+def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),center_pad=True):
     img = resize_img(img,size,keep_aspect_ratio=True,interpolation=interpolation)
     if img.shape[0] == size[1] and img.shape[1] == size[0]:
         return img
@@ -227,8 +227,13 @@ def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0)):
         pad_color = np.array(list(pad_color))
         pad_color = pad_color.reshape([1,1,3])
         res = res*pad_color
-        offset_x = (size[0]-img.shape[1])//2
-        offset_y = (size[1]-img.shape[0])//2
+        if center_pad:
+            offset_x = (size[0]-img.shape[1])//2
+            offset_y = (size[1]-img.shape[0])//2
+        else:
+            offset_x = 0
+            offset_y = 0
+
         w = img.shape[1]
         h = img.shape[0]
         res[offset_y:offset_y+h,offset_x:offset_x+w,:] = img

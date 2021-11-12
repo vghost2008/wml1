@@ -1,10 +1,11 @@
 import torch
 from wsummary import _draw_text_on_image
 from collections import Iterable
+import random
 import numpy as np
 #import tensorboardX as tb
 #tb.SummaryWriter.add_video()
-#tb.add_images
+#tb.add_image
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     for name,param in net.named_parameters():
@@ -64,6 +65,46 @@ def add_images_with_label(tb,name,image,label,global_step,font_scale=1.2):
     image = image.transpose(0,3,1,2)
     tb.add_images(name,image,global_step)
 
+def log_feature_map(tb,name,tensor,global_step,random_index=True):
+    '''
+    tensor: [B,C,H,W]
+    '''
+    tensor = tensor.cpu().detach().numpy()
+
+    if random_index:
+        i = random.randint(0,tensor.shape[0]-1)
+    else:
+        i = 0
+    data = tensor[i]
+    data = np.expand_dims(data,axis=1)
+    min = np.min(data)
+    max = np.max(data)
+    data = (data-min)/(max-min+1e-8)
+    tb.add_images(name,data,global_step)
+
+def try_log_rgb_feature_map(tb,name,tensor,global_step,random_index=True):
+    tensor = tensor.cpu().detach().numpy()
+
+    if random_index:
+        i = random.randint(0,tensor.shape[0]-1)
+    else:
+        i = 0
+    C = tensor.shape[1] 
+    data = tensor[i]
+    min = np.min(data)
+    max = np.max(data)
+    data = (data-min)/(max-min+1e-8)
+    if C>3:
+        data = np.expand_dims(data,axis=1)
+        tb.add_images(name,data,global_step)
+    else:
+        if C==2:
+            _,H,W = data.shape
+            zeros = np.zeros([1,H,W],dtype=data.dtype)
+            data = np.concatenate([data,zeros],axis=0)
+        tb.add_image(name,data,global_step)
+
+    
 def add_video_with_label(tb,name,video,label,global_step,fps=4,font_scale=1.2):
     '''
     Args:

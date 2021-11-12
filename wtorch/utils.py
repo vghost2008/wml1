@@ -53,3 +53,14 @@ def forgiving_state_restore(net, loaded_dict):
     net.load_state_dict(net_state_dict)
     sys.stdout.flush()
     return net
+
+def sequence_mask(lengths,maxlen=None,dtype=torch.bool):
+    if not isinstance(lengths,torch.Tensor):
+        lengths = torch.from_numpy(np.array(lengths))
+    if maxlen is None:
+        maxlen = lengths.max()
+    if len(lengths.shape)==1:
+        lengths = torch.unsqueeze(lengths,axis=-1)
+    matrix = torch.arange(maxlen,dtype=lengths.dtype)[None,:]
+    mask = matrix<lengths
+    return mask

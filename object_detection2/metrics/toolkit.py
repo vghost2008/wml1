@@ -244,6 +244,43 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
     else:
         return precision,recall
 
+def getPrecisionV2(gt_data,pred_data,pred_func,threshold):
+    '''
+    :param gt_data: N objects
+    :param pred_data: M object
+    :param pred_func: float (*)(obj0,obj1) get the distance of two objects, distance greater or equal zero
+    :return: precision,recall float
+    '''
+    NR_GT = len(gt_data)
+    NR_PRED = len(pred_data)
+    #indict if there have some box match with this ground-truth box
+    gt_mask = np.zeros([NR_GT],dtype=np.int32)
+    #indict if there have some ground-truth box match with this box
+    boxes_mask = np.zeros(NR_PRED,dtype=np.int32)
+    for i in range(NR_GT):
+        max_index = -1
+        max_dis = 0.0
+
+        #iterator on all boxes to find one have the most maximum jacard value with current ground-truth box
+        for j in range(NR_PRED):
+            dis = pred_func(gt_data[i],pred_data[j])
+            if dis>threshold and dis> max_dis:
+                max_dis = dis
+                max_index = j
+
+        if max_index < 0:
+            continue
+
+        gt_mask[i] = 1
+        boxes_mask[max_index] = 1
+
+    correct_num = np.sum(gt_mask)
+
+    recall = __safe_persent(correct_num,NR_GT)
+    precision = __safe_persent(correct_num,NR_PRED)
+
+    return precision,recall
+
 class PrecisionAndRecall:
     def __init__(self,threshold=0.5,num_classes=90,label_trans=None,*args,**kwargs):
         self.threshold = threshold

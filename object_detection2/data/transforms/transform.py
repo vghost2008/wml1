@@ -736,6 +736,8 @@ class BBoxesRelativeToAbsolute(WTransform):
         self.set_statu(WTransform.ABSOLUTE_COORDINATE)
         with tf.name_scope("BBoxesRelativeToAbsolute"):
             size = tf.shape(data_item[self.img_key])
+            if len(size)==4:
+                size = size[1:]
             if GT_BOXES in data_item:
                 func = partial(wml_bboxes.tfrelative_boxes_to_absolutely_boxes,width=size[1],height=size[0])
                 data_item = self.apply_to_bbox(func,data_item)
@@ -1219,10 +1221,12 @@ class CheckBBoxes(WTransform):
         self.max = max
 
     def __call__(self, data_item):
-        if GT_BOXES in data_item:
-            data_item[GT_BOXES] = tf.clip_by_value(data_item[GT_BOXES],self.min,self.max)
-        if GT_KEYPOINTS in data_item:
-            data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],-2,self.max) #keypoints use -1 to indict unlabeled points
+        if not self.test_statu(WTransform.ABSOLUTE_COORDINATE):
+            print(f"USE relative coord.")
+            if GT_BOXES in data_item:
+                data_item[GT_BOXES] = tf.clip_by_value(data_item[GT_BOXES],self.min,self.max)
+            if GT_KEYPOINTS in data_item:
+                data_item[GT_KEYPOINTS] = tf.clip_by_value(data_item[GT_KEYPOINTS],-2,self.max) #keypoints use -1 to indict unlabeled points
         return data_item
 
     def __repr__(self):

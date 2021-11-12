@@ -2,6 +2,7 @@
 from multiprocessing import Pool
 import tensorflow as tf
 import numpy as np
+import math
 
 def _edit_distance(v0,v1):
     if v0 == v1:
@@ -87,3 +88,88 @@ def tfpearsonr(x,y):
     sv = tf.sqrt(dx*dy)+1e-8
 
     return v/sv
+
+def points_to_polygon(points):
+    '''
+
+    Args:
+        points: [N,2],(x,y)
+
+    Returns:
+        idxs,[N],sorted points[N,2]
+    '''
+
+    points = np.array(points)
+    base_point = 0
+    if points.shape[0]<=3:
+        return list(range(points.shape[0])),points
+    for i in range(points.shape[0]):
+        if points[i,1]<points[base_point,1]:
+            base_point = i
+        elif points[i, 1] == points[base_point, 1] and points[i,0]<points[base_point,0]:
+            base_point = i
+
+    angles = np.zeros([points.shape[0]],dtype=np.float32)
+
+    for i in range(points.shape[0]):
+        y = points[i,1]-points[base_point,1]
+        x = points[i,0]-points[base_point,0]
+        angles[i] = math.atan2(y,x)
+        if angles[i]<0:
+            angles[i] += math.pi
+    angles[base_point] = -1e-8
+    idxs = np.argsort(angles)
+    return idxs,points[idxs]
+
+def left_shift_array(array,size=1):
+    '''
+
+    Args:
+        array: [N]
+        size: 1->N-1
+    example:
+        array = [1,2,3,4]
+        size=1
+        return:
+        [2,3,4,1]
+    Returns:
+        [N]
+    '''
+    first_part = array[size:]
+    second_part = array[:size]
+    return np.concatenate([first_part,second_part],axis=0)
+
+def right_shift_array(array, size=1):
+    '''
+
+    Args:
+        array: [N]
+        size: 1->N-1
+    example:
+        array = [1,2,3,4]
+        size=1
+        return:
+        [4,1,2,3,]
+    Returns:
+        [N]
+    '''
+    first_part = array[-size:]
+    second_part = array[:-size]
+    return np.concatenate([first_part, second_part], axis=0)
+
+
+def sign_point_line(point,line):
+    '''
+
+    Args:
+        point: [2] x,y
+        line: np.array([2,2])
+
+    Returns:
+        True or False
+    '''
+    line = np.array(line)
+    p0 = line[0]
+    vec0 = line[1]-p0
+    vec1 = point-p0
+    return vec0[0]*vec1[1]-vec0[1]*vec1[0]<0
