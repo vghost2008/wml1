@@ -39,9 +39,9 @@ namespace MOT
         public:
             KalmanFilter();
             void update_features(const Eigen::VectorXf& feat);
-            MeanCov_t initiate(const Eigen::VectorXf& measurement);
-            MeanCov_t predict(const Mean_t& mean,const Cov_t& covariance);
-            PMeanCov_t project(const Mean_t& mean,const Cov_t& covariance);
+            MeanCov_t initiate(const Eigen::VectorXf& measurement)const;
+            MeanCov_t predict(const Mean_t& mean,const Cov_t& covariance)const;
+            PMeanCov_t project(const Mean_t& mean,const Cov_t& covariance)const;
             MeanCov_t update(const Mean_t& mean,const Cov_t& covariance,const Eigen::VectorXf& measurement);
             Eigen::VectorXf gating_distance(const Mean_t& mean,const Cov_t& covariance,const Eigen::MatrixXf& measurement,bool only_position=false,Metric metric=MAHA);
         private:
@@ -51,7 +51,7 @@ namespace MOT
                 }
         private:
             Eigen::Matrix<float,kNDim*2,kNDim*2> motion_mat_;  //F_k
-            Eigen::Matrix<float,kNDim,2*kNDim> update_mat_; //inv(H_k)
+            Eigen::Matrix<float,kNDim,2*kNDim> update_mat_; //H_k
             static constexpr auto std_weight_position_ = 1.0f/20.0f;
             static constexpr auto std_weight_velocity_ = 1.0f/160.0f;
     };

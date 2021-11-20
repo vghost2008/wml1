@@ -18,11 +18,11 @@ KalmanFilter::KalmanFilter()
     motion_mat_.block<4,4>(0,4).setIdentity();
     /*
      * this set of _update_mat mean mean_expected = mean_k, covariance_expected = zero
-     * update_mat is inv(H_k) in paper, project state to measure, (in paper project measure to state).
+     * update_mat is H_k in paper, project state to measure
      */
     update_mat_.setIdentity();
 }
-MeanCov_t KalmanFilter::initiate(const Eigen::VectorXf& measurement)
+MeanCov_t KalmanFilter::initiate(const Eigen::VectorXf& measurement)const
 {
         /*
         Create track from unassociated measurement.
@@ -30,7 +30,7 @@ MeanCov_t KalmanFilter::initiate(const Eigen::VectorXf& measurement)
         ----------
         measurement : ndarray
             Bounding box coordinates (x, y, a, h) with center position (x, y),
-            aspect ratio a, and height h.
+            aspect ratio a(w/h), and height h.
 
         Returns
         -------
@@ -57,7 +57,7 @@ MeanCov_t KalmanFilter::initiate(const Eigen::VectorXf& measurement)
 
         return make_pair(mean,covariance);
 }
-MeanCov_t KalmanFilter::predict(const Mean_t& mean,const Cov_t& covariance)
+MeanCov_t KalmanFilter::predict(const Mean_t& mean,const Cov_t& covariance)const
 {
     /*
          Run Kalman filter prediction step.
@@ -95,7 +95,7 @@ MeanCov_t KalmanFilter::predict(const Mean_t& mean,const Cov_t& covariance)
         Cov_t r_covariance = motion_mat_*covariance*motion_mat_.transpose()+motion_cov;
         return make_pair(r_mean,r_covariance);
 }
-PMeanCov_t KalmanFilter::project(const Mean_t& mean,const Cov_t& covariance)
+PMeanCov_t KalmanFilter::project(const Mean_t& mean,const Cov_t& covariance)const
 {
     /*
         Project state distribution to measurement space.
