@@ -398,13 +398,14 @@ Boxes: relative coordinate
 mask:H,W,N format
 '''
 class RandomFlipLeftRight(WTransform):
-    def __init__(self,cfg=None):
+    def __init__(self,cfg=None,flip_prob=0.5):
         self.cfg = cfg
+        self.flip_prob = flip_prob
 
     def __call__(self, data_item):
         if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
             print(f"WARNING: {self} need relative coordinate.")
-        is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
+        is_flip = tf.greater(tf.random_uniform(shape=[]),self.flip_prob)
         func = tf.image.flip_left_right
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
         if GT_BOXES in data_item:
@@ -413,11 +414,13 @@ class RandomFlipLeftRight(WTransform):
         if GT_KEYPOINTS:
             if self.cfg is not None:
                 swap_index = self.cfg.MODEL.KEYPOINTS.POINTS_LEFT_RIGHT_GROUP
+                print(f"Swap with swap index {swap_index}.")
                 X,N,C = data_item[GT_KEYPOINTS].shape.as_list()
                 if N is None:
                     N = self.cfg.MODEL.KEYPOINTS.NUM_KEYPOINTS
                     data_item[GT_KEYPOINTS].set_shape([X,N,C])
             else:
+                print(f"Swap without swap index.")
                 swap_index = None
             func3 = partial(kp.keypoints_flip_left_right,swap_index=swap_index)
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
@@ -432,12 +435,13 @@ Boxes: relative coordinate
 mask:H,W,N format
 '''
 class RandomFlipUpDown(WTransform):
-    def __init__(self):
+    def __init__(self,flip_prob=0.5):
+        self.flip_prob = flip_prob
         pass
     def __call__(self, data_item):
         if not self.test_unstatu(WTransform.ABSOLUTE_COORDINATE):
             print(f"WARNING: {self} need relative coordinate.")
-        is_flip = tf.greater(tf.random_uniform(shape=[]),0.5)
+        is_flip = tf.greater(tf.random_uniform(shape=[]),self.flip_prob)
         func = tf.image.flip_up_down
         data_item = self.apply_to_images_and_masks(func,data_item,runtime_filter=is_flip)
         if GT_BOXES:

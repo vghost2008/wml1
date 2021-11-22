@@ -218,9 +218,14 @@ def resize_short_size(img,size,interpolation=cv2.INTER_LINEAR):
 '''
 size:(w,h)
 '''
-def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),center_pad=True):
+def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),center_pad=True,return_scale=False):
+    old_shape = img.shape
     img = resize_img(img,size,keep_aspect_ratio=True,interpolation=interpolation)
+    if return_scale:
+        r = img.shape[0]/max(old_shape[0],1)
     if img.shape[0] == size[1] and img.shape[1] == size[0]:
+        if return_scale:
+            return img,r
         return img
     else:
         res = np.ones([size[1],size[0],3],dtype=img.dtype)
@@ -237,7 +242,10 @@ def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),cen
         w = img.shape[1]
         h = img.shape[0]
         res[offset_y:offset_y+h,offset_x:offset_x+w,:] = img
-        return res
+        if return_scale:
+            return res,r
+        else:
+            return res
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)

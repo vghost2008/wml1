@@ -591,12 +591,16 @@ class EstimateTimeCost(object):
             self.total_nr = total_nr
         self.process_nr = 0
 
+    def add_count(self):
+        self.process_nr += 1
+        return self.__repr__()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.process_nr += 1
         if self.auto_log:
             print(self.__str__())
 
-    def __str__(self):
+    def __repr__(self):
         left_time = ((time.time() - self.begin_time) / max(self.process_nr, 1)) * (
                     self.total_nr- self.process_nr)
         d = datetime.datetime.now() + datetime.timedelta(seconds=left_time)

@@ -163,7 +163,7 @@ def sign_point_line(point,line):
 
     Args:
         point: [2] x,y
-        line: np.array([2,2])
+        line: np.array([2,2]) [(x0,y0),(x1,y1)]
 
     Returns:
         True or False

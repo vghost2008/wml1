@@ -994,12 +994,10 @@ def bboxes_flip_up_down(bboxes):
 bboxes:[N,4]
 '''
 def bboxes_flip_left_right(bboxes):
-    bboxes = tf.transpose(bboxes)
-    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=0)
+    ymin,xmin,ymax,xmax = tf.unstack(bboxes,axis=-1)
     nxmax = 1.0-xmin
     nxmin = 1.0-xmax
-    bboxes = tf.stack([ymin,nxmin,ymax,nxmax],axis=0)
-    bboxes = tf.transpose(bboxes)
+    bboxes = tf.stack([ymin,nxmin,ymax,nxmax],axis=-1)
     return bboxes
 
 

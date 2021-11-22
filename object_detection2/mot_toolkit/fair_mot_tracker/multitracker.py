@@ -36,6 +36,8 @@ class STrack(BaseTrack):
         self.alpha = 0.9
         self.cur_det_bboxes = None
 
+        self.track_idx = -1
+
     def update_features(self, feat):
         self.curr_feat = feat
         if self.smooth_feat is None:
@@ -88,6 +90,7 @@ class STrack(BaseTrack):
         self.state = TrackState.Tracked
         self.is_activated = True
         self.frame_id = frame_id
+        self.set_track_idx(new_track.track_idx)
         if new_id:
             self.track_id = self.next_id()
 
@@ -110,6 +113,7 @@ class STrack(BaseTrack):
         self.is_activated = True
 
         self.score = new_track.score
+        self.set_track_idx(new_track.track_idx)
         if update_feature:
             self.update_features(new_track.curr_feat)
 
@@ -177,12 +181,15 @@ class STrack(BaseTrack):
         ret[2:] += ret[:2]
         return ret
 
+    def set_track_idx(self,idx):
+        self.track_idx = idx
+
     def __repr__(self):
         return 'OT_{}_({}-{})'.format(self.track_id, self.start_frame, self.end_frame)
 
 @MOT_REGISTRY.register()
 class JDETracker(object):
-    def __init__(self, model, det_thresh=0.1,frame_rate=30,track_buffer=30):
+    def __init__(self, model=None, det_thresh=0.1,frame_rate=30,track_buffer=30,return_losted=True,assignment_thresh=[0.9,0.9,0.7]):
         self.model = model
 
         self.tracked_stracks = []  # type: list[STrack]
@@ -194,6 +201,9 @@ class JDETracker(object):
         self.buffer_size = int(frame_rate / 30.0 * track_buffer)
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
+        self.return_losted = return_losted
+        self.removed_ids = []
+        self.assignment_thresh = assignment_thresh
 
     def draw_tracks(self,img,tracks):
         labels = []
@@ -210,7 +220,6 @@ class JDETracker(object):
             labels.append(track.track_id)
             bboxes.append(track.yminxminymaxxmax)
             det_bboxes.append(track.yminxminymaxxmax_det)
-        print(f"bboxes:",bboxes)
         img = odv.draw_bboxes(img,labels,bboxes=bboxes,
                               color_fn=color_fn,text_fn=text_fn,
                               show_text=True,
@@ -228,14 +237,12 @@ class JDETracker(object):
             l = output[RD_LENGTH][0]
             bboxes = output[RD_BOXES][0][:l]
             bboxes = odb.relative_boxes_to_absolutely_boxes(bboxes, width=width, height=height)
-            bboxes = odb.npto_ctlwh(bboxes)
             probs = output[RD_PROBABILITY][0][:l]
             ids = output[RD_ID][0][:l]
             pass
         else:
             bboxes = output[RD_BOXES]
             bboxes = odb.relative_boxes_to_absolutely_boxes(bboxes, width=width, height=height)
-            bboxes = odb.npto_ctlwh(bboxes)
             probs = output[RD_PROBABILITY]
             ids = output[RD_ID]
             pass
@@ -249,10 +256,13 @@ class JDETracker(object):
         lost_stracks = []
         removed_stracks = []
 
+        bboxes = odb.npto_ctlwh(bboxes)
         if len(ids) > 0:
             '''Detections'''
             detections = [STrack(bbox, prob, id, 30) for
                           (bbox, prob,id) in zip(bboxes,probs,ids)]
+            for i,det in enumerate(detections):
+                det.set_track_idx(i)
         else:
             detections = []
 
@@ -260,6 +270,7 @@ class JDETracker(object):
         unconfirmed = []
         tracked_stracks = []  # type: list[STrack]
         for track in self.tracked_stracks:
+            track.set_track_idx(-1)
             if not track.is_activated:
                 unconfirmed.append(track)
             else:
@@ -267,6 +278,8 @@ class JDETracker(object):
 
         ''' Step 2: First association, with embedding'''
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
+        for x in strack_pool:
+            x.set_track_idx(-1)
         # Predict the current location with KF
         #for strack in strack_pool:
             #strack.predict()
@@ -274,7 +287,7 @@ class JDETracker(object):
         dists = matching.embedding_distance(strack_pool, detections)
         #dists = matching.iou_distance(strack_pool, detections)
         dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.4)
+        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=self.assignment_thresh[-1])
 
         for itracked, idet in matches:
             track = strack_pool[itracked]
@@ -290,7 +303,7 @@ class JDETracker(object):
         detections = [detections[i] for i in u_detection]
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
         dists = matching.iou_distance(r_tracked_stracks, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
+        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=self.assignment_thresh[0])
 
         for itracked, idet in matches:
             track = r_tracked_stracks[itracked]
@@ -311,7 +324,7 @@ class JDETracker(object):
         '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
         detections = [detections[i] for i in u_detection]
         dists = matching.iou_distance(unconfirmed, detections)
-        matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
+        matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=self.assignment_thresh[1])
         for itracked, idet in matches:
             unconfirmed[itracked].update(detections[idet], self.frame_id)
             activated_starcks.append(unconfirmed[itracked])
@@ -352,8 +365,16 @@ class JDETracker(object):
         logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
         logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
-        output_stracks.extend(lost_stracks)
-        return output_stracks
+        if self.return_losted:
+            output_stracks.extend(lost_stracks)
+        track_ids = []
+        track_bboxes = []
+        track_idxs = []
+        for track in output_stracks:
+            track_ids.append(track.track_id)
+            track_bboxes.append(track.yminxminymaxxmax)
+            track_idxs.append(track.track_idx)
+        return np.array(track_ids),np.array(track_bboxes),np.array(track_idxs)
 
 
 def joint_stracks(tlista, tlistb):

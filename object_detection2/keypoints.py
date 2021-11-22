@@ -94,7 +94,7 @@ keypoints:[N,2] [x,y]
 def keypoints_flip_up_down(keypoints):
     x,y = tf.unstack(keypoints,axis=-1)
     org_y = y
-    cond = tf.logical_an(x>=0,y>=0)
+    cond = tf.logical_and(x>=0,y>=0)
     y = 1.0-y
     y = tf.where(cond,y,org_y)
     keypoints = tf.stack([x,y],axis=-1)

@@ -256,23 +256,25 @@ def getPrecisionV2(gt_data,pred_data,pred_func,threshold):
     #indict if there have some box match with this ground-truth box
     gt_mask = np.zeros([NR_GT],dtype=np.int32)
     #indict if there have some ground-truth box match with this box
-    boxes_mask = np.zeros(NR_PRED,dtype=np.int32)
+    pred_mask = np.zeros(NR_PRED,dtype=np.int32)
     for i in range(NR_GT):
-        max_index = -1
-        max_dis = 0.0
+        min_index = -1
+        min_dis = 1e10
 
         #iterator on all boxes to find one have the most maximum jacard value with current ground-truth box
         for j in range(NR_PRED):
+            if pred_mask[j] != 0:
+                continue
             dis = pred_func(gt_data[i],pred_data[j])
-            if dis>threshold and dis> max_dis:
-                max_dis = dis
-                max_index = j
+            if dis<threshold and dis< min_dis:
+                min_dis = dis
+                min_index = j
 
-        if max_index < 0:
+        if min_index < 0:
             continue
 
         gt_mask[i] = 1
-        boxes_mask[max_index] = 1
+        pred_mask[min_index] = 1
 
     correct_num = np.sum(gt_mask)
 

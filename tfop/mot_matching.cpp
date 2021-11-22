@@ -43,6 +43,24 @@ float iou_dis(const BBox_t& va, const BBox_t& vb)
 {
     return 1.0-bboxes_jaccardv1(va,vb);
 }
+float relative_dis(const BBox_t& va, const BBox_t& vb)
+{
+    const auto cx0 = (va(0)+va(2))/2;
+    const auto cy0 = (va(1)+va(3))/2;
+    const auto cx1 = (vb(0)+vb(2))/2;
+    const auto cy1 = (vb(1)+vb(3))/2;
+    const auto w0 = va(2)-va(0);
+    const auto h0 = va(3)-va(1);
+    const auto w1 = vb(2)-vb(0);
+    const auto h1 = vb(3)-vb(1);
+    const auto dx = cx1-cx0;
+    const auto dy = cy1-cy0;
+
+    const auto dis = sqrt(dx*dx+dy*dy);
+    const auto scale = (sqrt(w0*w0+h0*h0)+sqrt(w1*w1+h1*h1))/2;
+
+    return dis/(scale+1e-8);
+}
 void linear_assignment(const Eigen::MatrixXf& cost_matrix,float thresh,vector<pair<int,int>>* matches,vector<int>* unmatched_a,vector<int>* unmatched_b)
 {
     matches->clear();
@@ -148,6 +166,33 @@ void fuse_motion(KalmanFilterPtr_t kf,const STrackPtrs_t& tracks, const STrackPt
                 cost_matrix(i,j) = kMaxCost;
             } else {
                 cost_matrix(i,j) = lambda*cost_matrix(i,j)+(1.0f-lambda)*gating_distance(j);
+            }
+        }
+    }
+}
+void filter_by_iou_dis(const STrackPtrs_t& tracks, const STrackPtrs_t& detections,Eigen::MatrixXf& cost_matrix,float threshold_iou,float threshold_dis)
+{
+    if(cost_matrix.size() == 0)
+        return;
+
+    const auto kMaxCost                = 2.0f;
+
+    if(threshold_iou>0.0f) {
+        for(auto i=0; i<tracks.size(); ++i) {
+            for(auto j=0; j<detections.size(); ++j) {
+                auto tbbox = tracks[i]->get_latest_yminxminymaxxmax_bbox();
+                auto dbbox = detections[j]->get_latest_yminxminymaxxmax_bbox();
+                if(iou_dis(tbbox,dbbox)>threshold_iou)
+                    cost_matrix(i,j) = kMaxCost;
+            }
+        }
+    } else {
+        for(auto i=0; i<tracks.size(); ++i) {
+            for(auto j=0; j<detections.size(); ++j) {
+                auto tbbox = tracks[i]->get_latest_yminxminymaxxmax_bbox();
+                auto dbbox = detections[j]->get_latest_yminxminymaxxmax_bbox();
+                if((iou_dis(tbbox,dbbox)>1)&&(relative_dis(tbbox,dbbox)>threshold_dis))
+                    cost_matrix(i,j) = kMaxCost;
             }
         }
     }

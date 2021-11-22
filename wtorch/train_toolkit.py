@@ -2,7 +2,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 import math
 
 class WarmupCosLR(_LRScheduler):
-    def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=0,min_lr_ratio=0.05,last_epoch=-1, verbose=False):
+    def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.05,last_epoch=-1, verbose=False):
         self.warmup_lr_start = warmup_lr_start
         self.warmup_total_iters = warmup_total_iters
         self.total_iters = total_iters

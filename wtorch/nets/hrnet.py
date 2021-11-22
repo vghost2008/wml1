@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 
 
-BN_MOMENTUM = 0.1
+BN_MOMENTUM = 0.001
 logger = logging.getLogger(__name__)
 
 
@@ -199,7 +199,7 @@ class HighResolutionModule(nn.Module):
                                 num_inchannels[i],
                                 1, 1, 0, bias=False
                             ),
-                            nn.BatchNorm2d(num_inchannels[i]),
+                            nn.BatchNorm2d(num_inchannels[i],momentum=BN_MOMENTUM),
                             nn.Upsample(scale_factor=2**(j-i), mode='nearest')
                         )
                     )
@@ -217,7 +217,7 @@ class HighResolutionModule(nn.Module):
                                         num_outchannels_conv3x3,
                                         3, 2, 1, bias=False
                                     ),
-                                    nn.BatchNorm2d(num_outchannels_conv3x3)
+                                    nn.BatchNorm2d(num_outchannels_conv3x3,momentum=BN_MOMENTUM)
                                 )
                             )
                         else:
@@ -229,7 +229,7 @@ class HighResolutionModule(nn.Module):
                                         num_outchannels_conv3x3,
                                         3, 2, 1, bias=False
                                     ),
-                                    nn.BatchNorm2d(num_outchannels_conv3x3),
+                                    nn.BatchNorm2d(num_outchannels_conv3x3,momentum=BN_MOMENTUM),
                                     nn.ReLU(True)
                                 )
                             )
@@ -336,7 +336,7 @@ class PoseHighResolutionNet(nn.Module):
                                 num_channels_cur_layer[i],
                                 3, 1, 1, bias=False
                             ),
-                            nn.BatchNorm2d(num_channels_cur_layer[i]),
+                            nn.BatchNorm2d(num_channels_cur_layer[i],momentum=BN_MOMENTUM),
                             nn.ReLU(inplace=True)
                         )
                     )
@@ -353,7 +353,7 @@ class PoseHighResolutionNet(nn.Module):
                             nn.Conv2d(
                                 inchannels, outchannels, 3, 2, 1, bias=False
                             ),
-                            nn.BatchNorm2d(outchannels),
+                            nn.BatchNorm2d(outchannels,momentum=BN_MOMENTUM),
                             nn.ReLU(inplace=True)
                         )
                     )
@@ -468,7 +468,7 @@ class PoseHighResolutionNet(nn.Module):
 
         if os.path.isfile(pretrained):
             pretrained_state_dict = torch.load(pretrained)
-            logger.info('=> loading pretrained model {}'.format(pretrained))
+            print('=> loading pretrained model {}'.format(pretrained))
 
             need_init_state_dict = {}
             for name, m in pretrained_state_dict.items():
@@ -477,7 +477,7 @@ class PoseHighResolutionNet(nn.Module):
                     need_init_state_dict[name] = m
             self.load_state_dict(need_init_state_dict, strict=False)
         elif pretrained:
-            logger.error('=> please download pre-trained models first!')
+            print('=> please download pre-trained models first!')
             raise ValueError('{} is not exist!'.format(pretrained))
 
 

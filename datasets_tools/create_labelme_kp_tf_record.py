@@ -216,8 +216,8 @@ def label_text_2_id(label):
     dicts = {'a':0,'b':1}
     return dicts[label]
 if __name__ == "__main__":
-    dataset_dir = wmlu.home_dir("ai/mldata/court_detection/example/")
-    output_dir = wmlu.home_dir("ai/mldata/court_detection/train/")
+    dataset_dir = wmlu.home_dir("ai/mldata/court_detection/train_data/")
+    output_dir = wmlu.home_dir("ai/mldata/court_detection/train_tfrecord/")
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

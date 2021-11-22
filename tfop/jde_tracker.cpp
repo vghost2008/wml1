@@ -1,5 +1,6 @@
 #include "jde_tracker.h"
 #include <set>
+#include <iostream>
 #include "mot_matching.h"
 #include "track_toolkit.h"
 
@@ -50,12 +51,15 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     auto dists = embedding_distance(strack_pool,detections);
 
     fuse_motion(kalman_filter_,strack_pool,detections,dists);
+    filter_by_iou_dis(strack_pool,detections,dists,assignment_thresh_[3],assignment_thresh_[4]);
 
     vector<pair<int,int>> matches;
     vector<int> u_track,u_detection;
     int itracked,idet;
 
     linear_assignment(dists,assignment_thresh_[2],&matches,&u_track,&u_detection);
+
+    auto tmp_iou_dists = iou_distance(strack_pool,detections);
 
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
