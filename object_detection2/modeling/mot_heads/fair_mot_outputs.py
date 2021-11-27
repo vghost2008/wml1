@@ -20,6 +20,7 @@ from object_detection2.data.dataloader import DataLoader
 import wsummary
 from functools import partial
 import wnn
+import math
 
 slim = tf.contrib.slim
 
@@ -119,6 +120,8 @@ class FairMOTOutputs(wmodule.WChildModule):
             id_data = head_outputs['id_embedding']
             id_data = tf.reshape(id_data,[-1,btf.channel(id_data)])
             id_data = tf.boolean_mask(id_data,loss3_mask)
+            scale = math.sqrt(2)*math.log(global_cfg.MODEL.MOT.FAIR_MOT_NUM_CLASSES-1)
+            id_data = id_data*scale
             id_data = slim.fully_connected(id_data,global_cfg.MODEL.MOT.FAIR_MOT_NUM_CLASSES+1,
                                            activation_fn=None,
                                            normalizer_fn=None,scope="trans_id_embedding")
@@ -149,18 +152,19 @@ class FairMOTOutputs(wmodule.WChildModule):
             tf.summary.scalar(k,v)
         det_loss = loss0+loss1+loss2
         id_loss = loss3
-        w1 = tf.get_variable("w1",shape=(),
+        '''w1 = tf.get_variable("w1",shape=(),
                              initializer=tf.constant_initializer(-1.85),
                              dtype=tf.float32,trainable=True)
         w2 = tf.get_variable("w2",shape=(),
                              initializer=tf.constant_initializer(-1.05),
                              dtype=tf.float32,trainable=True)
         #w1 = tf.Print(w1,["w1",w1,"w2",w2,det_loss,id_loss],summarize=1000)
-        loss = det_loss*tf.exp(-w1)+id_loss*tf.exp(-w2)+(w1+w2)
-        tf.summary.scalar("det_loss_weight",tf.exp(-w1))
-        tf.summary.scalar("id_loss_weight",tf.exp(-w2))
-        tf.summary.scalar("det_loss",tf.exp(-w1)*det_loss)
-        tf.summary.scalar("id_loss",tf.exp(-w2)*id_loss)
+        loss = det_loss*tf.exp(-w1)+id_loss*tf.exp(-w2)+(w1+w2)'''
+        loss = det_loss+id_loss
+        #tf.summary.scalar("det_loss_weight",tf.exp(-w1))
+        #tf.summary.scalar("id_loss_weight",tf.exp(-w2))
+        #tf.summary.scalar("det_loss",tf.exp(-w1)*det_loss)
+        #tf.summary.scalar("id_loss",tf.exp(-w2)*id_loss)
         return {'loss':loss}
 
 
