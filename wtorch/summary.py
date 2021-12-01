@@ -130,3 +130,10 @@ def add_video_with_label(tb,name,video,label,global_step,fps=4,font_scale=1.2):
     #video (N,T,H,W,C)
     video = video.transpose(0,1,4,2,3)
     tb.add_video(name,video,global_step)
+
+def log_optimizer(tb,optimizer,step):
+    for i,data in enumerate(optimizer.param_groups):
+        name = f"optimizer/{i}_{len(data['params'])}"
+        tb.add_scalar(name+"_lr",data['lr'],step)
+        tb.add_scalar(name+"_wd",data['weight_decay'],step)
+
