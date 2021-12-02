@@ -379,6 +379,13 @@ rect:[ymin,xmin,ymax,xmax] absolute coordinate
 def sub_image(img,rect):
     return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
 
+'''
+img:[H,W]/[H,W,C]
+rect:[xmin,ymin,xmax,ymax] absolute coordinate
+'''
+def sub_imagev2(img,rect):
+    return copy.deepcopy(img[rect[1]:rect[3],rect[0]:rect[2]])
+
 def nprandom_crop(img,size):
     size = list(copy.deepcopy(size))
     x_begin = 0

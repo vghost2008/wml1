@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import basic_tftools as btf
+import math
 
 '''
 keypoints:[N,2] (x,y)
@@ -221,4 +222,92 @@ def npbatchget_bboxes(keypoints,threshold=0.02):
     for kps in keypoints:
         bboxes.append(npget_bbox(kps,threshold))
     return np.array(bboxes)
+
+def keypoint_distance(kp0,kp1,use_score=True,score_threshold=0.1,max_dis=1e8):
+    '''
+
+    Args:
+        kp0: [NP_NR,2/3] (x,y) or (x,y,score)
+        kp1: [NP_NR,2/3] (x,y) or (x,y,score)
+        use_score:
+        score_threshold:
+        max_dis:
+
+    Returns:
+    '''
+    KP_NR = kp0.shape[0]
+    NR_THRESHOLD = KP_NR/4
+    def point_dis(p0,p1):
+        dx = p0[0]-p1[0]
+        dy = p0[1]-p1[1]
+        return math.sqrt(dx*dx+dy*dy)
+
+    if use_score:
+        count_nr = 0
+        sum_dis = 0.0
+        for i in range(KP_NR):
+            if kp0[i][2]>score_threshold and kp1[i][2]>score_threshold:
+                count_nr += 1
+                sum_dis += point_dis(kp0[i],kp1[i])
+        if count_nr<=NR_THRESHOLD:
+            return max_dis
+        else:
+            return sum_dis/count_nr
+    else:
+        sum_dis = 0.0
+        for i in range(KP_NR):
+            sum_dis += point_dis(kp0[i],kp1[i])
+
+        return sum_dis/KP_NR
+
+def keypoint_distancev2(kp0,kp1,bbox0,bbox1,use_score=True,score_threshold=0.1,max_dis=1e8):
+    dis = keypoint_distance(kp0,kp1,use_score,score_threshold,max_dis)
+    bboxes = np.stack([bbox0,bbox1],axis=0)
+    hw = bboxes[...,2:]-bboxes[...,:2]
+    size = np.maximum(1e-8,hw[...,0]*hw[...,1])
+    size = np.sqrt(size)
+    size = np.mean(size)
+    return dis/size
+
+
+def keypoints_distance(kps,use_score=True,score_threshold=0.1,max_dis=1e8):
+    '''
+
+    Args:
+        kps: [N,KP_NR,3/2] (x,y) or (x,y,score)
+        use_score:
+        score_threshold:
+
+    Returns:
+
+    '''
+
+    N = kps.shape[0]
+    res = np.zeros([N],dtype=np.float32)
+
+    for i in range(1,N):
+        res[i] = keypoint_distance(kps[i-1],kps[i],use_score,score_threshold,max_dis)
+
+    return res
+
+def keypoints_distancev2(kps,bboxes,use_score=True,score_threshold=0.1,max_dis=1e8):
+    '''
+
+    Args:
+        kps: [N,KP_NR,2/3]
+        bboxes: [N,4] [ymin,xmin,ymax,xmax]
+        use_score:
+        score_threshold:
+        max_dis:
+
+    Returns:
+
+    '''
+    dis = keypoints_distance(kps,use_score,score_threshold,max_dis)
+
+    hw = bboxes[...,2:]-bboxes[...,:2]
+    size = np.maximum(1e-8,hw[...,0]*hw[...,1])
+    size = np.sqrt(size)
+    dis = dis/size
+    return dis
 

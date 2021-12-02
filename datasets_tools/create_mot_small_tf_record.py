@@ -2,20 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import shutil
-import hashlib
 import math
 import io
-import json
 import os
 import numpy as np
-import PIL.Image
 import wml_utils as wmlu
 import img_utils as wmli
-from pycocotools import mask
 import tensorflow as tf
-
 import iotoolkit.dataset_util as dataset_util
-import iotoolkit.label_map_util as label_map_util
 from iotoolkit.coco_toolkit import *
 
 flags = tf.app.flags

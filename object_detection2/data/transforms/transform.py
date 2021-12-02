@@ -1783,6 +1783,7 @@ class CopyPaste(WTransform):
                 p = tf.constant(True,tf.bool)
             if self.step_range is not None:
                 step = tfop.counter(data_item[GT_LABELS],init_v=0)
+                #data_item[IMG_INDEX] = step
                 p0 = WTransform.is_in_range(step,self.step_range)
                 p = tf.logical_and(p0,p)
 
@@ -2274,7 +2275,14 @@ class ShowInfo(WTransform):
         self.name = name
 
     def __call__(self,data_item):
-        tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
+        tensors = [self.name]
+        if GT_LENGTH in data_item:
+            tensors += ['len:',data_item[GT_LENGTH]]
+        elif GT_LABELS in data_item:
+            tensors += ['len:',tf.shape(data_item[GT_LABELS])[0]]
+        if IMG_INDEX in data_item:
+            tensors += ['index:',data_item[IMG_INDEX]]
+        '''tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
         if GT_BOXES in data_item:
             tensors += ['bboxes:',tf.shape(data_item[GT_BOXES])]
         if GT_LABELS in data_item:
@@ -2283,8 +2291,19 @@ class ShowInfo(WTransform):
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
         if GT_KEYPOINTS in data_item:
             tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
+        if GT_LABELS in data_item:
+            tensors += [data_item[GT_LABELS]]'''
 
-        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors+[data_item[GT_LABELS]],summarize=1000)
+
+        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors,summarize=1000)
+        return data_item
+
+class AddDataIndex(WTransform):
+    def __init__(self):
+        pass
+    def __call__(self,data_item):
+        step = tfop.counter(data_item[GT_LABELS], init_v=0)
+        data_item[IMG_INDEX] = step
         return data_item
 '''
 bbox: absolute coordinate

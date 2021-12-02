@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 
 
-BN_MOMENTUM = 0.001
+BN_MOMENTUM = 0.01
 logger = logging.getLogger(__name__)
 
 

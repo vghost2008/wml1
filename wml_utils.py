@@ -604,7 +604,7 @@ class EstimateTimeCost(object):
         left_time = ((time.time() - self.begin_time) / max(self.process_nr, 1)) * (
                     self.total_nr- self.process_nr)
         d = datetime.datetime.now() + datetime.timedelta(seconds=left_time)
-        res = f"already use {(time.time() - self.begin_time) / 3600:.3f}h, {left_time / 3600:.3f}h left, expected to be finished at {str(d)}."
+        res = f"already use {(time.time() - self.begin_time) / 3600:.3f}h, {left_time / 3600:.3f}h left, expected to be finished at {str(d)}"
         return res
 
 
