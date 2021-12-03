@@ -10,19 +10,21 @@ import numpy as np
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     try:
         for name,param in net.named_parameters():
+            if "." in name:
+                name = name.replace(".","/",1)
             if param.numel()>1:
                 tb.add_histogram(name,param,global_step)
             else:
                 tb.add_scalar(name,param,global_step)
 
-        data =  net.state_dict()
+        data = net.state_dict()
         for name in data:
             if "running" in name:
                 param = data[name]
                 if param.numel()>1:
-                    tb.add_histogram("BN_"+name,param,global_step)
+                    tb.add_histogram("BN/"+name,param,global_step)
                 else:
-                    tb.add_scalar("BN"+name,param,global_step)
+                    tb.add_scalar("BN/"+name,param,global_step)
     except Exception as e:
         print("ERROR:",e)
 
@@ -32,10 +34,10 @@ def log_basic_info(tb,name,value:torch.Tensor,global_step):
         max_v = torch.max(value)
         mean_v = torch.mean(value)
         std_v = torch.std(value)
-        tb.add_scalar(name+"_min",min_v,global_step)
-        tb.add_scalar(name+"_max",max_v,global_step)
-        tb.add_scalar(name+"_mean",mean_v,global_step)
-        tb.add_scalar(name+"_std",std_v,global_step)
+        tb.add_scalar(name+"/min",min_v,global_step)
+        tb.add_scalar(name+"/max",max_v,global_step)
+        tb.add_scalar(name+"/mean",mean_v,global_step)
+        tb.add_scalar(name+"/std",std_v,global_step)
     else:
         tb.add_scalar(name,value,global_step)
 
