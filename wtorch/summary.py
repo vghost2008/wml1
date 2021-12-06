@@ -8,20 +8,25 @@ import numpy as np
 #tb.add_image
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):
-    for name,param in net.named_parameters():
-        if param.numel()>1:
-            tb.add_histogram(name,param,global_step)
-        else:
-            tb.add_scalar(name,param,global_step)
-
-    data =  net.state_dict()
-    for name in data:
-        if "running" in name:
-            param = data[name]
+    try:
+        for name,param in net.named_parameters():
+            if "." in name:
+                name = name.replace(".","/",1)
             if param.numel()>1:
-                tb.add_histogram("BN_"+name,param,global_step)
+                tb.add_histogram(name,param,global_step)
             else:
-                tb.add_scalar("BN"+name,param,global_step)
+                tb.add_scalar(name,param,global_step)
+
+        data = net.state_dict()
+        for name in data:
+            if "running" in name:
+                param = data[name]
+                if param.numel()>1:
+                    tb.add_histogram("BN/"+name,param,global_step)
+                else:
+                    tb.add_scalar("BN/"+name,param,global_step)
+    except Exception as e:
+        print("ERROR:",e)
 
 def log_basic_info(tb,name,value:torch.Tensor,global_step):
     if value.numel()>1:
@@ -29,10 +34,10 @@ def log_basic_info(tb,name,value:torch.Tensor,global_step):
         max_v = torch.max(value)
         mean_v = torch.mean(value)
         std_v = torch.std(value)
-        tb.add_scalar(name+"_min",min_v,global_step)
-        tb.add_scalar(name+"_max",max_v,global_step)
-        tb.add_scalar(name+"_mean",mean_v,global_step)
-        tb.add_scalar(name+"_std",std_v,global_step)
+        tb.add_scalar(name+"/min",min_v,global_step)
+        tb.add_scalar(name+"/max",max_v,global_step)
+        tb.add_scalar(name+"/mean",mean_v,global_step)
+        tb.add_scalar(name+"/std",std_v,global_step)
     else:
         tb.add_scalar(name,value,global_step)
 
@@ -82,7 +87,7 @@ def log_feature_map(tb,name,tensor,global_step,random_index=True):
     data = (data-min)/(max-min+1e-8)
     tb.add_images(name,data,global_step)
 
-def try_log_rgb_feature_map(tb,name,tensor,global_step,random_index=True):
+def try_log_rgb_feature_map(tb,name,tensor,global_step,random_index=True,min_upper_bounder=None,max_lower_bounder=None):
     tensor = tensor.cpu().detach().numpy()
 
     if random_index:
@@ -92,7 +97,11 @@ def try_log_rgb_feature_map(tb,name,tensor,global_step,random_index=True):
     C = tensor.shape[1] 
     data = tensor[i]
     min = np.min(data)
+    if min_upper_bounder is not None:
+        min = np.minimum(min,min_upper_bounder)
     max = np.max(data)
+    if max_lower_bounder is not None:
+        max = np.maximum(max,max_lower_bounder)
     data = (data-min)/(max-min+1e-8)
     if C>3:
         data = np.expand_dims(data,axis=1)

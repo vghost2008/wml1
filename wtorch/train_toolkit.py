@@ -1,5 +1,7 @@
+import torch
 from torch.optim.lr_scheduler import _LRScheduler
 import math
+import torch.nn as nn
 
 class WarmupCosLR(_LRScheduler):
     def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.05,last_epoch=-1, verbose=False):
@@ -97,3 +99,61 @@ class WarmupStepLR(_LRScheduler):
             iters / float(warmup_total_iters), 2
         ) + warmup_lr_start
         return lr
+
+def grad_norm(parameters, norm_type: float = 2.0) -> torch.Tensor:
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    parameters = [p for p in parameters if p.grad is not None]
+    norm_type = float(norm_type)
+    if len(parameters) == 0:
+        return torch.tensor(0.)
+    device = parameters[0].grad.device
+    if norm_type == math.inf:
+        total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
+    else:
+        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+    return total_norm
+
+def simple_split_parameters(model,filter=None):
+    pg0, pg1, pg2 = [], [], []
+    for k, v in model.named_modules():
+        if filter is not None and not(filter(k,v)):
+            continue
+        if hasattr(v, "bias") and isinstance(v.bias, nn.Parameter):
+            if v.bias.requires_grad is False:
+                print(f"{k}.bias requires grad == False, skip.")
+            else:
+                pg2.append(v.bias)  # biases
+        if isinstance(v, nn.BatchNorm2d) or "bn" in k:
+            if v.weight.requires_grad is False:
+                print(f"{k}.weight requires grad == False, skip.")
+            else:
+                pg0.append(v.weight)  # no decay
+        elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
+            if v.weight.requires_grad is False:
+                print(f"{k}.weight requires grad == False, skip.")
+            else:
+                pg1.append(v.weight)  # apply decay
+    return pg0,pg1,pg2
+
+def freeze_model(model,freeze_bn=True):
+    if freeze_bn:
+        model.eval()
+    for name, param in model.named_parameters():
+        print(name, param.size(), "freeze")
+        param.requires_grad = False
+
+def defrost_model(model,defrost_bn=True):
+    if defrost_bn:
+        model.train()
+    for name, param in model.named_parameters():
+        print(name, param.size(), "defrost")
+        param.requires_grad = True
+
+def __fix_bn(m):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        m.eval()
+
+def freeze_bn(model):
+    model.apply(__fix_bn)

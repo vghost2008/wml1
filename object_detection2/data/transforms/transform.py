@@ -424,6 +424,11 @@ class RandomFlipLeftRight(WTransform):
                 swap_index = None
             func3 = partial(kp.keypoints_flip_left_right,swap_index=swap_index)
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
+        if WIDTH in data_item:
+            if  len(data_item[IMAGE].get_shape())==4:
+                width = tf.shape(data_item[IMAGE])[2]
+                flip_width = tf.ones_like(data_item[WIDTH])*width
+                data_item[WIDTH] = tf.cond(is_flip,lambda:flip_width,lambda:data_item[WIDTH])
 
         return data_item
     
@@ -450,6 +455,11 @@ class RandomFlipUpDown(WTransform):
         if GT_KEYPOINTS:
             func3 = kp.keypoints_flip_up_down
             data_item = self.apply_to_keypoints(func3, data_item, runtime_filter=is_flip)
+        if HEIGHT in data_item:
+            if  len(data_item[IMAGE].get_shape())==4:
+                height = tf.shape(data_item[IMAGE])[1]
+                flip_height = tf.ones_like(data_item[HEIGHT])*height
+                data_item[HEIGHT] = tf.cond(is_flip,lambda:flip_height,lambda:data_item[HEIGHT])
         return data_item
 
     def __repr__(self):
@@ -1648,7 +1658,11 @@ class Stitch(WTransform):
         kps_offset = np.array([[offset[0], offset[1]]])
         if len(kps1.shape)==3:
             kps_offset = np.expand_dims(kps_offset,axis=0)
+        elif len(kps1.shape) != 2:
+            print(f"ERROR KPS shape len {len(kps1.shape)}")
+        org_kps = copy.deepcopy(kps1)
         kps1 = kps1 + kps_offset
+        kps1 = np.where(org_kps>=0,kps1,org_kps)
         return np.concatenate([kps0,kps1],axis=0)
 
     @staticmethod
@@ -1783,6 +1797,7 @@ class CopyPaste(WTransform):
                 p = tf.constant(True,tf.bool)
             if self.step_range is not None:
                 step = tfop.counter(data_item[GT_LABELS],init_v=0)
+                #data_item[IMG_INDEX] = step
                 p0 = WTransform.is_in_range(step,self.step_range)
                 p = tf.logical_and(p0,p)
 
@@ -1933,10 +1948,12 @@ class CopyPaste(WTransform):
         if bboxes is not None:
             bboxes = bboxes*ratio+np.array([[offset_y,offset_x,offset_y,offset_x]],dtype=bboxes.dtype)
         if kps is not None:
+            org_kps = copy.deepcopy(kps)
             if len(kps.shape)==2:
                 kps = kps*ratio+np.array([[offset_x,offset_y]],dtype=kps.dtype)
             elif len(kps.shape)==3:
                 kps = kps * ratio + np.array([[[offset_x, offset_y]]], dtype=kps.dtype)
+            kps = np.where(org_kps>=0,kps,org_kps)
 
         if masks is not None:
             OMH,OMW = masks.shape[:2]
@@ -2112,6 +2129,12 @@ class WRandomTranslate(WTransform):
         if GT_KEYPOINTS in data_item:
             keypoints = self.keypoints_offset(data_item[GT_KEYPOINTS])
             self.cond_set(data_item,GT_KEYPOINTS,is_trans,keypoints)
+        if HEIGHT in data_item and not self.translate_horizontal:
+            assert len(data_item[IMAGE].get_shape())==3, "Error image dim"
+            data_item[HEIGHT] = tf.shape(data_item[IMAGE])[0]
+        if WIDTH in data_item and self.translate_horizontal:
+            assert len(data_item[IMAGE].get_shape())==3, "Error image dim"
+            data_item[WIDTH] = tf.shape(data_item[IMAGE])[1]
         return data_item
 
     def image_offset(self,image):
@@ -2274,7 +2297,20 @@ class ShowInfo(WTransform):
         self.name = name
 
     def __call__(self,data_item):
-        tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
+        tensors = [self.name]
+        if IMAGE in data_item:
+            tensors += ['img:',tf.shape(data_item[IMAGE])]
+        '''if GT_LENGTH in data_item:
+            tensors += ['len:',data_item[GT_LENGTH]]
+        elif GT_LABELS in data_item:
+            tensors += ['len:',tf.shape(data_item[GT_LABELS])[0]]
+        if IMG_INDEX in data_item:
+            tensors += ['index:',data_item[IMG_INDEX]]'''
+        if WIDTH in data_item:
+            tensors += ['width:',data_item[WIDTH]]
+        if HEIGHT in data_item:
+            tensors += ['height:',data_item[HEIGHT]]
+        '''tensors = [self.name,'img:',tf.shape(data_item[IMAGE])]
         if GT_BOXES in data_item:
             tensors += ['bboxes:',tf.shape(data_item[GT_BOXES])]
         if GT_LABELS in data_item:
@@ -2283,8 +2319,21 @@ class ShowInfo(WTransform):
             tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
         if GT_KEYPOINTS in data_item:
             tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
+        if GT_LABELS in data_item:
+            tensors += [data_item[GT_LABELS]]'''
+        if GT_KEYPOINTS in data_item:
+            tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
 
-        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors+[data_item[GT_LABELS]],summarize=1000)
+
+        data_item[IMAGE] = tf.Print(data_item[IMAGE],tensors,summarize=1000)
+        return data_item
+
+class AddDataIndex(WTransform):
+    def __init__(self):
+        pass
+    def __call__(self,data_item):
+        step = tfop.counter(data_item[GT_LABELS], init_v=0)
+        data_item[IMG_INDEX] = step
         return data_item
 '''
 bbox: absolute coordinate

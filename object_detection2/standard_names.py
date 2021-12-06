@@ -20,6 +20,7 @@ COEFFICIENT = "coefficient"
 GT_BOXES = 'gt_boxes'
 GT_LENGTH = 'gt_length'
 GT_LABELS = 'gt_labels'
+IMG_INDEX = 'idata_index'
 GT_MASKS = 'gt_masks'
 GT_KEYPOINTS = 'gt_keypoints'
 GT_SEMANTIC_LABELS = 'gt_semantic_mask_labels'

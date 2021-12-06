@@ -118,6 +118,7 @@ def _get_output_filename(output_dir, name, idx):
 def _add_to_tfrecord(file, writer, id, label_text_to_id):
     img_file, json_file = file
     image_info, labels,points = read_labelme_kp_data(json_file, label_text_to_id)
+    print(labels)
     if len(labels) == 0:
         print("No annotations.")
         # for test
@@ -176,6 +177,8 @@ def multithread_create_tf_record(data_dir, output_dir, img_suffix="jpg", name="t
     if os.path.exists(output_dir) and (data_dir != output_dir):
         shutil.rmtree(output_dir)
         print("删除文件夹%s" % (output_dir))
+    wmlu.show_list(files)
+    print(f"Find {len(files)} files.")
     return multithread_create_tf_record_by_files(files, output_dir,
                                                  name, shuffling, fidx,
                                                  label_text_to_id)
@@ -216,8 +219,8 @@ def label_text_2_id(label):
     dicts = {'a':0,'b':1}
     return dicts[label]
 if __name__ == "__main__":
-    dataset_dir = wmlu.home_dir("ai/mldata/court_detection/train_data/")
-    output_dir = wmlu.home_dir("ai/mldata/court_detection/train_tfrecord/")
+    dataset_dir = wmlu.home_dir("ai/mldata/court_detection/train_data1/")
+    output_dir = wmlu.home_dir("ai/mldata/court_detection/train_tfrecord1/")
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)

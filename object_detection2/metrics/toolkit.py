@@ -244,7 +244,7 @@ def getPrecision(gtboxes,gtlabels,boxes,labels,threshold=0.5,auto_scale_threshol
     else:
         return precision,recall
 
-def getPrecisionV2(gt_data,pred_data,pred_func,threshold):
+def getPrecisionV2(gt_data,pred_data,pred_func,threshold,return_f1=False):
     '''
     :param gt_data: N objects
     :param pred_data: M object
@@ -280,6 +280,10 @@ def getPrecisionV2(gt_data,pred_data,pred_func,threshold):
 
     recall = __safe_persent(correct_num,NR_GT)
     precision = __safe_persent(correct_num,NR_PRED)
+
+    if return_f1:
+        f1 = __safe_persent(2*correct_num,NR_PRED+NR_GT)
+        return precision,recall,f1
 
     return precision,recall
 
