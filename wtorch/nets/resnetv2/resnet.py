@@ -3,7 +3,7 @@ from torch import Tensor
 import torch.nn as nn
 from typing import Type, Any, Callable, Union, List, Optional
 from collections import OrderedDict
-
+from wtorch.nets.shape_spec import ShapeSpec
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
@@ -141,6 +141,16 @@ class Bottleneck(nn.Module):
         return out
 
 
+'''
+transform = transforms.Compose([            #[1]
+ transforms.Resize(256),                    #[2]
+ transforms.CenterCrop(224),                #[3]
+ transforms.ToTensor(),                     #[4]
+ transforms.Normalize(                      #[5]
+  mean=[0.485, 0.456, 0.406],                #[6]
+  std=[0.229, 0.224, 0.225]                  #[7]
+ )])
+'''
 class ResNet(nn.Module):
 
     def __init__(
@@ -190,6 +200,18 @@ class ResNet(nn.Module):
             self.avgpool = None
             self.fc = None
 
+        self._out_features = ['C1','C2','C3','C4','C5','output']
+        self._out_feature_channels = {}
+        self._out_feature_channels['C1'] = self.conv1.out_channels
+        self._out_feature_channels['C2'] = self.get_layer_channels(self.layer1)
+        self._out_feature_channels['C3'] = self.get_layer_channels(self.layer2)
+        self._out_feature_channels['C4'] = self.get_layer_channels(self.layer3)
+        self._out_feature_channels['C5'] = self.get_layer_channels(self.layer4)
+        self._out_feature_channels['output'] = self.fc.out_features if self.fc is not None else 1
+        self._out_feature_strides = {}
+        for i,name in enumerate(self._out_features):
+            self._out_feature_strides[name] = int(2**(i+1))
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -206,6 +228,15 @@ class ResNet(nn.Module):
                     nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
+    @staticmethod
+    def get_layer_channels(layer):
+        obj = layer[-1]
+        if hasattr(obj,"conv3"):
+            return obj.conv3.out_channels
+        elif hasattr(obj, "conv2"):
+            return obj.conv2.out_channels
+        else:
+            raise RuntimeError('ERROR layer')
 
     def _make_layer(self, block: Type[Union[BasicBlock, Bottleneck]], planes: int, blocks: int,
                     stride: int = 1, dilate: bool = False) -> nn.Sequential:
@@ -240,9 +271,8 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)#
-        res['C2'] = x
-
         x = self.layer1(x)
+        res['C2'] = x
         x = self.layer2(x)#
         res['C3'] = x
         x = self.layer3(x)#
@@ -261,6 +291,14 @@ class ResNet(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
+
+    def output_shape(self):
+        return {
+            name: ShapeSpec(
+                channels=self._out_feature_channels[name], stride=self._out_feature_strides[name]
+            )
+            for name in self._out_features
+        }
 
 
 def _resnet(

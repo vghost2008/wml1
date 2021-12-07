@@ -190,7 +190,7 @@ def recurse_get_subdir_in_dir(dir_path,predicte_fn=None,append_self=True):
         res.append("")
     return res
 
-def get_subdir_in_dir(dir_path,sort=True,append_self=False):
+def get_subdir_in_dir(dir_path,sort=True,append_self=False,absolute_path=False):
 
     res=[]
     for file in os.listdir(dir_path):
@@ -202,6 +202,9 @@ def get_subdir_in_dir(dir_path,sort=True,append_self=False):
 
     if sort:
         res.sort()
+
+    if absolute_path:
+        res = [os.path.abspath(os.path.join(dir_path,x)) for x in res]
 
     return res
 

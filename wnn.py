@@ -1090,7 +1090,7 @@ def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4,scop
         用于保证数值稳定性，log(sigmoid(x)) = log(1/(1+e^-x) = -log(1+e^-x) = x-x-log(1+e^-x) = x-log(e^x +1)
         pos_loss = tf.where(tf.less(logits,0),logits-tf.log(tf.exp(logits)+1),tf.log(probs))
         '''
-        pure_pos_loss = -tf.minimum(logits,0)-tf.log(1+tf.exp(-tf.abs(logits)))
+        pure_pos_loss = -tf.minimum(logits,0)+tf.log(1+tf.exp(-tf.abs(logits)))
         pos_loss = pure_pos_loss*tf.pow(pos_weight, alpha)
         pos_loss = tf.reduce_sum(pos_loss)
         '''
