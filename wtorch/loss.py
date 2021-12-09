@@ -5,6 +5,7 @@ def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4):
     '''
     focal loss for heat map, for example CenterNet2's heat map loss
     '''
+    logits = logits.to(torch.float32)
     zeros = torch.zeros_like(labels)
     ones = torch.ones_like(labels)
     num_pos = torch.sum(torch.where(torch.greater_equal(labels, pos_threshold), ones, zeros))

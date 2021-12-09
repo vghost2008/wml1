@@ -1291,3 +1291,23 @@ def get_random_crop_bboxes(img,size):
     xmax = xmin+new_size[1]
     ymax = ymin+new_size[0]
     return tf.convert_to_tensor([ymin,xmin,ymax,xmax],dtype=tf.int32)
+
+def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127):
+    bboxes = bboxes.astype(np.int32)
+    mask = np.ones_like(labels,dtype=np.bool)
+    for l in labels_to_remove:
+        tm = labels==l
+        mask = np.logical_and(tm,mask)
+    keep_mask = np.logical_not(mask)
+    keep_bboxes = bboxes[keep_mask]
+    remove_bboxes = bboxes[mask]
+    img_mask = np.ones(image.shape[:2],dtype=np.bool)
+
+    wmli.remove_boxes_of_img(img_mask,remove_bboxes,False)
+    wmli.remove_boxes_of_img(img_mask,keep_bboxes,True)
+
+    img_mask = np.expand_dims(img_mask,axis=-1)
+    img_mask = np.tile(img_mask,[1,1,3])
+    remove_image = np.ones_like(image)*default_value
+    image = np.where(img_mask,image,remove_image)
+    return image,keep_bboxes,labels[keep_mask]

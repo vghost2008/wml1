@@ -1,25 +1,12 @@
 #coding=utf-8
-import tensorflow as tf
 import numpy as np
-import matplotlib.image as mpimg
-import xml.etree.ElementTree as ET
-from xml.dom.minidom import Document
-import random
 import os
 import object_detection2.npod_toolkit as npod
 import math
-from semantic.visualization_utils import draw_bounding_boxes_on_image_tensors
-import object_detection2.visualization as odv
-import wml_utils
 import logging
-import shutil
 from thirdparty.odmetrics import coco_evaluation
 from thirdparty.odmetrics import standard_fields
-import wml_utils as wmlu
-import img_utils as wmli
 import copy
-from collections import OrderedDict
-
 
 def __safe_persent(v0,v1):
     if v1==0:

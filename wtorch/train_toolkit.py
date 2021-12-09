@@ -1,3 +1,4 @@
+import os
 import torch
 from torch.optim.lr_scheduler import _LRScheduler
 import math
@@ -157,3 +158,13 @@ def __fix_bn(m):
 
 def freeze_bn(model):
     model.apply(__fix_bn)
+
+def get_gpus_str(gpus):
+    gpus_str = ""
+    for g in gpus:
+        gpus_str += str(g) + ","
+    gpus_str = gpus_str[:-1]
+
+    return gpus_str
+
+
