@@ -64,3 +64,14 @@ def sequence_mask(lengths,maxlen=None,dtype=torch.bool):
     matrix = torch.arange(maxlen,dtype=lengths.dtype)[None,:]
     mask = matrix<lengths
     return mask
+
+
+class TraceAmpWrape(torch.nn.Module):
+    def __init__(self, model) -> None:
+        super().__init__()
+        self.model = model
+
+    def forward(self, x):
+        with torch.no_grad():
+            with torch.cuda.amp.autocast():
+                return self.model(x)

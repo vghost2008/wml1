@@ -1,6 +1,11 @@
 import torch.distributed as dist
 import os
 import functools
+import wml_utils as wmlu
+import torch.nn as nn
+import torch
+from collections import OrderedDict
+import pickle
 
 ASYNC_NORM = (
     nn.BatchNorm1d,
@@ -26,9 +31,10 @@ def get_rank() -> int:
         return 0
     return dist.get_rank()
 
-def setup_dist_train(rank,world_size,port="12355",host="localhost",backend='gloo'):
+def setup_dist_train(rank,world_size,port="12355",host="localhost",backend='nccl'):
     os.environ['MASTER_ADDR'] = host
     os.environ['MASTER_PORT'] = port
+    #backend: gloo, nccl
     dist.init_process_group(backend,rank=rank,world_size=world_size)
 
 def cleanup_dist_train():
@@ -110,5 +116,21 @@ def all_reduce_norm(module):
     All reduce norm statistics in different devices.
     """
     states = get_async_norm_states(module)
+    print("Reduce keys:")
+    wmlu.show_list(list(states.keys()))
     states = all_reduce(states, op="mean")
     module.load_state_dict(states, strict=False)
+
+def _find_free_port():
+    """
+    Find an available port of current machine / node.
+    """
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Binding to port 0 will cause the OS to find an available port for us
+    sock.bind(("", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    # NOTE: there is still a chance the port could be taken by other processes.
+    return port

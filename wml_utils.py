@@ -1,7 +1,7 @@
 #coding=utf-8
 import os
 import numpy as np
-import os
+import os.path as osp
 import shutil
 import scipy
 import random
@@ -173,7 +173,7 @@ def recurse_get_filepath_in_dir(dir_path,suffix=None,prefix=None,followlinks=Fal
     res.sort()
     return res
 
-def recurse_get_subdir_in_dir(dir_path,predicte_fn=None,append_self=True):
+def recurse_get_subdir_in_dir(dir_path,predicte_fn=None,append_self=False):
     res=[]
     for root,dirs,_ in os.walk(dir_path):
         for dir in dirs:
@@ -207,6 +207,16 @@ def get_subdir_in_dir(dir_path,sort=True,append_self=False,absolute_path=False):
         res = [os.path.abspath(os.path.join(dir_path,x)) for x in res]
 
     return res
+
+def dir_path_of_file(file_path):
+    return osp.dirname(osp.abspath(file_path))
+
+def parent_dir_path_of_file(file_path):
+    return osp.dirname(dir_path_of_file(file_path))
+
+def sibling_file_path(file_path,sibling_name):
+    dir_path = dir_path_of_file(file_path)
+    return osp.join(dir_path,sibling_name)
 
 '''def recurse_get_subdir_in_dir(dir_path,predicte_fn=None):
     res=[]

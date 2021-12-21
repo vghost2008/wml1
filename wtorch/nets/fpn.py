@@ -50,6 +50,7 @@ class FPN(torch.nn.Module):
         super(FPN, self).__init__()
         assert in_features, in_features
 
+        self.bottom_up = bottom_up
         # Feature map strides and channels from the bottom up network (e.g. ResNet)
         input_shapes = bottom_up.output_shape()
         strides = [input_shapes[f].stride for f in in_features]
@@ -90,7 +91,6 @@ class FPN(torch.nn.Module):
         self.output_convs = output_convs[::-1]
         self.top_block = top_block
         self.in_features = tuple(in_features)
-        self.bottom_up = bottom_up
         # Return feature names are "p<stage>", like ["p2", "p3", ..., "p6"]
         self._out_feature_strides = {"p{}".format(int(math.log2(s))): s for s in strides}
         # top block output feature maps.

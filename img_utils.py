@@ -1,6 +1,7 @@
 #coding=utf-8
 #import pydicom as dcm
 import PIL.Image
+from PIL import Image,ImageOps
 import io
 import scipy.misc
 import matplotlib.image as mpimg
@@ -14,6 +15,12 @@ import random
 import itertools
 import time
 import basic_tftools as btf
+import glob
+try:
+    from turbojpeg import TJCS_RGB, TJPF_BGR, TJPF_GRAY, TurboJPEG
+except ImportError:
+    TJCS_RGB = TJPF_GRAY = TJPF_BGR = TurboJPEG = None
+g_jpeg = None
 
 '''def dcm_to_jpeg(input_file,output_file):
     ds = dcm.read_file(input_file)
@@ -473,18 +480,54 @@ class VideoWriter:
             self.video_writer = None
 
 class VideoReader:
-    def __init__(self,path) -> None:
-        self.reader = cv2.VideoCapture(path)
+    def __init__(self,path,file_pattern="img_{:05d}.jpg",suffix=".jpg") -> None:
+        if os.path.isdir(self.path):
+            self.dir_path = path
+            self.reader = None
+            self.total_files_nr = glob.glob(os.path.join(path,"*"+suffix))
+            self.idx = 1
+        else:
+            self.reader = cv2.VideoCapture(path)
+            self.dir_path = None
+            self.total_files_nr = 0
+            self.frames_nr = int(self.video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        self.file_pattern = file_pattern
 
     def __iter__(self):
         return self
+    
+    def __item__(self,idx):
+        if self.dir_path is None:
+            raise NotImplemented()
+        elif idx<self.total_files_nr:
+            file_path = os.path.join(self.dir_path,self.file_pattern.format(idx+1))
+            img = cv2.imread(file_path)
+            return img[...,::-1]
+        else:
+            raise RuntimeError()
+    
+    def __len__(self):
+        if self.dir_path is not None:
+            return self.total_files_nr
+        elif self.reader is not None:
+            return self.frames_nr
+        else:
+            raise RuntimeError()
 
     def __next__(self):
-        ret,frame = self.reader.read()
-        if not ret:
-            raise StopIteration()
+        if self.reader is not None:
+            ret,frame = self.reader.read()
+            if not ret:
+                raise StopIteration()
+            else:
+                return frame[...,::-1]
         else:
-            return frame[...,::-1]
+            if self.idx>self.total_files_nr:
+                raise StopIteration()
+            file_path = os.path.join(self.dir_path,self.file_pattern.format(self.idx))
+            img = cv2.imread(file_path)
+            return img[...,::-1]
 
 
 def rotate_img(img,angle,scale=1.0):
@@ -691,3 +734,65 @@ def encode_img(img,quality=95):
     output_io = io.BytesIO()
     pil_image.save(output_io, format='JPEG',quality=quality)
     return output_io.getvalue()
+
+def _jpegflag(flag='color', channel_order='bgr'):
+    channel_order = channel_order.lower()
+    if channel_order not in ['rgb', 'bgr']:
+        raise ValueError('channel order must be either "rgb" or "bgr"')
+
+    if flag == 'color':
+        if channel_order == 'bgr':
+            return TJPF_BGR
+        elif channel_order == 'rgb':
+            return TJCS_RGB
+    elif flag == 'grayscale':
+        return TJPF_GRAY
+    else:
+        raise ValueError('flag must be "color" or "grayscale"')
+
+def decode_img(buffer):
+    if TurboJPEG is not None:
+        global g_jpeg
+        if g_jpeg is None:
+            g_jpeg = TurboJPEG()
+        img = g_jpeg.decode(buffer,TJCS_RGB)
+        if img.shape[-1] == 1:
+            img = img[:, :, 0]
+        return img
+    buff = io.BytesIO(buffer)
+    img = PIL.Image.open(buff)
+
+    img = pillow2array(img, 'color')
+
+    return img
+
+def pillow2array(img,flag='color'):
+    # Handle exif orientation tag
+    if flag in ['color', 'grayscale']:
+        img = ImageOps.exif_transpose(img)
+    # If the image mode is not 'RGB', convert it to 'RGB' first.
+    if img.mode != 'RGB':
+        if img.mode != 'LA':
+            # Most formats except 'LA' can be directly converted to RGB
+            img = img.convert('RGB')
+        else:
+            # When the mode is 'LA', the default conversion will fill in
+            #  the canvas with black, which sometimes shadows black objects
+            #  in the foreground.
+            #
+            # Therefore, a random color (124, 117, 104) is used for canvas
+            img_rgba = img.convert('RGBA')
+            img = Image.new('RGB', img_rgba.size, (124, 117, 104))
+            img.paste(img_rgba, mask=img_rgba.split()[3])  # 3 is alpha
+    if flag in ['color', 'color_ignore_orientation']:
+        array = np.array(img)
+    elif flag in ['grayscale', 'grayscale_ignore_orientation']:
+        img = img.convert('L')
+        array = np.array(img)
+    else:
+        raise ValueError(
+            'flag must be "color", "grayscale", "unchanged", '
+            f'"color_ignore_orientation" or "grayscale_ignore_orientation"'
+            f' but got {flag}')
+    return array
+

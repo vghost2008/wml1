@@ -281,6 +281,21 @@ def npto_cyxhw(data):
     return data
 
 '''
+data:[X,4] (cy,cx,h,w)
+return:
+[X,4] (ymin,xmin,ymax,xmax)
+'''
+def npto_yminxminymaxxmax(data):
+    data = np.transpose(data)
+    cy,cx,h,w= data[0],data[1],data[2],data[3]
+    ymin = cy-h/2
+    xmin = cx-w/2
+    ymax = cy+h/2
+    xmax = cx+w/2
+    data = np.stack([ymin,xmin,ymax,xmax],axis=1)
+    return data
+
+'''
 data:[X,4] (ymin,xmin,ymax,xmax)
 return:
 [X,4] (minx,miny,w,h)
@@ -1292,7 +1307,7 @@ def get_random_crop_bboxes(img,size):
     ymax = ymin+new_size[0]
     return tf.convert_to_tensor([ymin,xmin,ymax,xmax],dtype=tf.int32)
 
-def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127):
+def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127,scale=1.1):
     bboxes = bboxes.astype(np.int32)
     mask = np.ones_like(labels,dtype=np.bool)
     for l in labels_to_remove:
@@ -1304,6 +1319,8 @@ def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127
     img_mask = np.ones(image.shape[:2],dtype=np.bool)
 
     wmli.remove_boxes_of_img(img_mask,remove_bboxes,False)
+    if scale>1.0:
+        keep_bboxes = npscale_bboxes(keep_bboxes,scale).astype(np.int32)
     wmli.remove_boxes_of_img(img_mask,keep_bboxes,True)
 
     img_mask = np.expand_dims(img_mask,axis=-1)
