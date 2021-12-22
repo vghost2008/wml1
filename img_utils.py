@@ -481,16 +481,18 @@ class VideoWriter:
 
 class VideoReader:
     def __init__(self,path,file_pattern="img_{:05d}.jpg",suffix=".jpg") -> None:
-        if os.path.isdir(self.path):
+        if os.path.isdir(path):
             self.dir_path = path
             self.reader = None
             self.total_files_nr = glob.glob(os.path.join(path,"*"+suffix))
             self.idx = 1
+            self.fps = 1
         else:
             self.reader = cv2.VideoCapture(path)
             self.dir_path = None
             self.total_files_nr = 0
-            self.frames_nr = int(self.video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.frames_nr = int(self.reader.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.fps = self.reader.get(cv2.CAP_PROP_FPS)
 
         self.file_pattern = file_pattern
 
