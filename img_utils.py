@@ -16,6 +16,7 @@ import itertools
 import time
 import basic_tftools as btf
 import glob
+from collections import OrderedDict
 try:
     from turbojpeg import TJCS_RGB, TJPF_BGR, TJPF_GRAY, TurboJPEG
 except ImportError:
@@ -480,29 +481,49 @@ class VideoWriter:
             self.video_writer = None
 
 class VideoReader:
-    def __init__(self,path,file_pattern="img_{:05d}.jpg",suffix=".jpg") -> None:
+    def __init__(self,path,file_pattern="img_{:05d}.jpg",suffix=".jpg",preread_nr=0) -> None:
         if os.path.isdir(path):
             self.dir_path = path
             self.reader = None
-            self.total_files_nr = glob.glob(os.path.join(path,"*"+suffix))
-            self.idx = 1
+            self.frames_nr = len(glob.glob(os.path.join(path,"*"+suffix)))
             self.fps = 1
         else:
             self.reader = cv2.VideoCapture(path)
             self.dir_path = None
-            self.total_files_nr = 0
             self.frames_nr = int(self.reader.get(cv2.CAP_PROP_FRAME_COUNT))
             self.fps = self.reader.get(cv2.CAP_PROP_FPS)
+            self.preread_nr = preread_nr
+            if self.preread_nr>1:
+                self.reader_buffer = OrderedDict()
+            else:
+                self.reader_buffer = None
 
+
+        self.idx = 1
         self.file_pattern = file_pattern
 
     def __iter__(self):
         return self
     
-    def __item__(self,idx):
+    def __getitem__(self,idx):
         if self.dir_path is None:
+            if self.preread_nr>1:
+                if idx in self.reader_buffer:
+                    return self.reader_buffer[idx]
+                elif idx<self.idx-1:
+                    raise NotImplemented()
+                else:
+                    for x in range(self.idx-1,idx+1):
+                        if x in self.reader_buffer:
+                            continue
+                        ret,frame = self.reader.read()
+                        if ret:
+                            self.reader_buffer[x] = frame
+                    if idx in self.reader_buffer:
+                        return self.reader_buffer[idx]
+
             raise NotImplemented()
-        elif idx<self.total_files_nr:
+        elif idx<self.frames_nr:
             file_path = os.path.join(self.dir_path,self.file_pattern.format(idx+1))
             img = cv2.imread(file_path)
             return img[...,::-1]
@@ -511,7 +532,7 @@ class VideoReader:
     
     def __len__(self):
         if self.dir_path is not None:
-            return self.total_files_nr
+            return self.frames_nr
         elif self.reader is not None:
             return self.frames_nr
         else:
@@ -519,16 +540,29 @@ class VideoReader:
 
     def __next__(self):
         if self.reader is not None:
-            ret,frame = self.reader.read()
+            if self.preread_nr>1:
+                if self.idx-1 in self.reader_buffer:
+                    frame = self.reader_buffer[self.idx-1]
+                    ret = True
+                else:
+                    ret,frame = self.reader.read()
+                    self.reader_buffer[self.idx-1] = frame
+                    while len(self.reader_buffer)>self.preread_nr:
+                        self.reader_buffer.popitem(last=False)
+            else:
+                ret,frame = self.reader.read()
+            
+            self.idx += 1
             if not ret:
                 raise StopIteration()
             else:
                 return frame[...,::-1]
         else:
-            if self.idx>self.total_files_nr:
+            if self.idx>self.frames_nr:
                 raise StopIteration()
             file_path = os.path.join(self.dir_path,self.file_pattern.format(self.idx))
             img = cv2.imread(file_path)
+            self.idx += 1
             return img[...,::-1]
 
 

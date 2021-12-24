@@ -7,6 +7,7 @@ import logging
 from thirdparty.odmetrics import coco_evaluation
 from thirdparty.odmetrics import standard_fields
 import copy
+import sys
 
 def __safe_persent(v0,v1):
     if v1==0:
@@ -523,6 +524,7 @@ class GeneralCOCOEvaluation(object):
         return self.coco_evaluator.evaluate()
 
     def show(self,name=""):
+        sys.stdout.flush()
         print(f"Test size {self.num_examples()}")
         res = self.coco_evaluator.evaluate()
         str0 = "|配置|"
@@ -539,6 +541,7 @@ class GeneralCOCOEvaluation(object):
         print(str0)
         print(str1)
         print(str2)
+        sys.stdout.flush()
         return res
 
     def to_string(self):
@@ -652,12 +655,14 @@ class ClassesWiseModelPerformace(object):
         return self.mp(gtboxes,gtlabels,boxes,labels)
 
     def show(self):
+        sys.stdout.flush()
         for i in range(self.num_classes):
             if not self.have_data[i]:
                 continue
             classes = i+self.clases_begin_value
             print(f"Classes:{classes}")
             self.data[i].show()
+        sys.stdout.flush()
         self.mp.show()
         str0 = "|配置|"
         str1 = "|---|"
@@ -669,6 +674,7 @@ class ClassesWiseModelPerformace(object):
         print(str0)
         print(str1)
         print(str2)
+        sys.stdout.flush()
 
     def __getattr__(self, item):
         if item=="mAP":

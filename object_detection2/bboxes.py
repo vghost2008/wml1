@@ -275,8 +275,8 @@ def npto_cyxhw(data):
     ymin,xmin,ymax,xmax = data[0],data[1],data[2],data[3]
     cy = (ymin+ymax)/2
     cx = (xmin+xmax)/2
-    h = (ymax-ymin)/2
-    w = (xmax-xmin)/2
+    h = ymax-ymin
+    w = xmax-xmin
     data = np.stack([cy,cx,h,w],axis=1)
     return data
 

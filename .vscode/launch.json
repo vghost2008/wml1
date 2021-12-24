@@ -13,6 +13,14 @@
             "console": "integratedTerminal",
             "args":["--config-file" "FCOS_M" "--gpus" "0"]
         },
+        {
+            "name": "Python: normal",
+            "type": "python",
+            "justMyCode": false,
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+        },
     ]
     
 }

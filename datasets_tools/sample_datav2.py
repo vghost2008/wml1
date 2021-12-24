@@ -17,6 +17,11 @@ def append_to_dict(dict,key,data):
         dict[key] = data
 
 def sample_in_dir(dir_path,nr,split_nr=None):
+    '''
+    sample data in dir_path's sub dirs
+    sample nr images in each sub dir, if split_nr is not None, sampled nr images will be split 
+    to split_nr part and saved in different dir
+    '''
     res = {}
     dirs = wmlu.get_subdir_in_dir(dir_path,absolute_path=True)
     print(f"Find dirs in {dir_path}")
@@ -49,9 +54,8 @@ if __name__ == "__main__":
     data_dir = "/home/wj/ai/mldata/basketball_datasets/multisports/rawframes"
     save_dir = "/home/wj/ai/mldata/basketball_objs/data2label"
     data_dir = "/home/wj/ai/mldata/0day/basketball"
-    save_dir = "/home/wj/ai/mldata/basketball_objs/data2label2"
+    save_dir = "/home/wj/ai/mldata/basketball_objs/data2label/ba1"
     wmlu.create_empty_dir(save_dir,False)
-    data = sample_in_dir(data_dir,30,1)
+    data = sample_in_dir(data_dir,150,1)
     print(f"Save_path {save_dir}")
     save_data(data,save_dir)
-

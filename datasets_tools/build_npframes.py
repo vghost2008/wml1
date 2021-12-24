@@ -34,36 +34,39 @@ def extract_frame(vid_item):
     print(f"{full_path} fps {vr.fps}.")
     # for i in range(len(vr)):
     all_frames = []
-    for i, vr_frame in enumerate(vr):
-        if vr_frame is not None:
-            if img_process_fn is not None:
-                vr_frame = img_process_fn(vr_frame)
-            w, h, _ = np.shape(vr_frame)
-            if args.new_short == 0:
-                if args.new_width == 0 or args.new_height == 0:
-                    # Keep original shape
-                    out_img = vr_frame
+    try:
+        for i, vr_frame in enumerate(vr):
+            if vr_frame is not None:
+                if img_process_fn is not None:
+                    vr_frame = img_process_fn(vr_frame)
+                w, h, _ = np.shape(vr_frame)
+                if args.new_short == 0:
+                    if args.new_width == 0 or args.new_height == 0:
+                        # Keep original shape
+                        out_img = vr_frame
+                    else:
+                        out_img = mmcv.imresize(vr_frame,
+                                                (args.new_width,
+                                                 args.new_height))
                 else:
-                    out_img = mmcv.imresize(vr_frame,
-                                            (args.new_width,
-                                             args.new_height))
+                    if min(h, w) == h:
+                        new_h = args.new_short
+                        new_w = int((new_h / h) * w)
+                    else:
+                        new_w = args.new_short
+                        new_h = int((new_w / w) * h)
+                    out_img = mmcv.imresize(vr_frame, (new_h, new_w))
+                all_frames.append(wmli.encode_img(out_img))
             else:
-                if min(h, w) == h:
-                    new_h = args.new_short
-                    new_w = int((new_h / h) * w)
-                else:
-                    new_w = args.new_short
-                    new_h = int((new_w / w) * h)
-                out_img = mmcv.imresize(vr_frame, (new_h, new_w))
-            all_frames.append(wmli.encode_img(out_img))
-        else:
-            warnings.warn(
-                'Length inconsistent!'
-                f'Early stop with {i + 1} out of {len(vr)} frames.')
-            break
+                warnings.warn(
+                    'Length inconsistent!'
+                    f'Early stop with {i + 1} out of {len(vr)} frames.')
+                break
 
-    with open(out_full_path,"wb") as f:
-        pickle.dump(all_frames,f)
+        with open(out_full_path,"wb") as f:
+            pickle.dump(all_frames,f)
+    except Exception as e:
+        print(f"Process {full_path} faild, {e}")
 
     print(f'{full_path} -> {out_full_path} done')
     sys.stdout.flush()
