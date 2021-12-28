@@ -36,7 +36,20 @@ module_path = os.path.realpath(__file__)
 module_dir = os.path.dirname(module_path)
 lib_path = os.path.join(module_dir, 'tfop.so')
 print(lib_path)
-tfop_module = tf.load_op_library(lib_path)
+if os.path.exists(lib_path):
+    tfop_module = tf.load_op_library(lib_path)
+else:
+    class _EmptyClass:
+        def __init__(self):
+            pass
+
+        def __getattr__(self, item):
+            return None
+        def __setattr__(self, key,value):
+            pass
+    tfop_module = _EmptyClass()
+    pass
+    
 random_select = tfop_module.random_select
 min_area_rect = tfop_module.min_area_rect
 min_area_rect_with_bboxes  = tfop_module.min_area_rect_with_bboxes 

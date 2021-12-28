@@ -1320,8 +1320,10 @@ def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127
 
     wmli.remove_boxes_of_img(img_mask,remove_bboxes,False)
     if scale>1.0:
-        keep_bboxes = npscale_bboxes(keep_bboxes,scale).astype(np.int32)
-    wmli.remove_boxes_of_img(img_mask,keep_bboxes,True)
+        t_keep_bboxes = npscale_bboxes(keep_bboxes,scale).astype(np.int32)
+    else:
+        t_keep_bboxes = keep_bboxes
+    wmli.remove_boxes_of_img(img_mask,t_keep_bboxes,True)
 
     img_mask = np.expand_dims(img_mask,axis=-1)
     img_mask = np.tile(img_mask,[1,1,3])

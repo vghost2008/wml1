@@ -32,6 +32,7 @@ def extract_frame(vid_item):
 
     vr = wmli.VideoReader(full_path)
     print(f"{full_path} fps {vr.fps}.")
+    sys.stdout.flush()
     # for i in range(len(vr)):
     all_frames = []
     try:
@@ -63,6 +64,7 @@ def extract_frame(vid_item):
                     f'Early stop with {i + 1} out of {len(vr)} frames.')
                 break
 
+        out_full_path = out_full_path+f"_{len(all_frames)}.np"
         with open(out_full_path,"wb") as f:
             pickle.dump(all_frames,f)
     except Exception as e:
@@ -77,7 +79,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='extract optical flows')
     parser.add_argument('src_dir', type=str, help='source video directory')
     parser.add_argument('out_dir', type=str, help='output rawframe directory')
-    parser.add_argument('--num_worker', default=8,type=int, help='num worker')
+    parser.add_argument('--num_worker', default=20,type=int, help='num worker')
     parser.add_argument(
         '--ext',
         type=str,
@@ -114,7 +116,7 @@ if __name__ == '__main__':
         if len(files)>0:
             for f in files:
                 v_save_dir = osp.join(args.out_dir,sd)
-                v_save_path = osp.join(v_save_dir,wmlu.base_name(f)+".np")
+                v_save_path = osp.join(v_save_dir,wmlu.base_name(f))
                 wmlu.create_empty_dir(v_save_dir,remove_if_exists=False)
                 datas.append([f,sd,v_save_path])
     print(f"Total find {len(datas)} files.")
