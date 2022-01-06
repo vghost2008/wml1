@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument("out_dir",type=str,help="out dir")
     parser.add_argument("--ext",type=str,default=".gif",help="img ext")
     parser.add_argument("--files_nr",type=int,default=500,help="files nr")
-    parser.add_argument("--dir_name",type=str,default="2124",help="save dir name")
+    parser.add_argument("--dir_name",type=str,default="0104",help="save dir name")
     args = parser.parse_args()
     return args
 

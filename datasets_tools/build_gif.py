@@ -19,41 +19,45 @@ def parse_args():
     parser.add_argument("--fps",type=int,default=10,help="output fps")
     parser.add_argument("--beg_idx",type=int,default=0,help="output fps")
     parser.add_argument("--total_nr",type=int,default=-1,help="output fps")
+    parser.add_argument("--step",type=int,default=1,help="output fps")
     args = parser.parse_args()
     return args
 
 
-def trans_one(src_data,out_dir,fps,beg_idx=0,total_nr=-1):
+def trans_one(src_data,out_dir,fps,beg_idx=0,total_nr=-1,step=1):
     reader = wmli.VideoReader(src_data)
     if total_nr>1:
         frames = []
-        for i in range(beg_idx,beg_idx+total_nr):
+        for i in range(beg_idx,beg_idx+total_nr,step):
             frames.append(reader[i])
     else:
         frames = [x for x in reader]
-    save_name = wmlu.base_name(src_data)+".gif"
+    save_name = wmlu.base_name(src_data,process_suffix=False)+".gif"
     save_path = osp.join(out_dir,save_name)
     if osp.exists(save_path):
         print(f"Error {save_path} exists.")
+    print(f"Save {save_path}")
     imageio.mimsave(save_path,frames,fps=fps)
 
 
 if __name__ == "__main__":
     args = parse_args()
-    wmlu.create_empty_dir(args.src_dir,remove_if_exists=False)
+    wmlu.create_empty_dir(args.out_dir,remove_if_exists=False)
     if args.video_ext is not None:
         files = wmlu.recurse_get_filepath_in_dir(args.src_dir,suffix=args.video_ext)
         if args.total_nr>1:
             print(f"ERROR: can't specify total nr for video.")
         for file in files:
-            trans_one(file,args.out_dir,args.fps,args.beg_idx,args.total_nr)
+            trans_one(file,args.out_dir,args.fps,args.beg_idx,args.total_nr,args.step)
     else:
         _sub_dirs = wmlu.recurse_get_subdir_in_dir(args.src_dir,append_self=True)
         sub_dirs = []
         for sd in _sub_dirs:
             rd = osp.join(args.src_dir,sd)
-            files = glob.glob(osp.join(rd,args.img_ext))
+            files = glob.glob(osp.join(rd,"*"+args.img_ext))
             if len(files)>3:
                 sub_dirs.append(rd)
+            else:
+                print(f"Skip {rd}")
         for sd in sub_dirs:
             trans_one(sd,args.out_dir,args.fps,args.beg_idx,args.total_nr)

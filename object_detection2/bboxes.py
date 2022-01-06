@@ -849,6 +849,12 @@ def bbox_of_boxes(boxes):
     return np.array([ymin,xmin,ymax,xmax])
 
 '''
+bbox:[ymin,xmin,ymax,xmax]
+'''
+def get_bboxes_wh(bbox):
+    return (bbox[2]-bbox[0],bbox[3]-bbox[1])
+
+'''
 boxes:[N,4],[ymin,xmin,ymax,xmax]
 return:[ymin,xmin,ymax,xmax]
 '''

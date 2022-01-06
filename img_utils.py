@@ -518,6 +518,7 @@ class VideoReader:
                             continue
                         ret,frame = self.reader.read()
                         if ret:
+                            frame = frame[...,::-1]
                             self.reader_buffer[x] = frame
                     if idx in self.reader_buffer:
                         return self.reader_buffer[idx]
@@ -546,17 +547,22 @@ class VideoReader:
                     ret = True
                 else:
                     ret,frame = self.reader.read()
+                    if not ret:
+                        raise StopIteration()
+                    frame = frame[...,::-1]
                     self.reader_buffer[self.idx-1] = frame
                     while len(self.reader_buffer)>self.preread_nr:
                         self.reader_buffer.popitem(last=False)
             else:
                 ret,frame = self.reader.read()
+                if ret:
+                    frame = frame[...,::-1]
             
             self.idx += 1
             if not ret:
                 raise StopIteration()
             else:
-                return frame[...,::-1]
+                return frame
         else:
             if self.idx>self.frames_nr:
                 raise StopIteration()

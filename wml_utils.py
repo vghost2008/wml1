@@ -315,15 +315,24 @@ def safe_copy(src_file,dst_file):
     shutil.copy(src_file,r_dst_file)
 
 
-def base_name(v):
+def base_name(v,process_suffix=True):
     if v[-1] == "/" or v[-1] == "\\":
         v = v[:-1]
     base_name = os.path.basename(v)
+
+    if not process_suffix:
+        return base_name
+
     index = base_name.rfind(".")
     if -1 == index:
         return base_name
     else:
         return base_name[:index]
+
+def remove_path_spliter(v):
+    if v[-1] == "/" or v[-1] == "\\":
+        v = v[:-1]
+    return v
 
 def suffix(v):
     base_name = os.path.basename(v)

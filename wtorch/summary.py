@@ -74,7 +74,8 @@ def log_feature_map(tb,name,tensor,global_step,random_index=True):
     '''
     tensor: [B,C,H,W]
     '''
-    tensor = tensor.cpu().detach().numpy()
+    if isinstance(tensor,torch.Tensor):
+        tensor = tensor.cpu().detach().numpy()
 
     if random_index:
         i = random.randint(0,tensor.shape[0]-1)
@@ -132,10 +133,11 @@ def add_video_with_label(tb,name,video,label,global_step,fps=4,font_scale=1.2):
     if isinstance(video,torch.Tensor):
         video = video.numpy()
     video = np.ascontiguousarray(video)
-    for i in range(video.shape[0]):
-        l = label[i]
-        for j in range(video.shape[1]):
-            _draw_text_on_image(video[i,j],l,font_scale=font_scale)
+    if label is not None:
+        for i in range(video.shape[0]):
+            l = label[i]
+            for j in range(video.shape[1]):
+                _draw_text_on_image(video[i,j],l,font_scale=font_scale)
     #video (N,T,H,W,C)
     video = video.transpose(0,1,4,2,3)
     tb.add_video(name,video,global_step)
