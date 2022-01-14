@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4):
+def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4,sum=True):
     '''
     focal loss for heat map, for example CenterNet2's heat map loss
     '''
@@ -19,12 +19,14 @@ def focal_loss_for_heat_map(labels,logits,pos_threshold=0.99,alpha=2,beta=4):
     '''
     pure_pos_loss = -torch.minimum(logits,logits.new_tensor(0,dtype=logits.dtype))+torch.log(1+torch.exp(-torch.abs(logits)))
     pos_loss = pure_pos_loss*torch.pow(pos_weight, alpha)
-    pos_loss = torch.sum(pos_loss)
+    if sum:
+        pos_loss = torch.sum(pos_loss)
     '''
     用于保证数值稳定性
     '''
     pure_neg_loss = F.relu(logits)+torch.log(1+torch.exp(-torch.abs(logits)))
     neg_loss = torch.pow((1 - labels), beta) * torch.pow(neg_weight, alpha) * pure_neg_loss
-    neg_loss = torch.sum(neg_loss)
+    if sum:
+        neg_loss = torch.sum(neg_loss)
     loss = (pos_loss + neg_loss) / (num_pos + 1e-4)
     return loss

@@ -75,3 +75,31 @@ class TraceAmpWrape(torch.nn.Module):
         with torch.no_grad():
             with torch.cuda.amp.autocast():
                 return self.model(x)
+
+def get_tensor_info(tensor):
+    tensor = tensor.detach().cpu().to(torch.float32)
+    return torch.mean(tensor).item(),torch.min(tensor).item(),torch.max(tensor).item(),torch.std(tensor).item()
+
+def merge_imgs_heatmap(imgs,heat_map,scale=1.0,alpha=0.4,channel=None,min=None,max=None):
+    if not isinstance(heat_map,torch.Tensor):
+        heat_map = torch.from_numpy(heat_map)
+    if not isinstance(imgs,torch.Tensor):
+        imgs = torch.from_numpy(imgs)
+    if min is None:
+        min = torch.min(heat_map)
+    else:
+        heat_map = torch.maximum(heat_map,torch.Tensor([min]))
+
+    if max is None:
+        max = torch.max(heat_map)
+    else:
+        heat_map = torch.minimum(heat_map,torch.Tensor([max]))
+    heat_map = (heat_map-min)*scale/(max-min+1e-8)
+    if channel is not None and heat_map.shape[channel]==1:
+        t_zeros = torch.zeros_like(heat_map)
+        heat_map = torch.cat([heat_map,t_zeros,t_zeros],dim=channel)
+    new_imgs = imgs*(1-alpha)+heat_map*alpha
+    mask = heat_map>(scale*0.01)
+    #imgs = torch.where(mask,new_imgs,imgs)
+    imgs = new_imgs
+    return imgs

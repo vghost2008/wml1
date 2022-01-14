@@ -89,7 +89,8 @@ def log_feature_map(tb,name,tensor,global_step,random_index=True):
     tb.add_images(name,data,global_step)
 
 def try_log_rgb_feature_map(tb,name,tensor,global_step,random_index=True,min_upper_bounder=None,max_lower_bounder=None):
-    tensor = tensor.cpu().detach().numpy()
+    if isinstance(tensor,torch.Tensor):
+        tensor = tensor.cpu().detach().numpy()
 
     if random_index:
         i = random.randint(0,tensor.shape[0]-1)
@@ -129,9 +130,9 @@ def add_video_with_label(tb,name,video,label,global_step,fps=4,font_scale=1.2):
     Returns:
 
     '''
-    video = video.transpose(0,1,3,4,2)
     if isinstance(video,torch.Tensor):
         video = video.numpy()
+    video = video.transpose(0,1,3,4,2)
     video = np.ascontiguousarray(video)
     if label is not None:
         for i in range(video.shape[0]):

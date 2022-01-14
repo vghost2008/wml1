@@ -7,7 +7,9 @@ import sys
 data_dir = sys.argv[1]
 output_path = sys.argv[2]
 format_str = "img_{:05d}.jpg"
+format_str = "{:06d}.jpg"
 beg_idx = 1
+beg_idx = 0
 end_idx = -1
 if len(sys.argv)>3:
     beg_idx = int(sys.argv[3])
