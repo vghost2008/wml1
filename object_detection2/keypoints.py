@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import tensorflow as tf
 import basic_tftools as btf
@@ -205,6 +206,8 @@ def npget_bbox(keypoints,threshold=0.02):
         mask = keypoints[:,2]>threshold
         if np.any(mask):
             keypoints = keypoints[mask]
+        else:
+            return np.array([0,0,0,0],dtype=np.float32)
     xmin = np.min(keypoints[:,0])
     xmax = np.max(keypoints[:,0])
     ymin = np.min(keypoints[:,1])
@@ -311,3 +314,29 @@ def keypoints_distancev2(kps,bboxes,use_score=True,score_threshold=0.1,max_dis=1
     dis = dis/size
     return dis
 
+def affine_transform(pt, t):
+    new_pt = np.array([pt[0], pt[1], 1.]).T
+    new_pt = np.dot(t, new_pt)
+    return new_pt[:2]
+
+def rotate(angle,img,kps,bbox,scale=1.0):
+    '''
+
+    Args:
+        img: [RGB]
+        kps: [N,2]/[N,3]
+        bbox: [xmin,ymin,xmax,ymax]
+
+    Returns:
+
+    '''
+    cx = (bbox[0]+bbox[2])/2
+    cy = (bbox[1] + bbox[3]) / 2
+    matrix = cv2.getRotationMatrix2D([cx,cy],angle,scale)
+    img = cv2.warpAffine(img,matrix,dsize=(img.shape[1],img.shape[0]),
+                         flags=cv2.INTER_LINEAR)
+    num_joints = kps.shape[0]
+    for i in range(num_joints):
+        if kps[i, 2] > 0.0:
+            kps[i, 0:2] = affine_transform(kps[i, 0:2], matrix)
+    return img

@@ -46,7 +46,7 @@ color_fn: tuple(3) (*f)(label)
 text_fn: str (*f)(label,score)
 get_text_pos_fn: tuple(2) (*f)(lt_corner,br_corner,bboxes,label)
 '''
-def draw_bboxes(img, classes, scores=None, bboxes=None,
+def draw_bboxes(img, classes=None, scores=None, bboxes=None,
                         color_fn=random_color_fn,
                         text_fn=default_text_fn,
                         get_text_pos_fn=get_text_pos_fn,
@@ -54,6 +54,9 @@ def draw_bboxes(img, classes, scores=None, bboxes=None,
                         is_relative_coordinate=True,
                         is_show_text=None,
                         fill_bboxes=False):
+    bboxes = np.array(bboxes)
+    if classes is None:
+        classes = np.zeros([bboxes.shape[0]],dtype=np.int32)
     bboxes_thickness = thickness if not fill_bboxes else -1
     if is_relative_coordinate:
         shape = img.shape

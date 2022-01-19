@@ -97,23 +97,23 @@ COMPRESSED_ID_TO_TEXT = {}
 
 
 
-KEYPOINTS_NAME = ["nose",
-                "left_eye",
-                "right_eye",
-                "left_ear",
-                "right_ear",
-                "left_shoulder",
-                "right_shoulder",
-                "left_elbow",
-                "right_elbow",
-                "left_wrist",
-                "right_wrist",
-                "left_hip",
-                "right_hip",
-                "left_knee",
-                "right_knee",
-                "left_ankle",
-                "right_ankle"]
+KEYPOINTS_NAME = ["nose", #0
+                "left_eye", #1
+                "right_eye",#2
+                "left_ear",#3
+                "right_ear",#4
+                "left_shoulder",#5
+                "right_shoulder",#6
+                "left_elbow",#7
+                "right_elbow",#8
+                "left_wrist",#9
+                "right_wrist",#10
+                "left_hip",#11
+                "right_hip",#12
+                "left_knee",#13
+                "right_knee",#14
+                "left_ankle",#15
+                "right_ankle"]#16
 JOINTS_PAIR = [[0 , 1], [1 , 2], [2 , 0], [1 , 3], [2 , 4], [3 , 5], [4 , 6], [5 , 6], [5 , 11],
 [6 , 12], [11 , 12], [5 , 7], [7 , 9], [6 , 8], [8 , 10], [11 , 13], [13 , 15], [12 , 14], [14 , 16]]
 j = 1
