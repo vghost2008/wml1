@@ -5,7 +5,7 @@ import random
 import numpy as np
 #import tensorboardX as tb
 #tb.SummaryWriter.add_video()
-#tb.add_image
+#tb.add_images
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     try:

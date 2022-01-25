@@ -406,6 +406,7 @@ def scale_bboxes(bboxes,scale,correct=False):
 '''
 boxes:[...,4] ymin,xmin,ymax,xmax
 scale:[hscale,wscale]
+max_size: [H,W]
 '''
 def npscale_bboxes(bboxes,scale,correct=False,max_size=None):
     if not isinstance(scale,Iterable):

@@ -19,12 +19,21 @@ def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
 def draw_rectangle(img, p1, p2, color=[255, 0, 0], thickness=2):
     cv2.rectangle(img, p1[::-1], p2[::-1], color, thickness)
 
-def draw_bbox(img, bbox, shape, label, color=[255, 0, 0], thickness=2):
-    p1 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
-    p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
+def draw_bbox(img, bbox, shape=None, label=None, color=[255, 0, 0], thickness=2,is_relative_bbox=False,xy_order=True):
+    if is_relative_bbox:
+        p1 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
+        p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
+    else:
+        p1 = (int(bbox[0]), int(bbox[1]))
+        p2 = (int(bbox[2]), int(bbox[3]))
+    if xy_order:
+        p1 = p1[::-1]
+        p2 = p2[::-1]
     cv2.rectangle(img, p1[::-1], p2[::-1], color, thickness)
     p1 = (p1[0]+15, p1[1])
-    cv2.putText(img, str(label), p1[::-1], cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
+    if label is not None:
+        cv2.putText(img, str(label), p1[::-1], cv2.FONT_HERSHEY_DUPLEX, 0.5, color, 1)
+    return img
 
 def get_text_pos_fn(pmin,pmax,bbox,label):
     if bbox[0]<0.1:

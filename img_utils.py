@@ -420,7 +420,7 @@ def imsave(filename,img):
 
 def imwrite(filename, img):
     dir_path = os.path.dirname(filename)
-    if not os.path.exists(dir_path):
+    if dir_path != "" and not os.path.exists(dir_path):
         os.makedirs(dir_path)
     if len(img.shape)==3 and img.shape[2]==3:
         img = copy.deepcopy(img)
