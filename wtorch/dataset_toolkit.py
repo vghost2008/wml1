@@ -25,7 +25,7 @@ def make_data_unit(datas,total_nr=None,nr_per_unit=None):
     else:
         if nr_per_unit<=1:
             return datas
-        datas = wmlu.list_to_2dlist(data,nr_per_unit)
+        datas = wmlu.list_to_2dlist(datas,nr_per_unit)
 
     datas = [DataUnit(x) for x in datas]
     return datas

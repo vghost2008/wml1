@@ -249,7 +249,7 @@ def draw_semantic_on_image(image,semantic,color_map,alpha=0.4,ignored_label=0):
     new_img = np.where(pred,new_img,image)
     return new_img
 
-def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None):
+def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None,left_node=None):
 
     def link(a, b, color):
         jointa = joints[a]
@@ -266,12 +266,19 @@ def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None):
             link(pair[0], pair[1], color)
 
     # add joints
+    node_color = None
     for i, joint in enumerate(joints):
-        cv2.circle(image, (int(joint[0]), int(joint[1])), r, colors_tableau[i], -1)
+        if left_node is None:
+            node_color = colors_tableau[i]
+        elif i in left_node:
+            node_color = (0,255,0)
+        else:
+            node_color = (0,0,255)
+        cv2.circle(image, (int(joint[0]), int(joint[1])), r, node_color, -1)
 
     return image
 
-def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None):
+def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None,left_node=None):
 
     def link(a, b, color):
         jointa = joints[a]
@@ -291,11 +298,17 @@ def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None):
     # add joints
     for i, joint in enumerate(joints):
         if joint[2] > 0.05 and joint[0] > 1 and joint[1] > 1:
-            cv2.circle(image, (int(joint[0]), int(joint[1])), r, colors_tableau[i], -1)
+            if left_node is None:
+                node_color = colors_tableau[i]
+            elif i in left_node:
+                node_color = (0,255,0)
+            else:
+                node_color = (0,0,255)
+            cv2.circle(image, (int(joint[0]), int(joint[1])), r, node_color, -1)
 
     return image
 
-def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=None):
+def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=None,left_node=None):
     '''
 
     Args:
@@ -322,10 +335,11 @@ def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=None
         if use_random_color:
             color = np.random.randint(0, 255, size=3)
             color = [int(i) for i in color]
+
         if person.shape[-1] == 3:
-            add_jointsv2(image, person, color=color,no_line=no_line,joints_pair=joints_pair)
+            add_jointsv2(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node)
         else:
-            add_jointsv1(image, person, color=color,no_line=no_line,joints_pair=joints_pair)
+            add_jointsv1(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node)
 
     return image
 

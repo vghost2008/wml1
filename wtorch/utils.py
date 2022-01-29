@@ -32,6 +32,14 @@ def normalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
     x = (x-offset)/scale
     return x
 
+def remove_prefix_from_state_dict(state_dict,prefix="module."):
+    res = {}
+    for k,v in state_dict.items():
+        if k.startswith(prefix):
+            k = k[len(prefix):]
+        res[k] = v
+    return res
+
 def forgiving_state_restore(net, loaded_dict):
     """
     Handle partial loading when some tensors don't match up in size.
