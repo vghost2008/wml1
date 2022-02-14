@@ -2,6 +2,7 @@ from iotoolkit.mat_data import MatData
 import object_detection2.keypoints as odk
 import numpy as np
 import object_detection2.bboxes as odb
+import math
 '''
 id - joint id (0 - r ankle, 1 - r knee, 2 - r hip, 
 3 - l hip, 4 - l knee, 5 - l ankle, 6 - pelvis, 
@@ -49,6 +50,7 @@ def read_mpii_data(path):
         if len(image_datas)>0:
             image_datas = list(zip(*image_datas))
             bboxes = np.array(image_datas[0])
+            head_bboxes = bboxes
             kps = np.array(image_datas[1])
             _bboxes = odk.npbatchget_bboxes(kps)
             r_bboxes = []
@@ -56,7 +58,7 @@ def read_mpii_data(path):
                 bbox = odb.bbox_of_boxes([bbox0,bbox1])
                 r_bboxes.append(bbox)
             bboxes = np.array(r_bboxes,dtype=np.float32)
-            res.append([image,bboxes,kps])
+            res.append([image,bboxes,kps,head_bboxes])
 
     return res
 
@@ -65,20 +67,42 @@ class Trans2COCO:
         self.dst_idxs = [5,6,7,8,9,10,11,12,13,14,15,16]
         self.src_idxs = [13,12,14,11,15,10,3,2,4,1,5,0]
         self.coco_idxs = [0,1,2,3,4]
+    
+    @staticmethod 
+    def kps_in_bbox(kps,bbox):
+        nr = kps.shape[0]
+        for i in range(nr):
+            if kps[i,2]<= 0:
+                return False
+            x = kps[i,0]
+            y = kps[i,1]
+            if x<bbox[0] or x>bbox[2] or y<bbox[1] or y>bbox[3]:
+                return False
+        return True
 
-    def __call__(self,mpii_kps,coco_kps):
+    def __call__(self,mpii_kps,coco_kps,head_bboxes):
         if len(mpii_kps.shape)==2:
-            return self.trans_one(mpii_kps,coco_kps)
+            return self.trans_one(mpii_kps,coco_kps,head_bboxes)
         res = []
-        for mp,coco in zip(mpii_kps,coco_kps):
-            res.append(self.trans_one(mp,coco))
+        for mp,coco,head_bbox in zip(mpii_kps,coco_kps,head_bboxes):
+            res.append(self.trans_one(mp,coco,head_bbox))
         return np.array(res)
 
-    def trans_one(self,mpii_kps,coco_kps):
+    def trans_one(self,mpii_kps,coco_kps,head_bbox):
         '''
         img: [RGB]
         '''
         res = np.zeros([17,3],dtype=np.float32)
         res[self.dst_idxs] = mpii_kps[self.src_idxs]
-        res[self.coco_idxs] = coco_kps[self.coco_idxs]
+        if coco_kps is not None:
+            left_right_pairs = [[5,6],[11,12]]
+            is_good = True
+            for pair in left_right_pairs:
+                l,r = pair
+                if res[l,0]<res[r,0] or res[l,2]<0.1 or res[r,2]<0.1:
+                    is_good = False
+                    break
+
+            if is_good and head_bbox is not None and self.kps_in_bbox(coco_kps[self.coco_idxs],head_bbox):
+                res[self.coco_idxs] = coco_kps[self.coco_idxs]
         return res
