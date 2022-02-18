@@ -29,3 +29,16 @@ def make_data_unit(datas,total_nr=None,nr_per_unit=None):
 
     datas = [DataUnit(x) for x in datas]
     return datas
+
+class DataList:
+    def __init__(self,data) -> None:
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, item):
+        data = self.data[item]
+        if isinstance(data,DataUnit):
+            data = data.sample()
+        return data

@@ -85,7 +85,7 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
             if color_fn is not None:
                 color = color_fn(classes[i])
             else:
-                color = (random.random()*255, random.random()*255, random.random()*255)
+                color = (int(random.random()*255), int(random.random()*255), int(random.random()*255))
             p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
             p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
             cv2.rectangle(img, p10[::-1], p2[::-1], color, bboxes_thickness)
@@ -101,7 +101,7 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
                                 fontScale=font_scale,
                                 color=text_color,
                                 thickness=1)
-        except:
+        except Exception as e:
             bbox = bboxes[i]
             p10 = (int(bbox[0] * shape[0]), int(bbox[1] * shape[1]))
             p2 = (int(bbox[2] * shape[0]), int(bbox[3] * shape[1]))
@@ -109,7 +109,7 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
                 color = color_fn(classes[i])
             else:
                 color = (random.random()*255, random.random()*255, random.random()*255)
-            print("Error:",img.shape,shape,bboxes[i],classes[i],p10,p2,color,thickness)
+            print("Error:",img.shape,shape,bboxes[i],classes[i],p10,p2,color,thickness,e)
             
 
     return img

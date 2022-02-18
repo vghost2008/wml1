@@ -9,16 +9,15 @@ namespace MOT
     {
         public:
             /*
+             * det_thresh: treshold to start a new track
              * assignment_thresh: if use embds:[iou dis threshold for tracked and detections, iou dis threshold for untracked and detections, embds dis for tracked and detections]
-             * if not use embds,[iou dis threshold for tracked and detections, iou dis threshold for untracked and detections]
+             * if not use embds,[iou dis threshold for tracked and detections, iou dis threshold for unconfirmed and detections, iou dis threshold for losted and detections]
              */
             JDETracker(float det_thresh=0.1,int frame_rate=30,int track_buffer=30,const std::vector<float>& assignment_thresh={0.5f,0.7f,0.4f});
             STrackPtrs_t update(const BBoxes_t& bboxes,const Probs_t& probs, const Embeddings_t& embds,bool return_losted=false);
             STrackPtrs_t update(const BBoxes_t& bboxes,const Probs_t& probs);
         private:
             STrackPtrs_t joint_stracks(STrackPtrs_t& va,STrackPtrs_t& vb);
-            //STrackPtrs_t sub_stracks(STrackPtrs_t& va,STrackPtrs_t& vb);
-            //STrackPtrs_t remove_duplicate_stracks(STrackPtrs_t& va,STrackPtrs_t& vb);
         private:
            float              det_thresh_        = 0.1;
            int                frame_rate_        = 30;

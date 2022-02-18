@@ -140,7 +140,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
      * the follow line is not included original python code, since some tracks in lost_stracks_ become activated, so only tracks still 
      * in lost state will be removed
      */
-    for(auto& track:lost_stracks_) {
+    for(auto& track:lost_stracks) {
         if(frame_id_-track->end_frame()>max_time_lost_) {
             track->mark_removed();
             removed_stracks.push_back(track);
@@ -152,7 +152,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     });
 
     tracked_stracks_ = joint_stracks(activated_stracks,refind_stracks);
-    removed_stracks_ = joint_stracks(removed_stracks_,removed_stracks);
+    removed_stracks_ = std::move(removed_stracks);
 
     if(return_losted)
         return joint_stracks(tracked_stracks_,lost_stracks_);
@@ -228,7 +228,7 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
 
     inplace_gather(detections,u_detection);
     dists = iou_distance(unconfirmed,detections);
-    linear_assignment(dists,assignment_thresh_[1],&matches,&u_track,&u_detection);
+    linear_assignment(dists,assignment_thresh_[1],&matches,&u_unconfirmed,&u_detection);
     for(auto& _d:matches) {
         tie(itracked,idet) = _d;
         auto& track = unconfirmed[itracked];
@@ -241,6 +241,19 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
         auto& track = unconfirmed[it];
         track->mark_removed();
         removed_stracks.push_back(track);
+    }
+
+    //Deal with lost tracks, usually tracks with only one beginning frame
+    inplace_gather(detections,u_detection);
+    dists = iou_distance(lost_stracks_,detections);
+    linear_assignment(dists,assignment_thresh_[2],&matches,&u_track,&u_detection);
+    for(auto& _d:matches) {
+        tie(itracked,idet) = _d;
+        auto& track = lost_stracks_[itracked];
+        auto& det = detections[idet];
+
+        track->update(*det,frame_id_);
+        activated_stracks.push_back(track);
     }
 
     //Step 4: Init new stracks
@@ -257,16 +270,19 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
      * the follow line is not included original python code, since some tracks in lost_stracks_ become activated, so only tracks still 
      * in lost state will be removed
      */
-    lost_stracks_ = lost_stracks;
-    for(auto& track:lost_stracks_) {
-        if(frame_id_-track->end_frame()>max_time_lost_) {
+    for(auto& track:lost_stracks) {
+        if(track->is_losted() && (frame_id_-track->end_frame()>max_time_lost_)) {
             track->mark_removed();
             removed_stracks.push_back(track);
         }
     }
+    lost_stracks_.clear();
+    copy_if(lost_stracks.begin(),lost_stracks.end(),back_inserter(lost_stracks_),[](const auto& v) {
+        return !v->is_removed();
+    });
 
     tracked_stracks_ = joint_stracks(activated_stracks,refind_stracks);
-    removed_stracks_ = joint_stracks(removed_stracks_,removed_stracks);
+    removed_stracks_ = std::move(removed_stracks);
 
     return tracked_stracks_;
 

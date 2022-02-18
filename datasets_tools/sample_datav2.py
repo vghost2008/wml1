@@ -55,7 +55,9 @@ if __name__ == "__main__":
     save_dir = "/home/wj/ai/mldata/basketball_objs/data2label"
     data_dir = "/home/wj/ai/mldata/0day/basketball"
     save_dir = "/home/wj/ai/mldata/basketball_objs/data2label/ba1"
+    data_dir = "/home/wj/ai/mldata/boedcvehicle/videos/frames"
+    save_dir = "/home/wj/ai/mldata/boedcvehicle/videos/frames_sampled"
     wmlu.create_empty_dir(save_dir,False)
-    data = sample_in_dir(data_dir,150,1)
+    data = sample_in_dir(data_dir,20,1)
     print(f"Save_path {save_dir}")
     save_data(data,save_dir)
