@@ -40,7 +40,7 @@ def remove_prefix_from_state_dict(state_dict,prefix="module."):
         res[k] = v
     return res
 
-def forgiving_state_restore(net, loaded_dict):
+def forgiving_state_restore(net, loaded_dict,verbose=False):
     """
     Handle partial loading when some tensors don't match up in size.
     Because we want to use models that were trained off a different
@@ -57,6 +57,14 @@ def forgiving_state_restore(net, loaded_dict):
             new_loaded_dict[k] = loaded_dict['module.'+new_k]
         else:
             print("Skipped loading parameter {}".format(k))
+    if verbose:
+        print(f"---------------------------------------------------")
+        for k in loaded_dict:
+            if k not in new_loaded_dict:
+                print(f"Skip {k} in loaded dict")
+        print(f"---------------------------------------------------")
+        for k in new_loaded_dict:
+            print(f"Load {k}")
     net_state_dict.update(new_loaded_dict)
     net.load_state_dict(net_state_dict)
     sys.stdout.flush()

@@ -16,8 +16,11 @@ import wml_utils as wmlu
 import img_utils as wmli
 import copy
 
-def get_shape_from_img(xml_path):
-    img_path = wmlu.change_suffix(xml_path, "jpg")
+def get_shape_from_img(xml_path,img_path):
+    if not os.path.exists(img_path):
+        img_path = wmlu.change_suffix(xml_path, "jpg")
+        if not os.path.exists(img_path):
+            img_path = wmlu.change_suffix(xml_path, "jpeg")
     if not os.path.exists(img_path):
         print(f"Error find img {img_path} faild.")
         return [0,0,3]
@@ -152,7 +155,7 @@ boxes:相对大小
 def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None, truncated=None,probs=None,is_relative_coordinate=True):
 
     if shape is None or shape[0] < 5 or shape[1] < 5:
-        _shape = get_shape_from_img(save_path)
+        _shape = get_shape_from_img(save_path,file_path)
         print(f"Force update img shape, old={shape}, new={_shape}.")
         shape = list(_shape)
         

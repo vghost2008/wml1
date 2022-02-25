@@ -30,3 +30,22 @@ class LayerNorm(nn.Module):
             else:
                 x = self.weight[:, None] * x + self.bias[:, None]
             return x
+
+class SEBlock(nn.Module):
+    def __init__(self,channels,r=16):
+        super().__init__()
+        self.channels = channels
+        self.r = r
+        self.fc0 = nn.Linear(self.channels,self.channels//r)
+        self.fc1 = nn.Linear(self.channels//r,self.channels)
+
+    def forward(self,net):
+        org_net = net
+        net = net.mean(dim=(2,3),keepdim=False)
+        net = self.fc0(net)
+        net = F.relu(net,inplace=True)
+        net = self.fc1(net)
+        net = F.sigmoid(net)
+        net = torch.unsqueeze(net,dim=-1)
+        net = torch.unsqueeze(net,dim=-1)
+        return net*org_net

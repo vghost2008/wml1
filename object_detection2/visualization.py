@@ -4,6 +4,7 @@ import random
 import numpy as np
 import semantic.visualization_utils as smv
 from PIL import Image
+from iotoolkit.coco_toolkit import JOINTS_PAIR as COCO_JOINTS_PAIR
 
 colors_tableau = [(255, 255, 255), (31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
                   (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -308,7 +309,7 @@ def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None,left_n
 
     return image
 
-def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=None,left_node=None):
+def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=COCO_JOINTS_PAIR,left_node=list(range(1,17,2))):
     '''
 
     Args:

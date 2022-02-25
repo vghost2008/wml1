@@ -154,6 +154,10 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs, con
     tracked_stracks_ = joint_stracks(activated_stracks,refind_stracks);
     removed_stracks_ = std::move(removed_stracks);
 
+    std::sort(tracked_stracks_.begin(),tracked_stracks_.end(),[](auto lhv,auto rhv) {
+        return lhv->track_idx()<rhv->track_idx();
+    });
+
     if(return_losted)
         return joint_stracks(tracked_stracks_,lost_stracks_);
     else
@@ -283,6 +287,9 @@ STrackPtrs_t JDETracker::update(const BBoxes_t& bboxes,const Probs_t& probs)
 
     tracked_stracks_ = joint_stracks(activated_stracks,refind_stracks);
     removed_stracks_ = std::move(removed_stracks);
+    std::sort(tracked_stracks_.begin(),tracked_stracks_.end(),[](auto lhv,auto rhv) {
+        return lhv->track_idx()<rhv->track_idx();
+    });
 
     return tracked_stracks_;
 
