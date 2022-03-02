@@ -19,8 +19,8 @@ class SemanticData(object):
         self.files = []
 
     def read_data(self,dir_path):
-        img_dir = dir_path if self.img_sub_dir is None else os.path.join(dir_path,self.img_sub_dir)
         label_dir = dir_path if self.label_sub_dir is None else os.path.join(dir_path,self.label_sub_dir)
+        img_dir = dir_path if self.img_sub_dir is None else os.path.join(dir_path,self.img_sub_dir)
         image_files = wmlu.recurse_get_filepath_in_dir(img_dir,suffix=self.img_suffix)
         self.files = []
         for ifn in image_files:
@@ -46,4 +46,4 @@ class SemanticData(object):
         mask:[H,W], value is label
         '''
         mask = Image.open(lfn)
-        return ifn,np.array(img),np.array(mask)
+        return [ifn,lfn],np.array(img),np.array(mask)

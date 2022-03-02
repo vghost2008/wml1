@@ -1,6 +1,7 @@
 import torch
 from wsummary import _draw_text_on_image
 from collections import Iterable
+import object_detection2.visualization as odv
 import random
 import numpy as np
 #import tensorboardX as tb
@@ -142,6 +143,27 @@ def add_video_with_label(tb,name,video,label,global_step,fps=4,font_scale=1.2):
     #video (N,T,H,W,C)
     video = video.transpose(0,1,4,2,3)
     tb.add_video(name,video,global_step)
+
+def log_mask(tb,tag,images,masks,step,color_map,img_min=None,img_max=None,ignore_label=255,max_images=4,save_raw_imgs=False):
+    images = images[:max_images]
+    masks = masks[:max_images]
+    if img_min or img_max is None:
+        img_min = torch.min(images)
+        img_max = torch.max(images)
+    images = (images-img_min)*255/(img_max-img_min+1e-8)
+    images = torch.clip(images,0,255)
+    images = images.to(torch.uint8)
+    images = images.permute(0,2,3,1).cpu().numpy()
+    masks = masks.cpu().numpy()
+    res_imgs = []
+    for img,msk in zip(images,masks):
+        r_img = odv.draw_semantic_on_image(img,msk,color_map,ignored_label=ignore_label)
+        res_imgs.append(r_img)
+    res_images = np.stack(res_imgs,axis=0)
+    tb.add_images(tag,res_images,step,dataformats='NHWC')
+    if save_raw_imgs:
+        tb.add_images(tag+"_raw",images,step,dataformats='NHWC')
+
 
 def log_optimizer(tb,optimizer,step):
     for i,data in enumerate(optimizer.param_groups):

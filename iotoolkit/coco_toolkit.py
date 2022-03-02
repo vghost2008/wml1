@@ -7,6 +7,7 @@ import numpy as np
 from pycocotools import mask
 import tensorflow as tf
 import iotoolkit.label_map_util as label_map_util
+import wml_utils as wmlu
 import sys
 
 COCO_KP_NR = 17
@@ -224,13 +225,19 @@ for i in range(1,81):
     COMPRESSED_ID_TO_FREQ[i] = ID_TO_FREQ[id]
 
 class COCOData:
-    def __init__(self,filter=None,include_masks=True):
+    def __init__(self,trans_label=None,include_masks=True):
+        '''
+
+        Args:
+            trans_label: label fn(label) : return transed label is label is useful else return None
+            include_masks:
+        '''
         self.images = None
         self.annotations_index = None
         self.image_dir = None
         self.include_masks = include_masks
         self.category_index = None
-        self.filter=filter
+        self.trans_label = trans_label
 
     def get_image_full_path(self,image):
         filename = image['file_name']
@@ -240,8 +247,6 @@ class COCOData:
         with tf.gfile.GFile(annotations_file, 'r') as fid:
             groundtruth_data = json.load(fid)
             images = groundtruth_data['images']
-            if self.filter is not None:
-                images = list(filter(self.filter,images))
             category_index = label_map_util.create_category_index(
                 groundtruth_data['categories'])
 
@@ -300,6 +305,11 @@ class COCOData:
                 height = image_height-y
 
             category_id = int(object_annotations['category_id'])
+            org_category_id = category_id
+            if self.trans_label is not None:
+                category_id = self.trans_label(category_id)
+                if category_id is None:
+                    continue
 
             xmin.append(float(x) / image_width)
             xmax.append(float(x + width) / image_width)
@@ -308,7 +318,7 @@ class COCOData:
 
             is_crowd.append(object_annotations['iscrowd'])
             category_ids.append(category_id)
-            category_names.append(str(self.category_index[category_id]['name'].encode('utf8'),encoding='utf-8'))
+            category_names.append(str(self.category_index[org_category_id]['name'].encode('utf8'),encoding='utf-8'))
             area.append(object_annotations['area'])
 
             if self.include_masks:

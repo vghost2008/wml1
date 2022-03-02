@@ -52,10 +52,13 @@ def get_files(data_dir, img_suffix="jpg"):
     for file in files:
         img_file = wmlu.change_suffix(file, img_suffix)
         img_file1 = wmlu.change_suffix(file, "jpeg")
+        img_file2 = wmlu.change_suffix(file, "png")
         if os.path.exists(img_file):
             res.append((img_file, file))
         elif os.path.exists(img_file1):
             res.append((img_file1, file))
+        elif os.path.exists(img_file2):
+            res.append((img_file2, file))
 
     return res
 

@@ -109,7 +109,7 @@ def trans_data(data_dir,save_dir,beg,end):
         new_mask = new_mask.astype(np.uint8)
         if os.path.exists(save_path):
             print(f"WARNING: File {save_path} exists.")
-        cv2.imwrite(save_path,new_mask)
+        wmli.imwrite_mask(save_path,new_mask)
         sys.stdout.write(f"\r{i}")
 
 

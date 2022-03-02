@@ -129,7 +129,7 @@ def fill_colormap_and_names(config_fn):
     return colormap
 
 if __name__ == "__main__":
-    dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir="boe_labels",label_sub_dir="boe_labels")
+    '''dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir="boe_labels",label_sub_dir="boe_labels")
     dataset.read_data("/home/wj/ai/mldata/boesemantic")
     save_dir = wmlu.home_dir("ai/tmp/boe_images2")
     wmlu.create_empty_dir(save_dir,remove_if_exists=False)
@@ -156,7 +156,37 @@ if __name__ == "__main__":
         mask_image = draw_semantic_on_image(img,mask,color_map,ignored_label=255)
         mask_image = np.concatenate([mask_image,legend_img],axis=1)
         mask_image_path = os.path.join(save_dir,base_name+"1.png")
+        wmli.imwrite(mask_image_path,mask_image)'''
+
+    dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir=None,label_sub_dir=None)
+    #dataset.read_data("/home/wj/ai/mldata1/safety_belt/boe_labels_train")
+    #dataset.read_data("/home/wj/ai/mldata1/safety_belt/trans_train_1/")
+    dataset.read_data("/home/wj/ai/mldata1/safety_belt/training/safetybelt_seg_imgs")
+    save_dir = wmlu.get_unused_path("/home/wj/ai/mldata1/safety_belt/tmp/view")
+    wmlu.create_empty_dir(save_dir,remove_if_exists=False)
+    color_map = fill_colormap_and_names("/home/wj/ai/mldata/mapillary_vistas/config_v2.0.json")
+    ID_TO_READABLE_NAME = {0:"person",1:"tie",2:'seat_belt'}
+    def text_fn(l):
+        if l in ID_TO_READABLE_NAME:
+            return ID_TO_READABLE_NAME[l]
+        else:
+            return "NA"
+    def color_fn(l):
+        return color_map[l*3:l*3+3]
+
+    legend_img = draw_legend(list(ID_TO_NAME.keys()),text_fn,img_size=(2448,300),color_fn=color_fn)
+    for ifn,img,mask in dataset.get_items():
+        base_name = wmlu.base_name(ifn)
+        wmlu.safe_copy(ifn,save_dir)
+        rgb_mask = convert_semantic_to_rgb(mask,color_map,True)
+        if rgb_mask.shape[0] != legend_img.shape[0]:
+            legend_img = wmli.resize_img(legend_img,(legend_img.shape[1],rgb_mask.shape[0]))
+        rgb_mask = np.concatenate([rgb_mask,legend_img],axis=1)
+        mask_path = os.path.join(save_dir,base_name+".png")
+        wmli.imwrite(mask_path,rgb_mask)
+
+        mask_image = draw_semantic_on_image(img,mask,color_map,ignored_label=255)
+        mask_image = np.concatenate([mask_image,legend_img],axis=1)
+        mask_image_path = os.path.join(save_dir,base_name+"1.png")
         wmli.imwrite(mask_image_path,mask_image)
-
-
 

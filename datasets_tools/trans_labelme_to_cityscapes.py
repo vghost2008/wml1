@@ -11,10 +11,11 @@ import wml_utils as wmlu
 import copy
 import json
 import cv2
+import shutil
 
 lid = 0
 
-name_to_id_dict = {
+'''name_to_id_dict = {
 "construction--flat--road":0,
 "construction--flat--sidewalk":1,
 "object--street-light":2,
@@ -44,7 +45,12 @@ name_to_id_dict = {
 "construction--structure--tunnel":25,
 "nature--wasteland":26,
 }
-resize_size = (2560,1440)
+resize_size = (2560,1440)'''
+name_to_id_dict = {
+    'person':0,
+    'seatbelt':2,
+}
+resize_size = None
 
 def trans_data(data_dir,save_dir):
     global name_to_id_dict
@@ -54,7 +60,6 @@ def trans_data(data_dir,save_dir):
     def name_to_id(x):
         return name_to_id_dict[x]
 
-    ignored_labels = ["construction--barrier--ambiguous","construction--barrier--separator"]
     data = LabelMeData(label_text2id=name_to_id, shuffle=False)
     data.read_data(data_dir)
     for i,x in enumerate(data.get_items()):
@@ -75,14 +80,21 @@ def trans_data(data_dir,save_dir):
             img = wmli.resize_img(img,resize_size,keep_aspect_ratio=True)
             img_save_path = os.path.join(save_dir,r_base_name+".jpg")
             wmli.imwrite(img_save_path,img)
+        else:
+            img_save_path = os.path.join(save_dir,r_base_name+".jpg")
+            wmli.read_and_write_img(full_path,img_save_path)
 
         new_mask = new_mask.astype(np.uint8)
         if os.path.exists(save_path):
             print(f"WARNING: File {save_path} exists.")
-        cv2.imwrite(save_path,new_mask)
+        wmli.imwrite_mask(save_path,new_mask)
         sys.stdout.write(f"\r{i}")
 
 if __name__ == "__main__":
-    data_dir ="/home/wj/ai/mldata/boesemantic/videos_rgb_15"
+    '''data_dir ="/home/wj/ai/mldata/boesemantic/videos_rgb_15"
     save_dir = os.path.join("/home/wj/ai/mldata/boesemantic/",'boe_labels_validation')
-    trans_data(data_dir,save_dir)
+    trans_data(data_dir,save_dir)'''
+
+    data_dir = "/home/wj/ai/mldata1/safety_belt/src_data/data1/safetybelt_seg_imgs"
+    save_dir = "/home/wj/ai/mldata1/safety_belt/training/safetybelt_seg_imgs"
+    trans_data(data_dir, save_dir)

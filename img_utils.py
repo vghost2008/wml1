@@ -17,6 +17,8 @@ import time
 import basic_tftools as btf
 import glob
 from collections import OrderedDict
+from object_detection2.basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
+
 try:
     from turbojpeg import TJCS_RGB, TJPF_BGR, TJPF_GRAY, TurboJPEG
 except ImportError:
@@ -430,6 +432,23 @@ def imwrite(filename, img):
 def read_and_write_img(src_path,dst_path):
     img = cv2.imread(src_path)
     cv2.imwrite(dst_path,img)
+
+def imwrite_mask(filename,mask,color_map=_DEFAULT_COLOR_MAP):
+    if os.path.splitext(filename)[1].lower() != ".png":
+        print("WARNING: mask file need to be png format.")
+    if not isinstance(mask,np.ndarray):
+        mask = np.ndarray(mask)
+    if len(mask.shape)==3:
+        if mask.shape[-1] != 1:
+            raise RuntimeError(f"ERROR mask shape {mask.shape}")
+        mask = np.squeeze(mask,axis=-1)
+    new_mask = Image.fromarray(mask.astype(np.uint8)).convert('P')
+    new_mask.putpalette(color_map)
+    new_mask.save(filename)
+
+def imread_mask(filename):
+    mask = Image.open(filename)
+    return np.array(mask)
 
 def videowrite(filename,imgs,fps=30,fmt="RGB"):
     if len(imgs)==0:

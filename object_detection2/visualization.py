@@ -5,12 +5,11 @@ import numpy as np
 import semantic.visualization_utils as smv
 from PIL import Image
 from iotoolkit.coco_toolkit import JOINTS_PAIR as COCO_JOINTS_PAIR
+from .basic_datadef import colors_tableau as _colors_tableau
+from .basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
 
-colors_tableau = [(255, 255, 255), (31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
-                  (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
-                  (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
-                  (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
-                  (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+colors_tableau = _colors_tableau
+DEFAULT_COLOR_MAP = _DEFAULT_COLOR_MAP
 
 def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
     for line in lines:

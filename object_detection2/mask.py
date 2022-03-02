@@ -72,5 +72,35 @@ def dense_mask_to_sparse_mask(mask:np.ndarray,labels,default_label=0):
             res_mask[pos_mask] = labels[i]
         return res_mask
 
+def dense_mask_to_sparse_maskv2(mask:np.ndarray,labels,labels_order,default_label=0):
+    '''
+    generate the mask by labels order
+    Args:
+        mask:
+        labels:
+        labels_order:
+        default_label:
+
+    Returns:
+
+    '''
+    labels = list(labels)
+    if len(labels) == 0 and not isinstance(mask,np.ndarray):
+        return None
+    elif len(labels)==0:
+        _,H,W = mask.shape
+        return np.ones([H,W],dtype=np.int32)*default_label
+    else:
+        N,H,W = mask.shape
+        res_mask = np.ones([H,W],dtype=np.int32)*default_label
+        for l in labels_order:
+            if l not in labels:
+                continue
+            for i in range(N):
+                if labels[i] != l:
+                    continue
+                pos_mask = mask[i].astype(np.bool)
+                res_mask[pos_mask] = l
+        return res_mask
 
 
