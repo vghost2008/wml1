@@ -10,6 +10,7 @@ class WarmupCosLR(_LRScheduler):
         self.warmup_total_iters = warmup_total_iters
         self.total_iters = total_iters
         self.min_lr_ratio = min_lr_ratio
+        #init after member value initialized
         super().__init__(optimizer, last_epoch, verbose)
 
     def get_lr(self):

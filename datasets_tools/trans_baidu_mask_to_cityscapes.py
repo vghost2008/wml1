@@ -22,7 +22,7 @@ def trans_data(data_dir,save_dir,label_sub_dir="label",copy_img=True):
     #1:person,3:tie,2:seatbelt
     trans_dict = {1:0,3:1,2:2}
 
-    data = BaiDuMaskData(label_map=trans_dict,label_sub_dir=label_sub_dir)
+    data = BaiDuMaskData(label_map=trans_dict,label_sub_dir=label_sub_dir,overlap=False)
     data.read_data(data_dir)
     for i,x in enumerate(data.get_items()):
         full_path, img_info, category_ids, category_names, boxes, binary_mask, area, is_crowd, num_annotations_skipped = x
@@ -31,7 +31,8 @@ def trans_data(data_dir,save_dir,label_sub_dir="label",copy_img=True):
             print(f"Skip {full_path}")
             continue
 
-        new_mask = odm.dense_mask_to_sparse_mask(binary_mask,category_ids,default_label=255)
+        #new_mask = odm.dense_mask_to_sparse_mask(binary_mask,category_ids,default_label=255)
+        new_mask = odm.dense_mask_to_sparse_maskv2(binary_mask,category_ids,labels_order=[0,1,2],default_label=255)
         #r_base_name = f"IMG_{i+1:05d}"
         r_base_name = wmlu.base_name(full_path)
         base_name = r_base_name+".png"
@@ -53,7 +54,7 @@ def trans_data(data_dir,save_dir,label_sub_dir="label",copy_img=True):
         sys.stdout.write(f"\r{i}")
 
 if __name__ == "__main__":
-    dir_name = "train_2"
+    dir_name = "train_4"
     data_dir = osp.join("/home/wj/ai/mldata1/safety_belt/src_data",dir_name)
     save_dir = osp.join("/home/wj/ai/mldata1/safety_belt/training",dir_name)
     trans_data(data_dir,save_dir,label_sub_dir="label")

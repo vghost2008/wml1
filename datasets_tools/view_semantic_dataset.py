@@ -161,7 +161,7 @@ if __name__ == "__main__":
     dataset = SemanticData(img_suffix=".jpg",label_suffix=".png",img_sub_dir=None,label_sub_dir=None)
     #dataset.read_data("/home/wj/ai/mldata1/safety_belt/boe_labels_train")
     #dataset.read_data("/home/wj/ai/mldata1/safety_belt/trans_train_1/")
-    dataset.read_data("/home/wj/ai/mldata1/safety_belt/training/safetybelt_seg_imgs")
+    dataset.read_data("/home/wj/ai/mldata1/safety_belt/training/train_3")
     save_dir = wmlu.get_unused_path("/home/wj/ai/mldata1/safety_belt/tmp/view")
     wmlu.create_empty_dir(save_dir,remove_if_exists=False)
     color_map = fill_colormap_and_names("/home/wj/ai/mldata/mapillary_vistas/config_v2.0.json")
@@ -175,7 +175,8 @@ if __name__ == "__main__":
         return color_map[l*3:l*3+3]
 
     legend_img = draw_legend(list(ID_TO_NAME.keys()),text_fn,img_size=(2448,300),color_fn=color_fn)
-    for ifn,img,mask in dataset.get_items():
+    for ifs,img,mask in dataset.get_items():
+        ifn = ifs[0]
         base_name = wmlu.base_name(ifn)
         wmlu.safe_copy(ifn,save_dir)
         rgb_mask = convert_semantic_to_rgb(mask,color_map,True)

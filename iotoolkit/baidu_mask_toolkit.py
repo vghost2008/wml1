@@ -1,4 +1,7 @@
 import json
+
+import cv2
+
 import wml_utils as wmlu
 import numpy as np
 import os
@@ -33,7 +36,7 @@ def get_files(dir_path, img_sub_dir=None,label_sub_dir=None):
 
 class BaiDuMaskData(object):
     def __init__(self, trans_label=None,shuffle=False, img_sub_dir=None,label_sub_dir=None,ignored_labels=[],label_map={},
-                 allowed_labels_fn=None):
+                 allowed_labels_fn=None,overlap=True):
         self.files = None
         self.shuffle = shuffle
         self.trans_label = trans_label
@@ -42,6 +45,7 @@ class BaiDuMaskData(object):
         self.ignored_labels = ignored_labels
         self.label_map = label_map
         self.allowed_labels_fn = None if allowed_labels_fn is None or (isinstance(allowed_labels_fn,list ) and len(allowed_labels_fn)==0) else allowed_labels_fn
+        self.overlap = overlap
         if self.allowed_labels_fn is not None and isinstance(self.allowed_labels_fn,list):
             self.allowed_labels_fn = lambda x:x in allowed_labels_fn
 
@@ -97,6 +101,33 @@ class BaiDuMaskData(object):
             bboxes = [ann['bbox'] for ann in annotations_list]
             #file, img_size,category_ids, labels_text, bboxes, binary_mask, area, is_crowd, _
             yield img_file, [image['height'], image['width']], labels, labels_names,bboxes, None,None,None,None
+    @staticmethod
+    def write_json(save_path,mask,labels2name,labels2color,label_trans=None,epsilon=None):
+        shapes = []
+        for k,n in labels2name.items():
+            mask_tmp = (mask==k).astype(np.uint8)
+            if np.sum(mask_tmp)==0:
+                continue
+            contours, hierarchy = cv.findContours(mask_tmp, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
+            for cont in contours:
+                if epsilon is not None:
+                    cont = cv2.approxPolyDP(cont,epsilon,True)
+                points = cont
+                if len(cont.shape) == 3 and cont.shape[1] == 1:
+                    points = np.squeeze(points, axis=1)
+                points = points.tolist()
+                if len(points)<3:
+                    continue
+                tmp_data = {'name':n}
+                if label_trans is not None:
+                    tmp_data['labelIdx'] = label_trans[k]
+                else:
+                    tmp_data['labelIdx'] = k
+                tmp_data["points"] = points
+                tmp_data['color'] = labels2color[k]
+                shapes.append(tmp_data)
+        with open(save_path,"w") as f:
+            json.dump(shapes,f)
 
     def read_json(self,file_path,img_path,use_semantic=True):
         annotations_list = []
@@ -152,7 +183,7 @@ class BaiDuMaskData(object):
             except:
                 print(f"Read file {os.path.basename(file_path)} faild.")
                 pass
-        if use_semantic:
+        if use_semantic and self.overlap:
             '''
             Each pixel only belong to one classes, and the latter annotation will overwrite the previous
             '''

@@ -11,6 +11,18 @@ from .basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
 colors_tableau = _colors_tableau
 DEFAULT_COLOR_MAP = _DEFAULT_COLOR_MAP
 
+def draw_text_on_image(img,text,font_scale=1.2,color=(0.,255.,0.),pos=None):
+    if isinstance(text,bytes):
+        text = str(text,encoding="utf-8")
+    if not isinstance(text,str):
+        text = str(text)
+    thickness = 2
+    size = cv2.getTextSize(text,fontFace=cv2.FONT_HERSHEY_COMPLEX,fontScale=font_scale,thickness=thickness)
+    if pos is None:
+        pos = (0,(img.shape[0]+size[0][1])//2)
+    cv2.putText(img, text, pos, cv2.FONT_HERSHEY_COMPLEX, fontScale=font_scale, color=color, thickness=thickness)
+    return img
+
 def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
     for line in lines:
         for x1, y1, x2, y2 in line:
@@ -237,7 +249,7 @@ def draw_semantic_on_image(image,semantic,color_map,alpha=0.4,ignored_label=0):
         image:
         semantic: [H,W] label value
         color_map: list[int], [r0,g0,b0,r1,g1,b1,....]
-        alpha:
+        alpha: mask percent
         ignored_label:
     Returns:
         return image*(1-alpha)+semantic+alpha

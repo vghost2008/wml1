@@ -119,3 +119,9 @@ def merge_imgs_heatmap(imgs,heat_map,scale=1.0,alpha=0.4,channel=None,min=None,m
     #imgs = torch.where(mask,new_imgs,imgs)
     imgs = new_imgs
     return imgs
+
+def module_parameters_numel(net):
+    total = 0
+    for param in net.parameters():
+        total += torch.numel(param)
+    return total

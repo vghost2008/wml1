@@ -18,6 +18,7 @@ import basic_tftools as btf
 import glob
 from collections import OrderedDict
 from object_detection2.basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
+import object_detection2.visualization as odv
 
 try:
     from turbojpeg import TJCS_RGB, TJPF_BGR, TJPF_GRAY, TurboJPEG
@@ -446,6 +447,10 @@ def imwrite_mask(filename,mask,color_map=_DEFAULT_COLOR_MAP):
     new_mask.putpalette(color_map)
     new_mask.save(filename)
 
+def imwrite_mask_on_img(filename,img,mask,color_map=_DEFAULT_COLOR_MAP,ignored_label=255):
+    r_img = odv.draw_semantic_on_image(img,mask, color_map, ignored_label=ignored_label)
+    imwrite(filename,r_img)
+
 def imread_mask(filename):
     mask = Image.open(filename)
     return np.array(mask)
@@ -504,7 +509,8 @@ class VideoReader:
         if os.path.isdir(path):
             self.dir_path = path
             self.reader = None
-            self.frames_nr = len(glob.glob(os.path.join(path,"*"+suffix)))
+            self.all_files = glob.glob(os.path.join(path,"*"+suffix))
+            self.frames_nr = len(self.all_files)
             self.fps = 1
         else:
             self.reader = cv2.VideoCapture(path)
@@ -544,7 +550,10 @@ class VideoReader:
 
             raise NotImplemented()
         elif idx<self.frames_nr:
-            file_path = os.path.join(self.dir_path,self.file_pattern.format(idx+1))
+            if self.file_pattern is None:
+                file_path = self.all_files[idx]
+            else:
+                file_path = os.path.join(self.dir_path,self.file_pattern.format(idx+1))
             img = cv2.imread(file_path)
             return img[...,::-1]
         else:
