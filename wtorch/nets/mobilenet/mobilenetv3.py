@@ -301,20 +301,20 @@ def _mobilenet_v3_conf(
     if arch == "mobilenet_v3_large":
         inverted_residual_setting = [
             bneck_conf(16, 3, 16, 16, False, "RE", 1, 1),
-            bneck_conf(16, 3, 64, 24, False, "RE", 2, 1),  # C1
-            bneck_conf(24, 3, 72, 24, False, "RE", 1, 1),
-            bneck_conf(24, 5, 72, 40, True, "RE", 2, 1),  # C2
+            bneck_conf(16, 3, 64, 24, False, "RE", 2, 1),
+            bneck_conf(24, 3, 72, 24, False, "RE", 1, 1),# C1
+            bneck_conf(24, 5, 72, 40, True, "RE", 2, 1),
             bneck_conf(40, 5, 120, 40, True, "RE", 1, 1),
-            bneck_conf(40, 5, 120, 40, True, "RE", 1, 1),
-            bneck_conf(40, 3, 240, 80, False, "HS", 2, 1),  # C3
+            bneck_conf(40, 5, 120, 40, True, "RE", 1, 1),# C2
+            bneck_conf(40, 3, 240, 80, False, "HS", 2, 1),
             bneck_conf(80, 3, 200, 80, False, "HS", 1, 1),
             bneck_conf(80, 3, 184, 80, False, "HS", 1, 1),
             bneck_conf(80, 3, 184, 80, False, "HS", 1, 1),
             bneck_conf(80, 3, 480, 112, True, "HS", 1, 1),
-            bneck_conf(112, 3, 672, 112, True, "HS", 1, 1),
-            bneck_conf(112, 5, 672, 160 // reduce_divider, True, "HS", 2, dilation),  # C4
+            bneck_conf(112, 3, 672, 112, True, "HS", 1, 1),# C3
+            bneck_conf(112, 5, 672, 160 // reduce_divider, True, "HS", 2, dilation),
             bneck_conf(160 // reduce_divider, 5, 960 // reduce_divider, 160 // reduce_divider, True, "HS", 1, dilation),
-            bneck_conf(160 // reduce_divider, 5, 960 // reduce_divider, 160 // reduce_divider, True, "HS", 1, dilation),
+            bneck_conf(160 // reduce_divider, 5, 960 // reduce_divider, 160 // reduce_divider, True, "HS", 1, dilation),# C4
         ]
         last_channel = adjust_channels(1280 // reduce_divider)  # C5
     elif arch == "mobilenet_v3_small":

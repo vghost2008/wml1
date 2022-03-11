@@ -2,6 +2,7 @@ import os
 import torch
 from torch.optim.lr_scheduler import _LRScheduler
 import math
+from functools import partial
 import torch.nn as nn
 
 class WarmupCosLR(_LRScheduler):
@@ -152,6 +153,11 @@ def defrost_model(model,defrost_bn=True):
         print(name, param.size(), "defrost")
         param.requires_grad = True
 
+def __set_bn_momentum(m,momentum=0.1):
+    classname = m.__class__.__name__
+    if classname.find('BatchNorm') != -1:
+        m.momentum = momentum
+
 def __fix_bn(m):
     classname = m.__class__.__name__
     if classname.find('BatchNorm') != -1:
@@ -159,6 +165,10 @@ def __fix_bn(m):
 
 def freeze_bn(model):
     model.apply(__fix_bn)
+
+def set_bn_momentum(model,momentum):
+    fn = partial(__set_bn_momentum,momentum=momentum)
+    model.apply(fn)
 
 def get_gpus_str(gpus):
     gpus_str = ""

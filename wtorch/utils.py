@@ -49,19 +49,22 @@ def forgiving_state_restore(net, loaded_dict,verbose=False):
 
     net_state_dict = net.state_dict()
     new_loaded_dict = {}
+    used_loaded_dict_key = []
     for k in net_state_dict:
         new_k = k
         if new_k in loaded_dict and net_state_dict[k].size() == loaded_dict[new_k].size():
             new_loaded_dict[k] = loaded_dict[new_k]
         elif (not k.startswith('module.')) and 'module.'+k in loaded_dict and net_state_dict[k].size() == loaded_dict['module.'+new_k].size():
             new_loaded_dict[k] = loaded_dict['module.'+new_k]
+            used_loaded_dict_key.append('module.'+new_k)
         else:
             print("Skipped loading parameter {}".format(k))
+
+    print(f"---------------------------------------------------")
+    for k in loaded_dict:
+        if k not in new_loaded_dict and k not in used_loaded_dict_key:
+            print(f"Skip {k} in loaded dict")
     if verbose:
-        print(f"---------------------------------------------------")
-        for k in loaded_dict:
-            if k not in new_loaded_dict:
-                print(f"Skip {k} in loaded dict")
         print(f"---------------------------------------------------")
         for k in new_loaded_dict:
             print(f"Load {k}")
