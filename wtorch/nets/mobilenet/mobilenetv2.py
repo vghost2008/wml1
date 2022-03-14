@@ -5,10 +5,8 @@ import torch
 from torch import Tensor
 from torch import nn
 
-from .._internally_replaced_utils import load_state_dict_from_url
-from ..ops.misc import Conv2dNormActivation
-from ..utils import _log_api_usage_once
-from ._utils import _make_divisible
+from ..misc import Conv2dNormActivation
+from object_detection2.wmath import make_divisible as _make_divisible
 
 
 __all__ = ["MobileNetV2", "mobilenet_v2"]
@@ -86,6 +84,8 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
+    LARGE = 0
+    SMALL = 1
     def __init__(
         self,
         num_classes: int = 1000,
@@ -95,6 +95,7 @@ class MobileNetV2(nn.Module):
         block: Optional[Callable[..., nn.Module]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         dropout: float = 0.2,
+        last_level: int = -1,
     ) -> None:
         """
         MobileNet V2 main class
@@ -111,8 +112,7 @@ class MobileNetV2(nn.Module):
 
         """
         super().__init__()
-        _log_api_usage_once(self)
-
+        self.num_classes = num_classes
         if block is None:
             block = InvertedResidual
 
@@ -133,6 +133,16 @@ class MobileNetV2(nn.Module):
                 [6, 160, 3, 2],
                 [6, 320, 1, 1],
             ]
+        if len(inverted_residual_setting) >= 8:
+            type = self.LARGE
+            level2lens = {1: 1, 2: 3, 3: 5, 4: 12, 5: 15}
+        else:
+            level2lens = {1: 1, 2: 2, 3: 3, 4: 5, 5: 7}
+            type = self.SMALL
+
+        if last_level > 0:
+            nr = level2lens[last_level]
+            inverted_residual_setting = inverted_residual_setting[:nr]
 
         # only check the first element, assuming user knows t,c,n,s are required
         if len(inverted_residual_setting) == 0 or len(inverted_residual_setting[0]) != 4:
@@ -146,27 +156,48 @@ class MobileNetV2(nn.Module):
         features: List[nn.Module] = [
             Conv2dNormActivation(3, input_channel, stride=2, norm_layer=norm_layer, activation_layer=nn.ReLU6)
         ]
+
+        def get_activation(name):
+            def hook(model, input, output):
+                self._outputs_dict[name] = output.detach()
+            return hook
+        cur_down_stide_idx = 1
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
             output_channel = _make_divisible(c * width_mult, round_nearest)
             for i in range(n):
                 stride = s if i == 0 else 1
+                if stride==2:
+                    features[-1].register_forward_hook(get_activation(f"C{cur_down_stide_idx}"))
+                    cur_down_stide_idx += 1
                 features.append(block(input_channel, output_channel, stride, expand_ratio=t, norm_layer=norm_layer))
                 input_channel = output_channel
+        features[-1].register_forward_hook(get_activation(f"C{cur_down_stide_idx}"))
         # building last several layers
-        features.append(
-            Conv2dNormActivation(
-                input_channel, self.last_channel, kernel_size=1, norm_layer=norm_layer, activation_layer=nn.ReLU6
+        if self.num_classes is not None:
+            features.append(
+                Conv2dNormActivation(
+                    input_channel, self.last_channel, kernel_size=1, norm_layer=norm_layer, activation_layer=nn.ReLU6
+                )
             )
-        )
         # make it nn.Sequential
         self.features = nn.Sequential(*features)
 
         # building classifier
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=dropout),
-            nn.Linear(self.last_channel, num_classes),
-        )
+        if self.num_classes is not None:
+            self.classifier = nn.Sequential(
+                nn.Dropout(p=dropout),
+                nn.Linear(self.last_channel, num_classes),
+            )
+
+        self._outputs_dict = {}
+
+
+        '''for k,v in level2lens.items():
+            if last_level > 0 and k<=last_level or last_level<=0:
+                self.features[v].register_forward_hook(get_activation(f"C{k}"))'''
+        #for i,d in enumerate(self.features):
+            #d.register_forward_hook(get_activation(f"C{i}"))
 
         # weight initialization
         for m in self.modules():
@@ -184,18 +215,21 @@ class MobileNetV2(nn.Module):
     def _forward_impl(self, x: Tensor) -> Tensor:
         # This exists since TorchScript doesn't support inheritance, so the superclass method
         # (this one) needs to have a name other than `forward` that can be accessed in a subclass
+        self._outputs_dict = {}
         x = self.features(x)
         # Cannot use "squeeze" as batch-size can be 1
-        x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
+        if self.num_classes is not None:
+            x = nn.functional.adaptive_avg_pool2d(x, (1, 1))
+            x = torch.flatten(x, 1)
+            x = self.classifier(x)
+            self._outputs_dict['output'] = x
+        return self._outputs_dict
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
 
-def mobilenet_v2(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> MobileNetV2:
+def mobilenet_v2(**kwargs: Any) -> MobileNetV2:
     """
     Constructs a MobileNetV2 architecture from
     `"MobileNetV2: Inverted Residuals and Linear Bottlenecks" <https://arxiv.org/abs/1801.04381>`_.
@@ -205,7 +239,4 @@ def mobilenet_v2(pretrained: bool = False, progress: bool = True, **kwargs: Any)
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     model = MobileNetV2(**kwargs)
-    if pretrained:
-        state_dict = load_state_dict_from_url(model_urls["mobilenet_v2"], progress=progress)
-        model.load_state_dict(state_dict)
     return model

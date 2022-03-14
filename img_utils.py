@@ -594,7 +594,10 @@ class VideoReader:
         else:
             if self.idx>self.frames_nr:
                 raise StopIteration()
-            file_path = os.path.join(self.dir_path,self.file_pattern.format(self.idx))
+            if self.file_pattern is not None:
+                file_path = os.path.join(self.dir_path,self.file_pattern.format(self.idx))
+            else:
+                file_path = self.all_files[self.idx-1]
             img = cv2.imread(file_path)
             self.idx += 1
             return img[...,::-1]

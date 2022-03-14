@@ -127,8 +127,8 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV3(nn.Module):
-    LARGE=0,
-    SMALL=1,
+    LARGE=0
+    SMALL=1
     def __init__(
         self,
         inverted_residual_setting: List[InvertedResidualConfig],
@@ -193,13 +193,7 @@ class MobileNetV3(nn.Module):
             type = self.SMALL
 
         if last_level > 0:
-            if type==self.LARGE:
-                nr = level2lens[last_level]
-            elif type==self.SMALL:
-                nr = level2lens[last_level]
-            else:
-                print("ERROR TYPE")
-
+            nr = level2lens[last_level]
             inverted_residual_setting = inverted_residual_setting[:nr]
 
         # building inverted residual blocks
