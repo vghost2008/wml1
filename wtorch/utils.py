@@ -123,8 +123,9 @@ def merge_imgs_heatmap(imgs,heat_map,scale=1.0,alpha=0.4,channel=None,min=None,m
     imgs = new_imgs
     return imgs
 
-def module_parameters_numel(net):
+def module_parameters_numel(net,only_training=False):
     total = 0
     for param in net.parameters():
-        total += torch.numel(param)
+        if only_training and param.requires_grad or not only_training:
+            total += torch.numel(param)
     return total

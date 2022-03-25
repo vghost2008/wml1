@@ -75,6 +75,9 @@ class FairMOTOp: public OpKernel {
                 if(!is_first_frame) {
                     cout<<"WARNING: First frame should set is_first_frame to true."<<endl;
                 }
+                if(jde_tracker_ != nullptr) {
+                    cout<<"WARNING: reinit jde tracker."<<endl;
+                }
                 jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_,assignment_thresh_);
             }
 
@@ -180,6 +183,9 @@ class SORTMOTOp: public OpKernel {
             if(is_first_frame || (jde_tracker_ == nullptr)) {
                 if(!is_first_frame) {
                     cout<<"WARNING: First frame should set is_first_frame to true."<<endl;
+                }
+                if(jde_tracker_ != nullptr) {
+                    cout<<"WARNING: reinit jde tracker."<<endl;
                 }
                 jde_tracker_ = make_shared<MOT::JDETracker>(det_thredh_,frame_rate_,track_buffer_,
                                                             assignment_thresh_);

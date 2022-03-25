@@ -11,7 +11,9 @@ import numpy as np
 def log_all_variable(tb,net:torch.nn.Module,global_step):
     try:
         for name,param in net.named_parameters():
-            if "." in name:
+            if 'bias' in name:
+                name = "BIAS/"+name
+            elif "." in name:
                 name = name.replace(".","/",1)
             if param.numel()>1:
                 tb.add_histogram(name,param,global_step)

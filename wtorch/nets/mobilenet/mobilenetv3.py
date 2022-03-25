@@ -235,6 +235,8 @@ class MobileNetV3(nn.Module):
             if last_level > 0 and k<=last_level or last_level<=0:
                 self.features[v].register_forward_hook(get_activation(f"C{k}"))
 
+        for i,fea in enumerate(self.features):
+            fea.register_forward_hook(get_activation(f"FEA{i}"))
         '''if len(self.features) == 17:
             self.features[0].register_forward_hook(get_activation("C1"))
             self.features[2].register_forward_hook(get_activation("C2"))

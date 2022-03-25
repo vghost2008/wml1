@@ -387,15 +387,78 @@ def concat_images(images,margin=10):
 img:[H,W]/[H,W,C]
 rect:[ymin,xmin,ymax,xmax] absolute coordinate
 '''
-def sub_image(img,rect):
+def sub_image(img,rect,pad_value=127):
+    if rect[0]<0 or rect[1]<0 or rect[2]>img.shape[0] or rect[3]>img.shape[1]:
+        py0 = -rect[0] if rect[0]<0 else 0
+        py1 = rect[2]-img.shape[0] if rect[2]>img.shape[0] else 0
+        px0 = -rect[1] if rect[1] < 0 else 0
+        px1 = rect[3] - img.shape[1] if rect[3] > img.shape[1] else 0
+        img = np.pad(img,[[py0,py1],[px0,px1],[0,0]],constant_values=pad_value)
+        rect[0] -= py0
+        rect[1] -= px0
+
     return copy.deepcopy(img[rect[0]:rect[2],rect[1]:rect[3]])
 
 '''
 img:[H,W]/[H,W,C]
+rect:[N,4] [ymin,xmin,ymax,xmax] absolute coordinate
+'''
+def sub_images(img,rects):
+    res = []
+    for rect in rects:
+        res.append(sub_image(img,rect))
+
+    return res
+'''
+img:[H,W]/[H,W,C]
 rect:[xmin,ymin,xmax,ymax] absolute coordinate
 '''
-def sub_imagev2(img,rect):
-    return copy.deepcopy(img[rect[1]:rect[3],rect[0]:rect[2]])
+def sub_imagev2(img,rect,pad_value=127):
+    return sub_image(img,[rect[1],rect[0],rect[3],rect[2]],pad_value=pad_value)
+
+'''
+img: [H,W,C]
+size: [w,h]
+'''
+def center_crop(img,size,pad_value=127):
+    cx = img.shape[1]//2
+    cy = img.shape[0]//2
+    x0 = cx-size[0]//2
+    y0 = cy-size[1]//2
+    x1 = x0+size[0]
+    y1 = y0+size[1]
+    return sub_image(img,[y0,x0,y1,x1],pad_value=pad_value)
+'''
+img:[H,W,C]
+size:(w,h)
+'''
+def pad_img(img,size,pad_value=127):
+    if img.shape[0]<size[1]:
+        py0 = (size[1]-img.shape[0])//2
+        py1 = size[1]-img.shape[0]-py0
+    else:
+        py0 = 0
+        py1 = 0
+    if img.shape[1]<size[0]:
+        px0 = (size[0] - img.shape[1]) // 2
+        px1 = size[0] - img.shape[1] - px0
+    else:
+        px0 = 0
+        px1 = 0
+    img = np.pad(img, [[py0, py1], [px0, px1], [0, 0]], constant_values=pad_value)
+    return img
+
+
+'''
+img:[H,W]/[H,W,C]
+rect:[N,4] [xmin,ymin,xmax,ymax] absolute coordinate
+'''
+def sub_imagesv2(img,rects):
+    res = []
+    for rect in rects:
+        res.append(sub_imagev2(img,rect))
+
+    return res
 
 def nprandom_crop(img,size):
     size = list(copy.deepcopy(size))

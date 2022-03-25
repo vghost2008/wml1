@@ -6,7 +6,7 @@ from functools import partial
 import torch.nn as nn
 
 class WarmupCosLR(_LRScheduler):
-    def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.05,last_epoch=-1, verbose=False):
+    def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.01,last_epoch=-1, verbose=False):
         self.warmup_lr_start = warmup_lr_start
         self.warmup_total_iters = warmup_total_iters
         self.total_iters = total_iters
@@ -178,4 +178,12 @@ def get_gpus_str(gpus):
 
     return gpus_str
 
-
+def show_model_parameters_info(net):
+    print("Training parameters.")
+    for name, param in net.named_parameters():
+        if param.requires_grad:
+            print(name, list(param.size()), 'unfreeze')
+    print("Not training parameters.")
+    for name, param in net.named_parameters():
+        if not param.requires_grad:
+            print(name, list(param.size()), 'freeze')
