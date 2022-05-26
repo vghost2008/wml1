@@ -261,7 +261,7 @@ def draw_semantic_on_image(image,semantic,color_map,alpha=0.4,ignored_label=0):
     new_img = np.where(pred,new_img,image)
     return new_img
 
-def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None,left_node=None):
+def add_jointsv1(image, joints, color, r=5,line_thickness=2,no_line=False,joints_pair=None,left_node=None):
 
     def link(a, b, color):
         jointa = joints[a]
@@ -270,7 +270,7 @@ def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None,left_n
                 image,
                 (int(jointa[0]), int(jointa[1])),
                 (int(jointb[0]), int(jointb[1])),
-                color, 2 )
+                color, line_thickness )
 
     # add link
     if not no_line and joints_pair is not None:
@@ -290,7 +290,7 @@ def add_jointsv1(image, joints, color, r=5,no_line=False,joints_pair=None,left_n
 
     return image
 
-def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None,left_node=None):
+def add_jointsv2(image, joints, color, r=5,line_thickness=2,no_line=False,joints_pair=None,left_node=None):
 
     def link(a, b, color):
         jointa = joints[a]
@@ -300,7 +300,7 @@ def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None,left_n
                 image,
                 (int(jointa[0]), int(jointa[1])),
                 (int(jointb[0]), int(jointb[1])),
-                color, 2 )
+                color, line_thickness )
 
     # add link
     if not no_line and joints_pair is not None:
@@ -320,7 +320,7 @@ def add_jointsv2(image, joints, color, r=5,no_line=False,joints_pair=None,left_n
 
     return image
 
-def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=COCO_JOINTS_PAIR,left_node=list(range(1,17,2))):
+def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=COCO_JOINTS_PAIR,left_node=list(range(1,17,2)),r=5,line_thickness=2):
     '''
 
     Args:
@@ -349,9 +349,11 @@ def draw_keypoints(image, joints, color=[0,255,0],no_line=False,joints_pair=COCO
             color = [int(i) for i in color]
 
         if person.shape[-1] == 3:
-            add_jointsv2(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node)
+            add_jointsv2(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node,r=r,
+                         line_thickness=line_thickness)
         else:
-            add_jointsv1(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node)
+            add_jointsv1(image, person, color=color,no_line=no_line,joints_pair=joints_pair,left_node=left_node,r=r,
+                         line_thickness=line_thickness)
 
     return image
 

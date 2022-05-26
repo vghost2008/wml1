@@ -158,6 +158,9 @@ def write_voc_xml(save_path,file_path,shape, bboxes, labels_text, difficult=None
         _shape = get_shape_from_img(save_path,file_path)
         print(f"Force update img shape, old={shape}, new={_shape}.")
         shape = list(_shape)
+    
+    if is_relative_coordinate and np.max(bboxes)>1.01:
+        print(f"Use relative coordinate and max bboxes value is {np.max(bboxes)}.")
         
     if len(shape)==2:
         shape = list(shape)+[1]

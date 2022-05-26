@@ -18,6 +18,7 @@ import basic_tftools as btf
 import glob
 from collections import OrderedDict
 from object_detection2.basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
+from object_detection2.basic_datadef import colors_tableau
 import object_detection2.visualization as odv
 
 try:
@@ -432,22 +433,69 @@ def center_crop(img,size,pad_value=127):
 img:[H,W,C]
 size:(w,h)
 '''
-def pad_img(img,size,pad_value=127):
-    if img.shape[0]<size[1]:
-        py0 = (size[1]-img.shape[0])//2
-        py1 = size[1]-img.shape[0]-py0
+def pad_img(img,size,pad_value=127,pad_type=0,return_pad_value=False):
+    '''
+    pad_type: 0, center pad
+    pad_type: 1, random pad
+    pad_type: 2, top_pad
+
+    '''
+    if pad_type==0:
+        if img.shape[0]<size[1]:
+            py0 = (size[1]-img.shape[0])//2
+            py1 = size[1]-img.shape[0]-py0
+        else:
+            py0 = 0
+            py1 = 0
+        if img.shape[1]<size[0]:
+            px0 = (size[0] - img.shape[1]) // 2
+            px1 = size[0] - img.shape[1] - px0
+        else:
+            px0 = 0
+            px1 = 0
+    elif pad_type==1:
+        if img.shape[0]<size[1]:
+            py0 = random.randint(0,size[1]-img.shape[0])
+            py1 = size[1]-img.shape[0]-py0
+        else:
+            py0 = 0
+            py1 = 0
+        if img.shape[1]<size[0]:
+            px0 = random.randint(0,size[0]-img.shape[1])
+            px1 = size[0] - img.shape[1] - px0
+        else:
+            px0 = 0
+            px1 = 0
+    elif pad_type==2:
+        if img.shape[0]<size[1]:
+            py0 = 0
+            py1 = size[1]-img.shape[0]-py0
+        else:
+            py0 = 0
+            py1 = 0
+        if img.shape[1]<size[0]:
+            px0 = 0
+            px1 = size[0] - img.shape[1] - px0
+        else:
+            px0 = 0
+            px1 = 0
+    if len(img.shape)==3:
+        img = np.pad(img, [[py0, py1], [px0, px1], [0, 0]], constant_values=pad_value)
     else:
-        py0 = 0
-        py1 = 0
-    if img.shape[1]<size[0]:
-        px0 = (size[0] - img.shape[1]) // 2
-        px1 = size[0] - img.shape[1] - px0
-    else:
-        px0 = 0
-        px1 = 0
-    img = np.pad(img, [[py0, py1], [px0, px1], [0, 0]], constant_values=pad_value)
+        img = np.pad(img, [[py0, py1], [px0, px1]], constant_values=pad_value)
+    
+    if return_pad_value:
+        return img,px0,px1,py0,py1
     return img
 
+
+def pad_imgv2(img,px0,px1,py0,py1,pad_value=127):
+    if len(img.shape)==3:
+        img = np.pad(img, [[py0, py1], [px0, px1], [0, 0]], constant_values=pad_value)
+    else:
+        img = np.pad(img, [[py0, py1], [px0, px1]], constant_values=pad_value)
+    
+    return img
 
 '''
 img:[H,W]/[H,W,C]
@@ -932,3 +980,6 @@ def pillow2array(img,flag='color'):
             f' but got {flag}')
     return array
 
+def get_standard_color(idx):
+    idx = idx%len(colors_tableau)
+    return colors_tableau[idx]

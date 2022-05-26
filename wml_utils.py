@@ -629,6 +629,22 @@ class EstimateTimeCost(object):
         res = f"already use {(time.time() - self.begin_time) / 3600:.3f}h, {left_time / 3600:.3f}h left, expected to be finished at {str(d)}"
         return res
 
+class AlwaysNullObj(object):
+    def __init__(self,*args,**kwargs):
+        print(f"Construct a always null object")
+        pass
+
+    def __getattr__(self, item):
+        return self
+
+    def __setattr__(self, key, value):
+        pass
+
+    def __delattr__(self, item):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return self
 
 def time_this(func):
     @wraps(func)
@@ -640,14 +656,27 @@ def time_this(func):
     return wraps_func
 
 class MDict(dict):
-    def __init__(self, *args, **kw):
-        dict.__init__(self, *args, **kw)
+    def __init__(self, *args, **kwargs):
+        if "dtype" in kwargs:
+            self.default_type = kwargs.pop("dtype")
+        else:
+            self.default_type = None
+        super().__init__(*args,**kwargs)
 
     def __getattr__(self, key):
-        return self[key]
+        if key in self.__dict__:
+            return self.__dict__[key]
+        return self.__getitem__(key)
 
-    def __setattr__(self, key, value):
-        self[key] = value
+    def __getitem__(self, key):
+        if key in self.__dict__:
+            return self.__dict__[key]
+        if key in self:
+            return super().__getitem__(key)
+        elif self.default_type is not None:
+            super().__setitem__(key,self.default_type())
+            return super().__getitem__(key)
+        return super().__getitem__(key)
 
     def __delattr__(self, key):
         del self[key]
@@ -721,6 +750,12 @@ def safe_remove_dirs(dir_path,yes_to_all=False):
     else:
         return False
 
+def create_empty_dir_remove_if(dir_path,key_word="tmp"):
+    if key_word in dir_path:
+        create_empty_dir(dir_path,True,True)
+    else:
+        create_empty_dir(dir_path,False,False)
+
 def create_empty_dir(dir_path,remove_if_exists=True,yes_to_all=False):
     try:
         if remove_if_exists:
@@ -732,6 +767,7 @@ def create_empty_dir(dir_path,remove_if_exists=True,yes_to_all=False):
         pass
 
     return True
+
 def add_dict(lhv,rhv):
     res = dict(lhv)
     for k,v in rhv.items():

@@ -211,7 +211,7 @@ if __name__ == '__main__':
             if not osp.isdir(new_dir):
                 print(f'Creating folder: {new_dir}')
                 os.makedirs(new_dir)
-
+    np.square()
     if args.input_frames:
         print('Reading rgb frames from folder: ', args.src_dir)
         fullpath_list = glob.glob(args.src_dir + '/*' * args.level)

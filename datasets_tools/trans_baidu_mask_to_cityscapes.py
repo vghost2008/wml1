@@ -54,7 +54,7 @@ def trans_data(data_dir,save_dir,label_sub_dir="label",copy_img=True):
         sys.stdout.write(f"\r{i}")
 
 if __name__ == "__main__":
-    dir_name = "train_4"
+    dir_name = "train_5"
     data_dir = osp.join("/home/wj/ai/mldata1/safety_belt/src_data",dir_name)
     save_dir = osp.join("/home/wj/ai/mldata1/safety_belt/training",dir_name)
     trans_data(data_dir,save_dir,label_sub_dir="label")

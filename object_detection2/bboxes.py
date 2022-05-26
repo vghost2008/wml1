@@ -74,7 +74,6 @@ def bboxes_resize(bbox_ref, bboxes, name=None):
                       bbox_ref[3] - bbox_ref[1]])
         bboxes = bboxes / s
         return bboxes
-
 '''
 find boxes with center point in margins
 margins:[ymin,xmin,ymax,xmax]
@@ -1338,3 +1337,81 @@ def remove_class_in_image(bboxes,labels,labels_to_remove,image,default_value=127
     remove_image = np.ones_like(image)*default_value
     image = np.where(img_mask,image,remove_image)
     return image,keep_bboxes,labels[keep_mask]
+
+def merge_bboxes(bboxes0,labels0,bboxes1,labels1,iou_threshold=0.5,class_agnostic=True):
+    labels1 = np.array(labels1)
+    labels0 = np.array(labels0)
+    mask = np.ones(labels1.shape,dtype=np.bool)
+
+    for i in range(labels1.shape[0]):
+        if class_agnostic:
+            ref_bboxes = bboxes0
+        else:
+            mask = labels0==labels1[i]
+            ref_bboxes = bboxes0[mask]
+        if len(ref_bboxes)==0:
+            continue
+
+        #ious = npbboxes_jaccard([bboxes1[i]],ref_bboxes)
+        ious0 = npbboxes_intersection_of_box0([bboxes1[i]],ref_bboxes)
+        ious1 = npbboxes_intersection_of_box0(ref_bboxes,[bboxes1[i]])
+        ious = np.concatenate([ious0,ious1],axis=0)
+
+        if np.any(ious>iou_threshold):
+            mask[i] = False
+
+    mask = mask.tolist()
+    bboxes1 = bboxes1[mask]
+    labels1 = labels1[mask]
+
+    bboxes = np.concatenate([bboxes0,bboxes1],axis=0)
+    labels = np.concatenate([labels0,labels1],axis=0)
+
+    return bboxes,labels
+
+'''
+bboxes0: [N,4]/[1,4] [ymin,xmin,ymax,xmax)
+bboxes1: [N,4]/[1,4]ymin,xmin,ymax,xmax)
+return:
+[-1,1]
+'''
+def npgiou(bboxes0, bboxes1):
+    # 1. calulate intersection over union
+    bboxes0 = np.array(bboxes0)
+    bboxes1 = np.array(bboxes1)
+    area_1 = (bboxes0[..., 2] - bboxes0[..., 0]) * (bboxes0[..., 3] - bboxes0[..., 1])
+    area_2 = (bboxes1[..., 2] - bboxes1[..., 0]) * (bboxes1[..., 3] - bboxes1[..., 1])
+
+    intersection_wh = np.minimum(bboxes0[..., 2:], bboxes1[..., 2:]) - np.maximum(bboxes0[..., :2], bboxes1[..., :2])
+    intersection_wh = np.maximum(intersection_wh, 0)
+
+    intersection = intersection_wh[..., 0] * intersection_wh[..., 1]
+    union = (area_1 + area_2) - intersection
+
+    ious = intersection / np.maximum(union, 1e-10)
+
+    # 2. (C - (A U B))/C
+    C_wh = np.maximum(bboxes0[..., 2:], bboxes1[..., 2:]) - np.minimum(bboxes0[..., :2], bboxes1[..., :2])
+    C_wh = np.maximum(C_wh, 1e-10)
+    C = C_wh[..., 0] * C_wh[..., 1]
+
+    giou = ious - (C - union) /C
+    return giou
+
+'''
+bboxes: [N,4] (ymin,xmin,ymax,xmax)
+'''
+def npbbxoes_nms(bboxes,nms_thrsh=0.5):
+    bboxes_nr = len(bboxes)
+    bboxes = np.array(bboxes)
+    if bboxes_nr<=1:
+        return bboxes,[True]
+    mask = np.ones([bboxes_nr],dtype=np.bool)
+    for i in range(bboxes_nr-1):
+        ious = npbboxes_jaccard([bboxes[i]],bboxes[i+1:])
+        for j in range(len(ious)):
+            if ious[j]>nms_thrsh:
+                mask[i+1+j] = False
+    mask = mask.tolist()
+    bboxes = bboxes[mask]
+    return bboxes,mask

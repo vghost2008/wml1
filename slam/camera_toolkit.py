@@ -105,4 +105,28 @@ def get_inhomogeneous_coordinates(points):
     res = points[...,:-1]/points[...,-1:]
     return res
 
+def get_depth_of_field(H,D,F,f):
+    '''
+    H: 超焦点距离，如6.25m, H=F*2/(C*f) C为模糊圈,可以用近似公式1000*F/f
+    D: 对焦距离, 如4m
+    F: 镜头焦距, 如50mm(0.05m)
+    f: 光圈,如f8
+    '''
+    if H is None:
+        H = 1000*F/f
+    nd = (H*D)/(H+D-F)
+    fd = (H*D)/(H-D-F)
+    return nd,fd,fd-nd
 
+def get_depth_of_fieldv2(delta,D,F,f):
+    '''
+    delta: 容许弥散圆直径,如0.035mm(0.035*1e-3m)
+    D: 对焦距离, 如4m
+    F: 镜头焦距, 如50mm(0.05m)
+    f: 光圈,如f8
+    '''
+    dl1 = (f*delta*D*D)/(F*F+f*delta*D)
+    dl2 = (f*delta*D*D)/(F*F-f*delta*D)
+    nd = D-dl1
+    fd = D+dl2
+    return nd,fd,dl1+dl2
