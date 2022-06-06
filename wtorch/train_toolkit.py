@@ -138,6 +138,7 @@ def simple_split_parameters(model,filter=None):
                 print(f"{k}.weight requires grad == False, skip.")
             else:
                 pg1.append(v.weight)  # apply decay
+    #batch norm weight, weight, bias
     return pg0,pg1,pg2
 
 def freeze_model(model,freeze_bn=True):

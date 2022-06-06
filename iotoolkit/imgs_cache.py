@@ -2,17 +2,22 @@ import numpy as np
 import cv2
 
 class ImgsCache(object):
-    def __init__(self,files,img_size=None,cache_limit=-1):
+    def __init__(self,files,img_size=None,cache_limit=-1,mem_limit=-1):
         '''
         Args:
             files: list of img files path.
             img_size: (H,W)
             cache_limit: cache number limit
+            mem_limit: meme limit (G)
         '''
         self.img_files = files
         self.img_size = img_size
+        if cache_limit<=1 and mem_limit>0 and img_size is not None:
+            per_img_size = img_size[0]*img_size[1]*3
+            cache_limit = mem_limit*1e6/per_img_size
         self.cache_limit = cache_limit
         self.cache_data = {}
+        print(f"Cache limit is {self.cache_limit}.")
 
     def __getitem__(self, item):
         assert isinstance(item,int), f"Error item type: {item}"
@@ -20,7 +25,8 @@ class ImgsCache(object):
             return self.cache_data[item].copy()
         else:
             img = self.load_image_data(item)
-            if self.cache_limit<=1 or (self.cache_limit>1 and len(self.cache_data)<self.cache_limit):
+            if self.cache_limit<=1 \
+                    or (self.cache_limit>1 and len(self.cache_data)<self.cache_limit):
                 self.cache_data[item] = img.copy()
             return img
 

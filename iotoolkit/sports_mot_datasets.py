@@ -12,9 +12,11 @@ class SportsMOTDatasets(object):
         self.absolute_coord = absolute_coord
 
     def get_data_items(self):
+        dir_idx = -1
         for seq_root in self.dirs:
             seqs = wmlu.get_subdir_in_dir(seq_root)
             for seq in seqs:
+                dir_idx += 1
                 seq_info = open(os.path.join(seq_root, seq, 'seqinfo.ini')).read()
                 seq_width = int(seq_info[seq_info.find('imWidth=') + 8:seq_info.find('\nimHeight')])
                 seq_height = int(seq_info[seq_info.find('imHeight=') + 9:seq_info.find('\nimExt')])
@@ -63,6 +65,6 @@ class SportsMOTDatasets(object):
                     if len(labels)>0:
                         img_name = '{:06d}.jpg'.format(fid)
                         img_path = os.path.join(seq_root,seq,"img1",img_name)
-                        yield img_path, [seq_height,seq_width], labels, None, bboxes, None, None, None,None
+                        yield img_path, [seq_height,seq_width], labels, None, bboxes, None, None, None,dir_idx
 
         print(f"Last tid value {self.tid_curr}")

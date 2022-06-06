@@ -616,6 +616,10 @@ class EstimateTimeCost(object):
     def add_count(self):
         self.process_nr += 1
         return self.__repr__()
+    
+    def set_process_nr(self,process_nr):
+        self.process_nr = process_nr
+        return self.__repr__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.process_nr += 1

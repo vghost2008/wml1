@@ -49,3 +49,36 @@ class SEBlock(nn.Module):
         net = torch.unsqueeze(net,dim=-1)
         net = torch.unsqueeze(net,dim=-1)
         return net*org_net
+
+class PositionEmbeddingLearned(nn.Module):
+    """
+    Absolute pos embedding, learned.
+    """
+    def __init__(self, num_pos_feats=256,max_rows=50,max_cols=50):
+        super().__init__()
+        self.row_embed = nn.Embedding(max_rows, num_pos_feats)
+        self.col_embed = nn.Embedding(max_cols, num_pos_feats)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.uniform_(self.row_embed.weight)
+        nn.init.uniform_(self.col_embed.weight)
+
+    def forward(self, x):
+        '''
+
+        Args:
+            x: [...,C,H,W]
+        Returns:
+
+        '''
+        h, w = x.shape[-2:]
+        i = torch.arange(w, device=x.device)
+        j = torch.arange(h, device=x.device)
+        x_emb = self.col_embed(i)
+        y_emb = self.row_embed(j)
+        pos = torch.cat([
+            x_emb.unsqueeze(0).repeat(h, 1, 1),
+            y_emb.unsqueeze(1).repeat(1, w, 1),
+        ], dim=-1).permute(2, 0, 1).unsqueeze(0).repeat(x.shape[0], 1, 1, 1)
+        return pos

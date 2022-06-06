@@ -4,6 +4,7 @@ from collections import Iterable
 import object_detection2.visualization as odv
 import random
 import numpy as np
+import object_detection2.bboxes as odb
 #import tensorboardX as tb
 #tb.SummaryWriter.add_video()
 #tb.add_images
@@ -172,4 +173,39 @@ def log_optimizer(tb,optimizer,step):
         name = f"optimizer/{i}_{len(data['params'])}"
         tb.add_scalar(name+"_lr",data['lr'],step)
         tb.add_scalar(name+"_wd",data['weight_decay'],step)
+
+
+def log_imgs_with_bboxes(tb,name,imgs,targets,step,max_imgs=None):
+    '''
+    imgs: [B,C,H,W] [0-255]
+    targets: [B,5] [label,x0,y0,x1,y1]
+    '''
+    if max_imgs is not None and max_imgs>0:
+        imgs = imgs[:max_imgs]
+        targets = targets[:max_imgs]
+    
+    if torch.is_tensor(imgs):
+        imgs = imgs.detach().cpu().numpy().astype(np.uint8)
+    if torch.is_tensor(targets):
+        targets = targets.detach().cpu().numpy()
+    
+    bboxes = targets[...,1:5]
+    labels = targets[...,0].astype(np.int32)
+    bboxes = odb.npchangexyorder(bboxes)
+
+    res_imgs = []
+    for i in range(imgs.shape[0]):
+        img = imgs[i]
+        img = np.ascontiguousarray(np.transpose(img,[1,2,0]))
+        cur_bboxes = bboxes[i]
+        cur_labels = labels[i]
+        bboxes_nr = np.count_nonzero(np.sum(cur_bboxes,axis=-1)>0)
+        cur_bboxes = cur_bboxes[:bboxes_nr]
+        cur_labels = cur_labels[:bboxes_nr]
+        img = odv.draw_bboxes(img,cur_labels,bboxes=cur_bboxes,is_relative_coordinate=False)
+        res_imgs.append(img)
+    
+    res_imgs = np.array(res_imgs)
+    res_imgs = np.ascontiguousarray(res_imgs)
+    tb.add_images(name,res_imgs,step,dataformats='NHWC')
 
