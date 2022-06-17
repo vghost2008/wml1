@@ -78,6 +78,11 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
     bboxes = np.array(bboxes)
     if classes is None:
         classes = np.zeros([bboxes.shape[0]],dtype=np.int32)
+    if is_relative_coordinate and np.any(bboxes>1.1):
+        print(f"Use relative coordinate and max bboxes value is {np.max(bboxes)}")
+    elif not is_relative_coordinate and np.all(bboxes<1.1):
+        print(f"Use absolute coordinate and max bboxes value is {np.max(bboxes)}")
+
     bboxes_thickness = thickness if not fill_bboxes else -1
     if is_relative_coordinate:
         shape = img.shape

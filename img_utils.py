@@ -533,6 +533,8 @@ def imsave(filename,img):
     imwrite(filename,img)
 
 def imwrite(filename, img):
+    if img.dtype != np.uint8:
+        img = img.astype(np.uint8)
     dir_path = os.path.dirname(filename)
     if dir_path != "" and not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -693,7 +695,13 @@ class VideoReader:
                     while len(self.reader_buffer)>self.preread_nr:
                         self.reader_buffer.popitem(last=False)
             else:
-                ret,frame = self.reader.read()
+                retry_nr = 10
+                while retry_nr>0:
+                    ret,frame = self.reader.read()
+                    retry_nr -= 1
+                    if ret:
+                        break
+
                 if ret:
                     frame = frame[...,::-1]
             

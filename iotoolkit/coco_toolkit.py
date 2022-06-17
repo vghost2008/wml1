@@ -5,7 +5,6 @@ import json
 import os
 import numpy as np
 from pycocotools import mask
-import tensorflow as tf
 import iotoolkit.label_map_util as label_map_util
 import wml_utils as wmlu
 import sys
@@ -225,7 +224,7 @@ for i in range(1,81):
     COMPRESSED_ID_TO_FREQ[i] = ID_TO_FREQ[id]
 
 class COCOData:
-    def __init__(self,trans_label=None,include_masks=True):
+    def __init__(self,trans_label=None,include_masks=True,is_relative_coordinate=True):
         '''
 
         Args:
@@ -238,13 +237,15 @@ class COCOData:
         self.include_masks = include_masks
         self.category_index = None
         self.trans_label = trans_label
+        self.filename2image = None
+        self.is_relative_coordinate = is_relative_coordinate
 
     def get_image_full_path(self,image):
         filename = image['file_name']
         return os.path.join(self.image_dir, filename)
 
     def read_data(self,annotations_file,image_dir):
-        with tf.gfile.GFile(annotations_file, 'r') as fid:
+        with open(annotations_file, 'r') as fid:
             groundtruth_data = json.load(fid)
             images = groundtruth_data['images']
             category_index = label_map_util.create_category_index(
@@ -252,7 +253,7 @@ class COCOData:
 
             annotations_index = {}
             if 'annotations' in groundtruth_data:
-                tf.logging.info(
+                print(
                     'Found groundtruth annotations. Building annotations index.')
                 for annotation in groundtruth_data['annotations']:
                     image_id = annotation['image_id']
@@ -265,13 +266,24 @@ class COCOData:
                 if image_id not in annotations_index:
                     missing_annotation_count += 1
                     annotations_index[image_id] = []
-            tf.logging.info('%d images are missing annotations.',
+            print('%d images are missing annotations.',
                             missing_annotation_count)
 
         self.images = images
         self.annotations_index = annotations_index
         self.image_dir = image_dir
         self.category_index = category_index
+
+    def get_image_annotation_by_image_name(self,file_name):
+        if self.filename2image is None:
+            self.filename2image = {}
+            for image in self.images:
+                tfile_name = image["file_name"]
+                self.filename2image[tfile_name] = image
+
+        image = self.filename2image[file_name]
+
+        return self.get_image_annotation(image)
 
     def get_image_annotation(self,image):
         image_height = image['height']
@@ -311,10 +323,16 @@ class COCOData:
                 if category_id is None:
                     continue
 
-            xmin.append(float(x) / image_width)
-            xmax.append(float(x + width) / image_width)
-            ymin.append(float(y) / image_height)
-            ymax.append(float(y + height) / image_height)
+            if self.is_relative_coordinate:
+                xmin.append(float(x) / image_width)
+                xmax.append(float(x + width) / image_width)
+                ymin.append(float(y) / image_height)
+                ymax.append(float(y + height) / image_height)
+            else:
+                xmin.append(float(x))
+                xmax.append(float(x + width))
+                ymin.append(float(y))
+                ymax.append(float(y + height))
 
             is_crowd.append(object_annotations['iscrowd'])
             category_ids.append(category_id)
@@ -329,7 +347,7 @@ class COCOData:
                     binary_mask = np.amax(binary_mask, axis=2)
                 binary_masks.append(binary_mask)
 
-        boxes = np.array(list(zip(ymin,xmin,ymax,xmax)))
+        boxes = np.array(list(zip(ymin,xmin,ymax,xmax)),dtype=np.float32)
 
         if len(binary_masks)>0:
             binary_masks = np.stack(binary_masks,axis=0)
@@ -340,7 +358,9 @@ class COCOData:
             print("No annotation: ", full_path)
             sys.stdout.flush()
             return None,None,None,None,None,None,None,None,None
-        return full_path,[image_height,image_height],category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
+        img_shape = [image_height,image_width]
+        category_ids = np.array(category_ids,dtype=np.int32)
+        return full_path,img_shape,category_ids,category_names,boxes,binary_masks,area,is_crowd,num_annotations_skipped
 
     def get_items(self):
         for image in self.images:

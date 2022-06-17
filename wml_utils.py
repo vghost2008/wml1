@@ -393,6 +393,10 @@ def change_name(path,suffix=None,prefix=None,basename=None):
     suffix = os.path.splitext(path)[-1]
     return os.path.join(dir_path,basename+suffix)
 
+def change_dirname(path,dir):
+    basename = os.path.basename(path)
+    return os.path.join(dir,basename)
+
 def show_member(obj,name=None):
     if name is not None:
         print("Show %s."%(name))
@@ -542,10 +546,11 @@ def gather(data,indexs):
 
 class TimeThis():
     def __init__(self,name="TimeThis",auto_show=True):
-        self.begin_time = 0.
+        self.begin_time = time.time()
         self.end_time = 0
         self.name = name
         self.auto_show = auto_show
+        self.idx = 0
 
     def __enter__(self):
         self.begin_time = time.time()
@@ -559,6 +564,15 @@ class TimeThis():
 
     def time(self):
         return self.end_time-self.begin_time
+
+    def log_and_restart(self,sub_name=""):
+        self.end_time = time.time()
+        te = (self.end_time - self.begin_time) * 1000
+        fps = 1000 / (te + 1e-8)
+        print(f"{self.name}:{self.idx}:{sub_name}: total time {te:.3f}, FPS={fps:.3f}.")
+        self.begin_time = self.end_time
+        self.idx += 1
+
 
 class AvgTimeThis():
     def __init__(self,name="TimeThis",skip_nr=3):

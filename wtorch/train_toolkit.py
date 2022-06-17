@@ -5,6 +5,7 @@ import math
 from functools import partial
 import torch.nn as nn
 import time
+import inspect
 
 class WarmupCosLR(_LRScheduler):
     def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.01,last_epoch=-1, verbose=False):
@@ -120,6 +121,8 @@ def grad_norm(parameters, norm_type: float = 2.0) -> torch.Tensor:
 
 def simple_split_parameters(model,filter=None):
     pg0, pg1, pg2 = [], [], []
+    parameters_set = set()
+    print(f"------------------------------------------")
     for k, v in model.named_modules():
         if filter is not None and not(filter(k,v)):
             continue
@@ -128,16 +131,44 @@ def simple_split_parameters(model,filter=None):
                 print(f"{k}.bias requires grad == False, skip.")
             else:
                 pg2.append(v.bias)  # biases
+                parameters_set.add(k+".bias")
         if isinstance(v, nn.BatchNorm2d) or "bn" in k:
             if v.weight.requires_grad is False:
                 print(f"{k}.weight requires grad == False, skip.")
             else:
                 pg0.append(v.weight)  # no decay
+                parameters_set.add(k+".weight")
         elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
             if v.weight.requires_grad is False:
                 print(f"{k}.weight requires grad == False, skip.")
             else:
                 pg1.append(v.weight)  # apply decay
+                parameters_set.add(k+".weight")
+        for k1,p in v.named_parameters(recurse=False):
+            if k1 in ["weight","bias"]:
+                continue
+            if p.requires_grad == False:
+                print(f"{k}.{k1} requires grad == False, skip.")
+                continue
+            if "weight" in k:
+                pg1.append(p)
+                parameters_set.add(k+f".{k1}")
+            elif "bias" in k:
+                pg2.append(p)
+                parameters_set.add(k+f".{k1}")
+            else:
+                if p.ndim>1:
+                    pg1.append(p)
+                else:
+                    pg2.append(p)
+                parameters_set.add(k+f".{k1}")
+
+    print(f"------------------------------------------")
+    for k,p in model.named_parameters():
+        if p.requires_grad == False:
+            continue
+        if k not in parameters_set:
+            print(f"ERROR: {k} not in any parameters set.")
     #batch norm weight, weight, bias
     return pg0,pg1,pg2
 
@@ -209,3 +240,46 @@ def occupy_mem(cuda_device, mem_ratio=0.9):
     x = torch.cuda.FloatTensor(256, 1024, block_mem)
     del x
     time.sleep(5)
+
+def isfinite_hook(module,fea_in,fea_out):
+    if isinstance(fea_in,(tuple,list)):
+        if len(fea_in)==1:
+            fea_in = fea_in[0]
+        elif len(fea_in)==0:
+            return None
+    #if not torch.all(torch.isfinite(fea_in)):
+        #return None
+    if not torch.all(torch.isfinite(fea_out)):
+        print("Find NaN or infininite")
+        print(f"{inspect.stack()}")
+        print(f"Input : {torch.min(fea_in).item(),torch.max(fea_in).item(),torch.mean(fea_in).item()}")
+        print(f"Output: {torch.min(fea_out).item(),torch.max(fea_out).item(),torch.mean(fea_out).item()}")
+        for name, param in module.named_parameters():
+            print(f"{name}: {torch.min(param).item(),torch.max(param).item(),torch.mean(param).item()}")
+
+def islarge(x,max_v=65535):
+    return torch.any(torch.abs(x)>max_v)
+
+def islarge_hook(module,fea_in,fea_out):
+    if isinstance(fea_in,(tuple,list)):
+        if len(fea_in)==1:
+            fea_in = fea_in[0]
+        elif len(fea_in)==0:
+            return None
+    #if islarge(fea_in):
+        #return None
+    if islarge(fea_out):
+        print("Find large value")
+        print(f"{inspect.stack()}")
+        print(f"Input : {torch.min(fea_in).item(),torch.max(fea_in).item(),torch.mean(fea_in).item()}")
+        print(f"Output: {torch.min(fea_out).item(),torch.max(fea_out).item(),torch.mean(fea_out).item()}")
+        for name, param in module.named_parameters():
+            print(f"{name}: {torch.min(param).item(),torch.max(param).item(),torch.mean(param).item()}")
+
+def register_forward_hook(net,hook):
+    nr = 0
+    for module in net.children():
+        register_forward_hook(module,hook)
+        nr += 1
+    if nr == 0:
+        net.register_forward_hook(hook=hook)

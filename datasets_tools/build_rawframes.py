@@ -28,7 +28,7 @@ def extract_frame(vid_item):
     Returns:
         bool: Whether generate optical flow successfully.
     """
-    full_path, vid_path, vid_id, method, task = vid_item
+    full_path, vid_path, vid_id, method, task,interval = vid_item
     if '/' in vid_path:
         act_name = osp.basename(osp.dirname(vid_path))
         out_full_path = osp.join(args.out_dir, act_name)
@@ -46,6 +46,8 @@ def extract_frame(vid_item):
             print(f"{full_path} fps {vr.fps}.")
             # for i in range(len(vr)):
             for i, vr_frame in enumerate(vr):
+                if interval>0 and i%interval != 0:
+                    continue
                 if vr_frame is not None:
                     w, h, _ = np.shape(vr_frame)
                     if img_process_fn is not None:
@@ -192,6 +194,11 @@ def parse_args():
         '--input-frames',
         action='store_true',
         help='Whether to extract flow frames based on rgb frames')
+    parser.add_argument(
+        '--interval',
+        default=0,
+        type=int,
+        help='Save interval')
     args = parser.parse_args()
 
     return args
@@ -211,7 +218,6 @@ if __name__ == '__main__':
             if not osp.isdir(new_dir):
                 print(f'Creating folder: {new_dir}')
                 os.makedirs(new_dir)
-    np.square()
     if args.input_frames:
         print('Reading rgb frames from folder: ', args.src_dir)
         fullpath_list = glob.glob(args.src_dir + '/*' * args.level)
@@ -251,7 +257,9 @@ if __name__ == '__main__':
         extract_frame,
         zip(fullpath_list, vid_list, range(len(vid_list)),
             len(vid_list) * [args.flow_type],
-            len(vid_list) * [args.task]))
+            len(vid_list) * [args.task],
+            len(vid_list) * [args.interval],
+            ))
 
 '''
 Example: python build_rawframes.py /home/wj/ai/mldata/txc_park_videos/videos /home/wj/ai/mldata/txc_park_videos/videos_rgb --task rgb --level 1  --ext mp4 --use-opencv

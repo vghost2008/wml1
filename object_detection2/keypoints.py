@@ -203,7 +203,9 @@ def npget_bbox(keypoints,threshold=0.02):
         [xmin,ymin,xmax,ymax]
 
     '''
-    if keypoints.shape[1]>=3:
+    assert len(keypoints.shape)==2,f"ERROR kps shape {keypoints.shape}"
+
+    if keypoints.shape[-1]>=3:
         mask = keypoints[:,2]>threshold
         if np.any(mask):
             keypoints = keypoints[mask]
@@ -214,6 +216,53 @@ def npget_bbox(keypoints,threshold=0.02):
     ymin = np.min(keypoints[:,1])
     ymax = np.max(keypoints[:,1])
     return np.array([xmin,ymin,xmax,ymax],dtype=np.float32)
+
+def expand_bbox_by_kps(bbox,keypoints,threshold=0.02):
+    '''
+
+    Args:
+        bbox: [xmin,ymin,xmax,ymax]
+        keypoints: [[x,y,score],...]
+        threshold:
+
+    Returns:
+        [xmin,ymin,xmax,ymax]
+
+    '''
+    kp_bbox = npget_bbox(keypoints,threshold=threshold)
+    if kp_bbox is None:
+        return bbox
+    xmin,ymin,xmax,ymax = bbox
+    xmin = np.minimum(xmin,kp_bbox[0])
+    ymin = np.minimum(ymin,kp_bbox[1])
+    xmax = np.maximum(xmax,kp_bbox[2])
+    ymax = np.maximum(ymax,kp_bbox[3])
+
+    return np.array([xmin,ymin,xmax,ymax],dtype=np.float32)
+
+def expand_yxyx_bbox_by_kps(bbox,keypoints,threshold=0.02):
+    '''
+
+    Args:
+        bbox: [ymin,xmin,ymax,xmax]
+        keypoints: [[x,y,score],...]
+        threshold:
+
+    Returns:
+        [ymin,xmin,ymax,xmax]
+
+    '''
+    kp_bbox = npget_bbox(keypoints, threshold=threshold)
+    if kp_bbox is None:
+        return bbox
+    ymin, xmin, ymax, xmax = bbox
+    xmin = np.minimum(xmin, kp_bbox[0])
+    ymin = np.minimum(ymin, kp_bbox[1])
+    xmax = np.maximum(xmax, kp_bbox[2])
+    ymax = np.maximum(ymax, kp_bbox[3])
+
+    return np.array([ymin, xmin, ymax, xmax], dtype=np.float32)
+
 
 def npbatchget_bboxes(keypoints,threshold=0.02):
     if not isinstance(keypoints,np.ndarray):

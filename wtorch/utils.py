@@ -129,3 +129,5 @@ def module_parameters_numel(net,only_training=False):
         if only_training and param.requires_grad or not only_training:
             total += torch.numel(param)
     return total
+
+

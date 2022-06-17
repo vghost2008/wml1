@@ -9,4 +9,4 @@ def trans_data(data_dir):
 
 
 if __name__ == "__main__":
-    trans_data("/home/wj/ai/mldata1/SportsMOT-2022-4-24/data/sportsmot_publish/dataset/train_copy")
+    trans_data("/home/wj/ai/mldata1/SportsMOT-2022-4-24/data/sportsmot_publish/dataset/val")
