@@ -9,12 +9,12 @@ import os
 import threading
 import itertools
 import warnings
-from typing import Any, Callable, TypeVar, Generic, Sequence, List, Optional
+from typing import Any, Callable, Iterable, TypeVar, Generic, Sequence, List, Optional
 import multiprocessing as python_multiprocessing
 import torch
 import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
-from torch._six import queue, string_classes
+from torch._six import queue, string_classes,container_abcs
 import wtorch.utils as wtu
 import time
 from . import IterableDataset, Sampler, SequentialSampler, RandomSampler, BatchSampler, Dataset
@@ -927,18 +927,22 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
             # Queue is not type-annotated
             self._data_queue = queue.Queue(4*self.batch_split_nr)  # type: ignore
+            self.pin_memory_stream = torch.cuda.Stream()
             pin_memory_thread = threading.Thread(
-                target=_utils.pin_memory._pin_memory_loop,
+                target=_utils.pin_memory._pin_memory_loop_stream,
                 args=(self._worker_result_queue, self._data_queue,
                       torch.cuda.current_device(),
-                      self._pin_memory_thread_done_event))
+                      self._pin_memory_thread_done_event,
+                      self.pin_memory_stream))
             pin_memory_thread.daemon = True
             pin_memory_thread.start()
             # Similar to workers (see comment above), we only register
             # pin_memory_thread once it is started.
             self._pin_memory_thread = pin_memory_thread
+            self._try_get_data_imp = self._try_get_data_imp_stream
         else:
             self._data_queue = self._worker_result_queue
+            self._try_get_data_imp = self._try_get_data_imp_no_stream
 
         # .pid can be None only before process is spawned (not the case, so ignore)
         _utils.signal_handling._set_worker_pids(id(self), tuple(w.pid for w in self._workers))  # type: ignore
@@ -991,7 +995,25 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 self.datas_cache = []
                 return True,(0,data)
 
-    def _try_get_data_imp(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
+    @staticmethod
+    def record_stream(data,stream):
+        if torch.is_tensor(data):
+            data.record_stream(stream)
+        elif isinstance(data,container_abcs.Mapping):
+            for k,v in data.items():
+                _MultiProcessingDataLoaderIter.record_stream(v,stream)
+        elif isinstance(data,Iterable):
+            for x in data:
+                _MultiProcessingDataLoaderIter.record_stream(x,stream)
+
+    def _try_get_data_imp_stream(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
+        torch.cuda.current_stream().wait_stream(self.pin_memory_stream)
+        res = self._try_get_data_imp_no_stream(timeout=timeout)
+        if res[0]:
+            _MultiProcessingDataLoaderIter.record_stream(res[1][1],torch.cuda.current_stream())
+        return res
+
+    def _try_get_data_imp_no_stream(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
         # Tries to fetch data from `self._data_queue` once for a given timeout.
         # This can also be used as inner loop of fetching without timeout, with
         # the sender status as the loop condition.
@@ -1004,7 +1026,6 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         # Returns a 2-tuple:
         #   (bool: whether successfully get data, any: data if successful else None)
         try:
-            t0 = time.time()
             data = self._data_queue.get(timeout=timeout)
             return (True, data)
         except Exception as e:
