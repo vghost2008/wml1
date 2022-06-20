@@ -7,6 +7,7 @@ static methods.
 import torch
 import random
 import os
+import time
 from dataclasses import dataclass
 from torch._six import queue
 from torch._utils import ExceptionWrapper

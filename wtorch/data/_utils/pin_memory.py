@@ -9,6 +9,7 @@ import time
 import torch
 from torch._six import queue, container_abcs, string_classes
 from . import MP_STATUS_CHECK_INTERVAL
+import os
 from torch._utils import ExceptionWrapper
 
 
@@ -37,6 +38,7 @@ def _pin_memory_loop(in_queue, out_queue, device_id, done_event):
         while not done_event.is_set():
             try:
                 out_queue.put(r, timeout=MP_STATUS_CHECK_INTERVAL)
+                time.sleep(1e-4)
                 break
             except queue.Full:
                 continue

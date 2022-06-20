@@ -10,15 +10,16 @@ import threading
 import itertools
 import warnings
 from typing import Any, Callable, TypeVar, Generic, Sequence, List, Optional
-
 import multiprocessing as python_multiprocessing
 import torch
 import torch.multiprocessing as multiprocessing
 from torch._utils import ExceptionWrapper
 from torch._six import queue, string_classes
+import wtorch.utils as wtu
 import time
 from . import IterableDataset, Sampler, SequentialSampler, RandomSampler, BatchSampler, Dataset
 from . import _utils
+import wml_utils as wmlu
 
 T_co = TypeVar('T_co', covariant=True)
 T = TypeVar('T')
@@ -163,8 +164,11 @@ class DataLoader(Generic[T_co]):
                  timeout: float = 0, worker_init_fn: _worker_init_fn_t = None,
                  multiprocessing_context=None, generator=None,
                  *, prefetch_factor: int = 2,
-                 persistent_workers: bool = False):
+                 persistent_workers: bool = False,
+                 batch_split_nr:int =1):
         torch._C._log_api_usage_once("python.data_loader")  # type: ignore
+
+        self.batch_split_nr = max(1,batch_split_nr)
 
         if num_workers < 0:
             raise ValueError('num_workers option should be non-negative; '
@@ -298,7 +302,7 @@ class DataLoader(Generic[T_co]):
             return _SingleProcessDataLoaderIter(self)
         else:
             self.check_worker_number_rationality()
-            return _MultiProcessingDataLoaderIter(self)
+            return _MultiProcessingDataLoaderIter(self,batch_split_nr=self.batch_split_nr)
 
     @property
     def multiprocessing_context(self):
@@ -870,12 +874,13 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
     #     processing indices already in `index_queue` if we are already shutting
     #     down.
 
-    def __init__(self, loader):
+    def __init__(self, loader,batch_split_nr=1):
         print(f"Use _WMultiProcessingDataLoaderIter")
         super(_MultiProcessingDataLoaderIter, self).__init__(loader)
 
         assert self._num_workers > 0
         assert self._prefetch_factor > 0
+
 
         if loader.multiprocessing_context is None:
             multiprocessing_context = multiprocessing
@@ -892,6 +897,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
         self._index_queues = []
         self._workers = []
+        self.batch_split_nr = max(1,batch_split_nr)
         for i in range(self._num_workers):
             # No certainty which module multiprocessing_context is
             index_queue = multiprocessing_context.Queue()  # type: ignore
@@ -920,7 +926,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             self._pin_memory_thread_done_event = threading.Event()
 
             # Queue is not type-annotated
-            self._data_queue = queue.Queue(4)  # type: ignore
+            self._data_queue = queue.Queue(4*self.batch_split_nr)  # type: ignore
             pin_memory_thread = threading.Thread(
                 target=_utils.pin_memory._pin_memory_loop,
                 args=(self._worker_result_queue, self._data_queue,
@@ -939,6 +945,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         _utils.signal_handling._set_SIGCHLD_handler()
         self._worker_pids_set = True
         self._reset(loader, first_iter=True)
+        self.datas_cache = []
 
     def _reset(self, loader, first_iter=False):
         super()._reset(loader, first_iter)
@@ -971,6 +978,20 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._try_put_index()
 
     def _try_get_data(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
+        if self.batch_split_nr<=1:
+            return self._try_get_data_imp(timeout=timeout)
+        else:
+            try_nr = self.batch_split_nr+2
+            while try_nr>0 and len(self.datas_cache)<self.batch_split_nr:
+                res,data = self._try_get_data_imp(timeout=max(1,timeout/self.batch_split_nr))
+                if res:
+                    self.datas_cache.append(data[1])
+            if len(self.datas_cache)>=self.batch_split_nr:
+                data = wtu.concat_datas(self.datas_cache,dim=0)
+                self.datas_cache = []
+                return True,(0,data)
+
+    def _try_get_data_imp(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
         # Tries to fetch data from `self._data_queue` once for a given timeout.
         # This can also be used as inner loop of fetching without timeout, with
         # the sender status as the loop condition.
@@ -983,6 +1004,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         # Returns a 2-tuple:
         #   (bool: whether successfully get data, any: data if successful else None)
         try:
+            t0 = time.time()
             data = self._data_queue.get(timeout=timeout)
             return (True, data)
         except Exception as e:
@@ -1160,7 +1182,14 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 nr = self._prefetch_factor-index_queue.qsize()
                 for _ in range(nr*2+1):
                     index = self._next_index()
-                    index_queue.put((0,index))
+                    if self.batch_split_nr>1:
+                        if len(index)%self.batch_split_nr!=0:
+                            print(f"ERROR: batch_split_nr = {self.batch_split_nr}, batch size = {len(index)}")
+                        indexs = wmlu.list_to_2dlistv2(index,self.batch_split_nr)
+                        for index in indexs:
+                            index_queue.put((0,index))
+                    else:
+                        index_queue.put((0,index))
 
     def _process_data(self, data):
         self._try_put_index()

@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+from torch._six import queue, container_abcs, string_classes
+from collections import Iterable
 import sys
 
 def unnormalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
@@ -131,3 +133,25 @@ def module_parameters_numel(net,only_training=False):
     return total
 
 
+def concat_datas(datas,dim=0):
+    if isinstance(datas[0], container_abcs.Mapping):
+        new_data = {}
+        for k,v in datas[0].items():
+            new_data[k] = [v]
+        for data in datas[1:]:
+            for k,v in data.items():
+                new_data[k].append(v)
+        keys = list(new_data.keys())
+        for k in keys:
+            new_data[k] = torch.cat(new_data[k],dim=dim)
+        return new_data
+    if isinstance(datas[0],Iterable):
+        res = []
+        for x in zip(*datas):
+            if torch.is_tensor(x[0]):
+                res.append(torch.cat(x,dim=dim))
+            else:
+                res.append(concat_datas(x))
+        return res
+    else:
+        return torch.cat(datas,dim=dim)
