@@ -509,7 +509,18 @@ class _BaseDataLoaderIter(object):
         self._IterableDataset_len_called = loader._IterableDataset_len_called
 
     def _next_index(self):
-        return next(self._sampler_iter)  # may raise StopIteration
+        res = next(self._sampler_iter)  # may raise StopIteration
+        return _MultiProcessingDataLoaderIter.to_item(res)
+    
+    @staticmethod
+    def to_item(data):
+        if torch.is_tensor(data):
+            return data.item()
+        elif isinstance(data,Iterable):
+            return [_MultiProcessingDataLoaderIter.to_item(x) for x in data]
+        else:
+            return data
+
 
     def _next_data(self):
         raise NotImplementedError
@@ -1053,6 +1064,12 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 fs = [tempfile.NamedTemporaryFile() for i in range(fds_limit_margin)]
             except OSError as e:
                 if e.errno == errno.EMFILE:
+                    print(f"Open files nr")
+                    cmd = f"ls /proc/{os.getpid()}/fd | wc -l"
+                    os.system(cmd)
+                    print(f"ulimit -n")
+                    cmd = f"ulimit -n"
+                    os.system(cmd)
                     raise RuntimeError(
                         "Too many open files. Communication with the"
                         " workers is no longer possible. Please increase the"
