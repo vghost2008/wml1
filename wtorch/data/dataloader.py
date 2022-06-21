@@ -16,6 +16,12 @@ in `./_utils/worker.py`.
 但主进程却无法取到任何一个完整的batch而引起训练阻塞，产生的效果就是工作进程数据多了之后，数据处理反
 而变慢了，这里引入一个参数batch_split_nr，让工作进程以batch_size/batch_split_nr的粒度进行数据数据；
 4, 当batch size较大时，数据从CPU复制到GPU时会消耗不少时间，这里在pin_memory时，直接将数据复制到GPU;
+
+参数设置参考
+1, num_workers设置为4~32
+2, pin_memory设置True
+3, batch_split_nr设置为4左右（需要能整除batch_size)
+4, ulimit -n 65535 #设置可以打开的最大文件数
 '''
 
 import os
@@ -167,7 +173,7 @@ class DataLoader(Generic[T_co]):
                  shuffle: bool = False, sampler: Optional[Sampler[int]] = None,
                  batch_sampler: Optional[Sampler[Sequence[int]]] = None,
                  num_workers: int = 0, collate_fn: _collate_fn_t = None,
-                 pin_memory: bool = False, drop_last: bool = False,
+                 pin_memory: bool = True, drop_last: bool = False,
                  timeout: float = 0, worker_init_fn: _worker_init_fn_t = None,
                  multiprocessing_context=None, generator=None,
                  *, prefetch_factor: int = 2,
