@@ -441,9 +441,15 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 if res:
                     self.datas_cache.append(data[1])
             if len(self.datas_cache)>=self.batch_split_nr:
-                data = wtu.concat_datas(self.datas_cache,dim=0)
+                try:
+                    data = wtu.concat_datas(self.datas_cache,dim=0)
+                except:
+                    print(f"ERROR: Concat datas faild.")
+                    self.datas_cache = []
+                    return False,None
                 self.datas_cache = []
                 return True,(0,data)
+            return False,None
 
     @staticmethod
     def record_stream(data,stream):

@@ -145,13 +145,26 @@ def concat_datas(datas,dim=0):
         for k in keys:
             new_data[k] = torch.cat(new_data[k],dim=dim)
         return new_data
-    if isinstance(datas[0],Iterable):
+
+    if torch.is_tensor(datas[0]):
+        return torch.cat(datas,dim=dim)
+    elif isinstance(datas[0],Iterable):
         res = []
-        for x in zip(*datas):
-            if torch.is_tensor(x[0]):
-                res.append(torch.cat(x,dim=dim))
-            else:
-                res.append(concat_datas(x))
+        try:
+            for x in zip(*datas):
+                if torch.is_tensor(x[0]):
+                    res.append(torch.cat(x,dim=dim))
+                else:
+                    res.append(concat_datas(x))
+        except Exception as e:
+            print(e)
+            for i,x in enumerate(datas):
+                print(i,type(x),x)
+            print(f"--------------------------")
+            for i,x in enumerate(datas):
+                print(i,type(x))
+            sys.stdout.flush()
+            raise e
         return res
     else:
         return torch.cat(datas,dim=dim)
