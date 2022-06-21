@@ -5,6 +5,19 @@ functions to be run in multiprocessing. E.g., the data loading worker loop is
 in `./_utils/worker.py`.
 """
 
+'''
+相对于torch.DataLoader的改进点
+1, 原始dataloader的处理流程为主进程采样，工作进程处理，主进程取工作进程的结果数据，在取数据时
+取的顺序与采样的顺序一致，为了保持这种一致会导致工作进程无法满负荷运行，数据处理效率底，同时由于
+采样大多为随机采样，保持这种顺序并不是十分必要，因些这里删除了顺序一致性的要求；
+2，原始的dataloader按顺序给工作进程分派任务，而不考虑工作进程的实际状态，这时修改为按工作进程的排队
+任务状态分配任务；
+3，原始dataloader生成数据的粒度为一个batch, 当工作进程数较多是会导致工作进程已经处理了大量的数据，
+但主进程却无法取到任何一个完整的batch而引起训练阻塞，产生的效果就是工作进程数据多了之后，数据处理反
+而变慢了，这里引入一个参数batch_split_nr，让工作进程以batch_size/batch_split_nr的粒度进行数据数据；
+4, 当batch size较大时，数据从CPU复制到GPU时会消耗不少时间，这里在pin_memory时，直接将数据复制到GPU;
+'''
+
 import os
 import threading
 import itertools
@@ -109,6 +122,8 @@ class DataLoader(Generic[T_co]):
         persistent_workers (bool, optional): If ``True``, the data loader will not shutdown
             the worker processes after a dataset has been consumed once. This allows to
             maintain the workers `Dataset` instances alive. (default: ``False``)
+        batch_split_nr: Each element in data_queue's sample number reduced from batch_size to
+            batch_size/batch_split_nr
 
 
     .. warning:: If the ``spawn`` start method is used, :attr:`worker_init_fn`
