@@ -439,7 +439,13 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             while try_nr>0 and len(self.datas_cache)<self.batch_split_nr:
                 res,data = self._try_get_data_imp(timeout=max(1,timeout/self.batch_split_nr))
                 if res:
-                    self.datas_cache.append(data[1])
+                    if isinstance(data[1], ExceptionWrapper):
+                        e = data[1]
+                        msg = "ERROR: Caught {} {}.\nOriginal {}".format(
+                            e.exc_type.__name__, e.where, e.exc_msg)
+                        print(msg)
+                    else:
+                        self.datas_cache.append(data[1])
             if len(self.datas_cache)>=self.batch_split_nr:
                 try:
                     data = wtu.concat_datas(self.datas_cache,dim=0)
