@@ -1,4 +1,4 @@
-from .sampler import Sampler, SequentialSampler, RandomSampler, SubsetRandomSampler, WeightedRandomSampler, BatchSampler
+from .sampler import Sampler, SequentialSampler, RandomSampler, SubsetRandomSampler, WeightedRandomSampler, BatchSampler,InfiniteSequentialSampler
 from .dataset import (Dataset, IterableDataset, TensorDataset, ConcatDataset, ChainDataset, BufferedShuffleDataset,
                       Subset, random_split)
 from .base_data_loader_iter import _BaseDataLoaderIter, _DatasetKind

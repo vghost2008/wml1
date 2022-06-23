@@ -3,6 +3,8 @@ from torch._six import int_classes as _int_classes
 from torch import Tensor
 
 from typing import Iterator, Optional, Sequence, List, TypeVar, Generic, Sized
+import time
+import itertools
 
 T_co = TypeVar('T_co', covariant=True)
 
@@ -69,6 +71,31 @@ class SequentialSampler(Sampler[int]):
     def __len__(self) -> int:
         return len(self.data_source)
 
+class InfiniteSequentialSampler(Sampler[int]):
+    r"""Samples elements sequentially, always in the same order.
+
+    Args:
+        data_source (Dataset): dataset to sample from
+    """
+    data_source: Sized
+
+    def __init__(self, data_source):
+        self.data_source = data_source
+        self.num_samples = len(data_source)
+
+    def __iter__(self):
+        yield from self._infinite_indices()
+
+    def _infinite_indices(self):
+        g = torch.Generator()
+        g.manual_seed(int(time.time()))
+        while True:
+            yield from torch.arange(self.num_samples)
+
+    def __len__(self):
+        return self.num_samples
+
+
 
 class RandomSampler(Sampler[int]):
     r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
@@ -111,18 +138,14 @@ class RandomSampler(Sampler[int]):
         return self._num_samples
 
     def __iter__(self):
-        n = len(self.data_source)
-        if self.generator is None:
-            generator = torch.Generator()
-            generator.manual_seed(int(torch.empty((), dtype=torch.int64).random_().item()))
-        else:
-            generator = self.generator
-        if self.replacement:
-            for _ in range(self.num_samples // 32):
-                yield from torch.randint(high=n, size=(32,), dtype=torch.int64, generator=generator).tolist()
-            yield from torch.randint(high=n, size=(self.num_samples % 32,), dtype=torch.int64, generator=generator).tolist()
-        else:
-            yield from torch.randperm(n, generator=self.generator).tolist()
+        yield from self._infinite_indices()
+
+    def _infinite_indices(self):
+        g = torch.Generator()
+        g.manual_seed(int(time.time()))
+        #yield from torch.arange(self.num_samples())
+        while True:
+            yield from torch.randperm(self.num_samples, generator=g)
 
     def __len__(self):
         return self.num_samples

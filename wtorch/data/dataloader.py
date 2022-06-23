@@ -36,7 +36,7 @@ from torch._utils import ExceptionWrapper
 from torch._six import queue, string_classes,container_abcs
 import wtorch.utils as wtu
 import time
-from . import IterableDataset, Sampler, SequentialSampler, RandomSampler, BatchSampler, Dataset
+from . import IterableDataset, Sampler,InfiniteSequentialSampler, SequentialSampler, RandomSampler, BatchSampler, Dataset
 from . import _utils
 import wml_utils as wmlu
 from . import _MultiProcessingDataLoaderIter, _SingleProcessDataLoaderIter, _DatasetKind
@@ -177,7 +177,7 @@ class DataLoader(Generic[T_co]):
                  timeout: float = 0, worker_init_fn: _worker_init_fn_t = None,
                  multiprocessing_context=None, generator=None,
                  *, prefetch_factor: int = 2,
-                 persistent_workers: bool = False,
+                 persistent_workers: bool = True,
                  batch_split_nr:int =1):
         torch._C._log_api_usage_once("python.data_loader")  # type: ignore
 
@@ -255,13 +255,13 @@ class DataLoader(Generic[T_co]):
             self._dataset_kind = _DatasetKind.Map
 
         if sampler is not None and shuffle:
-            raise ValueError('sampler option is mutually exclusive with '
+            print('WARNING: sampler option is mutually exclusive with '
                              'shuffle')
 
         if batch_sampler is not None:
             # auto_collation with custom batch_sampler
             if batch_size != 1 or shuffle or sampler is not None or drop_last:
-                raise ValueError('batch_sampler option is mutually exclusive '
+                print('WARNING: batch_sampler option is mutually exclusive '
                                  'with batch_size, shuffle, sampler, and '
                                  'drop_last')
             batch_size = None
@@ -277,12 +277,12 @@ class DataLoader(Generic[T_co]):
                 # See NOTE [ Custom Samplers and IterableDataset ]
                 sampler = _InfiniteConstantSampler()
             else:  # map-style
-                if shuffle:
+                if shuffle or self.num_workers>0:
                     # Cannot statically verify that dataset is Sized
                     # Somewhat related: see NOTE [ Lack of Default `__len__` in Python Abstract Base Classes ]
                     sampler = RandomSampler(dataset, generator=generator)  # type: ignore
                 else:
-                    sampler = SequentialSampler(dataset)
+                    sampler = InfiniteSequentialSampler(dataset)
 
         if batch_size is not None and batch_sampler is None:
             # auto_collation without custom batch_sampler

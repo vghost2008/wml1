@@ -344,6 +344,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._worker_pids_set = False
         self._shutdown = False
         self._workers_done_event = multiprocessing_context.Event()
+        self.stop_iteration = False
 
         self._index_queues = []
         self._workers = []
@@ -403,6 +404,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
 
     def _reset(self, loader, first_iter=False):
         super()._reset(loader, first_iter)
+        self.stop_iteration = False
         self._send_idx = 0  # idx of the next task to be sent to workers
         self._rcvd_idx = 0  # idx of the next task to be returned in __next__
         # information about data not yet yielded, i.e., tasks w/ indices in range [rcvd_idx, send_idx).
@@ -418,22 +420,22 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         # It does not mean that a worker is dead. In case of `_persistent_workers`,
         # the worker will be reset to available in the next epoch.
         self._workers_status = [True for i in range(self._num_workers)]
-        # We resume the prefetching in case it was enabled
-        if not first_iter:
-            for idx in range(self._num_workers):
-                self._index_queues[idx].put(_utils.worker._ResumeIteration())
-            resume_iteration_cnt = self._num_workers
-            while resume_iteration_cnt > 0:
-                return_idx, return_data = self._get_data()
-                if isinstance(return_idx, _utils.worker._ResumeIteration):
-                    assert return_data is None
-                    resume_iteration_cnt -= 1
         # prime the prefetch loop
         self._try_put_index()
 
     def _try_get_data(self, timeout=_utils.MP_STATUS_CHECK_INTERVAL):
         if self.batch_split_nr<=1:
-            return self._try_get_data_imp(timeout=timeout)
+            res,data = self._try_get_data_imp(timeout=timeout)
+            if res is False:
+                if self.stop_iteration:
+                    for q in self._index_queues:
+                        if q.qsize() > 0:
+                            return False, None
+                    raise StopIteration()
+                else:
+                    return res,data
+            else:
+                return res,data
         else:
             try_nr = self.batch_split_nr+2
             while try_nr>0 and len(self.datas_cache)<self.batch_split_nr:
@@ -444,8 +446,11 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                         msg = "ERROR: Caught {} {}.\nOriginal {}".format(
                             e.exc_type.__name__, e.where, e.exc_msg)
                         print(msg)
-                    else:
+                    elif data[1] is not None:
                         self.datas_cache.append(data[1])
+                    elif self.stop_iteration:
+                        break
+                try_nr -= 1
             if len(self.datas_cache)>=self.batch_split_nr:
                 try:
                     data = wtu.concat_datas(self.datas_cache,dim=0)
@@ -455,7 +460,11 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     return False,None
                 self.datas_cache = []
                 return True,(0,data)
-            return False,None
+            if self.stop_iteration:
+                for q in self._index_queues:
+                    if q.qsize()>0:
+                        return False,None
+            raise StopIteration()
 
     @staticmethod
     def record_stream(data,stream):
@@ -666,19 +675,23 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             return self._process_data(data)
 
     def _try_put_index(self):
-        for i,index_queue in enumerate(self._index_queues):
-            if self._workers_status[i] and index_queue.qsize()<self._prefetch_factor:
-                nr = self._prefetch_factor-index_queue.qsize()
-                for _ in range(nr*2+1):
-                    index = self._next_index()
-                    if self.batch_split_nr>1:
-                        if len(index)%self.batch_split_nr!=0:
-                            print(f"ERROR: batch_split_nr = {self.batch_split_nr}, batch size = {len(index)}")
-                        indexs = wmlu.list_to_2dlistv2(index,self.batch_split_nr)
-                        for index in indexs:
+        try:
+            for i,index_queue in enumerate(self._index_queues):
+                if self._workers_status[i] and index_queue.qsize()<self._prefetch_factor:
+                    nr = self._prefetch_factor-index_queue.qsize()
+                    for _ in range(nr*2+1):
+                        index = self._next_index()
+                        if self.batch_split_nr>1:
+                            if len(index)%self.batch_split_nr!=0:
+                                print(f"ERROR: batch_split_nr = {self.batch_split_nr}, batch size = {len(index)}")
+                            indexs = wmlu.list_to_2dlistv2(index,self.batch_split_nr)
+                            for index in indexs:
+                                index_queue.put((0,index))
+                        else:
                             index_queue.put((0,index))
-                    else:
-                        index_queue.put((0,index))
+        except StopIteration:
+            self.stop_iteration = True
+            return
 
     def _process_data(self, data):
         self._try_put_index()
@@ -783,4 +796,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                         w.terminate()
 
     def __del__(self):
-        self._shutdown_workers()
+        try:
+            self._shutdown_workers()
+        except:
+            pass
