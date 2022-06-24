@@ -170,7 +170,7 @@ class DataLoader(Generic[T_co]):
     __initialized = False
 
     def __init__(self, dataset: Dataset[T_co], batch_size: Optional[int] = 1,
-                 shuffle: bool = False, sampler: Optional[Sampler[int]] = None,
+                 shuffle: bool = True, sampler: Optional[Sampler[int]] = None,
                  batch_sampler: Optional[Sampler[Sequence[int]]] = None,
                  num_workers: int = 0, collate_fn: _collate_fn_t = None,
                  pin_memory: bool = True, drop_last: bool = False,

@@ -464,7 +464,9 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 for q in self._index_queues:
                     if q.qsize()>0:
                         return False,None
-            raise StopIteration()
+                raise StopIteration()
+            else:
+                return False,None
 
     @staticmethod
     def record_stream(data,stream):
