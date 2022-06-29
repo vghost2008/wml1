@@ -966,7 +966,11 @@ def expand_spatial(net,size):
 
 def get_variables_of_collection(key=tf.GraphKeys.TRAINABLE_VARIABLES,scopes=None,re_pattern=None):
     scopes_list = []
-    if scopes is None and re_pattern is None or len(scopes)==0:
+    if scopes is not None and len(scopes)==0:
+        scopes = None
+    if re_pattern is not None and len(re_pattern)==0:
+        re_pattern = None
+    if scopes is None and re_pattern is None:
         return tf.get_collection(key)
     elif isinstance(scopes,str):
         scopes_list = [scope.strip() for scope in scopes.split(',')]

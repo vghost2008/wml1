@@ -38,16 +38,21 @@ def setup(args):
     config_path = get_config_file(args.config_file)
     cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
-    cfg.log_dir = args.log_dir
-    cfg.ckpt_dir = args.ckpt_dir
+    if len(cfg.log_dir)==0:
+        cfg.log_dir = args.log_dir
+    if len(cfg.ckpt_dir)==0:
+        cfg.ckpt_dir = args.ckpt_dir
     return cfg
 
 def text_fn(label,probability):
-    return coco_category_index[label]
+    return f"{label}:{probability:.2f}"
+
     
 def main(_):
     is_training = False
     args = default_argument_parser().parse_args()
+
+    confthre = args.confthre
 
     cfg = setup(args)
     data_loader = DataLoader(cfg=cfg, is_training=is_training)
@@ -69,7 +74,7 @@ def main(_):
 
     data_path = args.test_data_dir
     if os.path.isdir(data_path):
-        files = wmlu.recurse_get_filepath_in_dir(data_path,suffix=".jpg")
+        files = wmlu.recurse_get_filepath_in_dir(data_path,suffix=".jpg;;.bmp")
     else:
         files = [data_path]
 
@@ -77,6 +82,7 @@ def main(_):
 
     wmlu.create_empty_dir(save_path,remove_if_exists=True)
 
+    total_target = wmlu.MDict(dtype=int)
     for file in files:
         img = wmli.imread(file)
         imgs = np.expand_dims(img,axis=0)
@@ -84,16 +90,25 @@ def main(_):
 
         if RD_MASKS in res:
             r_img = odv.draw_bboxes_and_mask(img,res[RD_LABELS],res[RD_PROBABILITY],res[RD_BOXES],
-                                     res[RD_MASKS],
+                                             res[RD_MASKS],
                                              show_text=True)
         else:
             r_img = odv.bboxes_draw_on_imgv2(img,res[RD_LABELS],res[RD_PROBABILITY],res[RD_BOXES],
                                              text_fn=text_fn,
                                              show_text=True)
+        if confthre is not None:
+            mask = res[RD_PROBABILITY]>confthre
+            labels = res[RD_LABELS][mask]
+        else:
+            labels = res[RD_LABELS]
+        for x in labels:
+            total_target[x] += 1
 
         name = wmlu.base_name(file)
         img_save_path = os.path.join(save_path,name+".png")
         wmli.imwrite(img_save_path,r_img)
+    
+    wmlu.show_dict(total_target)
 
 if __name__ == "__main__":
     tf.app.run()

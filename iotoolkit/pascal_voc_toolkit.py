@@ -433,7 +433,7 @@ class PascalVOCData(object):
     def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False,absolute_coord=False):
         '''
 
-        :param label_text2id: trans a single label text to id
+        :param label_text2id: trans a single label text to id:  int func(str)
         :param shuffle:
         :param image_sub_dir:
         :param xml_sub_dir:

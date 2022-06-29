@@ -154,10 +154,11 @@ class WTransform(object):
             p0 = tf.less(value, tf.constant(value_range[1], dtype=value.dtype))
             p = tf.logical_and(p0, p)
         return p
+
     @staticmethod
     def get_pred_by_probs(probability):
         if probability is not None:
-            return tf.less(tf.random_uniform(shape=()),self.probability)
+            return tf.less(tf.random_uniform(shape=()),probability)
         else:
             return tf.constant(True,tf.bool,shape=())
 '''
@@ -2315,12 +2316,12 @@ class ShowInfo(WTransform):
             tensors += ['bboxes:',tf.shape(data_item[GT_BOXES])]
         if GT_LABELS in data_item:
             tensors += ['labels:',tf.shape(data_item[GT_LABELS])]
-        if GT_MASKS in data_item:
-            tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
         if GT_KEYPOINTS in data_item:
             tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
         if GT_LABELS in data_item:
             tensors += [data_item[GT_LABELS]]'''
+        if GT_MASKS in data_item:
+            tensors += ['mask:',tf.shape(data_item[GT_MASKS])]
         if GT_KEYPOINTS in data_item:
             tensors += ['keypoints:',tf.shape(data_item[GT_KEYPOINTS])] +[data_item[GT_KEYPOINTS]]
 

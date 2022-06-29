@@ -750,6 +750,7 @@ class SimpleTrainer(TrainerBase):
             sess = self.sess
 
         ckpt_path = os.path.expanduser(ckpt_path)
+        print(f"Ckpt path {ckpt_path}")
         wnn.restore_variables(sess,ckpt_path,**kwargs)
 
     def run_step(self):

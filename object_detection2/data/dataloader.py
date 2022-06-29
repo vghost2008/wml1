@@ -18,6 +18,7 @@ class DataLoader(wmodule.WModule):
     def __init__(self,cfg,use_initializable_iterator=False, *args,**kwargs):
         super().__init__(cfg=cfg,*args,**kwargs)
         self.trans_on_single_img,self.trans_on_batch_img = DATAPROCESS_REGISTRY.get(self.cfg.INPUT.DATAPROCESS)(cfg,self.is_training)
+        #self.trans_on_single_img = [trans.ShowInfo()]+self.trans_on_single_img
         if not isinstance(self.trans_on_batch_img,Iterable):
             self.trans_on_batch_img = [self.trans_on_batch_img]
         if self.cfg.INPUT.STITCH > 0.001:

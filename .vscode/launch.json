@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: eval",
+            "name": "Python: train fcos_m",
             "type": "python",
             "justMyCode": false,
             "request": "launch",
@@ -20,6 +20,15 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+        },
+        {
+            "name": "Python: eval",
+            "type": "python",
+            "justMyCode": false,
+            "request": "launch",
+            "program": "object_detection_tools/eval_on_images.py",
+            "console": "integratedTerminal",
+            "args":["--test_data_dir" "/home/wj/ai/mldata1/GDS1Crack/val/ng" "--gpus" "3" "--config-file" "gds1"]
         },
     ]
     

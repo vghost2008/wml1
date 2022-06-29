@@ -7,14 +7,13 @@ import time
 import numpy as np
 from multiprocessing import Pool
 import tensorflow as tf
-import object_detection.utils as odu
-import object_detection.npod_toolkit as npod
+from iotoolkit.pascal_voc_toolkit import read_voc_xml
 import shutil
 import xml.etree.ElementTree as ET
 import sys
 from iotoolkit.pascal_voc_data import *
 from wml_tfutils import int64_feature,bytes_feature,floats_feature
-from iotoolkit.pascal_voc_data import TEXT_TO_ID
+#from iotoolkit.pascal_voc_data import TEXT_TO_ID
 import img_utils as wmli
 import wml_utils as wmlu
 
@@ -22,6 +21,7 @@ SAMPLES_PER_FILES = 6000
 def _category_id_filter(category_id):
     return True
 
+TEXT_TO_ID = {"scratch":1}
 def _labels_text_to_labels(labels_text):
     for x in labels_text:
         if x not in TEXT_TO_ID:
@@ -56,9 +56,14 @@ class VOCMaker(object):
             img = self.image_preprocess(img)
             image_data = wmli.encode_img(img)
         else:
-            image_data = tf.gfile.FastGFile(img_file, 'rb').read()
+            file_lower = img_file.lower()
+            if file_lower.endswith(".jpg") or file_lower.endswith(".jpeg"):
+                image_data = tf.gfile.FastGFile(img_file, 'rb').read()
+            else:
+                img = wmli.imread(img_file)
+                image_data = wmli.encode_img(img)
 
-        shape, _bboxes, _labels_text, _difficult, _truncated,_ = odu.read_voc_xml(xml_file, adjust=None)
+        shape, _bboxes, _labels_text, _difficult, _truncated,_ = read_voc_xml(xml_file, adjust=None)
         _labels = self.labels_text_to_labels(_labels_text)
         bboxes = []
         labels_text = []
@@ -145,8 +150,8 @@ class VOCMaker(object):
     '''
     将所有图像文件按SAMPLES_PER_FILES(200)一批保存在tfrecored文件中
     '''
-    def multi_thread_to_tfrecords(self,dataset_dir, output_dir, shuffling=False,fidx=0):
-        files = wmlu.recurse_get_filepath_in_dir(dataset_dir,suffix=".jpg")
+    def multi_thread_to_tfrecords(self,dataset_dir, output_dir, shuffling=False,fidx=0,img_suffix=".jpg"):
+        files = wmlu.recurse_get_filepath_in_dir(dataset_dir,suffix=img_suffix)
 
         return self.multi_thread_to_tfrecords_by_files(files,output_dir,shuffling,fidx)
     '''
@@ -181,11 +186,17 @@ class VOCMaker(object):
 
 if __name__ == "__main__":
 
-    dataset_dir = "/media/vghost/Linux/constantData/MachineLearning/mldata/PASCAL/VOCdevkit/VOC2012"
+    '''dataset_dir = "/media/vghost/Linux/constantData/MachineLearning/mldata/PASCAL/VOCdevkit/VOC2012"
     output_dir = "/home/vghost/ai/mldata/VOC2012_tfdata"
+    img_suffix = ".jpg"
+    output_name = "train"'''
+
+    dataset_dir = "/home/wj/ai/mldata1/GDS1Crack/train/mdata0"
+    output_dir = "/home/wj/ai/mldata1/GDS1Crack/tfrecord"
+    img_suffix = ".bmp"
     output_name = "train"
 
     print('Dataset directory:', dataset_dir)
     print('Output directory:',output_dir)
     m = VOCMaker()
-    m.to_tfrecords(dataset_dir, output_dir, output_name)
+    m.multi_thread_to_tfrecords(dataset_dir, output_dir, output_name,img_suffix=img_suffix)

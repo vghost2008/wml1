@@ -40,14 +40,18 @@ def statistics_boxes(boxes,nr=100,name=""):
     pd_sizes = pd.Series(sizes)
     pd_ratios = pd.Series(ratios)
     plt.figure(0,figsize=(15,10))
-    pd_sizes.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', normed = True, label = "hist")
+    #pd_sizes.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', normed = True, label = "hist")
+    #pd_sizes.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', density=True, label = "hist")
+    pd_sizes.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', label = "hist")
     pd_sizes.plot(kind = 'kde', color = 'red', label ="kde")
     plt.grid(axis='y', alpha=0.75)
     plt.grid(axis='x', alpha=0.75)
     plt.title(name+" area")
 
     plt.figure(1,figsize=(15,10))
-    pd_ratios.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', normed = True, label = "hist")
+    #pd_ratios.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', normed = True, label = "hist")
+    #pd_ratios.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black', desnsity= True, label = "hist")
+    pd_ratios.plot(kind = 'hist', bins = nr, color = 'steelblue', edgecolor = 'black',  label = "hist")
     pd_ratios.plot(kind = 'kde', color = 'red', label ="kde")
     plt.grid(axis='y', alpha=0.75)
     plt.grid(axis='x', alpha=0.75)
@@ -302,9 +306,11 @@ def pascal_voc_dataset():
 
     data_path = "/mnt/data1/wj/ai/smldata/boedcvehicle/train"
     data_path = "/mnt/data1/wj/ai/smldata/boedcvehicle/wt_06"
+    data_path = "/home/wj/ai/mldata1/GDS1Crack/train"
+    data_path = "/home/wj/ai/mldata1/take_photo/train/coco"
     #data_path = "/home/wj/0day/wt_06"
     #data_path = '/home/wj/0day/pyz'
-    data.read_data(data_path,silent=True)
+    data.read_data(data_path,silent=True,img_suffix=".bmp;;.jpg")
 
     return data.get_items()
 
@@ -367,7 +373,7 @@ def mapillary_vistas_dataset():
 
 if __name__ == "__main__":
     nr = 100
-    def trans_img_long_size(img_size):
+    '''def trans_img_long_size(img_size):
         if img_size[0]<img_size[1]:
             k = 512/img_size[1]
         else:
@@ -379,7 +385,7 @@ if __name__ == "__main__":
             k = min_size/img_size[0]
         else:
             k = min_size/ img_size[1]
-        return [k*img_size[0],k*img_size[1]]
+        return [k*img_size[0],k*img_size[1]]'''
 
     statics = statistics_boxes_with_datas(
                                           pascal_voc_dataset(),

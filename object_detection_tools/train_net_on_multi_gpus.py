@@ -35,8 +35,10 @@ def setup(args):
     print(f"Config file {args.config_file}, gpus={os.environ['CUDA_VISIBLE_DEVICES']}")
     cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
-    cfg.log_dir = args.log_dir
-    cfg.ckpt_dir = args.ckpt_dir
+    if len(cfg.log_dir)==0:
+        cfg.log_dir = args.log_dir
+    if len(cfg.ckpt_dir)==0:
+        cfg.ckpt_dir = args.ckpt_dir
     return cfg
 
 def main(_):
@@ -47,6 +49,10 @@ def main(_):
     is_training = True
     data_args = DATASETS_REGISTRY[cfg.DATASETS.TRAIN]
     cfg.MODEL.NUM_CLASSES = data_args[2]
+
+    print("Config")
+    print(cfg)
+
     data_loader = DataLoader(cfg=cfg,is_training=is_training)
     with tf.device(":/cpu:0"):
         data,num_classes = data_loader.load_data(*data_args)
@@ -63,6 +69,7 @@ def main(_):
 
     cfg.freeze()
     config.set_global_cfg(cfg)
+
 
     '''
     用于指定在将来的某个时间点执行任务

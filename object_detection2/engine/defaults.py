@@ -38,6 +38,7 @@ def default_argument_parser():
     parser.add_argument("--runtime", default="", type=str, help="datetime to begin tarning.")
     parser.add_argument("--gpus", nargs='+',type=int, help="gpus for training.")
     parser.add_argument("--restore", type=str, help="restore option.",default="auto")  #auto, ckpt,finetune, none
+    parser.add_argument("--confthre", type=float, help="confidence threshold for predict on images.",default=None)  #auto, ckpt,finetune, none
     return parser
 
 def get_config_file(name:str):

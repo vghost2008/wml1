@@ -13,6 +13,7 @@ import object_detection_tools.visualization as odv
 import numpy as np
 from object_detection2.data.datasets.buildin import coco_category_index
 from iotoolkit.coco_toolkit import COCOData
+from iotoolkit.pascal_voc_toolkit import PascalVOCData
 from object_detection2.metrics.toolkit import *
 
 slim = tf.contrib.slim
@@ -41,19 +42,26 @@ def setup(args):
     config_path = get_config_file(args.config_file)
     cfg.merge_from_file(config_path)
     cfg.merge_from_list(args.opts)
-    cfg.log_dir = args.log_dir
-    cfg.ckpt_dir = args.ckpt_dir
+    if len(cfg.log_dir)==0:
+        cfg.log_dir = args.log_dir
+    if len(cfg.ckpt_dir)==0:
+        cfg.ckpt_dir = args.ckpt_dir
     return cfg
 
-def eval_dataset():
-    data = COCOData()
+def eval_dataset(data_dir):
+    '''data = COCOData()
     data.read_data(wmlu.home_dir("ai/mldata/coco/annotations/instances_val2014.json"),
-                   image_dir=wmlu.home_dir("ai/mldata/coco/val2014"))
+                   image_dir=wmlu.home_dir("ai/mldata/coco/val2014"))'''
+    def label_text2id(x):
+        data =  {"scratch":1}
+        return data[x]
+    data = PascalVOCData(label_text2id=label_text2id)
+    data.read_data(data_dir,img_suffix=".bmp;;.jpg;;.jpeg")
 
     return data.get_items()
 
 def text_fn(label,probability):
-    return coco_category_index[label]
+    return f"{label}:{probability:.2f}"
     
 def main(_):
     is_training = False
@@ -81,7 +89,7 @@ def main(_):
     wmlu.create_empty_dir(save_path,remove_if_exists=True)
     metrics = COCOEvaluation(num_classes=90)
 
-    items = eval_dataset()
+    items = eval_dataset(args.test_data_dir)
     
     for data in items:
         full_path, shape, gt_labels, category_names, gt_boxes, binary_masks, area, is_crowd, num_annotations_skipped = data
@@ -117,3 +125,8 @@ def main(_):
 
 if __name__ == "__main__":
     tf.app.run()
+
+'''
+python object_detection_tools/eval_on_images.py --test_data_dir ~/ai/mldata1/GDS1Crack/val/ng/ --gpus 3 --config-file gds1 --save_data_dir ~/ai/mldata1/GDS1Crack/tmp/gds1_output
+0.114|0.171
+'''

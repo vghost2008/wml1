@@ -76,6 +76,8 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
                         is_show_text=None,
                         fill_bboxes=False):
     bboxes = np.array(bboxes)
+    if len(bboxes) == 0:
+        return img
     if classes is None:
         classes = np.zeros([bboxes.shape[0]],dtype=np.int32)
     if is_relative_coordinate and np.any(bboxes>1.1):

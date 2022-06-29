@@ -213,13 +213,30 @@ def get_gpus_str(gpus):
 
 def show_model_parameters_info(net):
     print("Training parameters.")
+    total_train_parameters = 0
     for name, param in net.named_parameters():
         if param.requires_grad:
             print(name, list(param.size()), 'unfreeze')
+            total_train_parameters += param.numel()
+    print(f"Total train parameters {total_train_parameters:,}")
     print("Not training parameters.")
+    total_not_train_parameters = 0
     for name, param in net.named_parameters():
         if not param.requires_grad:
             print(name, list(param.size()), 'freeze')
+            total_not_train_parameters += param.numel()
+    print(f"Total not train parameters {total_not_train_parameters:,}")
+
+    _nr = 0
+    not_freeze_nr =0
+    for name, ms in net.named_modules():
+        if not isinstance(ms, nn.BatchNorm2d):
+            continue
+        if not ms.training:
+            _nr += 1
+        else:
+            not_freeze_nr += 1
+    print(f"Total freeze {_nr} batch normal layers, {not_freeze_nr} batch normal layer not freeze.")
 
 def get_total_and_free_memory_in_Mb(cuda_device):
     devices_info_str = os.popen(
