@@ -402,6 +402,12 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._reset(loader, first_iter=True)
         self.datas_cache = []
 
+        all_pids = f"{os.getpid()}"
+        for x in self._workers:
+            all_pids += f" {x.ident}"
+        print(f"All data workers process ids: {all_pids}")
+        print(all_pids.replace(" ",","))
+
     def _reset(self, loader, first_iter=False):
         super()._reset(loader, first_iter)
         self.stop_iteration = False

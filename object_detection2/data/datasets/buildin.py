@@ -9,6 +9,10 @@ from iotoolkit.coco_toolkit import COMPRESSED_ID_TO_TEXT as coco_compressed_id_t
 from iotoolkit.pascal_voc_data import ID_TO_TEXT as pascal_voc_id_to_text
 from datasets_tools.mot_tf_decode import get_data as mot_get_data
 import wml_utils as wmlu
+try:
+    from .mosaicdataset.get_dataset import get_dataset as mosaic_get_data
+except:
+    mosaic_get_data = None
 
 # ==== Predefined datasets and splits for COCO ==========
 dataset_root_path = wmlu.home_dir("ai/mldata")
@@ -64,6 +68,7 @@ def register_all_coco(root="datasets"):
         ("mot_train", os.path.join(dataset_root_path,"MOT/tfdata_mot_train"),mot_get_data,1,default_category_index), #1个类别表示只追踪人
         ("mot_small_train", os.path.join(dataset_root_path,"MOT/tfdata_mot_small_trainv2"),mot_get_data,1,default_category_index), #1个类别表示只追踪人
         ("gds1_train", "/home/wj/ai/mldata1/GDS1Crack/tfrecord", voc_get_data, 1, {1:"scratch"}),
+        ("gds1_train_torch", "torch:/home/wj/ai/mldata1/GDS1Crack/train/mdata0", mosaic_get_data, 1, {1:"scratch"}),
         ("gds1_eval", "/home/wj/ai/mldata1/GDS1Crack/tfrecord", voc_get_data, 1, {1: "scratch"}),
     ]
     for x in SPLITS:

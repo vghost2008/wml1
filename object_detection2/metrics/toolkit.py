@@ -663,7 +663,12 @@ class ClassesWiseModelPerformace(object):
             print(f"Classes:{classes}")
             self.data[i].show()
         sys.stdout.flush()
+        print(f"---------------------------------------------------------------")
+        print(f"All classes")
+        sys.stdout.flush()
         self.mp.show()
+        sys.stdout.flush()
+        print(f"Per classes")
         str0 = "|配置|"
         str1 = "|---|"
         str2 = "||"

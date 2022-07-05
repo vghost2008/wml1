@@ -51,6 +51,17 @@ class DataLoader(wmodule.WModule):
             num_parallel = 12
         print(f"Num parallel {num_parallel}")
 
+        if path.startswith("torch:"):
+            data = func(path[6:],
+                        num_parallel=num_parallel,
+                        filter_empty=self.cfg.INPUT.FILTER_EMPTY,
+                        category_index=category_index,
+                        batch_size=self.cfg.SOLVER.IMS_PER_BATCH,
+                        steps=self.cfg.SOLVER.STEPS)
+            data = data.prefetch(16)
+            data = data.repeat()
+            return data.make_one_shot_iterator(),num_classes
+
         print("Trans on single img:",self.trans_on_single_img)
         if ";" in path and "," in path:
             paths = self.get_paths(path)

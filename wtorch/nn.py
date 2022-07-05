@@ -227,6 +227,28 @@ class WSConv2d(nn.Conv2d):
         return F.conv2d(x, weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
+    @classmethod
+    def convert_wsconv(cls, module,exclude=None,parent=""):
+        conv_module = nn.Conv2d
+        res = module
+        if isinstance(module, conv_module):
+            res = cls(module.in_channels,module.out_channels,module.kernel_size,module.stride,
+                      module.padding,module.dilation,module.groups,module.bias is not None)
+            '''res.weight.data = module.weight.data
+            if res.bias is not None:
+                res.bias.data = module.bias.data'''
+        else:
+            for name, child in module.named_children():
+                r_name = parent+"."+name if len(parent)>0 else name
+                if exclude is not None:
+                    if name in exclude or r_name in exclude:
+                        print(f"Skip: {r_name}")
+                        continue
+                new_child = cls.convert_wsconv(child,exclude=exclude,parent=r_name)
+                if new_child is not child:
+                    res.add_module(name, new_child)
+        return res
+
 class BCNorm(nn.Module):
     def __init__(self,num_features, num_groups=32,eps=1e-5, momentum=0.1, affine=True,
                  track_running_stats=True):

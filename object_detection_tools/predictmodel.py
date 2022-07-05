@@ -16,12 +16,11 @@ from object_detection2.standard_names import *
 import wml_utils as wmlu
 from tensorflow.python.framework import graph_util
 
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 slim = tf.contrib.slim
 
 class PredictModel(object):
-    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,input_name=None,input_dtype=tf.uint8,scope=None):
+    def __init__(self,input_shape=[1,None,None,3],cfg=None,category_index=None,is_remove_batch=True,
+                 input_name=None,input_dtype=tf.uint8,scope=None,auto_rename=True):
 
         self.input_imgs = tf.placeholder(input_dtype,input_shape,name=input_name)        
         is_training = False
@@ -36,8 +35,12 @@ class PredictModel(object):
         if RD_MASKS in self.trainer.res_data:
             self.trainer.draw_on_image()
             self.trainer.add_full_size_mask()
-        if is_remove_batch:
+        if is_remove_batch and auto_rename:
+            self.remove_batch_and_rename()
+        elif is_remove_batch:
             self.remove_batch()
+        elif auto_rename:
+            print(f"Not implement.")
         print("Use default dev.")
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.allow_growth = True
@@ -110,7 +113,7 @@ class PredictModel(object):
             elif rename_fn is not None:
                 return rename_fn(name)
             else:
-                return None
+                return name
         def do_rename(key):
             if key not in data:
                 return
@@ -130,10 +133,17 @@ class PredictModel(object):
             if name is not None:
                 self.trainer.res_data_for_eval[RD_RESULT_IMAGE] = tf.identity(data[RD_RESULT_IMAGE][0],name)
 
-    def savePBFile(self,pb_path,output_names):
+    def savePBFile(self,pb_path,output_names=[RD_LABELS,RD_BOXES,RD_PROBABILITY]):
+        #
+        data = self.trainer.res_data_for_eval
+        for k,v in data.items():
+            print(k,v)
+
+        #
         sess = self.sess
         #constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,['bboxes','labels','probs','lens'])
-        print("Output names: ",self.output_names)
+        print(f"input",self.input_imgs)
+        print("Output names: ",output_names)
         print("pb path: ",pb_path)
         wmlu.create_empty_dir(os.path.dirname(pb_path),remove_if_exists=False)
         constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_names)

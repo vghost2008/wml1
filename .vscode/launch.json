@@ -14,6 +14,15 @@
             "args":["--config-file" "FCOS_M" "--gpus" "0"]
         },
         {
+            "name": "Python: train gds1",
+            "type": "python",
+            "justMyCode": false,
+            "request": "launch",
+            "program": "object_detection_tools/train_net_on_multi_gpus.py",
+            "console": "integratedTerminal",
+            "args":["--config-file" "gds1v2" "--gpus" "3"]
+        },
+        {
             "name": "Python: normal",
             "type": "python",
             "justMyCode": false,
@@ -29,6 +38,15 @@
             "program": "object_detection_tools/eval_on_images.py",
             "console": "integratedTerminal",
             "args":["--test_data_dir" "/home/wj/ai/mldata1/GDS1Crack/val/ng" "--gpus" "3" "--config-file" "gds1"]
+        },
+        {
+            "name": "Python: tf2pb",
+            "type": "python",
+            "justMyCode": false,
+            "request": "launch",
+            "program": "object_detection_tools/tf2pb.py",
+            "console": "integratedTerminal",
+            "args":["--gpus" "1"  "--config-file" "gds1v2" "--save_pb_path" "model.pb"]
         },
     ]
     

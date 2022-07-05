@@ -13,6 +13,7 @@ from .build import HEAD_OUTPUTS
 import object_detection2.wlayers as odl
 from object_detection2.modeling.matcher import Matcher
 import object_detection2.bboxes as odb
+from object_detection2.wlayers import boxes_nms
 
 slim = tf.contrib.slim
 
@@ -509,8 +510,12 @@ class FastRCNNOutputs(wmodule.WChildModule):
         with tf.name_scope("fast_rcnn_outputs_inference"):
             output_fix_nr = self.cfg.MODEL.ROI_HEADS.OUTPUTS_FIX_NR_BOXES
             if output_fix_nr < 1:
-                nms = functools.partial(tfop.boxes_nms, threshold=nms_thresh,
+                if self.is_training:
+                    nms = functools.partial(tfop.boxes_nms, threshold=nms_thresh,
                                         classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
+                else:
+                    nms = functools.partial(boxes_nms, threshold=nms_thresh,
+                                            classes_wise=self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS)
             else:
                 nms = functools.partial(tfop.boxes_nms_nr2, threshold=nms_thresh,
                                         classes_wise = self.cfg.MODEL.ROI_HEADS.CLASSES_WISE_NMS,

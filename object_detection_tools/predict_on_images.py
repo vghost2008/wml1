@@ -112,3 +112,7 @@ def main(_):
 
 if __name__ == "__main__":
     tf.app.run()
+ 
+'''
+python object_detection_tools/predict_on_images.py --gpus 0 --config gds1 --test_data_dir ~/ai/mldata1/GDS1Crack/val/ok/ --save_data_dir ~/ai/mldata1/GDS1Crack/tmp/predict_on_images --confthre 0.5
+'''

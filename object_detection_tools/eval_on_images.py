@@ -128,5 +128,13 @@ if __name__ == "__main__":
 
 '''
 python object_detection_tools/eval_on_images.py --test_data_dir ~/ai/mldata1/GDS1Crack/val/ng/ --gpus 3 --config-file gds1 --save_data_dir ~/ai/mldata1/GDS1Crack/tmp/gds1_output
-0.114|0.171
+0.114|0.171 60000
+0.111|0.164 100000
+0.116|0.175 50000
+python object_detection_tools/eval_on_images.py --test_data_dir ~/ai/mldata1/GDS1Crack/val/ng/ --gpus 3 --config-file gds1v2 --save_data_dir ~/ai/mldata1/GDS1Crack/tmp/gds1_output
+0.141|0.213 24999
+||0.145|0.222| 49999
+'''
+'''
+python -m tf2onnx.convert --graphdef tensorflow-model-graphdef-file --output model.onnx --inputs input0:0,input1:0 --outputs output0:0
 '''

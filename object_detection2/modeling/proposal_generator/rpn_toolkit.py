@@ -3,6 +3,7 @@ import tensorflow as tf
 import wml_tfutils as wmlt
 import tfop
 import basic_tftools as btf
+from object_detection2.wlayers import boxes_nms
 
 
 '''
@@ -91,6 +92,15 @@ def find_top_rpn_proposals_for_single_level(
         pre_nms_topk_max_per_layer=-1,
 ):
     with tf.name_scope("find_top_rpn_proposals_for_single_level"):
+        if proposals.shape[0]==1:
+            return find_top_rpn_proposals_for_single_level_one_batch(proposals=proposals,
+            pred_objectness_logits=pred_objectness_logits,
+            nms_thresh=nms_thresh,
+            pre_nms_topk=pre_nms_topk,
+            post_nms_topk=post_nms_topk,
+            score_threshold=score_threshold,
+            is_training=is_training,
+            pre_nms_topk_max_per_layer=pre_nms_topk_max_per_layer)
         '''
         通过top_k+gather排序
         In Detectron2, they chosen the top candiate_nr*6 boxes
@@ -114,7 +124,8 @@ def find_top_rpn_proposals_for_single_level(
                 boxes,labels,indices = tfop.boxes_nms_nr2(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
                 probability = tf.gather(probability,indices)
             else:
-                boxes,labels,indices = tfop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                #boxes,labels,indices = tfop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+                boxes,labels,indices = boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
                 probability = tf.gather(probability,indices)
                 if score_threshold > 1e-10:
                     p_mask = tf.greater(probability,score_threshold)
@@ -134,3 +145,54 @@ def find_top_rpn_proposals_for_single_level(
                                       dtype=[tf.float32,tf.float32],back_prop=False)
         
         return tf.stop_gradient(boxes),tf.stop_gradient(probability)
+
+def find_top_rpn_proposals_for_single_level_one_batch(
+        proposals,
+        pred_objectness_logits,
+        nms_thresh,
+        pre_nms_topk,
+        post_nms_topk,
+        score_threshold=-1.0,
+        is_training=True,
+        pre_nms_topk_max_per_layer=-1,
+):
+    with tf.name_scope("find_top_rpn_proposals_for_single_level_one_batch"):
+        '''
+        通过top_k+gather排序
+        In Detectron2, they chosen the top candiate_nr*6 boxes
+        '''
+        assert pred_objectness_logits.shape[0]==1, "ERROR batch size"
+        pred_objectness_logits = pred_objectness_logits[0]
+        proposals = proposals[0]
+        if pre_nms_topk_max_per_layer>10:
+            topk_nr = tf.minimum(pre_nms_topk,tf.shape(pred_objectness_logits)[0])
+            print(f"pre_nms_topk_max_per_layer = {pre_nms_topk_max_per_layer}.")
+            topk_nr = tf.minimum(topk_nr,pre_nms_topk_max_per_layer)
+        else:
+            topk_nr = tf.minimum(pre_nms_topk, tf.shape(pred_objectness_logits)[0])
+        probability,indices = tf.nn.top_k(pred_objectness_logits,
+                                          k=topk_nr)
+        proposals = tf.gather(proposals,indices)
+
+        def fn(bboxes,probability):
+            labels = tf.ones(tf.shape(bboxes)[0],dtype=tf.int32)
+            #boxes,labels,indices = tfop.boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+            boxes,labels,indices = boxes_nms(bboxes,labels,k=post_nms_topk,threshold=nms_thresh,confidence=probability)
+            probability = tf.gather(probability,indices)
+            if score_threshold > 1e-10:
+                p_mask = tf.greater(probability,score_threshold)
+
+                indices = tf.constant([[0]],dtype=tf.int32)
+                updates = tf.constant([1],dtype=tf.int32)
+                shape = tf.shape(p_mask)
+                lp_mask= tf.cast(tf.scatter_nd(indices, updates, shape),tf.bool)
+                p_mask = tf.logical_or(p_mask,lp_mask)
+
+                probability = tf.boolean_mask(probability,p_mask)
+                boxes = tf.boolean_mask(boxes,p_mask)
+
+            return [boxes,probability]
+
+        boxes,probability = fn(proposals,probability)
+        
+        return tf.expand_dims(boxes,axis=0),tf.expand_dims(probability,axis=0)

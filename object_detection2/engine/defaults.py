@@ -39,6 +39,7 @@ def default_argument_parser():
     parser.add_argument("--gpus", nargs='+',type=int, help="gpus for training.")
     parser.add_argument("--restore", type=str, help="restore option.",default="auto")  #auto, ckpt,finetune, none
     parser.add_argument("--confthre", type=float, help="confidence threshold for predict on images.",default=None)  #auto, ckpt,finetune, none
+    parser.add_argument("--save_pb_path", type=str, help="save pb path.",default="model.pb")
     return parser
 
 def get_config_file(name:str):

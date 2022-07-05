@@ -277,9 +277,11 @@ bboxes:[X,4]
 labels:[X]
 probs:[X]
 '''
-def boxes_nms(bboxes,classes,confidence,threshold=0.5,max_output_size=None,classes_wise=True):
-    if max_output_size is None:
+def boxes_nms(bboxes,classes,confidence,threshold=0.5,max_output_size=None,k=None,classes_wise=True):
+    if max_output_size is None and k is None:
         max_output_size = tf.shape(classes)[0]
+    elif k is not None:
+        max_output_size = k
     if classes_wise:
         max_val = tf.reduce_max(bboxes)
         fclasses = tf.cast(classes,tf.float32)

@@ -372,11 +372,11 @@ def nget_train_opv3(optimizer,scopes=None,re_pattern=None,loss=None,show_not_tra
     with tf.name_scope("train_op"):
         variables_to_train = get_variables_to_train(scopes,re_pattern=re_pattern)
         show_values(variables_to_train,"variables_to_train",fn=logging.info)
-        logging.info("Total train variables num %d."%(parameterNum(variables_to_train)))
+        logging.info(f"Total train variables num {parameterNum(variables_to_train):,}.")
         variables_not_to_train = get_variables_not_to_train(variables_to_train)
         if show_not_train_variable:
             show_values(variables_not_to_train,"variables_not_to_train",fn=logging.info)
-        logging.info("Total not train variables num %d."%(parameterNum(variables_not_to_train)))
+        logging.info(f"Total not train variables num {parameterNum(variables_not_to_train):,}")
 
         if not isinstance(loss,Iterable):
             loss = [loss]
