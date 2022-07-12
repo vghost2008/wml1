@@ -6,7 +6,7 @@ import random
 import numpy as np
 import object_detection2.bboxes as odb
 #import tensorboardX as tb
-#tb.SummaryWriter.add_video()
+#tb.SummaryWriter.add_image()
 #tb.add_images
 
 def log_all_variable(tb,net:torch.nn.Module,global_step):

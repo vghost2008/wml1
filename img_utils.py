@@ -229,6 +229,9 @@ def resize_short_size(img,size,interpolation=cv2.INTER_LINEAR):
         return resize_width(img,size,interpolation)
 '''
 size:(w,h)
+return:
+img,r 
+r = new_size/old_size
 '''
 def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),center_pad=True,return_scale=False):
     old_shape = img.shape
@@ -241,7 +244,7 @@ def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),cen
         return img
     else:
         res = np.ones([size[1],size[0],3],dtype=img.dtype)
-        pad_color = np.array(list(pad_color))
+        pad_color = np.array(list(pad_color),dtype=img.dtype)
         pad_color = pad_color.reshape([1,1,3])
         res = res*pad_color
         if center_pad:

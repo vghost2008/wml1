@@ -34,6 +34,21 @@ def normalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
     x = (x-offset)/scale
     return x
 
+def npnormalize(x:np.ndarray,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
+    if len(x.shape)==4:
+        scale = np.reshape(np.array(std,dtype=np.float32),[1,3,1,1])
+        offset = np.reshape(np.array(mean,dtype=np.float32),[1,3,1,1])
+    elif len(x.shape)==5:
+        scale = np.reshape(np.array(std, dtype=np.float32), [1, 1,3, 1, 1])
+        offset = np.reshape(np.array(mean, dtype=np.float32), [1,1, 3, 1, 1])
+    elif len(x.shape)==3:
+        scale = np.reshape(np.array(std, dtype=np.float32), [3, 1, 1])
+        offset = np.reshape(np.array(mean, dtype=np.float32), [3, 1, 1])
+
+    x = (x.astype(np.float32)-offset)/scale
+
+    return x
+
 def remove_prefix_from_state_dict(state_dict,prefix="module."):
     res = {}
     for k,v in state_dict.items():
@@ -168,3 +183,10 @@ def concat_datas(datas,dim=0):
         return res
     else:
         return torch.cat(datas,dim=dim)
+
+def get_model(model):
+    if hasattr(model, "module"):
+        model = model.module
+    return model
+
+TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])

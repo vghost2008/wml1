@@ -300,3 +300,75 @@ def register_forward_hook(net,hook):
         nr += 1
     if nr == 0:
         net.register_forward_hook(hook=hook)
+
+def finetune_model(model,names_not2train=None,names2train=None):
+    if names_not2train is not None:
+        return finetune_modelv2(model,names_not2train)
+
+    def is_name_of(name, names):
+        for x in names:
+            if x in name:
+                return True
+        return False
+
+    print(f"Finetune model.")
+    for name, param in model.named_parameters():
+        if is_name_of(name, names2train):
+            continue
+        print(name, param.size(), "freeze")
+        param.requires_grad = False
+
+    param_to_update = []
+    print("Training parameters.")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, list(param.size()), 'unfreeze')
+            param_to_update.append(param)
+
+    _nr = 0
+    for name, ms in model.named_modules():
+        if not isinstance(ms, nn.BatchNorm2d):
+            continue
+        if is_name_of(name, names2train):
+            print(f"{name}:{ms} unfreeze.")
+            continue
+        else:
+            print(f"{name}:{ms} freeze.")
+            ms.eval()
+            _nr += 1
+    print(f"Total freeze {_nr} batch normal layers.")
+    show_model_parameters_info(model)
+
+def finetune_modelv2(model,names_not2train):
+    def is_name_of(name, names):
+        for x in names:
+            if name.startswith(x):
+                return True
+        return False
+
+    print(f"Finetune model.")
+    for name, param in model.named_parameters():
+        if is_name_of(name, names_not2train):
+            print(name, param.size(), "freeze")
+            param.requires_grad = False
+
+    param_to_update = []
+    print("Training parameters.")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, list(param.size()), 'unfreeze')
+            param_to_update.append(param)
+
+    _nr = 0
+    for name, ms in model.named_modules():
+        if not isinstance(ms, nn.BatchNorm2d):
+            continue
+        if is_name_of(name, names_not2train):
+            print(f"{name}:{ms} freeze.")
+            ms.eval()
+            _nr += 1
+        else:
+            print(f"{name}:{ms} unfreeze.")
+            continue
+    print(f"Total freeze {_nr} batch normal layers.")
+    show_model_parameters_info(model)

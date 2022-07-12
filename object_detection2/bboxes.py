@@ -444,6 +444,8 @@ def npclip_bboxes(bboxes,max_size):
     return data
 
 def npchangexyorder(bboxes):
+    if len(bboxes)==0:
+        return bboxes
     bboxes = np.array(bboxes)
     ymin,xmin,ymax,xmax = bboxes[...,0],bboxes[...,1],bboxes[...,2],bboxes[...,3]
     data = np.stack([xmin, ymin, xmax, ymax], axis=-1)

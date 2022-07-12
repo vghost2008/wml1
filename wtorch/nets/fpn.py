@@ -6,7 +6,8 @@ import torch.nn.functional as F
 from torch import nn
 from .resnet.r50_config import _C as r50_config
 
-from detectron2.layers import Conv2d, ShapeSpec
+from .shape_spec import ShapeSpec
+from wtorch.nn import Conv2d
 from wtorch.nn import get_norm
 from .resnet.resnet import build_resnet_backbone
 

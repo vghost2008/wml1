@@ -5,8 +5,8 @@ import torch.distributed as dist
 from fvcore.nn.distributed import differentiable_all_reduce
 from torch import nn
 from torch.nn import functional as F
-
-from detectron2.utils import comm, env
+from wtorch.dist import get_world_size
+from wtorch.utils import TORCH_VERSION
 
 from .wrappers import BatchNorm2d
 
@@ -146,7 +146,7 @@ def get_norm(norm, out_channels):
         norm = {
             "BN": BatchNorm2d,
             # Fixed in https://github.com/pytorch/pytorch/pull/36382
-            "SyncBN": NaiveSyncBatchNorm if env.TORCH_VERSION <= (1, 5) else nn.SyncBatchNorm,
+            "SyncBN": NaiveSyncBatchNorm if TORCH_VERSION <= (1, 5) else nn.SyncBatchNorm,
             "FrozenBN": FrozenBatchNorm2d,
             "GN": lambda channels: nn.GroupNorm(32, channels),
             # for debugging:
@@ -190,7 +190,7 @@ class NaiveSyncBatchNorm(BatchNorm2d):
         self._stats_mode = stats_mode
 
     def forward(self, input):
-        if comm.get_world_size() == 1 or not self.training:
+        if get_world_size() == 1 or not self.training:
             return super().forward(input)
 
         B, C = input.shape[0], input.shape[1]
