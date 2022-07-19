@@ -440,6 +440,7 @@ class ModelPerformance:
 class GeneralCOCOEvaluation(object):
     def __init__(self,categories_list=None,num_classes=None,mask_on=False,label_trans=None):
         if categories_list is None:
+            print(f"WARNING: Use default categories list, start classes is 1")
             self.categories_list = [{"id":x+1,"name":str(x+1)} for x in range(num_classes)]
         else:
             self.categories_list = categories_list

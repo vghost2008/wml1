@@ -6,6 +6,7 @@ from functools import partial
 import torch.nn as nn
 import time
 import inspect
+import sys
 
 class WarmupCosLR(_LRScheduler):
     def __init__(self,optimizer, warmup_total_iters=1000,total_iters=120000,warmup_lr_start=1e-6,min_lr_ratio=0.01,last_epoch=-1, verbose=False):
@@ -307,7 +308,7 @@ def finetune_model(model,names_not2train=None,names2train=None):
 
     def is_name_of(name, names):
         for x in names:
-            if x in name:
+            if name.startswith(x) or name.startswith("module."+x):
                 return True
         return False
 
@@ -342,7 +343,7 @@ def finetune_model(model,names_not2train=None,names2train=None):
 def finetune_modelv2(model,names_not2train):
     def is_name_of(name, names):
         for x in names:
-            if name.startswith(x):
+            if name.startswith(x) or name.startswith("module."+x):
                 return True
         return False
 
@@ -372,3 +373,4 @@ def finetune_modelv2(model,names_not2train):
             continue
     print(f"Total freeze {_nr} batch normal layers.")
     show_model_parameters_info(model)
+    sys.stdout.flush()

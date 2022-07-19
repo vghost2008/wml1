@@ -2,6 +2,8 @@ import torch
 import numpy as np
 from torch._six import queue, container_abcs, string_classes
 from collections import Iterable
+import torch.nn.functional as F
+import random
 import sys
 
 def unnormalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
@@ -64,6 +66,10 @@ def forgiving_state_restore(net, loaded_dict,verbose=False):
     number of classes.
     """
 
+    if 'state_dict' in loaded_dict:
+        loaded_dict = loaded_dict['state_dict']
+    if hasattr(net,'module'):
+        net = net.module
     net_state_dict = net.state_dict()
     new_loaded_dict = {}
     used_loaded_dict_key = []
@@ -190,3 +196,64 @@ def get_model(model):
     return model
 
 TORCH_VERSION = tuple(int(x) for x in torch.__version__.split(".")[:2])
+
+'''
+fea:[B,C,H,W]
+size:(w,h)
+'''
+CENTER_PAD = 0
+RANDOM_PAD = 1
+TOPLEFT_PAD = 2
+def pad_feature(fea, size, pad_value=0, pad_type=TOPLEFT_PAD, return_pad_value=False):
+    '''
+    pad_type: 0, center pad
+    pad_type: 1, random pad
+    pad_type: 2, topleft_pad
+    '''
+    w = fea.shape[-1]
+    h = fea.shape[-2]
+    if pad_type == 0:
+        if h < size[1]:
+            py0 = (size[1] - h) // 2
+            py1 = size[1] - h - py0
+        else:
+            py0 = 0
+            py1 = 0
+        if w < size[0]:
+            px0 = (size[0] - w) // 2
+            px1 = size[0] - w - px0
+        else:
+            px0 = 0
+            px1 = 0
+    elif pad_type == 1:
+        if h < size[1]:
+            py0 = random.randint(0, size[1] - h)
+            py1 = size[1] - h - py0
+        else:
+            py0 = 0
+            py1 = 0
+        if w < size[0]:
+            px0 = random.randint(0, size[0] - w)
+            px1 = size[0] - w - px0
+        else:
+            px0 = 0
+            px1 = 0
+    elif pad_type == 2:
+        if h < size[1]:
+            py0 = 0
+            py1 = size[1] - h - py0
+        else:
+            py0 = 0
+            py1 = 0
+        if w < size[0]:
+            px0 = 0
+            px1 = size[0] - w - px0
+        else:
+            px0 = 0
+            px1 = 0
+
+    fea = F.pad(fea, [px0, px1,py0,py1], "constant", pad_value)
+
+    if return_pad_value:
+        return fea, px0, px1, py0, py1
+    return fea

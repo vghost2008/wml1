@@ -209,6 +209,16 @@ def resize_img(img,size,keep_aspect_ratio=False,interpolation=cv2.INTER_LINEAR,a
         return img
     return cv2.resize(img,dsize=size,interpolation=interpolation)
 
+def resize_imgv2(img,size,interpolation=cv2.INTER_LINEAR,return_scale=False):
+    old_shape = img.shape
+    img = resize_img(img,size,keep_aspect_ratio=True,interpolation=interpolation)
+
+    if return_scale:
+        r = img.shape[0]/max(old_shape[0],1)
+        return img,r
+    else:
+        return img
+
 def resize_height(img,h,interpolation=cv2.INTER_LINEAR):
     shape = img.shape
     new_h = h
@@ -261,6 +271,7 @@ def resize_and_pad(img,size,interpolation=cv2.INTER_LINEAR,pad_color=(0,0,0),cen
             return res,r
         else:
             return res
+
 
 def flip_left_right_images(images):
     return tf.map_fn(tf.image.flip_left_right,elems=images,back_prop=False)
@@ -436,11 +447,14 @@ def center_crop(img,size,pad_value=127):
 img:[H,W,C]
 size:(w,h)
 '''
-def pad_img(img,size,pad_value=127,pad_type=0,return_pad_value=False):
+CENTER_PAD=0
+RANDOM_PAD=1
+TOPLEFT_PAD=2
+def pad_img(img,size,pad_value=127,pad_type=CENTER_PAD,return_pad_value=False):
     '''
     pad_type: 0, center pad
     pad_type: 1, random pad
-    pad_type: 2, top_pad
+    pad_type: 2, topleft_pad
 
     '''
     if pad_type==0:
@@ -491,6 +505,29 @@ def pad_img(img,size,pad_value=127,pad_type=0,return_pad_value=False):
         return img,px0,px1,py0,py1
     return img
 
+'''
+img:[H,W,C]
+size:(w,h)
+'''
+def pad_imgv2(img,size,pad_color=(0,0,0),center_pad=False):
+    if img.shape[0] == size[1] and img.shape[1] == size[0]:
+        return img
+    else:
+        res = np.ones([size[1],size[0],3],dtype=img.dtype)
+        pad_color = np.array(list(pad_color),dtype=img.dtype)
+        pad_color = pad_color.reshape([1,1,3])
+        res = res*pad_color
+        if center_pad:
+            offset_x = (size[0]-img.shape[1])//2
+            offset_y = (size[1]-img.shape[0])//2
+        else:
+            offset_x = 0
+            offset_y = 0
+
+        w = img.shape[1]
+        h = img.shape[0]
+        res[offset_y:offset_y+h,offset_x:offset_x+w,:] = img
+        return res
 
 def pad_imgv2(img,px0,px1,py0,py1,pad_value=127):
     if len(img.shape)==3:

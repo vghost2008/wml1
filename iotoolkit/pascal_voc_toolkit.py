@@ -433,6 +433,28 @@ def removeUnmatchVOCFiles(dir_path,image_sub_dir="JPEGImages",xml_sub_dir="Annot
     
     print(f"Total remove {total_removed_jpgs} images, total remove {total_removed_xmls} xmls.")
 
+
+def split_voc_files(files,nr=1):
+    '''
+
+    Args:
+        files: List((xml_file,img_file))
+
+    Returns:
+        files0,files1: len(labels) of files0 < nr, len(labels) of files1 > =nr
+
+    '''
+    files0 = []
+    files1 = []
+    for xml_file,img_file in files:
+        shape, bboxes, labels_text, difficult, truncated, probs = read_voc_xml(xml_file)
+        if len(labels_text)<nr:
+            files0.append((xml_file,img_file))
+        else:
+            files1.append((xml_file,img_file))
+
+    return files0,files1
+
 class PascalVOCData(object):
     def __init__(self, label_text2id=None, shuffle=False,image_sub_dir=None,xml_sub_dir=None,has_probs=False,absolute_coord=False):
         '''

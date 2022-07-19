@@ -9,14 +9,14 @@ import os.path as osp
 import sys
 import warnings
 from multiprocessing import Pool
-
+import img_utils as wmli
 import mmcv
 import numpy as np
 
-img_process_fn = None
-'''def img_process_fn(img):
-    H,W,_ = img.shape
-    return img[:,W//2:]'''
+#img_process_fn = None
+def img_process_fn(img):
+    img = wmli.sub_imagev2(img, [605, 80, 1605, 1080])
+    return img
 
 def extract_frame(vid_item):
     """Generate optical flow using dense flow.

@@ -7,6 +7,7 @@ from PIL import Image
 from iotoolkit.coco_toolkit import JOINTS_PAIR as COCO_JOINTS_PAIR
 from .basic_datadef import colors_tableau as _colors_tableau
 from .basic_datadef import DEFAULT_COLOR_MAP as _DEFAULT_COLOR_MAP
+import object_detection2.bboxes as odb
 
 colors_tableau = _colors_tableau
 DEFAULT_COLOR_MAP = _DEFAULT_COLOR_MAP
@@ -71,7 +72,7 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
                         color_fn=random_color_fn,
                         text_fn=default_text_fn,
                         get_text_pos_fn=get_text_pos_fn,
-                        thickness=4,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
+                        thickness=2,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
                         is_relative_coordinate=True,
                         is_show_text=None,
                         fill_bboxes=False):
@@ -132,6 +133,23 @@ def draw_bboxes(img, classes=None, scores=None, bboxes=None,
             
 
     return img
+
+def draw_bboxes_xy(img, classes=None, scores=None, bboxes=None,
+                color_fn=random_color_fn,
+                text_fn=default_text_fn,
+                get_text_pos_fn=get_text_pos_fn,
+                thickness=2,show_text=True,font_scale=1.2,text_color=(0.,255.,0.),
+                is_relative_coordinate=False,
+                is_show_text=None,
+                fill_bboxes=False):
+
+    bboxes = odb.npchangexyorder(bboxes)
+    return draw_bboxes(img,classes,scores=scores,bboxes=bboxes,color_fn=color_fn,
+                       text_fn=text_fn,get_text_pos_fn=get_text_pos_fn,thickness=thickness,
+                       show_text=show_text,font_scale=font_scale,text_color=text_color,
+                       is_relative_coordinate=is_relative_coordinate,
+                       is_show_text=is_show_text,
+                       fill_bboxes=fill_bboxes)
 
 def draw_legend(labels,text_fn,img_size,color_fn,thickness=4,font_scale=1.2,text_color=(0.,255.,0.),fill_bboxes=True):
     '''
