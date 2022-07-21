@@ -308,6 +308,7 @@ def pascal_voc_dataset():
     data_path = "/mnt/data1/wj/ai/smldata/boedcvehicle/wt_06"
     data_path = "/home/wj/ai/mldata1/GDS1Crack/train"
     data_path = "/home/wj/ai/mldata1/take_photo/train/coco"
+    data_path = "/mnt/data1/wj/ai/mldata/MOT/MOT17/train/MOT17-09-SDP/img1"
     #data_path = "/home/wj/0day/wt_06"
     #data_path = '/home/wj/0day/pyz'
     data.read_data(data_path,silent=True,img_suffix=".bmp;;.jpg")

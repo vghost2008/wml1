@@ -5,6 +5,7 @@ from collections import Iterable
 import torch.nn.functional as F
 import random
 import sys
+from functools import wraps
 
 def unnormalize(x:torch.Tensor,mean=[0.0,0.0,0.0],std=[1.0,1.0,1.0]):
     if len(x.size())==4:
@@ -257,3 +258,21 @@ def pad_feature(fea, size, pad_value=0, pad_type=TOPLEFT_PAD, return_pad_value=F
     if return_pad_value:
         return fea, px0, px1, py0, py1
     return fea
+
+def split_forward_batch32(func):
+    @wraps(func)
+    def wrapper(self, data):
+        step = 32
+        res = []
+        cur_idx = 0
+        while cur_idx<data.shape[0]:
+            ret_val = func(self, data[cur_idx:cur_idx+step])
+            cur_idx += step
+            res.append(ret_val)
+        if len(res)==1:
+            return res[0]
+        if torch.is_tensor(res[0]):
+            return torch.cat(res,dim=0)
+        else:
+            return np.concatenate(res,axis=0)
+    return wrapper

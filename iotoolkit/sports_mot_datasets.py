@@ -1,15 +1,17 @@
 import wml_utils as wmlu
 import os
 import numpy as np
+import os.path as osp
 
 class SportsMOTDatasets(object):
-    def __init__(self,dirs,absolute_coord=False):
+    def __init__(self,dirs,absolute_coord=False,use_det=False):
         if not isinstance(dirs,list):
             dirs = [dirs]
         self.dirs = dirs
         self.tid_curr = 0
         self.dir_curr = 0
         self.absolute_coord = absolute_coord
+        self.use_det = use_det
 
     def get_data_items(self):
         dir_idx = -1
@@ -21,9 +23,12 @@ class SportsMOTDatasets(object):
                 seq_width = int(seq_info[seq_info.find('imWidth=') + 8:seq_info.find('\nimHeight')])
                 seq_height = int(seq_info[seq_info.find('imHeight=') + 9:seq_info.find('\nimExt')])
 
-                gt_txt = os.path.join(seq_root, seq, 'gt', 'gt.txt')
+                if self.use_det:
+                    gt_txt = osp.join(seq_root,seq,"det","det.txt")
+                else:
+                    gt_txt = os.path.join(seq_root, seq, 'gt', 'gt.txt')
                 if not os.path.exists(gt_txt):
-                    print(f"{gt_txt} not exists!")
+                    print(f"{gt_txt} not exists.")
                     continue
                 gt = np.loadtxt(gt_txt, dtype=np.float64, delimiter=',')
                 idx = np.lexsort(gt.T[:2, :])
