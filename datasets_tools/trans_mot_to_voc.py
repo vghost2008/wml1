@@ -10,5 +10,5 @@ def trans_data(data_dir,use_det=False):
 
 if __name__ == "__main__":
     #trans_data("/home/wj/ai/mldata1/SportsMOT-2022-4-24/data/sportsmot_publish/dataset/val")
-    trans_data("/home/wj/ai/mldata/MOT/MOT17/train",use_det=True)
+    trans_data("/home/wj/ai/mldata/MOT/MOT15/train",use_det=False)
     #trans_data("/home/wj/ai/mldata/MOT/MOT17/test",use_det=True)

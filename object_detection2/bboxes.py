@@ -1355,3 +1355,35 @@ def npbbxoes_nms(bboxes,nms_thrsh=0.5):
     mask = mask.tolist()
     bboxes = bboxes[mask]
     return bboxes,mask
+
+def iou_matrix(bboxes0,bboxes1):
+    ious = []
+    for bbox in bboxes0:
+        _ious = npbboxes_jaccard(bboxes1,[bbox])
+        ious.append(_ious)
+    return np.array(ious,dtype=np.float32)
+
+
+def giou_matrix(atlbrs, btlbrs):
+    ious = np.zeros((len(atlbrs), len(btlbrs)), dtype=np.float)
+    if ious.size == 0:
+        return ious
+
+    for i in range(len(atlbrs)):
+        bbox0 = atlbrs[i]
+        _gious = npgiou([bbox0], btlbrs)
+        ious[i] = _gious
+    return ious
+
+def is_point_in_bbox(p,bbox):
+    '''
+
+    Args:
+        p: (x,y)
+        bbox: (x0,y0,x1,y1)
+
+    Returns:
+    '''
+    if p[0]>=bbox[0] and p[0]<=bbox[2] and p[1]>=bbox[1] and p[1]<=bbox[3]:
+        return True
+    return False

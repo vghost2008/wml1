@@ -64,6 +64,7 @@ def default_text_fn(label,score):
     return str(label)
 
 '''
+bboxes: [N,4] (y0,x0,y1,x1)
 color_fn: tuple(3) (*f)(label)
 text_fn: str (*f)(label,score)
 get_text_pos_fn: tuple(2) (*f)(lt_corner,br_corner,bboxes,label)
